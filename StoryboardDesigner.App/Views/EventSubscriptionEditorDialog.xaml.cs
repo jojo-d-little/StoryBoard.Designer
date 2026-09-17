@@ -16,7 +16,7 @@ public partial class EventSubscriptionEditorDialog : Window
 {
     private const string DefaultLane = "foreground";
     private const string DefaultOnMissingAction = "DiagnosticOnly";
-    private const string EventSubscriptionSchemaRelativePath = "Config\\EventSubscription.core.schema.json";
+    private const string EventSubscriptionSchemaRelativePath = "schemas\\runtime\\DtoContracts\\Core\\EventSubscription.core.schema.json";
     private const string EventPayloadManifestRelativePath = "Config\\event-payload.manifest.json";
     private const string ActionPayloadManifestRelativePath = "Config\\action-payload.manifest.json";
     private static readonly Lazy<IReadOnlyList<string>> LaneOptions = new(LoadLaneOptionsFromSchema);

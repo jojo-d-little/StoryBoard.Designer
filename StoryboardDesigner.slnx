@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="StoryboardDesigner.App.SmokeTests/StoryboardDesigner.App.SmokeTests.csproj" />
+  <Project Path="StoryboardDesigner.App.Tests/StoryboardDesigner.App.Tests.csproj" />
+  <Project Path="StoryboardDesigner.App/StoryboardDesigner.App.csproj" />
+</Solution>
