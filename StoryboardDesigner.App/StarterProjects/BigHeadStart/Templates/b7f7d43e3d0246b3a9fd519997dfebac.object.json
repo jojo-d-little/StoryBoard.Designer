@@ -1,0 +1,122 @@
+{
+  "objectType": "BasicDoor_EW",
+  "positionX": 0,
+  "positionY": 0,
+  "includeInPreview": true,
+  "linkActionsToBaseObject": false,
+  "productionName": "",
+  "nameSynonyms": [],
+  "imageVariants": [
+    {
+      "variantName": "Closed",
+      "fullImagePath": "ASSETROOT:/PlaceHolderImages/DarkDoor.png",
+      "imageLocalAlignmentRotationDegrees": 0,
+      "imageLocalAlignmentOffsetX": 25,
+      "imageLocalAlignmentOffsetY": 0,
+      "imageScale": 1,
+      "isDefault": true
+    },
+    {
+      "variantName": "Open",
+      "fullImagePath": "ASSETROOT:/PlaceHolderImages/DarkDoorOpen.png",
+      "imageLocalAlignmentRotationDegrees": 0,
+      "imageLocalAlignmentOffsetX": 25,
+      "imageLocalAlignmentOffsetY": 0,
+      "imageScale": 1,
+      "isDefault": false
+    }
+  ],
+  "imageRotationDegrees": 0,
+  "appearance": {
+    "spatialType": "SolidObject",
+    "isMovableDefaultValue": true,
+    "footprintWidthCells": 7,
+    "footprintHeightCells": 1,
+    "footprintOrientation": "N",
+    "headingDirection": "N",
+    "objectHeightUnits": 1,
+    "isHeightPinned": false,
+    "stackScaleStepOverride": 0.1,
+    "minStackScaleOverride": 0.5
+  },
+  "isInventoriable": false,
+  "inventoryPointsDefaultValue": 1,
+  "isContainer": false,
+  "containerPointsDefaultValue": 1,
+  "isOpenable": true,
+  "isOpenDefaultValue": false,
+  "isLockable": true,
+  "isLockedDefaultValue": false,
+  "isActivatable": false,
+  "isActiveDefaultValue": false,
+  "isHidable": false,
+  "isHiddenDefaultValue": false,
+  "description": "",
+  "isQuantifiable": false,
+  "quantity": 1,
+  "quantifiablePlacementDistributionMode": "GroupedStack",
+  "containedObjects": [],
+  "id": "b7f7d43e-3d02-46b3-a9fd-519997dfebac",
+  "name": "BasicDoor_EW",
+  "nameInGame": "BasicDoor_EW",
+  "hideEmptyConfiguration": false,
+  "validationErrors": [],
+  "ignoredValidationRuleIds": [],
+  "scopeKind": "Templates",
+  "procedureIds": [],
+  "gameProperties": [
+    {
+      "id": "d7da5f0e-8a6a-42f1-a321-29c78404307f",
+      "name": "isOpen",
+      "defaultValue": "false",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "41d0d5ff-72f5-4adf-ad4c-e85f887fa053",
+      "name": "isLocked",
+      "defaultValue": "false",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "775eaa58-13ed-443e-82fb-3e1868a6a7a2",
+      "name": "lookingFromHere",
+      "defaultValue": "",
+      "valueRestriction": "Unrestricted",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "c22d5c2c-9e8f-4f0a-967a-25daa05bebe6",
+      "name": "destinationFromHere",
+      "defaultValue": "",
+      "valueRestriction": "Unrestricted",
+      "lifetime": "Singleton"
+    }
+  ],
+  "additionalVerbs": [],
+  "additionalDirectionals": [],
+  "additionalDirectionalTraversalMappings": [],
+  "availableGameActions": [
+    {
+      "id": "13366a9e-8ee8-4681-b30c-bfa2861a7c2e",
+      "name": "look_basicdoor",
+      "payload": {
+        "$payloadType": "echoMessage"
+      },
+      "actionType": "EchoMessage",
+      "noVerbLinkage": false,
+      "verbListText": "look",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "",
+        "Success": "The door to the {self.destinationFromHere} is to {self.lookingFromHere} \r\nIF {self.isOpen}\r\nit is open.\r\nELSE\r\nit is closed.\r\nENDIF"
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    }
+  ],
+  "eventSubscriptions": [],
+  "timerDefinitions": [],
+  "soundEffectLibraryEntries": []
+}

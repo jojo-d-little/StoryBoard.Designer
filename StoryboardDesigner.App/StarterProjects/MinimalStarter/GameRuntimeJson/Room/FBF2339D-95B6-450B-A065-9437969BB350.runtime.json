@@ -1,0 +1,132 @@
+{
+  "description": "",
+  "roomDisplayMode": "Independent",
+  "images": [
+    {
+      "slot": "Default",
+      "overlayRenderOrder": 150,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": "",
+      "imagePathSemantics": "runtimeExportRelative"
+    },
+    {
+      "slot": "Down",
+      "overlayRenderOrder": 0,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": "",
+      "imagePathSemantics": "runtimeExportRelative"
+    },
+    {
+      "slot": "East",
+      "overlayRenderOrder": 100,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": "",
+      "imagePathSemantics": "runtimeExportRelative"
+    },
+    {
+      "slot": "North",
+      "overlayRenderOrder": 100,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": "",
+      "imagePathSemantics": "runtimeExportRelative"
+    },
+    {
+      "slot": "NorthEast",
+      "overlayRenderOrder": 200,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": "",
+      "imagePathSemantics": "runtimeExportRelative"
+    },
+    {
+      "slot": "NorthWest",
+      "overlayRenderOrder": 200,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": "",
+      "imagePathSemantics": "runtimeExportRelative"
+    },
+    {
+      "slot": "South",
+      "overlayRenderOrder": 100,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": "",
+      "imagePathSemantics": "runtimeExportRelative"
+    },
+    {
+      "slot": "SouthEast",
+      "overlayRenderOrder": 200,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": "",
+      "imagePathSemantics": "runtimeExportRelative"
+    },
+    {
+      "slot": "SouthWest",
+      "overlayRenderOrder": 200,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": "",
+      "imagePathSemantics": "runtimeExportRelative"
+    },
+    {
+      "slot": "Up",
+      "overlayRenderOrder": 150,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": "",
+      "imagePathSemantics": "runtimeExportRelative"
+    },
+    {
+      "slot": "West",
+      "overlayRenderOrder": 100,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": "",
+      "imagePathSemantics": "runtimeExportRelative"
+    }
+  ],
+  "Id": "fbf2339d-95b6-450b-a065-9437969bb350",
+  "name": "New Room",
+  "nameInGame": "New Room",
+  "scopeKind": "Room",
+  "availableGameActions": []
+}

@@ -1,0 +1,59 @@
+<Window x:Class="StoryboardDesigner.App.Views.SharedVariablesManagerDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Shared Variables Manager"
+        Height="460"
+        Width="760"
+        MinHeight="340"
+        MinWidth="620"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="SummaryTextBlock"
+                   Margin="0,0,0,10"
+                   Foreground="#374151"
+                   Text="Shared variable metadata and participation overview." />
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10" VerticalAlignment="Center">
+            <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Display Name" />
+            <TextBox x:Name="SelectedDisplayNameTextBox" Width="280" Margin="0,0,8,0" />
+            <Button x:Name="RenameSelectedButton"
+                Content="Rename Selected"
+                Margin="0,0,8,0"
+                Padding="10,4"
+                Click="RenameSelected_OnClick" />
+            <Button x:Name="DropEmptySelectedButton"
+                Content="Drop Empty Selected"
+                Padding="10,4"
+                Click="DropEmptySelected_OnClick" />
+        </StackPanel>
+
+        <DataGrid Grid.Row="2"
+                  x:Name="SharedVariablesDataGrid"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  IsReadOnly="True"
+                  HeadersVisibility="Column"
+              SelectionMode="Single"
+              SelectionChanged="SharedVariablesDataGrid_OnSelectionChanged">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="3*" />
+                <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="4*" />
+                <DataGridTextColumn Header="Participants" Binding="{Binding ParticipantCount}" Width="*" />
+                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="2*" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Width="90" Content="Close" IsDefault="True" IsCancel="True" Click="Close_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

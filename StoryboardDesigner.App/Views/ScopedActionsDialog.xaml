@@ -1,0 +1,138 @@
+<Window x:Class="StoryboardDesigner.App.Views.ScopedActionsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="clr-namespace:StoryboardDesigner.App.Converters"
+        xmlns:vm="clr-namespace:StoryboardDesigner.App.ViewModels"
+        Title="Scoped Game Actions"
+        Height="640"
+        Width="1140"
+        MinHeight="520"
+        MinWidth="920"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Window.Resources>
+        <conv:InverseBooleanConverter x:Key="InverseBooleanConverter" />
+
+    </Window.Resources>
+
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   FontSize="17"
+                   FontWeight="SemiBold"
+                   Foreground="#111827"
+                   Text="Scoped Game Actions" />
+
+        <Border Grid.Row="1" Margin="0,8,0,10" Padding="10" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6">
+            <TextBlock TextWrapping="Wrap" Foreground="#374151" Text="Game actions are standalone entities at this scope. Configure verb triggers and an optional direction trigger for each game action." />
+        </Border>
+
+        <Grid Grid.Row="2" Grid.IsSharedSizeScope="True">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                <TextBlock VerticalAlignment="Center" Foreground="#6B7280" Text="Target Scope:" />
+                <TextBlock x:Name="ScopeLabelText" Margin="6,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#111827" />
+                <Button Margin="14,0,0,0" Padding="10,2" Content="Add Game Action" ToolTip="Create a new standalone game action at this scope." Click="AddAction_OnClick" />
+                <Button Margin="8,0,0,0" Padding="10,2" Content="Validate Game Actions" ToolTip="Run validation checks for missing links, invalid settings, and conflicting action signatures." Click="ValidateActions_OnClick" />
+            </StackPanel>
+
+            <Border Grid.Row="1"
+                    Margin="0,0,0,6"
+                    Padding="6"
+                    Background="#EEF2F7"
+                    BorderBrush="#E5E7EB"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="ColEdit" />
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="ColRemove" />
+                        <ColumnDefinition Width="190" SharedSizeGroup="ColName" />
+                        <ColumnDefinition Width="190" SharedSizeGroup="ColVerb" />
+                        <ColumnDefinition Width="150" SharedSizeGroup="ColDirectional" />
+                        <ColumnDefinition Width="160" SharedSizeGroup="ColType" />
+                        <ColumnDefinition Width="*" SharedSizeGroup="ColSummary" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="2" Margin="2,0,6,0" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#374151" Text="Game Action Name" ToolTip="Designer-facing name used to identify the action in lists and links." />
+                    <TextBlock Grid.Column="3" Margin="2,0,6,0" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#374151" Text="Verb" ToolTip="Verb triggers bound to this action for command matching." />
+                    <TextBlock Grid.Column="4" Margin="2,0,6,0" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#374151" Text="Directional" ToolTip="Optional direction qualifier that narrows when the action matches." />
+                    <TextBlock Grid.Column="5" Margin="2,0,6,0" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#374151" Text="Type" ToolTip="Runtime behavior executed when this action matches." />
+                    <TextBlock Grid.Column="6" Margin="2,0,6,0" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#374151" Text="Summary" ToolTip="Preview of key settings configured for this action." />
+                </Grid>
+            </Border>
+
+            <ListBox x:Name="ActionsListBox" Grid.Row="2">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="0,2" Padding="6" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Background="#F9FAFB">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="ColEdit" />
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="ColRemove" />
+                                    <ColumnDefinition Width="190" SharedSizeGroup="ColName" />
+                                    <ColumnDefinition Width="190" SharedSizeGroup="ColVerb" />
+                                    <ColumnDefinition Width="150" SharedSizeGroup="ColDirectional" />
+                                    <ColumnDefinition Width="160" SharedSizeGroup="ColType" />
+                                    <ColumnDefinition Width="*" SharedSizeGroup="ColSummary" />
+                                </Grid.ColumnDefinitions>
+
+                                <Button Grid.Column="0" Content="Edit" Padding="8,2" Margin="0,0,6,0" ToolTip="Open the full action editor for this game action." Click="EditAction_OnClick" />
+                                <Button Grid.Column="1" Content="Remove" Padding="8,2" Margin="0,0,6,0" ToolTip="Delete this game action from the current scope." Click="RemoveAction_OnClick" />
+
+                                <TextBox Grid.Column="2" Margin="0,0,6,0" Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" ToolTip="Editable display name for this game action." />
+
+                                <TextBox Grid.Column="3"
+                                         Margin="0,0,6,0"
+                                         IsReadOnly="True"
+                                         Cursor="Hand"
+                                         PreviewMouseLeftButtonDown="VerbEditor_OnPreviewMouseLeftButtonDown"
+                                         Text="{Binding VerbListText, Mode=OneWay}"
+                                         ToolTip="Click to edit verbs" />
+
+                                <ComboBox Grid.Column="4"
+                                          Margin="0,0,6,0"
+                                          IsEditable="True"
+                                          IsEnabled="{Binding NoVerbLinkage, Converter={StaticResource InverseBooleanConverter}}"
+                                          ItemsSource="{Binding DirectionalSuggestions, RelativeSource={RelativeSource AncestorType=Window}}"
+                                          ToolTip="Optional directional qualifier, such as north or east, to narrow action matching."
+                                          Text="{Binding DirectionQualifierText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                                <ComboBox Grid.Column="5"
+                                          Margin="0,0,6,0"
+                                          ItemsSource="{Binding Source={x:Static vm:CommandActionTypeValues.All}}"
+                                          ToolTip="Select the runtime behavior type this action should execute."
+                                          SelectedItem="{Binding ActionType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                                <TextBlock Grid.Column="6"
+                                           Margin="6,0,6,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="#6B7280"
+                                           Text="{Binding SummaryPreview}"
+                                           ToolTip="{Binding SummaryTooltip}"
+                                           TextWrapping="NoWrap"
+                                           TextTrimming="CharacterEllipsis" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Width="100" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
+            <Button Width="100" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

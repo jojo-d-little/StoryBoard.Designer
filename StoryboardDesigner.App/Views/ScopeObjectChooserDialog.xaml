@@ -1,0 +1,172 @@
+<Window x:Class="StoryboardDesigner.App.Views.ScopeObjectChooserDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Choose Scope Object"
+        Height="520"
+        Width="800"
+        MinHeight="420"
+        MinWidth="660"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Margin="0,0,0,8"
+                   Foreground="#4B5563"
+                   TextWrapping="Wrap"
+                   Text="Choose a scope object. Use filters and relation toggles to narrow choices quickly." />
+
+        <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ComboBox x:Name="RoomFilterComboBox"
+                      Grid.Column="0"
+                      Margin="0,0,6,0"
+                      DisplayMemberPath="Label"
+                      SelectedValuePath="Value"
+                      SelectionChanged="RoomFilterComboBox_OnSelectionChanged" />
+                <Button x:Name="RefreshResultsButton"
+                    Grid.Column="1"
+                    Width="110"
+                    Content="Refresh"
+                    Click="RefreshResultsButton_OnClick" />
+        </Grid>
+
+        <StackPanel Grid.Row="2"
+                Margin="0,0,0,8"
+                Orientation="Horizontal">
+            <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" Foreground="#4B5563" Text="Scope types:" />
+            <CheckBox x:Name="IncludeGlobalCheckBox"
+                  Margin="0,0,12,0"
+                  Content="Global"
+                  Checked="ScopeTypeOptions_OnChanged"
+                  Unchecked="ScopeTypeOptions_OnChanged" />
+            <CheckBox x:Name="IncludePlanetCheckBox"
+                  Margin="0,0,12,0"
+                  Content="Planet"
+                  Checked="ScopeTypeOptions_OnChanged"
+                  Unchecked="ScopeTypeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeCountryCheckBox"
+                  Margin="0,0,12,0"
+                  Content="Country"
+                  Checked="ScopeTypeOptions_OnChanged"
+                  Unchecked="ScopeTypeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeAreaCheckBox"
+                  Margin="0,0,12,0"
+                  Content="Area"
+                  Checked="ScopeTypeOptions_OnChanged"
+                  Unchecked="ScopeTypeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeRoomCheckBox"
+                  Margin="0,0,12,0"
+                  Content="Room"
+                  Checked="ScopeTypeOptions_OnChanged"
+                  Unchecked="ScopeTypeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeObjectCheckBox"
+                  Content="Game Object"
+                  Checked="ScopeTypeOptions_OnChanged"
+                  Unchecked="ScopeTypeOptions_OnChanged" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="3"
+                    Margin="0,0,0,8"
+                    Orientation="Horizontal">
+            <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" Foreground="#4B5563" Text="Include:" />
+            <CheckBox x:Name="IncludeParentCheckBox"
+                      Margin="0,0,12,0"
+                      Content="Parent"
+                      Checked="ScopeOptions_OnChanged"
+                      Unchecked="ScopeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeAncestorsCheckBox"
+                      Margin="0,0,12,0"
+                      Content="Ancestors"
+                      Checked="ScopeOptions_OnChanged"
+                      Unchecked="ScopeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeChildrenCheckBox"
+                      Margin="0,0,12,0"
+                      Content="Children"
+                      Checked="ScopeOptions_OnChanged"
+                      Unchecked="ScopeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeDescendantsCheckBox"
+                      Margin="0,0,12,0"
+                      Content="Descendants"
+                      Checked="ScopeOptions_OnChanged"
+                      Unchecked="ScopeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeSiblingsCheckBox"
+                      Margin="0,0,12,0"
+                      Content="Siblings"
+                      Checked="ScopeOptions_OnChanged"
+                      Unchecked="ScopeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeTraversalLegsCheckBox"
+                      IsEnabled="False"
+                      ToolTip="Deferred: traversal-leg provider support is planned for a future iteration."
+                      Content="Traversal legs"
+                      Checked="ScopeOptions_OnChanged"
+                      Unchecked="ScopeOptions_OnChanged" />
+        </StackPanel>
+
+        <Grid Grid.Row="4" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="120" />
+            </Grid.ColumnDefinitions>
+
+            <TextBox x:Name="ScopePathFilterTextBox"
+                     Grid.Column="0"
+                     Margin="0,0,6,0"
+                     ToolTip="Contains filter for scope path"
+                     TextChanged="Filters_OnTextChanged"
+                     PreviewKeyDown="FilterTextBox_OnPreviewKeyDown" />
+
+            <TextBox x:Name="OwnerContextFilterTextBox"
+                     Grid.Column="1"
+                     Margin="0,0,6,0"
+                     ToolTip="Contains filter for object context"
+                     TextChanged="Filters_OnTextChanged"
+                     PreviewKeyDown="FilterTextBox_OnPreviewKeyDown" />
+        </Grid>
+
+        <DataGrid x:Name="ChoicesDataGrid"
+              Grid.Row="5"
+                  IsReadOnly="True"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  CanUserResizeRows="False"
+                  SelectionMode="Single"
+                  SelectionUnit="FullRow"
+                  MouseDoubleClick="ChoicesDataGrid_OnMouseDoubleClick"
+                  PreviewKeyDown="ChoicesDataGrid_OnPreviewKeyDown">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Scoped Path"
+                                    Binding="{Binding ScopePath}"
+                                    SortMemberPath="ScopePath"
+                                    Width="*" />
+                <DataGridTextColumn Header="Object Context"
+                                    Binding="{Binding OwnerContext}"
+                                    SortMemberPath="OwnerContext"
+                                    Width="*" />
+                <DataGridTextColumn Header="Scope"
+                                    Binding="{Binding Scope}"
+                                    SortMemberPath="Scope"
+                                    Width="120" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Width="100" Margin="0,0,8,0" Content="Select" Click="Select_OnClick" />
+            <Button Width="100" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

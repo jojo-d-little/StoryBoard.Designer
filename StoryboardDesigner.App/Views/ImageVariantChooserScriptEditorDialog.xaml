@@ -1,0 +1,60 @@
+<Window x:Class="StoryboardDesigner.App.Views.ImageVariantChooserScriptEditorDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:StoryboardDesigner.App.Views.Controls"
+        Title="Image Variant Chooser Script"
+        Height="560"
+        Width="960"
+        MinHeight="460"
+        MinWidth="780"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Margin="0,0,0,10" Padding="10" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6">
+            <TextBlock TextWrapping="Wrap" Foreground="#374151"
+                       Text="Build chooser logic with guided variables and variant-name insertion. Type { for variable references and pick from suggestions; insert image variants from the list so names stay exact." />
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="300" />
+            </Grid.ColumnDefinitions>
+
+            <controls:ActionScriptTextEditor x:Name="ScriptEditor" Grid.Column="0" />
+
+            <Border Grid.Column="1" Margin="12,0,0,0" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="8" Background="#FFFFFF">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" FontWeight="SemiBold" Text="Available Variant Names" />
+
+                    <ListBox x:Name="VariantNamesListBox"
+                             Grid.Row="1"
+                             Margin="0,8,0,0"
+                             MouseDoubleClick="VariantNamesListBox_OnMouseDoubleClick"
+                             PreviewKeyDown="VariantNamesListBox_OnPreviewKeyDown" />
+
+                    <StackPanel Grid.Row="2" Margin="0,8,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Width="96" Content="Insert Name" Click="InsertVariantName_OnClick" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Width="92" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
+            <Button Width="92" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

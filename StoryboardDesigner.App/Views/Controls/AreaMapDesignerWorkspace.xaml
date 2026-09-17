@@ -1,0 +1,58 @@
+<UserControl x:Class="StoryboardDesigner.App.Views.Controls.AreaMapDesignerWorkspace"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:StoryboardDesigner.App.Views.Controls"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="640"
+             d:DesignWidth="960"
+             AutomationProperties.AutomationId="MainWindow.AreaDesigner.WorkspacePane">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <TextBlock FontSize="16" FontWeight="SemiBold" Foreground="#111827" Margin="0,0,0,8">
+            Link rooms at the area level
+        </TextBlock>
+        <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Padding="10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TabControl Grid.Row="0"
+                            AutomationProperties.AutomationId="MainWindow.AreaDesigner.OpenEditorsTabs"
+                            ItemsSource="{Binding OpenAreaEditors}"
+                            SelectedItem="{Binding SelectedAreaEditor, Mode=TwoWay}">
+                    <TabControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Area.Name}" />
+                        </DataTemplate>
+                    </TabControl.ItemTemplate>
+                    <TabControl.ContentTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="8">
+                                <controls:AreaMapToolbar DockPanel.Dock="Top" />
+                                <controls:AreaMapCanvas />
+                            </DockPanel>
+                        </DataTemplate>
+                    </TabControl.ContentTemplate>
+                </TabControl>
+
+                <TextBlock Grid.Row="1"
+                           Margin="0,8,0,0"
+                           Foreground="#6B7280"
+                           Text="Drag rooms from the tree into this grid. Adjacent placements auto-create two-way traversals." />
+                <TextBlock Grid.Row="1"
+                           Margin="0,24,0,0"
+                           Foreground="#4B5563"
+                           FontSize="11"
+                           AutomationProperties.AutomationId="MainWindow.AreaDesigner.SelectedEditorName"
+                           Text="{Binding SelectedAreaEditor.Area.Name, TargetNullValue=''}" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

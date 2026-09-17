@@ -1,0 +1,36 @@
+<Window x:Class="StoryboardDesigner.App.Views.BaseObjectPromotionScopeDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Promote to Base Object"
+        Height="360"
+        Width="560"
+        MinHeight="320"
+        MinWidth="500"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Margin="0,0,0,10"
+                   Foreground="#4B5563"
+                   TextWrapping="Wrap"
+                   Text="Choose where to create the base definition. The current room object will be converted into an instance linked to the selected base object catalog." />
+
+        <ListBox x:Name="ScopeListBox"
+                 Grid.Row="1"
+                 DisplayMemberPath="Label"
+                 MouseDoubleClick="ScopeListBox_OnMouseDoubleClick" />
+
+        <StackPanel Grid.Row="2"
+                    Margin="0,12,0,0"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Width="100" Margin="0,0,8,0" Content="Select" Click="Select_OnClick" />
+            <Button Width="100" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

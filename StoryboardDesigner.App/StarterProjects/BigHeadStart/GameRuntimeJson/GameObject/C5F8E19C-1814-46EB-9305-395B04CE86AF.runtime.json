@@ -1,0 +1,141 @@
+{
+  "linkActionsToBaseObject": false,
+  "productionName": "This is a simple box that can eb moved around and stacked",
+  "nameSynonyms": [
+    "Blue Box",
+    "Box"
+  ],
+  "imageVariants": [
+    {
+      "variantName": "default",
+      "fullImagePath": "assets/images/_shared/79ab4012207fd41a20085de8d4e3c7df45d87c8d101e76ca9551a737fa8d519d__BlueCrate.png",
+      "imageScale": 0.17,
+      "isDefault": true,
+      "imagePathSemantics": "runtimeExportRelative"
+    }
+  ],
+  "imageRotationDegrees": 0,
+  "appearance": {
+    "spatialType": "SolidObject",
+    "isMovable": true,
+    "isMovableDefaultValue": true,
+    "stackGroup": 1,
+    "footprintWidthCells": 2,
+    "footprintHeightCells": 2,
+    "footprintOrientation": "North",
+    "headingDirection": "North",
+    "objectHeightUnits": 1,
+    "stackScaleStepOverride": 0.08,
+    "minStackScaleOverride": 0.5
+  },
+  "isInventoriable": false,
+  "inventoryPointsDefaultValue": 1,
+  "isContainer": false,
+  "containerPointsDefaultValue": 1,
+  "isOpenable": false,
+  "isOpenDefaultValue": false,
+  "isLockable": false,
+  "isLockedDefaultValue": false,
+  "isActivatable": false,
+  "isActiveDefaultValue": false,
+  "isHidable": false,
+  "isHiddenDefaultValue": false,
+  "description": "",
+  "isQuantifiable": false,
+  "quantity": 1,
+  "quantifiablePlacementDistributionMode": "GroupedStack",
+  "isRuntimeMaterialized": false,
+  "Id": "c5f8e19c-1814-46eb-9305-395b04ce86af",
+  "name": "BlueCrate",
+  "nameInGame": "Blue Crate",
+  "scopeKind": "GameObject",
+  "gameProperties": [
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "imageRotationDegrees",
+      "defaultValue": "0",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "imageScale",
+      "defaultValue": "0.17",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "isMovable",
+      "defaultValue": "true",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "positionX",
+      "defaultValue": "0",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "positionY",
+      "defaultValue": "0",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    }
+  ],
+  "eventSubscriptions": [
+    {
+      "id": "9c68e789-6fce-4841-9403-7b4267af1140",
+      "eventKey": "item_moved",
+      "isEnabled": true,
+      "lane": "foreground",
+      "dispatchDisposition": "bubble",
+      "subscriptionVisibleWhenContained": false,
+      "subscriptionSourceMatchMode": "SelfOnly",
+      "subscriptionSecondarySourceMatchMode": "AnySource",
+      "actionBindings": [
+        {
+          "inputArgumentMappings": [
+            {
+              "inputEventPaylloadArgKey": "estimatedMoveDurationMs",
+              "outputActionPayloadArgKey": "sound.play.maxPlayDurationMs"
+            }
+          ],
+          "order": 1,
+          "isEnabled": true,
+          "condition": {
+            "quantityEvaluationMode": "AllResolvedMustPass",
+            "filters": []
+          },
+          "target": {
+            "actionName": "play_long_drag",
+            "onMissingAction": "DiagnosticOnly",
+            "stopChainOnFailure": true
+          }
+        },
+        {
+          "inputArgumentMappings": [
+            {
+              "inputEventPaylloadArgKey": "estimatedMoveDurationMs",
+              "outputActionPayloadArgKey": "sound.play.startDelayMs"
+            }
+          ],
+          "order": 2,
+          "isEnabled": true,
+          "condition": {
+            "quantityEvaluationMode": "AllResolvedMustPass",
+            "filters": []
+          },
+          "target": {
+            "actionName": "play_hammer",
+            "onMissingAction": "DiagnosticOnly",
+            "stopChainOnFailure": true
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "cases": [
+    {
+      "name": "Single Room Playback",
+      "projectFile": "StoryboardDesigner.App.Tests/SampleProjectData/single room/GameRuntimeJson/single-room.sbr.runtime.json",
+      "replayFile": "StoryboardDesigner.App.Tests/SampleProjectData/simulator-playback/single-room-recording.sbe.sim.json",
+      "strict": true,
+      "disabled": false
+    },
+    {
+      "name": "Birmingham Playback",
+      "projectFile": "Samples/Birmingham/GameRuntimeJson/Birmingham.sbr.runtime.json",
+      "replayFile": "Samples/Birmingham/CommandRecordings/PickupOrder1.sbe.sim.json",
+      "strict": true,
+      "disabled": false
+    },
+    {
+      "name": "Birmingham Playback2",
+      "projectFile": "Samples/Birmingham/GameRuntimeJson/Birmingham.sbr.runtime.json",
+      "replayFile": "Samples/Birmingham/CommandRecordings/PickupOrder2.sbe.sim.json",
+      "strict": true,
+      "disabled": false
+    },
+    {
+      "name": "ObjectPlayLevel2 Playback",
+      "projectFile": "Samples/ObjectPlayLevel2/GameRuntimeJson/ObjectPlayLevel2.sbr.runtime.json",
+      "replayFile": "Samples/ObjectPlayLevel2/CommandRecordings/MakeSmokeBall.sbe.sim.json",
+      "strict": true,
+      "disabled": false
+    },
+    {
+      "name": "ObjectPlayLevel1 Playback",
+      "projectFile": "Samples/ObjectPlayLevel1/GameRuntimeJson/ObjectPlayLevel1.sbr.runtime.json",
+      "replayFile": "Samples/ObjectPlayLevel1/CommandRecordings/PlayBall.sbe.sim.json",
+      "strict": true,
+      "disabled": false
+    },
+    {
+      "name": "Workshop Full Walk Thru" ,
+      "projectFile": "Samples/WorkshopTutorial/GameRuntimeJson/WorkshopTutorial.sbr.runtime.json",
+      "replayFile": "Samples/WorkshopTutorial/Recordings/FullWalkThru.sbe.sim.json",
+      "strict": true,
+      "disabled": false
+    },
+    {
+      "name": "Workshop Multi Leg Move Playback",
+      "projectFile": "Samples/WorkshopTutorial/GameRuntimeJson/WorkshopTutorial.sbr.runtime.json",
+      "replayFile": "StoryboardDesigner.App.Tests/SampleProjectData/simulator-playback/workshop-multi-leg-move-recording.sbe.sim.json",
+      "strict": true,
+      "disabled": false
+    },
+    {
+      "name": "Workshop Blocked Doors Playback",
+      "projectFile": "Samples/WorkshopTutorial/GameRuntimeJson/WorkshopTutorial.sbr.runtime.json",
+      "replayFile": "Samples/WorkshopTutorial/Recordings/BlockedDoors.sbe.sim.json",
+      "strict": true,
+      "disabled": false
+    },
+    {
+      "name": "Single Room Playback Semantic Mode",
+      "projectFile": "StoryboardDesigner.App.Tests/SampleProjectData/single room/GameRuntimeJson/single-room.sbr.runtime.json",
+      "replayFile": "StoryboardDesigner.App.Tests/SampleProjectData/simulator-playback/single-room-recording-semantic.sbe.sim.json",
+      "strict": false,
+      "disabled": false
+    }
+  ]
+}
+  

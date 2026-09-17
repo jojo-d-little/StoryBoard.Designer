@@ -1,0 +1,83 @@
+<UserControl x:Class="StoryboardDesigner.App.Views.Controls.ActionScriptTextEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:StoryboardDesigner.App.Views.Controls"
+             x:Name="Root">
+    <Grid>
+        <TextBox x:Name="EditorTextBox"
+                 AcceptsReturn="True"
+                 VerticalScrollBarVisibility="Auto"
+                 TextWrapping="Wrap"
+                 PreviewTextInput="EditorTextBox_OnPreviewTextInput"
+                 PreviewKeyDown="EditorTextBox_OnPreviewKeyDown"
+                 TextChanged="EditorTextBox_OnTextChanged"
+                 Text="{Binding ScriptText, RelativeSource={RelativeSource AncestorType={x:Type controls:ActionScriptTextEditor}}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+        <Popup x:Name="VariableReferencePopup"
+               Placement="Center"
+               PlacementTarget="{Binding ElementName=EditorTextBox}"
+               StaysOpen="False"
+               AllowsTransparency="True">
+            <Border Background="White" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4" Padding="4" MinWidth="280" MaxHeight="180">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <ListBox x:Name="VariableReferenceListBox"
+                             MouseDoubleClick="VariableReferenceListBox_OnMouseDoubleClick"
+                             PreviewKeyDown="VariableReferenceListBox_OnPreviewKeyDown"
+                             SelectionChanged="VariableReferenceListBox_OnSelectionChanged">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel LastChildFill="True">
+                                    <Border DockPanel.Dock="Right"
+                                            Background="#EEF2FF"
+                                            CornerRadius="3"
+                                            Padding="4,1"
+                                            Margin="8,0,0,0"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding CategoryLabel}" FontSize="10" Foreground="#3730A3" />
+                                    </Border>
+                                    <TextBlock Text="{Binding DisplayText}" Foreground="#111827" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <TextBlock x:Name="VariableReferenceHintTextBlock"
+                               Grid.Row="1"
+                               Margin="0,6,0,0"
+                               TextWrapping="Wrap"
+                               Foreground="#4B5563"
+                               FontSize="11" />
+                </Grid>
+            </Border>
+        </Popup>
+
+        <Popup x:Name="FunctionPopup"
+               Placement="Center"
+               PlacementTarget="{Binding ElementName=EditorTextBox}"
+               StaysOpen="False"
+               AllowsTransparency="True">
+            <Border Background="White" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4" Padding="4" MinWidth="320" MaxHeight="200">
+                <ListBox x:Name="FunctionListBox"
+                         MouseDoubleClick="FunctionListBox_OnMouseDoubleClick"
+                         PreviewKeyDown="FunctionListBox_OnPreviewKeyDown" />
+            </Border>
+        </Popup>
+
+        <Popup x:Name="ReturnPopup"
+               Placement="Center"
+               PlacementTarget="{Binding ElementName=EditorTextBox}"
+               StaysOpen="False"
+               AllowsTransparency="True">
+            <Border Background="White" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4" Padding="4" MinWidth="280" MaxHeight="180">
+                <ListBox x:Name="ReturnListBox"
+                         MouseDoubleClick="ReturnListBox_OnMouseDoubleClick"
+                         PreviewKeyDown="ReturnListBox_OnPreviewKeyDown" />
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

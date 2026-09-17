@@ -1,0 +1,21 @@
+{
+  "planetIds": [
+    "c649f647-9dd0-4a3d-a7f9-eeffe40c0dd8"
+  ],
+  "schemaVersion": "1.0",
+  "gamePreviewImages": [],
+  "autoSaveSeconds": 60,
+  "roomImageCanvasWidth": 800,
+  "roomImageCanvasHeight": 600,
+  "roomDesignerGridCellSize": 40,
+  "startingPlanetName": "New Planet",
+  "name": "Minimal Starter",
+  "nameInGame": "Minimal Starter",
+  "scopeKind": "Global",
+  "gameObjectIds": [
+    "30aa0176-7d59-4c03-93e8-2b0f56839be6"
+  ],
+  "gameProperties": [],
+  "additionalVerbs": [],
+  "additionalDirectionals": []
+}

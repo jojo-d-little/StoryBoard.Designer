@@ -1,0 +1,23 @@
+﻿{
+  "adjacencyMode": "EightDirectional",
+  "startingRoomId": "11111111-1111-1111-1111-111111111111",
+  "roomIds": [
+    "11111111-1111-1111-1111-111111111111"
+  ],
+  "roomPlacements": [
+    {
+      "roomId": "11111111-1111-1111-1111-111111111111",
+      "x": 400,
+      "y": 240
+    }
+  ],
+  "links": [],
+  "Id": "44444444-4444-4444-4444-444444444444",
+  "name": "FixtureArea",
+  "nameInGame": "FixtureArea",
+  "scopeKind": "Area",
+  "gameProperties": [],
+  "additionalVerbs": [],
+  "additionalDirectionals": [],
+  "availableGameActions": []
+}

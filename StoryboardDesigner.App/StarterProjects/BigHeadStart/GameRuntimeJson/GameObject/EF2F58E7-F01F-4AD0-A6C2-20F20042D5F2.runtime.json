@@ -1,0 +1,210 @@
+{
+  "linkActionsToBaseObject": false,
+  "productionName": "",
+  "imageVariants": [
+    {
+      "variantName": "Closed",
+      "fullImagePath": "assets/images/_shared/e9fb5742cf895f817cfa4c95bba2f6a5d8ddc1def3ecd2923fd9f0305b65d2dc__VicHotel_DoorClosed.png",
+      "imageLocalAlignmentOffsetX": 6,
+      "imageScale": 1,
+      "isDefault": true,
+      "imagePathSemantics": "runtimeExportRelative"
+    },
+    {
+      "variantName": "Open",
+      "fullImagePath": "assets/images/_shared/f56f24373f5fe520378d5edbfe24c206a75b77d8314c286326d7f94d0c985ff2__VicHotel_DoorOpen.png",
+      "imageLocalAlignmentOffsetX": 6,
+      "imageScale": 1,
+      "isDefault": false,
+      "imagePathSemantics": "runtimeExportRelative"
+    }
+  ],
+  "imageRotationDegrees": 0,
+  "imageVariantChooserScript": "IF {owner.isOpen}\r\n\u0022Open\u0022\r\nELSE\r\n\u0022Closed\u0022\r\nENDIF",
+  "appearance": {
+    "spatialType": "SolidObject",
+    "isMovableDefaultValue": true,
+    "footprintWidthCells": 6,
+    "footprintHeightCells": 1,
+    "footprintOrientation": "North",
+    "headingDirection": "North",
+    "objectHeightUnits": 1,
+    "stackScaleStepOverride": 0.1,
+    "minStackScaleOverride": 0.5
+  },
+  "isInventoriable": false,
+  "inventoryPointsDefaultValue": 1,
+  "isContainer": false,
+  "containerPointsDefaultValue": 1,
+  "isOpenable": true,
+  "isOpenDefaultValue": false,
+  "isLockable": true,
+  "isLockedDefaultValue": false,
+  "isActivatable": false,
+  "isActiveDefaultValue": false,
+  "isHidable": false,
+  "isHiddenDefaultValue": false,
+  "description": "",
+  "isQuantifiable": true,
+  "quantity": 1,
+  "quantifiablePlacementDistributionMode": "IndividualInstances",
+  "isRuntimeMaterialized": false,
+  "Id": "ef2f58e7-f01f-4ad0-a6c2-20f20042d5f2",
+  "name": "VicHotel_Base_Door_NS",
+  "nameInGame": "VicHotel_Base_Door_NS",
+  "scopeKind": "GameObject",
+  "gameProperties": [
+    {
+      "id": "6bfe17c6-7afc-446b-a898-03b4065050e4",
+      "name": "destinationFromHere",
+      "defaultValue": "",
+      "valueRestriction": "Unrestricted",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "imageRotationDegrees",
+      "defaultValue": "0",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "imageScale",
+      "defaultValue": "1",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "isLocked",
+      "defaultValue": "false",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "isOpen",
+      "defaultValue": "false",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "isQuantifiable",
+      "defaultValue": "true",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "0eef7276-fe70-43ba-82fd-55f34d8dd352",
+      "name": "lookingFromHere",
+      "defaultValue": "",
+      "valueRestriction": "Unrestricted",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "positionX",
+      "defaultValue": "0",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "positionY",
+      "defaultValue": "0",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "quantity",
+      "defaultValue": "1",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    }
+  ],
+  "availableGameActions": [
+    {
+      "id": "40475ac3-bf3f-4222-bc12-f41350d534be",
+      "name": "look_basicdoor",
+      "payload": {
+        "$payloadType": "echoMessage"
+      },
+      "actionType": "EchoMessage",
+      "noVerbLinkage": false,
+      "verbListText": "look",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "",
+        "Success": "The door to the {self.destinationFromHere} is to {self.lookingFromHere} \r\nIF {self.isOpen}\r\nit is open.\r\nELSE\r\nit is closed.\r\nENDIF"
+      },
+      "childCommandForwardingMode": "None"
+    }
+  ],
+  "eventSubscriptions": [
+    {
+      "id": "d0ce69b5-d635-4fc8-ae35-fa91c39b7f50",
+      "eventKey": "item_opened",
+      "isEnabled": true,
+      "lane": "foreground",
+      "dispatchDisposition": "bubble",
+      "subscriptionVisibleWhenContained": false,
+      "subscriptionSourceMatchMode": "SelfOnly",
+      "subscriptionSecondarySourceMatchMode": "AnySource",
+      "actionBindings": [
+        {
+          "inputArgumentMappings": [
+            {
+              "inputEventPaylloadArgKey": "@const:sound.play.overrideSoundEffectKey",
+              "outputActionPayloadArgKey": "sound.woodendoor.open"
+            }
+          ],
+          "order": 1,
+          "isEnabled": true,
+          "condition": {
+            "quantityEvaluationMode": "AllResolvedMustPass",
+            "filters": []
+          },
+          "target": {
+            "actionName": "play_soundeffect",
+            "onMissingAction": "DiagnosticOnly",
+            "stopChainOnFailure": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "89410d4d-8270-4b18-b06a-68a31d974f54",
+      "eventKey": "item_closed",
+      "isEnabled": true,
+      "lane": "foreground",
+      "dispatchDisposition": "bubble",
+      "subscriptionVisibleWhenContained": false,
+      "subscriptionSourceMatchMode": "SelfOnly",
+      "subscriptionSecondarySourceMatchMode": "AnySource",
+      "actionBindings": [
+        {
+          "inputArgumentMappings": [
+            {
+              "inputEventPaylloadArgKey": "@const:sound.play.overrideSoundEffectKey",
+              "outputActionPayloadArgKey": "sound.woodendoor.close"
+            }
+          ],
+          "order": 1,
+          "isEnabled": true,
+          "condition": {
+            "quantityEvaluationMode": "AllResolvedMustPass",
+            "filters": []
+          },
+          "target": {
+            "actionName": "play_soundeffect",
+            "onMissingAction": "DiagnosticOnly",
+            "stopChainOnFailure": true
+          }
+        }
+      ]
+    }
+  ]
+}

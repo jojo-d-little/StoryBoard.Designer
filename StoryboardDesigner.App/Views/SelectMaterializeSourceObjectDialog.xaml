@@ -1,0 +1,94 @@
+<Window x:Class="StoryboardDesigner.App.Views.SelectGameObjectDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Choose Game Object"
+        Height="480"
+        Width="920"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Source Type" />
+            <ComboBox x:Name="SourceFilterComboBox"
+                      Grid.Column="1"
+                      Margin="0,0,12,0"
+                      VerticalAlignment="Center"
+                      SelectionChanged="Filters_OnChanged" />
+            <TextBlock Grid.Column="2" Margin="0,0,8,0" VerticalAlignment="Center" Text="Scope Depth" />
+            <ComboBox x:Name="ScopeFilterComboBox"
+                      Grid.Column="3"
+                      VerticalAlignment="Center"
+                      SelectionChanged="Filters_OnChanged" />
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Required Feature" />
+            <ComboBox x:Name="RequiredFeaturesComboBox"
+                      Grid.Column="1"
+                      Margin="0,0,12,0"
+                      VerticalAlignment="Center"
+                      SelectionChanged="Filters_OnChanged" />
+            <TextBlock Grid.Column="2" Margin="0,0,8,0" VerticalAlignment="Center" Text="Current Object" />
+            <ComboBox x:Name="CurrentObjectComboBox"
+                      Grid.Column="3"
+                      Margin="0,0,12,0"
+                      VerticalAlignment="Center"
+                      DisplayMemberPath="DisplayName"
+                      SelectionChanged="Filters_OnChanged" />
+            <CheckBox x:Name="ExcludeCurrentObjectCheckBox"
+                      Grid.Column="4"
+                      Grid.ColumnSpan="3"
+                      VerticalAlignment="Center"
+                      Content="Exclude Current Object"
+                      IsChecked="True"
+                      Checked="Filters_OnChanged"
+                      Unchecked="Filters_OnChanged" />
+        </Grid>
+
+        <DataGrid x:Name="ChoicesDataGrid"
+                  Grid.Row="2"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  CanUserReorderColumns="False"
+                  CanUserSortColumns="True"
+                  SelectionMode="Single"
+                  MouseDoubleClick="ChoicesDataGrid_OnMouseDoubleClick"
+                  PreviewKeyDown="ChoicesDataGrid_OnPreviewKeyDown">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Object" Binding="{Binding DisplayName}" Width="220" />
+                <DataGridTextColumn Header="Source" Binding="{Binding SourceCategory}" Width="180" />
+                <DataGridTextColumn Header="Scope Path" Binding="{Binding ScopePath}" Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Width="100" Margin="0,0,8,0" Content="Select" Click="Select_OnClick" />
+            <Button Width="100" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

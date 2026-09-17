@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "1.0",
+  "projectName": "WorkshopTutorial",
+  "createdAtUtc": "2026-09-07T15:10:31.6715988Z",
+  "steps": [
+    {
+      "sequence": 1,
+      "enteredAtUtc": "2026-07-27T00:00:00.0000000\u002B00:00",
+      "deltaMsFromPrevious": 0,
+      "commandText": "look",
+      "requestCommandCorrelationId": null,
+      "requestRawCommandText": "",
+      "requestClarificationAnswers": [],
+      "outputLines": [
+        "You are in the Atrium",
+        "There is a door to the south, it is not clear where it leads.",
+        "There is a door to the west It appears to be locked.",
+        "There is a Green Crate, it looks to be about 10 heavy",
+        "There is a Red Crate, it looks to be about 1 heavy",
+        "The door to the Workshop is to the north it is closed.",
+        "There is a door to Supply Closet to the east",
+        "There is a Blue Crate, it looks to be about 10 heavy"
+      ],
+      "diagnostics": [],
+      "moveLegTelemetry": [],
+      "success": true
+    },
+    {
+      "sequence": 2,
+      "enteredAtUtc": "2026-07-27T00:00:01.0000000\u002B00:00",
+      "deltaMsFromPrevious": 1000,
+      "commandText": "move red crate east east",
+      "requestCommandCorrelationId": null,
+      "requestRawCommandText": "",
+      "requestClarificationAnswers": [],
+      "outputLines": [
+        "success?"
+      ],
+      "diagnostics": [
+        "Canonical pass matched object phrase \u0027red crate\u0027 to canonical object \u0027RedCrate\u0027 at token index 1.",
+        "Resolved command objects: primary=RedCrate; secondary=[(none)].",
+        "MoveRoomObjectOnGrid leg 1/2: Move evaluator: start=(160,120), direction=E, requestedDistance=1, cellSize=40.",
+        "MoveRoomObjectOnGrid leg 1/2: Move evaluator: startCell=(4,3), footprint=2x2.",
+        "MoveRoomObjectOnGrid leg 1/2: Move evaluator: step=1/1, proposed=(200,120), proposedCell=(5,3), finalStep=True.",
+        "MoveRoomObjectOnGrid leg 1/2: Move evaluator: step=1 supports currentContain=0, nextContain=0, nextIntersect=0.",
+        "MoveRoomObjectOnGrid leg 1/2: Move evaluator: step=1 applied position=(200,120) cell=(5,3).",
+        "MoveRoomObjectOnGrid leg 1/2: Move evaluator: full-distance move applied.",
+        "MoveRoomObjectOnGrid leg 2/2: Move evaluator: start=(200,120), direction=E, requestedDistance=1, cellSize=40.",
+        "MoveRoomObjectOnGrid leg 2/2: Move evaluator: startCell=(5,3), footprint=2x2.",
+        "MoveRoomObjectOnGrid leg 2/2: Move evaluator: step=1/1, proposed=(240,120), proposedCell=(6,3), finalStep=True.",
+        "MoveRoomObjectOnGrid leg 2/2: Move evaluator: step=1 supports currentContain=0, nextContain=0, nextIntersect=0.",
+        "MoveRoomObjectOnGrid leg 2/2: Move evaluator: step=1 applied position=(240,120) cell=(6,3).",
+        "MoveRoomObjectOnGrid leg 2/2: Move evaluator: full-distance move applied.",
+        "MoveRoomObjectOnGrid completed all 2 legs."
+      ],
+      "moveLegTelemetry": [
+        {
+          "targetObjectId": "bb53c4f2-0cee-48af-94b8-719bc40312ae",
+          "targetObjectName": "Red Crate",
+          "legIndex": 0,
+          "requestedDirection": "E",
+          "requestedDistanceInCells": 1,
+          "appliedDistanceInCells": 1,
+          "success": true,
+          "resultCode": "MovedFullDistance",
+          "fromX": 160,
+          "fromY": 120,
+          "toX": 200,
+          "toY": 120,
+          "travelVisualizationMode": "LegByLeg"
+        },
+        {
+          "targetObjectId": "bb53c4f2-0cee-48af-94b8-719bc40312ae",
+          "targetObjectName": "Red Crate",
+          "legIndex": 1,
+          "requestedDirection": "E",
+          "requestedDistanceInCells": 1,
+          "appliedDistanceInCells": 1,
+          "success": true,
+          "resultCode": "MovedFullDistance",
+          "fromX": 200,
+          "fromY": 120,
+          "toX": 240,
+          "toY": 120,
+          "travelVisualizationMode": "LegByLeg"
+        }
+      ],
+      "success": true
+    }
+  ]
+}

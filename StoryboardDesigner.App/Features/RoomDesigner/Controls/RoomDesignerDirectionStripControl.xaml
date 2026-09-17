@@ -1,0 +1,14 @@
+<UserControl x:Class="StoryboardDesigner.App.Views.Controls.RoomDesignerDirectionStripControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="80"
+             d:DesignWidth="700">
+    <Border BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="8" Background="#F9FAFB">
+        <TextBlock Foreground="#6B7280"
+                   TextWrapping="Wrap"
+                   Text="RoomDesignerDirectionStripControl placeholder for future extraction of the consolidated direction selector + thumbnail + edit action." />
+    </Border>
+</UserControl>

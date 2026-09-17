@@ -1,0 +1,20 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local package credentials and environment files
+*.nuget.g.props
+*.nuget.g.targets
+NuGet.Config
+.env
+.env.*
+
+# Test and IDE artifacts
+TestResults/
+artifacts/
+coverage/

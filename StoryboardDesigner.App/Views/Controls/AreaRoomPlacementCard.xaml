@@ -1,0 +1,136 @@
+<UserControl x:Class="StoryboardDesigner.App.Views.Controls.AreaRoomPlacementCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:conv="clr-namespace:StoryboardDesigner.App.Converters"
+             mc:Ignorable="d"
+             d:DesignHeight="96"
+             d:DesignWidth="128">
+    <UserControl.Resources>
+        <conv:RoomDefaultThumbnailConverter x:Key="RoomDefaultThumbnailConverter" />
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </UserControl.Resources>
+    <Border Width="128"
+            Height="96"
+            BorderBrush="#9CA3AF"
+            BorderThickness="1"
+            CornerRadius="6"
+            Background="#FFFFFF"
+            MouseLeftButtonDown="NavigationPlacement_OnMouseLeftButtonDown"
+            MouseMove="NavigationPlacement_OnMouseMove"
+            MouseLeftButtonUp="NavigationPlacement_OnMouseLeftButtonUp">
+        <Border.Style>
+            <Style TargetType="Border">
+                <Setter Property="BorderBrush" Value="#9CA3AF" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Background" Value="#FFFFFF" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsTraversalSourceSelected}" Value="True">
+                        <Setter Property="BorderBrush" Value="#0F766E" />
+                        <Setter Property="BorderThickness" Value="2" />
+                        <Setter Property="Background" Value="#ECFDF5" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="Traversal Wizard..." Click="NavigationPlacementOpenWizard_OnClick" />
+                <MenuItem Header="Manage Traversals..." Click="NavigationPlacementReviewTraversals_OnClick" />
+                <Separator />
+                <MenuItem Header="Remove From Area Map"
+                          Command="{Binding DataContext.RemoveRoomFromSelectedAreaMapCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          CommandParameter="{Binding Room}" />
+            </ContextMenu>
+        </Border.ContextMenu>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Border Margin="4" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4" Background="#F9FAFB">
+                <Grid>
+                    <Image Source="{Binding Room, Converter={StaticResource RoomDefaultThumbnailConverter}}" Stretch="UniformToFill" />
+                    <TextBlock Text="No Image" FontSize="10" Foreground="#6B7280" HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+                    <Border HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Margin="4"
+                            Padding="3"
+                            Background="#F8FAFC"
+                            BorderBrush="#CBD5E1"
+                            BorderThickness="1"
+                            CornerRadius="3">
+                        <StackPanel Orientation="Vertical">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <Button Margin="0,0,2,0"
+                                        Padding="2,0"
+                                        BorderThickness="0"
+                                        Background="#DBEAFE"
+                                        Foreground="#1E3A8A"
+                                        FontSize="8"
+                                        FontWeight="Bold"
+                                        Content="RU"
+                                        Visibility="{Binding HasRoomAbove, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        ToolTip="Room exists above this room at the same map cell. Click to manage traversals."
+                                        Click="VerticalIndicator_OnClick" />
+                                <Button Padding="2,0"
+                                        BorderThickness="0"
+                                        Background="#DBEAFE"
+                                        Foreground="#1E3A8A"
+                                        FontSize="8"
+                                        FontWeight="Bold"
+                                        Content="RD"
+                                        Visibility="{Binding HasRoomBelow, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        ToolTip="Room exists below this room at the same map cell. Click to manage traversals."
+                                        Click="VerticalIndicator_OnClick" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Margin="0,0,2,0"
+                                        Padding="2,0"
+                                        BorderThickness="0"
+                                        Background="#DCFCE7"
+                                        Foreground="#166534"
+                                        FontSize="8"
+                                        FontWeight="Bold"
+                                        Content="TU"
+                                        Visibility="{Binding HasTraversalUp, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        ToolTip="Traversal available from this room to a higher floor. Click to manage traversals."
+                                        Click="VerticalIndicator_OnClick" />
+                                <Button Padding="2,0"
+                                        BorderThickness="0"
+                                        Background="#DCFCE7"
+                                        Foreground="#166534"
+                                        FontSize="8"
+                                        FontWeight="Bold"
+                                        Content="TD"
+                                        Visibility="{Binding HasTraversalDown, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        ToolTip="Traversal available from this room to a lower floor. Click to manage traversals."
+                                        Click="VerticalIndicator_OnClick" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+            <TextBlock Grid.Row="1"
+                       Margin="4,0,4,4"
+                       Text="{Binding Room.Name}"
+                       TextTrimming="CharacterEllipsis"
+                       HorizontalAlignment="Center">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="FontWeight" Value="Normal" />
+                        <Setter Property="Foreground" Value="#111827" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsTraversalSourceSelected}" Value="True">
+                                <Setter Property="FontWeight" Value="Bold" />
+                                <Setter Property="Foreground" Value="#065F46" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </Grid>
+    </Border>
+</UserControl>

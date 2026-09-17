@@ -1,0 +1,102 @@
+<Window x:Class="StoryboardDesigner.App.Views.SharedPropertyRelationshipsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Shared Property Relationships"
+        Height="420"
+        Width="820"
+        MinHeight="320"
+        MinWidth="640"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <TextBlock x:Name="PropertyPathTextBlock"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Foreground="#111827"
+                       Margin="0,0,0,8"
+                       Text="Property" />
+            <TextBlock x:Name="RuntimeDiagnosticsStatusTextBlock"
+                       Foreground="#4B5563"
+                       Margin="0,0,0,8"
+                       Text="No runtime diagnostics yet" />
+            <TextBlock x:Name="ShareStateCalloutTextBlock"
+                       Visibility="Collapsed"
+                       Foreground="#92400E"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,8"
+                       TextWrapping="Wrap"
+                       Text="" />
+            <TextBlock x:Name="EmptyStateTextBlock"
+                       Visibility="Collapsed"
+                       Foreground="#4B5563"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,8"
+                       Text="This property is not currently shared. Use traversal connection settings to create a shared relationship." />
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                <Button x:Name="CreateShareRelationshipButton"
+                    Visibility="Collapsed"
+                    HorizontalAlignment="Left"
+                    Margin="0,0,8,0"
+                    Padding="10,4"
+                    Content="Add Shared Variable..."
+                    Click="CreateShareRelationship_OnClick" />
+                <Button x:Name="RemoveShareRelationshipButton"
+                    Visibility="Collapsed"
+                    HorizontalAlignment="Left"
+                    Padding="10,4"
+                    Content="Remove Selected"
+                    Click="RemoveShareRelationship_OnClick" />
+                <Button x:Name="OpenSharedVariablesManagerButton"
+                    Visibility="Collapsed"
+                    HorizontalAlignment="Left"
+                    Margin="8,0,0,0"
+                    Padding="10,4"
+                    Content="Open Shared Variables Manager"
+                    Click="OpenSharedVariablesManager_OnClick" />
+                </StackPanel>
+            <StackPanel x:Name="SharedVariableNameEditorPanel"
+                        Orientation="Horizontal"
+                        Visibility="Collapsed"
+                        Margin="0,0,0,10"
+                        VerticalAlignment="Center">
+                <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Shared Variable Name" />
+                <TextBox x:Name="SharedVariableDisplayNameTextBox" Width="280" Margin="0,0,8,0" />
+                <Button x:Name="RenameSharedVariableButton"
+                    Content="Rename"
+                    Padding="10,4"
+                    Click="RenameSharedVariable_OnClick" />
+            </StackPanel>
+        </StackPanel>
+
+        <DataGrid Grid.Row="1"
+                  x:Name="RelationshipsDataGrid"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  IsReadOnly="True"
+                  HeadersVisibility="Column"
+                  SelectionMode="Single"
+                  SelectionChanged="RelationshipsDataGrid_OnSelectionChanged"
+                  Margin="0,0,0,10">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Shared With" Binding="{Binding CounterpartEndpoint}" Width="3*" />
+                <DataGridTextColumn Header="Directionality" Binding="{Binding Directionality}" Width="*" />
+                <DataGridTextColumn Header="Transform" Binding="{Binding TransformMode}" Width="*" />
+                <DataGridTextColumn Header="Enabled" Binding="{Binding EnabledState}" Width="*" />
+                <DataGridTextColumn Header="Sync" Binding="{Binding SyncMode}" Width="2*" />
+                <DataGridTextColumn Header="Runtime Diagnostics" Binding="{Binding RuntimeDiagnostics}" Width="3*" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Width="90" Content="Close" IsDefault="True" IsCancel="True" Click="Close_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

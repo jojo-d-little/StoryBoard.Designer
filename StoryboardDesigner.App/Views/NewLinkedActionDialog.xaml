@@ -1,0 +1,45 @@
+<Window x:Class="StoryboardDesigner.App.Views.NewLinkedActionDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:StoryboardDesigner.App.ViewModels"
+        Title="New Linked Game Action"
+        Height="210"
+        Width="460"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="120" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Game Action Name" ToolTip="Designer-facing name for the new linked action." />
+        <TextBox x:Name="NameTextBox" Grid.Row="0" Grid.Column="1" Margin="0,0,0,10" ToolTip="Enter a clear action name, for example Build Smoke Ball." />
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Game Action Type" ToolTip="Behavior type used when this new linked action executes." />
+        <ComboBox x:Name="TypeComboBox"
+                  Grid.Row="1"
+                  Grid.Column="1"
+                  Margin="0,0,0,10"
+              ToolTip="Choose the action type to initialize for this linked action."
+                  ItemsSource="{Binding Source={x:Static vm:CommandActionTypeValues.LinkedFlowAllowed}}" />
+
+        <TextBlock Grid.Row="2"
+                   Grid.Column="0"
+                   Grid.ColumnSpan="2"
+                   Foreground="#6B7280"
+                   TextWrapping="Wrap"
+                   Text="New linked game actions are created as blank actions. Use the scoped game actions editor to add details and choose whether verb linkage should be enabled." />
+
+        <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Width="92" Margin="0,0,8,0" Content="Add" Click="Add_OnClick" />
+            <Button Width="92" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

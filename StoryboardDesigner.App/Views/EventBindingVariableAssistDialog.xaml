@@ -1,0 +1,185 @@
+<Window x:Class="StoryboardDesigner.App.Views.EventBindingVariableAssistDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Choose Event Filter Variable"
+        Height="640"
+        Width="980"
+        MinHeight="520"
+        MinWidth="820"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Margin="0,0,0,8"
+                   Foreground="#4B5563"
+                   TextWrapping="Wrap"
+                   Text="Use one side at a time. Left side chooses known event payload variables. Right side builds anchor-based template variable paths. Raw text remains allowed." />
+
+        <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="1.1*" />
+            </Grid.ColumnDefinitions>
+
+            <GroupBox Grid.Column="0" Header="Known Event Payload Variables" Margin="0,0,0,0">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0"
+                               Margin="0,0,0,6"
+                               VerticalAlignment="Center"
+                               Text="Filter (payload key or source path)" />
+
+                    <TextBox x:Name="KnownPathFilterTextBox"
+                             Grid.Row="1"
+                             Margin="0,0,0,8"
+                             ToolTip="Type to filter known event payload variables by payload key or source path"
+                             TextChanged="KnownPathFilterTextBox_OnTextChanged" />
+
+                    <ListBox x:Name="KnownPathsListBox"
+                             Grid.Row="2"
+                             DisplayMemberPath="DisplayText"
+                             SelectionChanged="KnownPathsListBox_OnSelectionChanged"
+                             MouseDoubleClick="KnownPathsListBox_OnMouseDoubleClick" />
+                </Grid>
+            </GroupBox>
+
+            <GroupBox Grid.Column="2" Header="Action Output Variables (currentAction)" Margin="0,0,0,0">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0"
+                               Margin="0,0,0,6"
+                               VerticalAlignment="Center"
+                               Text="Filter (type, key, or description)" />
+
+                    <TextBox x:Name="ActionOutputFilterTextBox"
+                             Grid.Row="1"
+                             Margin="0,0,0,8"
+                             ToolTip="Action outputs are emitted as currentAction::action.* references"
+                             TextChanged="ActionOutputFilterTextBox_OnTextChanged" />
+
+                    <ListBox x:Name="ActionOutputListBox"
+                             Grid.Row="2"
+                             DisplayMemberPath="DisplayText"
+                             SelectionChanged="ActionOutputListBox_OnSelectionChanged"
+                             MouseDoubleClick="ActionOutputListBox_OnMouseDoubleClick" />
+                </Grid>
+            </GroupBox>
+
+            <GroupBox Grid.Column="4" Header="Scope Variable Guidance" Margin="0,0,0,0">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="Template Anchor" />
+                    <ComboBox x:Name="TemplateAnchorComboBox"
+                              Grid.Row="0"
+                              Grid.Column="1"
+                              Margin="0,0,0,8"
+                              IsEditable="False"
+                              SelectionChanged="TemplateAnchorComboBox_OnSelectionChanged" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="Subproperty" />
+                    <ComboBox x:Name="TemplateSubPropertyComboBox"
+                              Grid.Row="1"
+                              Grid.Column="1"
+                              Margin="0,0,0,8"
+                              DisplayMemberPath="DisplayText"
+                              IsEditable="False"
+                              SelectionChanged="TemplateSubPropertyComboBox_OnSelectionChanged" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="Scope Object" />
+                    <Grid Grid.Row="2" Grid.Column="1" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox x:Name="ScopeObjectComboBox"
+                                  Grid.Column="0"
+                                  Margin="0,0,8,0"
+                              ToolTip="Quick pick shows likely in-scope and up-scope objects after a subproperty is selected."
+                                  DisplayMemberPath="DisplayName"
+                                  SelectionChanged="ScopeObjectComboBox_OnSelectionChanged" />
+                        <Button x:Name="ChooseScopeObjectButton"
+                                Grid.Column="1"
+                                Width="86"
+                            ToolTip="Use Search for broader scope-object discovery when Quick Pick does not contain your target."
+                            Content="Search..."
+                                Click="ChooseScopeObjectButton_OnClick" />
+                    </Grid>
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Text="Variable" />
+                    <TextBox x:Name="VariableFilterTextBox"
+                             Grid.Row="3"
+                             Grid.Column="1"
+                             Margin="0,0,0,8"
+                             ToolTip="Filter variable names"
+                             TextChanged="VariableFilterTextBox_OnTextChanged" />
+
+                    <DataGrid x:Name="VariablesDataGrid"
+                              Grid.Row="4"
+                              Grid.Column="0"
+                              Grid.ColumnSpan="2"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              IsReadOnly="True"
+                              SelectionMode="Single"
+                              SelectionUnit="FullRow"
+                              SelectionChanged="VariablesDataGrid_OnSelectionChanged"
+                              MouseDoubleClick="VariablesDataGrid_OnMouseDoubleClick">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Variable" Binding="{Binding VariableName}" Width="180" />
+                            <DataGridTextColumn Header="Owner.Variable" Binding="{Binding OwnerVariable}" Width="*" />
+                            <DataGridTextColumn Header="Scope Path" Binding="{Binding ScopePath}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </GroupBox>
+        </Grid>
+
+        <Grid Grid.Row="2" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Selected Variable" />
+            <TextBox x:Name="SelectedPathTextBox"
+                     Grid.Column="1"
+                     TextChanged="SelectedPathTextBox_OnTextChanged" />
+        </Grid>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Width="110" Margin="0,0,8,0" Content="Use Value" Click="UseValue_OnClick" />
+            <Button Width="100" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

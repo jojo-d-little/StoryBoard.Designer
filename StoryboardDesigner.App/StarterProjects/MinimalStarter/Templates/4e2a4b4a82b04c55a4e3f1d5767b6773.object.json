@@ -1,0 +1,107 @@
+{
+  "objectType": "Inventoriable Basics",
+  "positionX": 0,
+  "positionY": 0,
+  "includeInPreview": true,
+  "linkActionsToBaseObject": false,
+  "productionName": "",
+  "nameSynonyms": [],
+  "imageVariants": [],
+  "imageRotationDegrees": 0,
+  "appearance": {
+    "spatialType": "SolidObject",
+    "isMovable": true,
+    "isMovableDefaultValue": true,
+    "footprintWidthCells": 1,
+    "footprintHeightCells": 1,
+    "footprintOrientation": "N",
+    "headingDirection": "N",
+    "objectHeightUnits": 1,
+    "isHeightPinned": false
+  },
+  "isInventoriable": true,
+  "inventoryPointsDefaultValue": 1,
+  "isContainer": false,
+  "containerPointsDefaultValue": 1,
+  "isOpenable": false,
+  "isOpenDefaultValue": false,
+  "isLockable": false,
+  "isLockedDefaultValue": false,
+  "isActivatable": false,
+  "isActiveDefaultValue": false,
+  "isHidable": false,
+  "isHiddenDefaultValue": false,
+  "description": "Template with pickup/drop baseline actions.",
+  "isQuantifiable": false,
+  "quantity": 1,
+  "quantifiablePlacementDistributionMode": "GroupedStack",
+  "containedObjects": [],
+  "id": "4e2a4b4a-82b0-4c55-a4e3-f1d5767b6773",
+  "name": "Inventoriable Basics",
+  "nameInGame": "Inventoriable Basics",
+  "hideEmptyConfiguration": false,
+  "validationErrors": [],
+  "ignoredValidationRuleIds": [],
+  "scopeKind": "Templates",
+  "procedureIds": [],
+  "gameProperties": [
+    {
+      "id": "e81ed84c-726d-4468-a304-75c28c26d6d7",
+      "name": "isMovable",
+      "defaultValue": "true",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "21050cb5-4f01-437c-b04d-2695b95a5396",
+      "name": "inventoryPoints",
+      "defaultValue": "1",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    }
+  ],
+  "additionalVerbs": [],
+  "additionalDirectionals": [],
+  "additionalDirectionalTraversalMappings": [],
+  "availableGameActions": [
+    {
+      "id": "cda37aa8-cc29-497d-98db-0c5a0ab67b58",
+      "name": "pickup",
+      "payload": {
+        "$payloadType": "putObjectInContainer",
+        "targetContainerId": ""
+      },
+      "actionType": "PutObjectInContainer",
+      "noVerbLinkage": false,
+      "verbListText": "pickup",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "Cannot pick that up.",
+        "Success": "Picked up."
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "62f9adb0-6778-49f6-86be-c8844bd27e12",
+      "name": "drop",
+      "payload": {
+        "$payloadType": "removeObjectFromContainer",
+        "targetContainerId": ""
+      },
+      "actionType": "RemoveObjectFromContainer",
+      "noVerbLinkage": false,
+      "verbListText": "drop",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "Cannot drop that right now.",
+        "Success": "Dropped."
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    }
+  ],
+  "eventSubscriptions": [],
+  "timerDefinitions": [],
+  "soundEffectLibraryEntries": []
+}

@@ -1,0 +1,119 @@
+{
+  "linkActionsToBaseObject": false,
+  "productionName": "",
+  "imageVariants": [
+    {
+      "variantName": "default",
+      "fullImagePath": "",
+      "imageScale": 1,
+      "isDefault": true,
+      "imagePathSemantics": "runtimeExportRelative"
+    }
+  ],
+  "imageRotationDegrees": 0,
+  "appearance": {
+    "spatialType": "SolidObject",
+    "isMovable": true,
+    "isMovableDefaultValue": true,
+    "footprintWidthCells": 1,
+    "footprintHeightCells": 1,
+    "footprintOrientation": "North",
+    "headingDirection": "North",
+    "objectHeightUnits": 1,
+    "stackScaleStepOverride": 0.08,
+    "minStackScaleOverride": 0.5
+  },
+  "isInventoriable": true,
+  "inventoryPointsDefaultValue": 1,
+  "isContainer": true,
+  "containerPointsDefaultValue": 10,
+  "isOpenable": false,
+  "isOpenDefaultValue": false,
+  "isLockable": false,
+  "isLockedDefaultValue": false,
+  "isActivatable": false,
+  "isActiveDefaultValue": false,
+  "isHidable": false,
+  "isHiddenDefaultValue": false,
+  "description": "",
+  "isQuantifiable": false,
+  "quantity": 1,
+  "quantifiablePlacementDistributionMode": "GroupedStack",
+  "isRuntimeMaterialized": false,
+  "Id": "ec6fffd3-0f80-4d34-b99d-c3bf224b2b8b",
+  "name": "Player",
+  "nameInGame": "Player",
+  "scopeKind": "GameObject",
+  "gameProperties": [
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "containerPoints",
+      "defaultValue": "10",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "containerPointsRemaining",
+      "defaultValue": "10",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "imageRotationDegrees",
+      "defaultValue": "0",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "imageScale",
+      "defaultValue": "1",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "inventoryPoints",
+      "defaultValue": "1",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "4554d993-674e-4928-94a7-b28f870d76da",
+      "name": "isContainer",
+      "defaultValue": "true",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "isMovable",
+      "defaultValue": "true",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "146eb128-42ef-4161-9428-31c40837658c",
+      "name": "isPlayer",
+      "defaultValue": "true",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "positionX",
+      "defaultValue": "0",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "positionY",
+      "defaultValue": "0",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    }
+  ]
+}

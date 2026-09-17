@@ -1,0 +1,73 @@
+{
+  "linkActionsToBaseObject": false,
+  "productionName": "",
+  "imageRotationDegrees": 0,
+  "appearance": {
+    "spatialType": "SolidObject",
+    "isMovable": true,
+    "isMovableDefaultValue": true,
+    "footprintWidthCells": 1,
+    "footprintHeightCells": 1,
+    "footprintOrientation": "North",
+    "headingDirection": "North",
+    "objectHeightUnits": 1
+  },
+  "isInventoriable": true,
+  "inventoryPointsDefaultValue": 1,
+  "isContainer": false,
+  "containerPointsDefaultValue": 1,
+  "isOpenable": false,
+  "isOpenDefaultValue": false,
+  "isLockable": false,
+  "isLockedDefaultValue": false,
+  "isActivatable": false,
+  "isActiveDefaultValue": false,
+  "isHidable": false,
+  "isHiddenDefaultValue": false,
+  "description": "",
+  "isQuantifiable": false,
+  "quantity": 1,
+  "quantifiablePlacementDistributionMode": "GroupedStack",
+  "isRuntimeMaterialized": false,
+  "Id": "30aa0176-7d59-4c03-93e8-2b0f56839be6",
+  "name": "Player",
+  "nameInGame": "Player",
+  "scopeKind": "GameObject",
+  "gameProperties": [
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "imageRotationDegrees",
+      "defaultValue": "0",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "imageScale",
+      "defaultValue": "1",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "0ada9ab6-2187-448b-b45b-3c5969cf7610",
+      "name": "isPlayer",
+      "defaultValue": "true",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "positionX",
+      "defaultValue": "0",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "positionY",
+      "defaultValue": "0",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    }
+  ]
+}

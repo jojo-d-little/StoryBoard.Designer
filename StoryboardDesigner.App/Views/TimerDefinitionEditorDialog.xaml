@@ -1,0 +1,155 @@
+<Window x:Class="StoryboardDesigner.App.Views.TimerDefinitionEditorDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Timer Definition"
+        Height="680"
+        Width="760"
+        MinHeight="680"
+        MinWidth="760"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Timer Key"
+                       ToolTip="Stable timer key used to identify this timer definition and cancel matching scheduled instances." />
+            <TextBox x:Name="TimerKeyTextBox" Grid.Row="0" Grid.Column="1" Margin="0,0,0,10" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Delay (ms)"
+                       ToolTip="Delay in milliseconds before the timer first fires after it is started." />
+            <TextBox x:Name="ScheduleAfterMsTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Fire Mode"
+                       ToolTip="Specifies whether the timer fires once or repeats." />
+            <ComboBox x:Name="FireModeComboBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,10" SelectionChanged="FireModeComboBox_OnSelectionChanged" />
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Repeat Mode"
+                       ToolTip="Specifies interval progression behavior for repeating timers: Fixed, Growing, or Shrinking interval." />
+            <ComboBox x:Name="RepeatModeComboBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,10" SelectionChanged="RepeatModeComboBox_OnSelectionChanged" />
+
+            <TextBlock x:Name="RepeatProgressionModeLabel"
+                       Grid.Row="4"
+                       Grid.Column="0"
+                       Margin="0,0,10,10"
+                       VerticalAlignment="Center"
+                       Text="Repeat Progression"
+                       ToolTip="For growing or shrinking repeat modes, choose Linear (additive step) or Exponential (multiplicative rate)." />
+            <ComboBox x:Name="RepeatProgressionModeComboBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,10" SelectionChanged="RepeatProgressionModeComboBox_OnSelectionChanged" />
+
+            <TextBlock x:Name="RepeatIntervalMsLabel"
+                       Grid.Row="5"
+                       Grid.Column="0"
+                       Margin="0,0,10,10"
+                       VerticalAlignment="Center"
+                       Text="Repeat Interval (ms)"
+                       ToolTip="Base repeat interval in milliseconds used for repeating timers." />
+            <TextBox x:Name="RepeatIntervalMsTextBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,10" />
+
+            <TextBlock x:Name="RepeatIntervalStepMsLabel"
+                       Grid.Row="6"
+                       Grid.Column="0"
+                       Margin="0,0,10,10"
+                       VerticalAlignment="Center"
+                       Text="Repeat Interval Step (ms)"
+                       ToolTip="Step size in milliseconds used for growing or shrinking repeat modes. Growing adds this each cycle. Shrinking subtracts this each cycle before min/expiry rules." />
+            <TextBox x:Name="RepeatIntervalStepMsTextBox" Grid.Row="6" Grid.Column="1" Margin="0,0,0,10" />
+
+            <TextBlock x:Name="RepeatProgressionRateLabel"
+                       Grid.Row="7"
+                       Grid.Column="0"
+                       Margin="0,0,10,10"
+                       VerticalAlignment="Center"
+                       Text="Repeat Progression Rate"
+                       ToolTip="Tuning value for exponential progression. Growing multiplies by this rate, shrinking divides by this rate. Must be greater than 1." />
+            <TextBox x:Name="RepeatProgressionRateTextBox" Grid.Row="7" Grid.Column="1" Margin="0,0,0,10" />
+
+            <TextBlock x:Name="RepeatIntervalMinMsLabel"
+                       Grid.Row="8"
+                       Grid.Column="0"
+                       Margin="0,0,10,10"
+                       VerticalAlignment="Center"
+                       Text="Repeat Interval Min (ms)"
+                       ToolTip="Minimum repeat interval in milliseconds allowed when shrinking intervals." />
+            <TextBox x:Name="RepeatIntervalMinMsTextBox" Grid.Row="8" Grid.Column="1" Margin="0,0,0,10" />
+
+            <TextBlock x:Name="ShrinkingExpiresUnderMsLabel"
+                       Grid.Row="9"
+                       Grid.Column="0"
+                       Margin="0,0,10,10"
+                       VerticalAlignment="Center"
+                       Text="Shrink Expires Under (ms)"
+                       ToolTip="Optional threshold; when the next shrinking interval would go lower than this value, the timer expires." />
+            <TextBox x:Name="ShrinkingExpiresUnderMsTextBox" Grid.Row="9" Grid.Column="1" Margin="0,0,0,10" />
+
+            <TextBlock Grid.Row="10" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Target Action Ref"
+                       ToolTip="Action reference executed when the timer fires normally. Choose from suggested actions or type manually." />
+            <ComboBox x:Name="TargetActionRefComboBox"
+                      Grid.Row="10"
+                      Grid.Column="1"
+                      Margin="0,0,0,10"
+                      IsEditable="True"
+                      IsTextSearchEnabled="True"
+                      StaysOpenOnEdit="True"
+                      IsReadOnly="False" />
+
+            <TextBlock x:Name="OnShrinkExpiryActionRefLabel"
+                       Grid.Row="11"
+                       Grid.Column="0"
+                       Margin="0,0,10,10"
+                       VerticalAlignment="Center"
+                       Text="On Shrink Expiry Action Ref"
+                       ToolTip="Optional action reference executed once when shrinking expiry is reached. Choose from suggested actions or type manually." />
+            <ComboBox x:Name="OnShrinkExpiryActionRefComboBox"
+                      Grid.Row="11"
+                      Grid.Column="1"
+                      Margin="0,0,0,10"
+                      IsEditable="True"
+                      IsTextSearchEnabled="True"
+                      StaysOpenOnEdit="True"
+                      IsReadOnly="False" />
+
+            <TextBlock Grid.Row="12" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Lifetime Owner Type"
+                       ToolTip="Owner type used to determine timer lifetime invalidation boundaries." />
+            <ComboBox x:Name="LifetimeOwnerTypeComboBox" Grid.Row="12" Grid.Column="1" Margin="0,0,0,10" />
+
+            <TextBlock Grid.Row="13" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Conflict Behavior"
+                       ToolTip="Behavior used when starting a timer whose key is already active for the same owner context." />
+            <ComboBox x:Name="ConflictBehaviorComboBox" Grid.Row="13" Grid.Column="1" Margin="0,0,0,10" />
+
+            <TextBlock Grid.Row="14" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Enabled"
+                       ToolTip="Indicates whether the timer definition is enabled for scheduling." />
+            <CheckBox x:Name="EnabledCheckBox" Grid.Row="14" Grid.Column="1" Margin="0,0,0,10" VerticalAlignment="Center" />
+
+            <TextBlock Grid.Row="15" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,6,0,0" Foreground="#6B7280" TextWrapping="Wrap"
+                       Text="Tip: controls are enabled only when relevant. Repeating enables interval controls; growing/shrinking require interval step and progression mode; exponential additionally requires progression rate." />
+
+            <StackPanel Grid.Row="16" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                <Button Width="100" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
+                <Button Width="100" Content="Cancel" Click="Cancel_OnClick" />
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</Window>

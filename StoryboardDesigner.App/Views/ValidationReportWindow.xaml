@@ -1,0 +1,65 @@
+<Window x:Class="StoryboardDesigner.App.Views.ValidationReportWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Validation Report"
+        Width="980"
+        Height="620"
+        MinWidth="680"
+        MinHeight="360"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        ShowInTaskbar="False">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="SummaryTextBlock"
+                   FontWeight="SemiBold"
+                   FontSize="13"
+                   Margin="0,0,0,6"
+                   Text="Validation report" />
+
+        <TextBlock Grid.Row="1"
+                   x:Name="ReportPathTextBlock"
+                   Margin="0,0,0,10"
+                   Foreground="#4B5563"
+                   TextWrapping="Wrap"
+                   Text="Report file" />
+
+        <DataGrid Grid.Row="2"
+                  x:Name="IssuesDataGrid"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  IsReadOnly="True"
+                  HeadersVisibility="Column"
+                  SelectionMode="Single"
+                  Margin="0,0,0,10">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Rule ID" Binding="{Binding RuleId}" Width="Auto" />
+                <DataGridTextColumn Header="Path" Binding="{Binding Path}" Width="2*" />
+                <DataGridTextColumn Header="Problem" Binding="{Binding Problem}" Width="3*" />
+                <DataGridTemplateColumn Header="Navigate" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="Go To Node"
+                                    Padding="8,2"
+                                    IsEnabled="{Binding CanNavigate}"
+                                    Click="GoToNode_OnClick" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <StackPanel Grid.Row="3"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Width="120" Content="Close" Click="Close_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

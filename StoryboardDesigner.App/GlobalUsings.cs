@@ -1,0 +1,13 @@
+global using Storyboard.Shared.GameManager;
+global using Storyboard.Shared.HostContracts;
+global using Storyboard.Shared.RuntimeContracts.Enums;
+global using Storyboard.Shared.RuntimeContracts;
+global using StoryboardDesigner.App.Validation.Contracts;
+global using StoryboardDesigner.App.Validation.Execution;
+global using StoryboardDesigner.App.Models.Enums;
+global using Storyboard.Shared.GameServices.Actions;
+global using Storyboard.Shared.GameServices.Bootstrap;
+global using Storyboard.Shared.GameServices.Commands;
+global using Storyboard.Shared.GameServices.Containers;
+global using Storyboard.Shared.GameServices.RuntimeContext;
+global using Storyboard.Shared.GameServices.TextAndDiagnostics;

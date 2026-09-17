@@ -1,0 +1,96 @@
+﻿{
+  "schemaVersion": "1.0",
+  "areas": [
+    {
+      "planet": "Earth",
+      "country": "UK",
+      "area": "Birmingham-Hotel",
+      "adjacencyMode": "FourDirectional",
+      "links": [
+        {
+          "fromRoomId": "0fc05c99-f4fe-4304-b650-f232b9eca7c5",
+          "toRoomId": "3f41a18e-ec99-4099-b279-8fbc581cc211",
+          "direction": "West",
+          "defaultIsPassable": true,
+          "sharedVariableId": "df1b02c9-11d7-484c-b1ab-0e6748605f6f",
+          "openStatePolicy": "RequireOpen",
+          "openStateBindingMode": "Together"
+        },
+        {
+          "fromRoomId": "3f41a18e-ec99-4099-b279-8fbc581cc211",
+          "toRoomId": "0fc05c99-f4fe-4304-b650-f232b9eca7c5",
+          "direction": "East",
+          "defaultIsPassable": true,
+          "sharedVariableId": "df1b02c9-11d7-484c-b1ab-0e6748605f6f",
+          "openStatePolicy": "RequireOpen",
+          "openStateBindingMode": "Together"
+        }
+      ],
+      "traversalConnections": [
+        {
+          "traversalConnectionId": "562d530f-6918-48f0-81b5-52822d12e980",
+          "roomAId": "0fc05c99-f4fe-4304-b650-f232b9eca7c5",
+          "roomBId": "3f41a18e-ec99-4099-b279-8fbc581cc211",
+          "baseTraversalDirectionFromA": "West",
+          "traversalAccessMode": "TwoWay",
+          "traversalStateFromA": {
+            "openStatePolicy": "RequireOpen",
+            "availableGameActions": [
+              {
+                "id": "bfe11cec-903e-48f2-bfb6-9ebe4ef1eb8f",
+                "name": "look_openingroom",
+                "actionType": "EchoMessage",
+                "noVerbLinkage": false,
+                "verbListText": "look",
+                "direction": "",
+                "outcomeMessageMap": {
+                  "Failure": "",
+                  "Success": "IF {self.isPassable}\r\nThere looks to be a hallway beyond the door\r\nENDIF"
+                },
+                "childCommandForwardingMode": "None"
+              }
+            ],
+            "gameProperties": [
+              {
+                "id": "866cf42e-b19f-4814-a7e3-9e9085677354",
+                "name": "isPassable",
+                "defaultValue": "true",
+                "valueRestriction": "TrueFalse",
+                "lifetime": "Singleton",
+                "sharedVariableId": "df1b02c9-11d7-484c-b1ab-0e6748605f6f"
+              }
+            ]
+          },
+          "traversalStateFromB": {
+            "openStatePolicy": "RequireOpen",
+            "availableGameActions": [],
+            "gameProperties": [
+              {
+                "id": "92656d0d-1c3a-4830-aa7b-6067f6c5d769",
+                "name": "isPassable",
+                "defaultValue": "true",
+                "valueRestriction": "TrueFalse",
+                "lifetime": "Singleton",
+                "sharedVariableId": "df1b02c9-11d7-484c-b1ab-0e6748605f6f"
+              }
+            ]
+          },
+          "openStateBindingMode": "Together",
+          "gameProperties": []
+        }
+      ],
+      "roomPlacements": [
+        {
+          "roomId": "0fc05c99-f4fe-4304-b650-f232b9eca7c5",
+          "x": 564,
+          "y": 304
+        },
+        {
+          "roomId": "3f41a18e-ec99-4099-b279-8fbc581cc211",
+          "x": 384,
+          "y": 304
+        }
+      ]
+    }
+  ]
+}

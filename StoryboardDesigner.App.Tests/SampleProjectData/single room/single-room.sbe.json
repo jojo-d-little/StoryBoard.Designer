@@ -1,0 +1,22 @@
+{
+  "name": "SingleRoomFixture",
+  "commandVerbs": [
+    "look",
+    "go",
+    "take",
+    "open"
+  ],
+  "directionals": [
+    "north",
+    "south",
+    "east",
+    "west",
+    "up",
+    "down"
+  ],
+  "startingPlanetName": "FixturePlanet",
+  "planetIds": [
+    "22222222-2222-2222-2222-222222222222"
+  ]
+}
+

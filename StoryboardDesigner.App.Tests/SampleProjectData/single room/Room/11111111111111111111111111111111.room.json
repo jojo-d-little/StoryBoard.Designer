@@ -1,0 +1,75 @@
+{
+  "id": "11111111-1111-1111-1111-111111111111",
+  "name": "Single Room",
+  "description": "A minimal single-room fixture.",
+  "producerNotes": "",
+  "availableGameActions": [],
+  "gameProperties": [],
+  "additionalVerbs": [],
+  "additionalDirectionals": [
+    "under"
+  ],
+  "gameObjects": [
+    {
+      "id": "33333333-3333-3333-3333-333333333333",
+      "name": "bookcase",
+      "productionName": "bookcase",
+      "isInventoriable": false,
+      "isOpenable": false,
+      "description": "A tall wooden bookcase.",
+      "additionalVerbs": [],
+      "additionalDirectionals": [],
+      "availableGameActions": [
+        {
+          "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          "name": "lookBookcase",
+          "actionType": "EchoMessage",
+          "verbListText": "look",
+          "direction": "",
+          "outcomeMessageMap": {
+            "Success": "it just looks like a boot case"
+          }
+        },
+        {
+          "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+          "name": "lookUnderBookcase",
+          "actionType": "EchoMessage",
+          "verbListText": "look",
+          "direction": "under",
+          "outcomeMessageMap": {
+            "Success": "it's dusty down here."
+          }
+        }
+      ],
+      "commands": [],
+      "gameProperties": []
+    },
+    {
+      "id": "44444444-4444-4444-4444-444444444444",
+      "name": "key",
+      "productionName": "key",
+      "isInventoriable": false,
+      "isOpenable": false,
+      "description": "A small brass key.",
+      "additionalVerbs": [],
+      "additionalDirectionals": [],
+      "availableGameActions": [],
+      "commands": [],
+      "gameProperties": []
+    },
+    {
+      "id": "55555555-5555-5555-5555-555555555555",
+      "name": "door",
+      "productionName": "door",
+      "isInventoriable": false,
+      "isOpenable": false,
+      "description": "A heavy wooden door.",
+      "additionalVerbs": [],
+      "additionalDirectionals": [],
+      "availableGameActions": [],
+      "commands": [],
+      "gameProperties": []
+    }
+  ],
+  "images": []
+}

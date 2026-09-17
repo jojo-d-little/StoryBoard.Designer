@@ -1,0 +1,17 @@
+Validation report generated: 2026-09-13 18:27:41
+Project: BigHeadStart
+ExecutionKind: WholeProject
+RootScopePath: Global
+IncludeDescendants: True
+CandidateNodeCount: 36
+ExecutedRules: 59
+SkippedRules: 0
+StoppedEarly: False
+RemainingIssueCountAtStop: 0
+StopRuleId: (none)
+RemainingRuleCountAtStop: 0
+
+SkippedRuleId	SkipReason	SkipDetail
+
+RuleId	Severity	Path	Description	Hint
+SCR-001	Warning	Global / BasicCarryable / Action:get_ball_from	Action 'get_ball_from' OutcomeMessageMap[Success]: Line 1: Unknown reference '{currentAction.sourceContainerName}' (not found in scope).	

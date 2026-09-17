@@ -1,0 +1,61 @@
+<Window x:Class="StoryboardDesigner.App.Views.VariableScopeReviewDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:StoryboardDesigner.App.ViewModels"
+        Title="Review Game Properties"
+        Height="440"
+        Width="760"
+        MinHeight="360"
+        MinWidth="680"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="ScopeLabelTextBlock"
+                   Margin="0,0,0,10"
+                   FontSize="13"
+                   FontWeight="SemiBold"
+                   Foreground="#111827"
+                   Text="Game Properties" />
+
+        <DataGrid Grid.Row="1"
+                  x:Name="VariablesDataGrid"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  HeadersVisibility="Column"
+                  IsReadOnly="False"
+                                    BeginningEdit="VariablesDataGrid_OnBeginningEdit"
+                                    CellEditEnding="VariablesDataGrid_OnCellEditEnding"
+                  SelectionMode="Single"
+                  Margin="0,0,0,10">
+            <DataGrid.Columns>
+                                <DataGridTextColumn x:Name="VariableNameColumn"
+                                                                        Header="Game Property Name"
+                                    Binding="{Binding Name}"
+                                    Width="2*" />
+                <DataGridTextColumn x:Name="DefaultValueColumn"
+                                    Header="Default Value"
+                                    Binding="{Binding DefaultValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    Width="2*" />
+                <DataGridComboBoxColumn x:Name="RestrictionColumn"
+                                        Header="Value Restrictions"
+                                        SelectedValueBinding="{Binding ValueRestriction, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        SelectedValuePath="Value"
+                                        DisplayMemberPath="Label"
+                                        Width="2*" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Width="150" Margin="0,0,8,0" Content="Add Game Property" Click="AddGameProperty_OnClick" />
+            <Button Width="170" Margin="0,0,8,0" Content="Remove Selected" Click="RemoveSelected_OnClick" />
+            <Button Width="90" Content="Close" Click="Close_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

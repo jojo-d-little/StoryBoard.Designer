@@ -1,0 +1,18 @@
+{
+  "id": "f3211ed7-0612-41b9-93af-2c983b20f0c5",
+  "name": "Starter Room",
+  "description": "",
+  "producerNotes": "",
+  "roomDisplayMode": "Independent",
+  "validationErrors": [],
+  "traversalModeOverride": null,
+  "commandPhrases": [],
+  "availableGameActions": [],
+  "gameProperties": [],
+  "additionalVerbs": [],
+  "additionalDirectionals": [],
+  "ignoredValidationRuleIds": [],
+  "additionalDirectionalTraversalMappings": [],
+  "gameObjects": [],
+  "images": []
+}

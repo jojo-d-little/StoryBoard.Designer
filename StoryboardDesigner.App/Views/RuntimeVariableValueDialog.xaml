@@ -1,0 +1,30 @@
+<Window x:Class="StoryboardDesigner.App.Views.RuntimeVariableValueDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Set Game Property Value"
+        Height="190"
+        Width="520"
+        MinHeight="190"
+        MinWidth="520"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Foreground="#6B7280" Text="Game Property" />
+        <TextBox x:Name="VariableNameTextBox" Grid.Row="1" Margin="0,4,0,10" IsReadOnly="True" />
+
+        <TextBlock Grid.Row="2" Foreground="#6B7280" Text="Value" VerticalAlignment="Top" />
+        <TextBox x:Name="ValueTextBox" Grid.Row="2" Margin="0,20,0,0" />
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Width="84" Margin="0,0,8,0" Content="OK" Click="Ok_OnClick" />
+            <Button Width="84" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

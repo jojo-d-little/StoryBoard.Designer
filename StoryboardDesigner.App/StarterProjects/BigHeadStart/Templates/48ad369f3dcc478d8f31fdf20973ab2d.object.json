@@ -1,0 +1,226 @@
+{
+  "objectType": "BasicQuantityItem",
+  "positionX": 0,
+  "positionY": 0,
+  "includeInPreview": true,
+  "linkActionsToBaseObject": false,
+  "productionName": "inventoriableTemplate",
+  "nameSynonyms": [],
+  "imageVariants": [
+    {
+      "variantName": "default",
+      "fullImagePath": "",
+      "imageLocalAlignmentRotationDegrees": 0,
+      "imageLocalAlignmentOffsetX": 0,
+      "imageLocalAlignmentOffsetY": 0,
+      "imageScale": 1,
+      "isDefault": true
+    }
+  ],
+  "imageRotationDegrees": 0,
+  "appearance": {
+    "spatialType": "SolidObject",
+    "isMovable": true,
+    "isMovableDefaultValue": true,
+    "footprintWidthCells": 1,
+    "footprintHeightCells": 1,
+    "footprintOrientation": "N",
+    "headingDirection": "N",
+    "objectHeightUnits": 1,
+    "isHeightPinned": false
+  },
+  "isInventoriable": true,
+  "inventoryPointsDefaultValue": 1,
+  "isContainer": false,
+  "containerPointsDefaultValue": 1,
+  "isOpenable": false,
+  "isOpenDefaultValue": false,
+  "isLockable": false,
+  "isLockedDefaultValue": false,
+  "isActivatable": true,
+  "isActiveDefaultValue": true,
+  "isHidable": true,
+  "isHiddenDefaultValue": false,
+  "description": "Template with pickup/drop baseline actions.",
+  "isQuantifiable": true,
+  "quantity": 2,
+  "quantifiablePlacementDistributionMode": "GroupedStack",
+  "containedObjects": [],
+  "id": "48ad369f-3dcc-478d-8f31-fdf20973ab2d",
+  "name": "BasicQuantityItem",
+  "nameInGame": "BasicQuantityItem",
+  "hideEmptyConfiguration": false,
+  "validationErrors": [],
+  "ignoredValidationRuleIds": [],
+  "scopeKind": "Templates",
+  "procedureIds": [],
+  "gameProperties": [
+    {
+      "id": "606814d5-d7c8-4854-9828-3eda744f3b50",
+      "name": "inventoryPoints",
+      "defaultValue": "1",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "7d54dfb4-3238-4802-a2eb-8176ca59cf28",
+      "name": "isActive",
+      "defaultValue": "true",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "3a69a93b-64e7-453a-b589-cf5e491c3e3d",
+      "name": "isHidden",
+      "defaultValue": "false",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "459910ff-bcde-4d8a-9e51-d98401f1428a",
+      "name": "isQuantifiable",
+      "defaultValue": "true",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "2546c174-90a5-416b-8d4a-f4ed3c54fe6c",
+      "name": "quantity",
+      "defaultValue": "2",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "ecd7dde6-3553-4ffe-8623-1f0de6ecd4a7",
+      "name": "isMovable",
+      "defaultValue": "true",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    }
+  ],
+  "additionalVerbs": [],
+  "additionalDirectionals": [],
+  "additionalDirectionalTraversalMappings": [],
+  "availableGameActions": [
+    {
+      "id": "b598edc2-d4d9-43f4-bc70-e5f3d7cc6163",
+      "name": "drop",
+      "payload": {
+        "$payloadType": "removeObjectFromContainer",
+        "targetContainerId": ""
+      },
+      "actionType": "RemoveObjectFromContainer",
+      "noVerbLinkage": false,
+      "verbListText": "drop",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "",
+        "RemoveFailed": "",
+        "ResolveSourceFailed": "",
+        "ResolveSubjectFailed": "",
+        "Success": ""
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "82e5f324-b470-456c-9a69-b829cc5a7cc9",
+      "name": "get",
+      "payload": {
+        "$payloadType": "putObjectInContainer",
+        "targetContainerId": ""
+      },
+      "actionType": "PutObjectInContainer",
+      "noVerbLinkage": false,
+      "verbListText": "put, get, grab, take",
+      "verbs": [
+        "put",
+        "get",
+        "grab",
+        "take"
+      ],
+      "direction": "",
+      "outcomeMessageMap": {
+        "CapacityExceeded": "",
+        "Failure": "",
+        "PutFailed": "",
+        "ResolveTargetFailed": "",
+        "Success": "The {self.name} is now in the {currentAction.targetContainerName}"
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "de244f99-8ea7-4cf3-9fd8-9e09dd83d20e",
+      "name": "look",
+      "payload": {
+        "$payloadType": "echoMessage"
+      },
+      "actionType": "EchoMessage",
+      "noVerbLinkage": false,
+      "verbListText": "look, inspect",
+      "verbs": [
+        "look",
+        "inspect"
+      ],
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "",
+        "Success": "There are {self.name}, it looks to be about {self.nearByQuantity} of them."
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "7809f03a-22d7-46ed-9024-5842645363b7",
+      "name": "use",
+      "payload": {
+        "$payloadType": "echoMessage"
+      },
+      "actionType": "EchoMessage",
+      "noVerbLinkage": false,
+      "verbListText": "use",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "f",
+        "IncompleteRecipe": "",
+        "NoMatchingRecipe": "",
+        "SpecifyTarget": "",
+        "Success": "",
+        "TargetMismatch": ""
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "d310373c-5774-48eb-9c40-beccd298dd1c",
+      "name": "get_from",
+      "payload": {
+        "$payloadType": "removeObjectFromContainer",
+        "targetContainerId": ""
+      },
+      "actionType": "RemoveObjectFromContainer",
+      "noVerbLinkage": false,
+      "verbListText": "get, grab, remove, take",
+      "verbs": [
+        "get",
+        "grab",
+        "remove",
+        "take"
+      ],
+      "direction": "from",
+      "outcomeMessageMap": {
+        "Failure": "",
+        "RemoveFailed": "",
+        "ResolveSourceFailed": "",
+        "ResolveSubjectFailed": "",
+        "Success": "You took the {self.name} from the {currentAction.sourceContainerName}"
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    }
+  ],
+  "eventSubscriptions": [],
+  "timerDefinitions": [],
+  "soundEffectLibraryEntries": []
+}

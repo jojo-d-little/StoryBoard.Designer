@@ -1,0 +1,133 @@
+<Window x:Class="StoryboardDesigner.App.Views.CompositeObjectSettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Composite Settings"
+        Height="760"
+        Width="860"
+        MinHeight="680"
+        MinWidth="700"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Margin="0,0,0,8"
+                   Foreground="#374151"
+                   TextWrapping="Wrap"
+                   Text="Define participants first, then configure settings per selected participant. This follows the same participant-first workflow used in Procedures." />
+
+        <GroupBox Grid.Row="1" Header="Composite Parts" Margin="0,0,0,8">
+            <Grid Margin="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <ListBox x:Name="SelectedPartsListBox"
+                         DisplayMemberPath="ParticipantSummary"
+                         SelectionChanged="SelectedPartsListBox_OnSelectionChanged" />
+
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,10">
+                    <Button Width="96" Margin="0,0,8,0" Content="Add" Click="AddRequiredPart_OnClick" />
+                    <Button Width="96" Margin="0,0,8,0" Content="Remove" Click="RemoveRequiredPart_OnClick" />
+                    <Button Width="96" Content="Clear" Click="ClearRequiredParts_OnClick" />
+                </StackPanel>
+
+                <Border Grid.Row="2" Padding="10" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="140" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,10,8" VerticalAlignment="Center" Text="Participant Object" />
+                        <ComboBox x:Name="SelectedPartObjectComboBox"
+                                  Grid.Row="0"
+                                  Grid.Column="1"
+                                  Margin="0,0,14,8"
+                                  DisplayMemberPath="Name"
+                                  SelectionChanged="PartField_OnChanged" />
+
+                        <TextBlock Grid.Row="0" Grid.Column="2" Margin="0,0,10,8" VerticalAlignment="Center" Text="Quantity" />
+                        <StackPanel Grid.Row="0" Grid.Column="3" Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBox x:Name="SelectedPartQuantityTextBox"
+                                     Width="96"
+                                     Margin="0,0,8,0"
+                                     TextChanged="PartField_OnChanged"
+                                     PreviewTextInput="NumberTextBox_OnPreviewTextInput"
+                                     DataObject.Pasting="NumberTextBox_OnPasting" />
+                            <CheckBox x:Name="SelectedPartOptionalCheckBox"
+                                      VerticalAlignment="Center"
+                                      Content="Optional"
+                                      Checked="PartField_OnChanged"
+                                      Unchecked="PartField_OnChanged" />
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,10,8" VerticalAlignment="Center" Text="Match Kind" />
+                        <ComboBox x:Name="SelectedPartMatchKindComboBox"
+                                  Grid.Row="1"
+                                  Grid.Column="1"
+                                  Margin="0,0,14,8"
+                                  IsEnabled="False"
+                                  SelectionChanged="PartField_OnChanged" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="2" Margin="0,0,10,8" VerticalAlignment="Center" Text="Match Value" Visibility="Collapsed" />
+                        <TextBox x:Name="SelectedPartMatchValueTextBox"
+                                 Grid.Row="1"
+                                 Grid.Column="3"
+                                 Margin="0,0,0,8"
+                                 Visibility="Collapsed"
+                                 TextChanged="PartField_OnChanged" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="2" Margin="0,0,10,8" VerticalAlignment="Center" Text="Consumption" />
+                        <ComboBox x:Name="SelectedPartConsumptionComboBox"
+                                  Grid.Row="1"
+                                  Grid.Column="3"
+                                  Margin="0,0,0,8"
+                                  SelectionChanged="PartField_OnChanged" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,10,0" VerticalAlignment="Center" Text="Satisfaction" />
+                        <ComboBox x:Name="SelectedPartSatisfactionComboBox"
+                                  Grid.Row="2"
+                                  Grid.Column="1"
+                                  Margin="0,0,14,0"
+                                  SelectionChanged="PartField_OnChanged" />
+
+                        <Button x:Name="EditParticipantVariablesButton"
+                                Grid.Row="2"
+                                Grid.Column="3"
+                                MinWidth="210"
+                                Padding="12,4"
+                                HorizontalAlignment="Right"
+                            Content="Game Property Requirements"
+                                Click="EditParticipantVariables_OnClick" />
+                    </Grid>
+                </Border>
+            </Grid>
+        </GroupBox>
+
+        <CheckBox x:Name="IsReversibleCheckBox"
+                  Grid.Row="2"
+                  Margin="0,0,0,8"
+                  Content="Reversible (supports break action)" />
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Width="96" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
+            <Button Width="96" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

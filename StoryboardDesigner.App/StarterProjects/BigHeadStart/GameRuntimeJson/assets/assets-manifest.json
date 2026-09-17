@@ -1,0 +1,255 @@
+{
+  "schemaVersion": "1.0",
+  "images": [
+    {
+      "hash": "12251e687313394ea54d5dd2fbb84926262908bc8e87151e35b8371a37732fae",
+      "imagePathSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/images/_shared/12251e687313394ea54d5dd2fbb84926262908bc8e87151e35b8371a37732fae__DarkDoor.png",
+      "sourcePaths": [
+        "ASSETROOT:/PlaceHolderImages/DarkDoor.png"
+      ],
+      "references": [
+        "templateObject:82b9780c0ece4c749f08eddf3b9f3cdb:variant:Closed:full",
+        "templateObject:b7f7d43e3d0246b3a9fd519997dfebac:variant:Closed:full"
+      ]
+    },
+    {
+      "hash": "323317e80241845de2c34f4564a1393a13cf37ba7f06cca91cf08069d7ed475e",
+      "imagePathSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/images/_shared/323317e80241845de2c34f4564a1393a13cf37ba7f06cca91cf08069d7ed475e__VicHotel_ShortWall_MidDoor_01.png",
+      "sourcePaths": [
+        "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_ShortWall_MidDoor_01.png"
+      ],
+      "references": [
+        "roomTemplate:977bd55c4f35409890fec6a3b6d78f6c:slot:East:full",
+        "roomTemplate:977bd55c4f35409890fec6a3b6d78f6c:slot:West:full"
+      ]
+    },
+    {
+      "hash": "4f9c38d990b59e74cc9f31bbd9d0a442d8dfb2162c5fab29600bfd49de99cc3e",
+      "imagePathSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/images/_shared/4f9c38d990b59e74cc9f31bbd9d0a442d8dfb2162c5fab29600bfd49de99cc3e__DarkDoorOpen.png",
+      "sourcePaths": [
+        "ASSETROOT:/PlaceHolderImages/DarkDoorOpen.png"
+      ],
+      "references": [
+        "templateObject:82b9780c0ece4c749f08eddf3b9f3cdb:variant:Open:full",
+        "templateObject:b7f7d43e3d0246b3a9fd519997dfebac:variant:Open:full"
+      ]
+    },
+    {
+      "hash": "62b66595f30ee0f3a6f544a2af955b4463c90cde8f39bf2b2422ad1ae338829c",
+      "imagePathSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/images/_shared/62b66595f30ee0f3a6f544a2af955b4463c90cde8f39bf2b2422ad1ae338829c__VicHotel_LongWall_MidDoor_01.png",
+      "sourcePaths": [
+        "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_LongWall_MidDoor_01.png"
+      ],
+      "references": [
+        "roomTemplate:977bd55c4f35409890fec6a3b6d78f6c:slot:North:full",
+        "roomTemplate:977bd55c4f35409890fec6a3b6d78f6c:slot:South:full"
+      ]
+    },
+    {
+      "hash": "79ab4012207fd41a20085de8d4e3c7df45d87c8d101e76ca9551a737fa8d519d",
+      "imagePathSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/images/_shared/79ab4012207fd41a20085de8d4e3c7df45d87c8d101e76ca9551a737fa8d519d__BlueCrate.png",
+      "sourcePaths": [
+        "ASSETROOT:/PlaceHolderImages/BlueCrate.png"
+      ],
+      "references": [
+        "object:c5f8e19c181446eb9305395b04ce86af:variant:default:full"
+      ]
+    },
+    {
+      "hash": "7ae7e8867d92162a6d3dfb8bc7de9a9bd2ae6d255eab1db7ee29cd807bd54621",
+      "imagePathSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/images/_shared/7ae7e8867d92162a6d3dfb8bc7de9a9bd2ae6d255eab1db7ee29cd807bd54621__ShortBrickWall.png",
+      "sourcePaths": [
+        "ASSETROOT:/PlaceHolderImages/ShortBrickWall.png"
+      ],
+      "references": [
+        "roomTemplate:394e58f5203442438f432a9358cbc345:slot:East:full",
+        "roomTemplate:394e58f5203442438f432a9358cbc345:slot:West:full"
+      ]
+    },
+    {
+      "hash": "7bc4fd3cfc03a0636edeece94b6f865692f80c41fe62337c47ab48658273be87",
+      "imagePathSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/images/_shared/7bc4fd3cfc03a0636edeece94b6f865692f80c41fe62337c47ab48658273be87__DarkBrownWoodenFloor800x600.png",
+      "sourcePaths": [
+        "ASSETROOT:/PlaceHolderImages/DarkBrownWoodenFloor800x600.png"
+      ],
+      "references": [
+        "roomTemplate:394e58f5203442438f432a9358cbc345:slot:Down:full"
+      ]
+    },
+    {
+      "hash": "84c8f14bc09348dea467172e1df774dd5ce4aadda9856f4ec558a97c1a40141f",
+      "imagePathSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/images/_shared/84c8f14bc09348dea467172e1df774dd5ce4aadda9856f4ec558a97c1a40141f__LongBrickWall.png",
+      "sourcePaths": [
+        "ASSETROOT:/PlaceHolderImages/LongBrickWall.png"
+      ],
+      "references": [
+        "roomTemplate:394e58f5203442438f432a9358cbc345:slot:North:full",
+        "roomTemplate:394e58f5203442438f432a9358cbc345:slot:South:full"
+      ]
+    },
+    {
+      "hash": "d10c60ce8971e770b9e283032a812a410c981bb455b7f4256a8a3d882fdba8d1",
+      "imagePathSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/images/_shared/d10c60ce8971e770b9e283032a812a410c981bb455b7f4256a8a3d882fdba8d1__VicHotel_Floor_01.png",
+      "sourcePaths": [
+        "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_Floor_01.png"
+      ],
+      "references": [
+        "roomTemplate:977bd55c4f35409890fec6a3b6d78f6c:slot:Down:full"
+      ]
+    },
+    {
+      "hash": "e9fb5742cf895f817cfa4c95bba2f6a5d8ddc1def3ecd2923fd9f0305b65d2dc",
+      "imagePathSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/images/_shared/e9fb5742cf895f817cfa4c95bba2f6a5d8ddc1def3ecd2923fd9f0305b65d2dc__VicHotel_DoorClosed.png",
+      "sourcePaths": [
+        "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_DoorClosed.png"
+      ],
+      "references": [
+        "object:197cd3f2abcd4aa0860ee3d1b596afe9:variant:Closed:full",
+        "object:ef2f58e7f01f4ad0a6c220f20042d5f2:variant:Closed:full",
+        "roomTemplateObject:4dac4fd073564296ab20925eade7e625:variant:Closed:full",
+        "roomTemplateObject:66b70162ad97458992f9c81a5d40a847:variant:Closed:full",
+        "roomTemplateObject:ca290c79d24544c0b5b5127d4b5b3695:variant:Closed:full",
+        "roomTemplateObject:cb769cc654b5404f8812371e4c007f0e:variant:Closed:full"
+      ]
+    },
+    {
+      "hash": "f56f24373f5fe520378d5edbfe24c206a75b77d8314c286326d7f94d0c985ff2",
+      "imagePathSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/images/_shared/f56f24373f5fe520378d5edbfe24c206a75b77d8314c286326d7f94d0c985ff2__VicHotel_DoorOpen.png",
+      "sourcePaths": [
+        "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_DoorOpen.png"
+      ],
+      "references": [
+        "object:197cd3f2abcd4aa0860ee3d1b596afe9:variant:Open:full",
+        "object:ef2f58e7f01f4ad0a6c220f20042d5f2:variant:Open:full",
+        "roomTemplateObject:4dac4fd073564296ab20925eade7e625:variant:Open:full",
+        "roomTemplateObject:66b70162ad97458992f9c81a5d40a847:variant:Open:full",
+        "roomTemplateObject:ca290c79d24544c0b5b5127d4b5b3695:variant:Open:full",
+        "roomTemplateObject:cb769cc654b5404f8812371e4c007f0e:variant:Open:full"
+      ]
+    }
+  ],
+  "sounds": [
+    {
+      "hash": "02e45ceca217e5f97e1d344fa8d064329e179c779bca64c217f8620b88b16d16",
+      "assetRefSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/sounds/_shared/02e45ceca217e5f97e1d344fa8d064329e179c779bca64c217f8620b88b16d16__CABINET DOOR OPEN.wav",
+      "sourcePaths": [
+        "ASSETROOT:/PlaceHolderSounds/CABINET DOOR OPEN.wav"
+      ],
+      "references": [
+        "project:global:sound:7499a24e-e328-498f-97a3-d4a70d621ae5"
+      ]
+    },
+    {
+      "hash": "416085c3c3607baee4bd2c8c7d96403c0fb784413ea6d1cd71a3fdd963d28ef5",
+      "assetRefSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/sounds/_shared/416085c3c3607baee4bd2c8c7d96403c0fb784413ea6d1cd71a3fdd963d28ef5__Wooden Door Opens.wav",
+      "sourcePaths": [
+        "ASSETROOT:/PlaceHolderSounds/Wooden Door Opens.wav"
+      ],
+      "references": [
+        "project:global:sound:4cb898d8-5252-4c05-b6dd-a7a07f0b5fe9"
+      ]
+    },
+    {
+      "hash": "81ad496d2b701cf40da422e4d1b58767b13e77e3f57aa3f295ed917a2caf0360",
+      "assetRefSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/sounds/_shared/81ad496d2b701cf40da422e4d1b58767b13e77e3f57aa3f295ed917a2caf0360__Wooden-Door-Close.wav",
+      "sourcePaths": [
+        "ASSETROOT:/PlaceHolderSounds/Wooden-Door-Close.wav"
+      ],
+      "references": [
+        "project:global:sound:fd8f26b8-950e-4827-b640-bec74b1fb9ca"
+      ]
+    },
+    {
+      "hash": "aa1b92f6e51d94ff632db5a49492d5b09889f27ef0865f479362d819dcbf4439",
+      "assetRefSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/sounds/_shared/aa1b92f6e51d94ff632db5a49492d5b09889f27ef0865f479362d819dcbf4439__DRAG_Long.wav",
+      "sourcePaths": [
+        "ASSETROOT:/PlaceHolderSounds/DRAG_Long.wav"
+      ],
+      "references": [
+        "project:global:sound:895eb610-233f-4799-9dfd-f8ffc2235e20"
+      ]
+    },
+    {
+      "hash": "b36e7f936d9109f465cb090ee27aa92f017124b6ec5b32e8270a0c531da26fe4",
+      "assetRefSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/sounds/_shared/b36e7f936d9109f465cb090ee27aa92f017124b6ec5b32e8270a0c531da26fe4__FF_TM_hammer_nail_standard_heavy_single.wav",
+      "sourcePaths": [
+        "ASSETROOT:/PlaceHolderSounds/FF_TM_hammer_nail_standard_heavy_single.wav"
+      ],
+      "references": [
+        "project:global:sound:bc6df49b-eb64-4fd0-b0bc-992b441e765e"
+      ]
+    },
+    {
+      "hash": "cef1fbdabb1d5aae57c62e7fb056bf1022e399a26f901a5ec632ddd67b4c604d",
+      "assetRefSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/sounds/_shared/cef1fbdabb1d5aae57c62e7fb056bf1022e399a26f901a5ec632ddd67b4c604d__CABINET DOOR CLOSE.wav",
+      "sourcePaths": [
+        "ASSETROOT:/PlaceHolderSounds/CABINET DOOR CLOSE.wav"
+      ],
+      "references": [
+        "project:global:sound:28e80a6b-b8bf-4ae8-ab69-8b1fa292b84c"
+      ]
+    },
+    {
+      "hash": "cf12c00c7eb96fba9c646e4c86c11c7dca9c9d4313f4eefc2872c6c8c2d249eb",
+      "assetRefSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/sounds/_shared/cf12c00c7eb96fba9c646e4c86c11c7dca9c9d4313f4eefc2872c6c8c2d249eb__crickets_chirp_fast_D#.wav",
+      "sourcePaths": [
+        "ASSETROOT:/PlaceHolderSounds/crickets_chirp_fast_D#.wav"
+      ],
+      "references": [
+        "project:global:sound:c57f3684-dd7b-4f37-b03f-dbc3e35670a9"
+      ]
+    },
+    {
+      "hash": "e876a56ba56eb78c61c543c3d2c1b46919fbeb45b4fcda7312ebb88c38c4152f",
+      "assetRefSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/sounds/_shared/e876a56ba56eb78c61c543c3d2c1b46919fbeb45b4fcda7312ebb88c38c4152f__JS-haunted house 2 creaks-groans clip.wav",
+      "sourcePaths": [
+        "ASSETROOT:/PlaceHolderSounds/JS-haunted house 2 creaks-groans clip.wav"
+      ],
+      "references": [
+        "project:global:sound:96b705b8-9a31-421d-bc98-2055fe62e7e4"
+      ]
+    },
+    {
+      "hash": "eb629edb732ae0edf11ffe5a32adc6dc04b19ebf0c04361fc4f34ccee4b3d91c",
+      "assetRefSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/sounds/_shared/eb629edb732ae0edf11ffe5a32adc6dc04b19ebf0c04361fc4f34ccee4b3d91c__DRAG_Short.wav",
+      "sourcePaths": [
+        "ASSETROOT:/PlaceHolderSounds/DRAG_Short.wav"
+      ],
+      "references": [
+        "project:global:sound:c3355709-4e91-40bd-a08a-8db858878ac9"
+      ]
+    },
+    {
+      "hash": "facde6a1cbc750b9cce15a89716b66329acd1dd742dff5946411610a98c27f91",
+      "assetRefSemantics": "runtimeExportRelative",
+      "exportedPath": "assets/sounds/_shared/facde6a1cbc750b9cce15a89716b66329acd1dd742dff5946411610a98c27f91__FIGHT BELL.wav",
+      "sourcePaths": [
+        "ASSETROOT:/PlaceHolderSounds/FIGHT BELL.wav"
+      ],
+      "references": [
+        "project:global:sound:711c34fb-1f62-497a-8f30-7ff767b1fec2"
+      ]
+    }
+  ],
+  "unresolvedSources": []
+}

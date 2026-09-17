@@ -1,0 +1,57 @@
+<Window x:Class="StoryboardDesigner.App.Views.SimulatorSetupDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Simulator Setup"
+        Height="300"
+        Width="700"
+        MinHeight="300"
+        MinWidth="640"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Foreground="#6B7280" Text="Replay File Path (project setting)" />
+        <Grid Grid.Row="1" Margin="0,4,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="ReplayFilePathTextBox" Grid.Column="0" />
+            <Button Grid.Column="1" Width="92" Margin="8,0,0,0" Content="Browse..." Click="BrowseReplay_OnClick" />
+        </Grid>
+
+        <TextBlock Grid.Row="2" Foreground="#6B7280" Text="Replay Speed (project setting, optional)" />
+        <TextBox x:Name="ReplaySpeedTextBox" Grid.Row="3" Margin="0,4,0,10" />
+
+        <TextBlock Grid.Row="4" Foreground="#6B7280" Text="Simulator Executable Path (machine setting)" />
+        <Grid Grid.Row="5" Margin="0,4,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="SimulatorExecutablePathTextBox" Grid.Column="0" />
+            <Button Grid.Column="1" Width="92" Margin="8,0,0,0" Content="Browse..." Click="BrowseExecutable_OnClick" />
+        </Grid>
+
+        <TextBlock Grid.Row="6"
+                   Margin="0,10,0,0"
+                   Foreground="#6B7280"
+                   TextWrapping="Wrap"
+                   Text="Replay file path and speed are saved with the project. Simulator executable path is saved per machine." />
+
+        <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Width="84" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
+            <Button Width="84" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

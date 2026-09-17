@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "1.0",
+  "id": "11111111-1111-1111-1111-111111111111",
+  "name": "Single Room",
+  "description": "A minimal single-room fixture.",
+  "availableGameActions": [],
+  "additionalDirectionals": [
+    "under"
+  ],
+  "gameObjects": [
+    {
+      "sourceObjectId": "33333333-3333-3333-3333-333333333333",
+      "name": "bookcase",
+      "productionName": "bookcase",
+      "isInventoriable": false,
+      "inventoryPointsDefaultValue": 1,
+      "isContainer": false,
+      "containerPointsDefaultValue": 1,
+      "isOpenable": false,
+      "isOpenDefaultValue": false,
+      "isLockable": false,
+      "isLockedDefaultValue": false,
+      "isActivatable": false,
+      "isActiveDefaultValue": false,
+      "isHidable": false,
+      "isHiddenDefaultValue": false,
+      "description": "A tall wooden bookcase.",
+      "availableGameActions": [
+        {
+          "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          "name": "lookBookcase",
+          "actionType": "EchoMessage",
+          "verbListText": "look",
+          "direction": "",
+          "outcomeMessageMap": {
+            "Success": "it just looks like a boot case"
+          }
+        },
+        {
+          "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+          "name": "lookUnderBookcase",
+          "actionType": "EchoMessage",
+          "verbListText": "look",
+          "direction": "under",
+          "outcomeMessageMap": {
+            "Success": "it's dusty down here."
+          }
+        }
+      ]
+    },
+    {
+      "sourceObjectId": "55555555-5555-5555-5555-555555555555",
+      "name": "door",
+      "productionName": "door",
+      "isInventoriable": false,
+      "inventoryPointsDefaultValue": 1,
+      "isContainer": false,
+      "containerPointsDefaultValue": 1,
+      "isOpenable": false,
+      "isOpenDefaultValue": false,
+      "isLockable": false,
+      "isLockedDefaultValue": false,
+      "isActivatable": false,
+      "isActiveDefaultValue": false,
+      "isHidable": false,
+      "isHiddenDefaultValue": false,
+      "description": "A heavy wooden door."
+    },
+    {
+      "sourceObjectId": "44444444-4444-4444-4444-444444444444",
+      "name": "key",
+      "productionName": "key",
+      "isInventoriable": false,
+      "inventoryPointsDefaultValue": 1,
+      "isContainer": false,
+      "containerPointsDefaultValue": 1,
+      "isOpenable": false,
+      "isOpenDefaultValue": false,
+      "isLockable": false,
+      "isLockedDefaultValue": false,
+      "isActivatable": false,
+      "isActiveDefaultValue": false,
+      "isHidable": false,
+      "isHiddenDefaultValue": false,
+      "description": "A small brass key."
+    }
+  ]
+}

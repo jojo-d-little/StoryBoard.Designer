@@ -1,0 +1,178 @@
+{
+  "linkActionsToBaseObject": false,
+  "productionName": "",
+  "imageVariants": [
+    {
+      "variantName": "Closed",
+      "fullImagePath": "assets/images/_shared/e9fb5742cf895f817cfa4c95bba2f6a5d8ddc1def3ecd2923fd9f0305b65d2dc__VicHotel_DoorClosed.png",
+      "imageLocalAlignmentOffsetX": -13,
+      "imageScale": 1,
+      "isDefault": true,
+      "imagePathSemantics": "runtimeExportRelative"
+    },
+    {
+      "variantName": "Open",
+      "fullImagePath": "assets/images/_shared/f56f24373f5fe520378d5edbfe24c206a75b77d8314c286326d7f94d0c985ff2__VicHotel_DoorOpen.png",
+      "imageLocalAlignmentOffsetX": -13,
+      "imageScale": 1,
+      "isDefault": false,
+      "imagePathSemantics": "runtimeExportRelative"
+    }
+  ],
+  "imageRotationDegrees": 0,
+  "imageVariantChooserScript": "IF {owner.isOpen}\r\n\u0022Open\u0022\r\nELSE\r\n\u0022Closed\u0022\r\nENDIF",
+  "appearance": {
+    "spatialType": "SolidObject",
+    "isMovableDefaultValue": true,
+    "footprintWidthCells": 5,
+    "footprintHeightCells": 1,
+    "footprintOrientation": "North",
+    "headingDirection": "North",
+    "objectHeightUnits": 1,
+    "stackScaleStepOverride": 0.08,
+    "minStackScaleOverride": 0.5
+  },
+  "isInventoriable": false,
+  "inventoryPointsDefaultValue": 1,
+  "isContainer": false,
+  "containerPointsDefaultValue": 1,
+  "isOpenable": true,
+  "isOpenDefaultValue": false,
+  "isLockable": true,
+  "isLockedDefaultValue": false,
+  "isActivatable": false,
+  "isActiveDefaultValue": false,
+  "isHidable": false,
+  "isHiddenDefaultValue": false,
+  "description": "",
+  "isQuantifiable": true,
+  "quantity": 1,
+  "quantifiablePlacementDistributionMode": "IndividualInstances",
+  "isRuntimeMaterialized": false,
+  "Id": "197cd3f2-abcd-4aa0-860e-e3d1b596afe9",
+  "name": "VicHotel_Base_Door_EW",
+  "nameInGame": "VicHotel_Base_Door_EW",
+  "scopeKind": "GameObject",
+  "gameProperties": [
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "imageRotationDegrees",
+      "defaultValue": "0",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "imageScale",
+      "defaultValue": "1",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "isLocked",
+      "defaultValue": "false",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "isOpen",
+      "defaultValue": "false",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "isQuantifiable",
+      "defaultValue": "true",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "positionX",
+      "defaultValue": "0",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "positionY",
+      "defaultValue": "0",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "quantity",
+      "defaultValue": "1",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    }
+  ],
+  "eventSubscriptions": [
+    {
+      "id": "c7decec9-6eb5-43e2-abfc-9e6565e2897a",
+      "eventKey": "item_opened",
+      "isEnabled": true,
+      "lane": "foreground",
+      "dispatchDisposition": "bubble",
+      "subscriptionVisibleWhenContained": false,
+      "subscriptionSourceMatchMode": "SelfOnly",
+      "subscriptionSecondarySourceMatchMode": "AnySource",
+      "actionBindings": [
+        {
+          "inputArgumentMappings": [
+            {
+              "inputEventPaylloadArgKey": "@const:sound.play.overrideSoundEffectKey",
+              "outputActionPayloadArgKey": "sound.woodendoor.open"
+            }
+          ],
+          "order": 1,
+          "isEnabled": true,
+          "condition": {
+            "quantityEvaluationMode": "AllResolvedMustPass",
+            "filters": []
+          },
+          "target": {
+            "actionName": "play_soundeffect",
+            "onMissingAction": "DiagnosticOnly",
+            "stopChainOnFailure": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "071463af-1e0e-4336-b830-6c1329ac2668",
+      "eventKey": "item_closed",
+      "isEnabled": true,
+      "lane": "foreground",
+      "dispatchDisposition": "bubble",
+      "subscriptionVisibleWhenContained": false,
+      "subscriptionSourceMatchMode": "SelfOnly",
+      "subscriptionSecondarySourceMatchMode": "AnySource",
+      "actionBindings": [
+        {
+          "inputArgumentMappings": [
+            {
+              "inputEventPaylloadArgKey": "@const:sound.play.overrideSoundEffectKey",
+              "outputActionPayloadArgKey": "sound.woodendoor.close"
+            }
+          ],
+          "order": 1,
+          "isEnabled": true,
+          "condition": {
+            "quantityEvaluationMode": "AllResolvedMustPass",
+            "filters": []
+          },
+          "target": {
+            "actionName": "play_soundeffect",
+            "onMissingAction": "DiagnosticOnly",
+            "stopChainOnFailure": true
+          }
+        }
+      ]
+    }
+  ]
+}

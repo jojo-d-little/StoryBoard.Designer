@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0",
+  "projectName": "Birmingham",
+  "createdAtUtc": "2026-06-27T00:00:00Z",
+  "steps": [
+    {
+      "sequence": 1,
+      "enteredAtUtc": "2026-06-27T00:00:01Z",
+      "deltaMsFromPrevious": 0,
+      "commandText": "look",
+      "outputLines": [
+        "Looks like a room",
+        "A key"
+      ],
+      "diagnostics": [],
+      "success": true
+    }
+  ]
+}

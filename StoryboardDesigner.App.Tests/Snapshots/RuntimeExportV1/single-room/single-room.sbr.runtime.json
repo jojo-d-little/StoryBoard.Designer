@@ -1,0 +1,30 @@
+﻿{
+  "planetIds": [
+    "22222222-2222-2222-2222-222222222222"
+  ],
+  "schemaVersion": "1.0",
+  "gamePreviewImages": [],
+  "autoSaveSeconds": 60,
+  "roomImageCanvasWidth": 800,
+  "roomImageCanvasHeight": 600,
+  "roomDesignerGridCellSize": 40,
+  "startingPlanetName": "FixturePlanet",
+  "name": "SingleRoomFixture",
+  "nameInGame": "SingleRoomFixture",
+  "scopeKind": "Global",
+  "gameProperties": [],
+  "additionalVerbs": [
+    "go",
+    "look",
+    "open",
+    "take"
+  ],
+  "additionalDirectionals": [
+    "north",
+    "south",
+    "east",
+    "west",
+    "up",
+    "down"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "startingCountryName": "New Country",
+  "countryIds": [
+    "f1a908d2-62ce-4fff-81fe-6f94f48431b6"
+  ],
+  "Id": "c649f647-9dd0-4a3d-a7f9-eeffe40c0dd8",
+  "name": "New Planet",
+  "nameInGame": "New Planet",
+  "scopeKind": "Planet",
+  "gameProperties": [],
+  "additionalVerbs": [],
+  "additionalDirectionals": [],
+  "availableGameActions": []
+}

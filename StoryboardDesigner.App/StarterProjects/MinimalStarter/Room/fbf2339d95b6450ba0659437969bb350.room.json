@@ -1,0 +1,134 @@
+{
+  "gameObjects": [],
+  "description": "",
+  "roomDisplayMode": "Independent",
+  "producerNotes": "",
+  "images": [
+    {
+      "slot": "Default",
+      "overlayRenderOrder": 150,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "North",
+      "overlayRenderOrder": 100,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "NorthEast",
+      "overlayRenderOrder": 200,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "East",
+      "overlayRenderOrder": 100,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "SouthEast",
+      "overlayRenderOrder": 200,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "South",
+      "overlayRenderOrder": 100,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "SouthWest",
+      "overlayRenderOrder": 200,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "West",
+      "overlayRenderOrder": 100,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "NorthWest",
+      "overlayRenderOrder": 200,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "Up",
+      "overlayRenderOrder": 150,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "Down",
+      "overlayRenderOrder": 0,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    }
+  ],
+  "id": "fbf2339d-95b6-450b-a065-9437969bb350",
+  "name": "New Room",
+  "nameInGame": "New Room",
+  "hideEmptyConfiguration": false,
+  "validationErrors": [],
+  "ignoredValidationRuleIds": [],
+  "scopeKind": "Room",
+  "gameObjectIds": [],
+  "gameProperties": [],
+  "additionalVerbs": [],
+  "additionalDirectionals": [],
+  "additionalDirectionalTraversalMappings": [],
+  "availableGameActions": [],
+  "eventSubscriptions": [],
+  "timerDefinitions": [],
+  "soundEffectLibraryEntries": []
+}

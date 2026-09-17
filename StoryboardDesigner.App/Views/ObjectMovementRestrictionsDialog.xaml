@@ -1,0 +1,138 @@
+<Window x:Class="StoryboardDesigner.App.Views.ObjectMovementRestrictionsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Movement Restrictions"
+        Height="760"
+        Width="900"
+        MinHeight="680"
+        MinWidth="780"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="Define optional per-direction movement limits for movement actions only. Leave fields blank for no rule."
+                   TextWrapping="Wrap"
+                   Foreground="#374151" />
+
+        <GroupBox Grid.Row="1" Header="Multi-Leg Travel Rule" Margin="0,10,0,8">
+            <Grid Margin="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="140" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Max Total Cells" />
+                <TextBox x:Name="MultiLegMaxTotalDistanceTextBox"
+                         Grid.Column="1"
+                         Height="24"
+                         VerticalContentAlignment="Center" />
+                <TextBlock Grid.Column="3"
+                           VerticalAlignment="Center"
+                           Foreground="#6B7280"
+                           FontSize="11"
+                           Text="Applies only when a move command has multiple legs (2+). Leave blank for no cap." />
+            </Grid>
+        </GroupBox>
+
+        <Grid Grid.Row="2" Margin="0,2,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <GroupBox Grid.Column="0" Header="Fill Category">
+                <Grid Margin="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="100" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="140" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Max" />
+                    <TextBox x:Name="FillMaxDistanceTextBox" Grid.Column="1" Height="24" VerticalContentAlignment="Center" />
+
+                    <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="Jump" />
+                    <ComboBox x:Name="FillAllowJumpOverComboBox" Grid.Column="4" Height="24" SelectedIndex="0" VerticalAlignment="Center">
+                        <ComboBox.ItemsSource>
+                            <x:Array Type="{x:Type sys:String}" xmlns:sys="clr-namespace:System;assembly=mscorlib">
+                                <sys:String>(blank)</sys:String>
+                                <sys:String>true</sys:String>
+                                <sys:String>false</sys:String>
+                            </x:Array>
+                        </ComboBox.ItemsSource>
+                    </ComboBox>
+
+                    <Button Grid.Column="6"
+                            Height="24"
+                            Padding="10,0"
+                            Content="Apply To All 8"
+                            Click="ApplyFillToAllDirections_OnClick" />
+
+                    <TextBlock Grid.Column="8" VerticalAlignment="Center" Foreground="#6B7280" FontSize="11" Text="blank = clear" />
+                </Grid>
+            </GroupBox>
+        </Grid>
+
+        <GroupBox Grid.Row="3" Header="Category Rules">
+            <Grid Margin="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <TextBlock VerticalAlignment="Center" Text="View" />
+                    <ComboBox x:Name="FilterCategoryComboBox"
+                              Width="280"
+                              Margin="8,0,0,0"
+                              SelectionChanged="FilterControls_OnChanged" />
+                </StackPanel>
+
+                <DataGrid x:Name="RulesDataGrid"
+                          Grid.Row="1"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          HeadersVisibility="Column"
+                          IsReadOnly="False">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Category" Binding="{Binding CategoryLabel}" IsReadOnly="True" Width="260" />
+                        <DataGridTextColumn Header="Direction" Binding="{Binding Direction}" IsReadOnly="True" Width="120" />
+                        <DataGridTextColumn Header="Max Distance (0-99 or blank)" Binding="{Binding MaxDistanceText, UpdateSourceTrigger=PropertyChanged}" Width="220" />
+                        <DataGridComboBoxColumn Header="Allow Jump Over"
+                                                SelectedItemBinding="{Binding AllowJumpOverText, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="180">
+                            <DataGridComboBoxColumn.ItemsSource>
+                                <x:Array Type="{x:Type sys:String}" xmlns:sys="clr-namespace:System;assembly=mscorlib">
+                                    <sys:String>(blank)</sys:String>
+                                    <sys:String>true</sys:String>
+                                    <sys:String>false</sys:String>
+                                </x:Array>
+                            </DataGridComboBoxColumn.ItemsSource>
+                        </DataGridComboBoxColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </GroupBox>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Width="100" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
+            <Button Width="100" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

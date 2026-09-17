@@ -1,0 +1,36 @@
+{
+  "gameObjects": [],
+  "baseObjects": [],
+  "phaseBooks": [],
+  "planetIds": [
+    "c649f647-9dd0-4a3d-a7f9-eeffe40c0dd8"
+  ],
+  "phaseBookIds": [],
+  "sharedVariables": [],
+  "objectTemplateIds": [
+    "4e2a4b4a-82b0-4c55-a4e3-f1d5767b6773"
+  ],
+  "objectTemplates": [],
+  "roomTemplateIds": [],
+  "roomTemplates": [],
+  "id": "00000000-0000-0000-0000-000000000000",
+  "name": "",
+  "nameInGame": "",
+  "hideEmptyConfiguration": false,
+  "validationErrors": [],
+  "ignoredValidationRuleIds": [],
+  "scopeKind": "Global",
+  "baseObjectIds": [],
+  "gameObjectIds": [
+    "30aa0176-7d59-4c03-93e8-2b0f56839be6"
+  ],
+  "procedureIds": [],
+  "gameProperties": [],
+  "additionalVerbs": [],
+  "additionalDirectionals": [],
+  "additionalDirectionalTraversalMappings": [],
+  "availableGameActions": [],
+  "eventSubscriptions": [],
+  "timerDefinitions": [],
+  "soundEffectLibraryEntries": []
+}

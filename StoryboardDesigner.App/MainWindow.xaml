@@ -1,0 +1,155 @@
+<Window x:Class="StoryboardDesigner.App.MainWindow"
+    x:Name="RootWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:conv="clr-namespace:StoryboardDesigner.App.Converters"
+        xmlns:controls="clr-namespace:StoryboardDesigner.App.Views.Controls"
+        xmlns:vm="clr-namespace:StoryboardDesigner.App.ViewModels"
+        mc:Ignorable="d"
+        Title="{Binding WindowTitle}"
+        Icon="Assets/planet.ico"
+        Height="800"
+        Width="1280"
+        MinHeight="640"
+        MinWidth="1024">
+    <Window.Resources>
+        <conv:CommandInVocabularyConverter x:Key="CommandInVocabularyConverter" />
+        <conv:RoomDefaultThumbnailConverter x:Key="RoomDefaultThumbnailConverter" />
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </Window.Resources>
+
+    <Grid Background="#F3F4F6">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="6" />
+            <RowDefinition Height="160" MinHeight="48" />
+        </Grid.RowDefinitions>
+
+        <Menu Grid.Row="0" Background="#FFFFFF" BorderBrush="#D1D5DB" BorderThickness="0,0,0,1">
+            <MenuItem x:Name="FileMenuItem"
+                      AutomationProperties.AutomationId="MainWindow.Menu.File"
+                      Header="_File"
+                      SubmenuOpened="FileMenu_OnSubmenuOpened">
+                <MenuItem Header="_Open" Command="{Binding OpenProjectCommand}" />
+                <MenuItem Header="_Create New"
+                          AutomationProperties.AutomationId="MainWindow.Menu.CreateNewProject"
+                          Command="{Binding CreateNewProjectCommand}" />
+                <MenuItem Header="_Save &amp; Export" Command="{Binding SaveProjectCommand}" />
+                <MenuItem Header="Save _As..." Command="{Binding SaveProjectAsCommand}" />
+                <MenuItem Header="Import _Globals From Project" Command="{Binding ImportGlobalsFromProjectCommand}" />
+                <MenuItem Header="Export _Runtime JSON" Command="{Binding ExportCleanProjectCommand}" />
+            </MenuItem>
+            <MenuItem Header="_Run Simulator"
+                      AutomationProperties.AutomationId="MainWindow.Menu.RunSimulator"
+                      Command="{Binding RunSimulatorCommand}" />
+            <MenuItem Header="_Validate Project" Command="{Binding ValidateProjectCommand}" />
+            <MenuItem Header="_Tools"
+                      AutomationProperties.AutomationId="MainWindow.Menu.Tools">
+                <MenuItem Header="Simulator Setup"
+                          AutomationProperties.AutomationId="MainWindow.Menu.Tools.SimulatorSetup"
+                          Command="{Binding SimulatorSetupCommand}" />
+                <Separator />
+                <MenuItem Header="Open Shared Variables Manager"
+                          AutomationProperties.AutomationId="MainWindow.Menu.Tools.SharedVariablesManager"
+                          Command="{Binding OpenSharedVariablesManagerToolCommand}" />
+                <Separator />
+                <MenuItem Header="Edit Application Default Echo Messages"
+                          AutomationProperties.AutomationId="MainWindow.Menu.Tools.EditApplicationDefaultEchoMessages"
+                          Command="{Binding EditApplicationDefaultEchoMessagesCommand}" />
+                <MenuItem Header="Edit Project Default Echo Messages"
+                          AutomationProperties.AutomationId="MainWindow.Menu.Tools.EditProjectDefaultEchoMessages"
+                          Command="{Binding EditProjectDefaultEchoMessagesCommand}" />
+                <MenuItem Header="Refresh Default Echo Messages Skeleton"
+                          AutomationProperties.AutomationId="MainWindow.Menu.Tools.RefreshDefaultEchoMessagesSkeleton"
+                          Command="{Binding RefreshDefaultEchoMessagesSkeletonCommand}" />
+                <Separator />
+                <MenuItem Header="Hide Empty Configuration (Global)"
+                          Command="{Binding HideEmptyConfigurationGlobalCommand}" />
+                <MenuItem Header="Show Empty Configuration (Global)"
+                          Command="{Binding ShowEmptyConfigurationGlobalCommand}" />
+                <Separator />
+                <MenuItem Header="Source Image Management" Command="{Binding ManageSourceImagesCommand}" />
+            </MenuItem>
+        </Menu>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="HierarchyPaneColumn" Width="280" MinWidth="180" />
+                <ColumnDefinition Width="6" />
+                <ColumnDefinition Width="*" MinWidth="420" />
+                <ColumnDefinition Width="6" />
+                <ColumnDefinition x:Name="InspectorPaneColumn" Width="320" MinWidth="220" />
+            </Grid.ColumnDefinitions>
+
+        <controls:ProjectHierarchyPane x:Name="ProjectHierarchyPaneControl"
+                                       Grid.Column="0" />
+
+        <GridSplitter Grid.Column="1"
+                      Margin="0,12"
+                      Width="6"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      ResizeDirection="Columns"
+                      ResizeBehavior="PreviousAndNext"
+                      Background="#D1D5DB"
+                      ShowsPreview="True" />
+
+        <Border Grid.Column="2" Margin="0,12" Padding="12" Background="#FFFFFF" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="8">
+            <DockPanel>
+                <TabControl x:Name="WorkspaceTabControl"
+                            AutomationProperties.AutomationId="MainWindow.WorkspaceTabs"
+                            Background="#F9FAFB"
+                            Foreground="#111827"
+                            BorderBrush="#D1D5DB"
+                            SelectedIndex="{Binding SelectedWorkspaceTabIndex, Mode=TwoWay}">
+                    <TabItem Header="Room Designer"
+                             AutomationProperties.AutomationId="MainWindow.Tab.RoomDesigner">
+                        <controls:RoomDesignerWorkspaceView />
+                    </TabItem>
+                    <TabItem Header="Area (Map) Designer"
+                             AutomationProperties.AutomationId="MainWindow.Tab.AreaDesigner">
+                        <controls:AreaMapDesignerWorkspace x:Name="AreaMapDesignerWorkspaceControl" />
+                    </TabItem>
+                </TabControl>
+            </DockPanel>
+        </Border>
+
+        <GridSplitter Grid.Column="3"
+                  Margin="0,12"
+                  Width="6"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch"
+                  ResizeDirection="Columns"
+                  ResizeBehavior="PreviousAndNext"
+                  Background="#D1D5DB"
+                  ShowsPreview="True" />
+
+        <Border Grid.Column="4" Margin="6,12,12,12" Padding="12" Background="#FFFFFF" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="8">
+            <controls:SettingsAccessPane />
+        </Border>
+        </Grid>
+
+        <GridSplitter Grid.Row="2"
+                  Margin="12,0,12,0"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch"
+                  ResizeDirection="Rows"
+                  ResizeBehavior="PreviousAndNext"
+                  Background="#D1D5DB"
+                  ShowsPreview="True" />
+
+        <Border Grid.Row="3"
+                Margin="12,0,12,12"
+                Padding="10"
+                Background="#FFFFFF"
+                BorderBrush="#D1D5DB"
+                BorderThickness="1"
+                CornerRadius="8">
+            <controls:OutputConsolePane x:Name="OutputConsolePaneControl" />
+        </Border>
+    </Grid>
+</Window>
+

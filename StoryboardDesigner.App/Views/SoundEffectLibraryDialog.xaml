@@ -1,0 +1,72 @@
+<Window x:Class="StoryboardDesigner.App.Views.SoundEffectLibraryDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sound Effects"
+    Height="540"
+    Width="980"
+    MinHeight="540"
+    MinWidth="980"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Margin="0,0,0,10"
+                   Foreground="#374151"
+                   Text="Create and tune sound effect entries. Double-click an entry to edit details in a dedicated editor." />
+
+        <DataGrid x:Name="EntriesDataGrid"
+                  Grid.Row="1"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  IsReadOnly="True"
+                  SelectionMode="Single"
+                  SelectionUnit="FullRow"
+                  HeadersVisibility="Column"
+                  GridLinesVisibility="Horizontal"
+                  RowHeaderWidth="0"
+                  MouseDoubleClick="EntriesDataGrid_OnMouseDoubleClick"
+                  Margin="0,0,0,12">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="SoundEffectId"
+                                    Width="230"
+                                    Binding="{Binding SoundEffectId}" />
+                <DataGridTextColumn Header="SoundEffectKey"
+                                    Width="170"
+                                    Binding="{Binding SoundEffectKey}" />
+                <DataGridTextColumn Header="Display Name"
+                                    Width="170"
+                                    Binding="{Binding DisplayName}" />
+                <DataGridTextColumn Header="Category"
+                                    Width="120"
+                                    Binding="{Binding Category}" />
+                <DataGridTextColumn Header="Asset Ref"
+                                    Width="220"
+                                    Binding="{Binding AssetRef}" />
+                <DataGridTextColumn Header="Repeat Mode"
+                                    Width="90"
+                                    Binding="{Binding RepeatMode}" />
+                <DataGridTextColumn Header="Replay Policy"
+                                    Width="170"
+                                    Binding="{Binding ReplayPolicy}" />
+                <DataGridTextColumn Header="Volume (dB)"
+                                    Width="95"
+                                    Binding="{Binding BaseVolumeDb}" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Width="120" Margin="0,0,8,0" Content="Add Entry" Click="AddEntry_OnClick" />
+            <Button Width="120" Margin="0,0,8,0" Content="Edit Entry" Click="EditEntry_OnClick" />
+            <Button Width="120" Margin="0,0,18,0" Content="Remove Entry" Click="RemoveEntry_OnClick" />
+            <Button Width="100" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
+            <Button Width="100" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

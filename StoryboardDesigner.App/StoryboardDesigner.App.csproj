@@ -1,0 +1,48 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>Assets\planet.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\planet.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\Storyboard.GameEngine\Config\presentation-effects.catalog.json">
+      <Link>Config\presentation-effects.catalog.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Storyboard.GameEngine\Config\event-payload.manifest.json">
+      <Link>Config\event-payload.manifest.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Storyboard.GameEngine\Config\session-anchordata.manifest.json">
+      <Link>Config\session-anchordata.manifest.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Storyboard.GameEngine\Config\action-payload.manifest.json">
+      <Link>Config\action-payload.manifest.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Storyboard.Shared.Contracts\RuntimeContracts\Schemas\DtoContracts\Core\EventSubscription.core.schema.json">
+      <Link>Config\EventSubscription.core.schema.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="StarterProjects\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Storyboard.GameEngine\Storyboard.GameEngine.csproj" />
+    <ProjectReference Include="..\Storyboard.Shared.Contracts\Storyboard.Shared.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

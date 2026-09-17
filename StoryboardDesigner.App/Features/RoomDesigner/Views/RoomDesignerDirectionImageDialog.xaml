@@ -1,0 +1,136 @@
+<Window x:Class="StoryboardDesigner.App.Views.RoomDesignerDirectionImageDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Directional Image Editor"
+        Height="700"
+        Width="780"
+        MinHeight="640"
+        MinWidth="760"
+        WindowStartupLocation="CenterOwner"
+        Closing="OnWindowClosing"
+        ResizeMode="CanResize">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="140" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="90" />
+        </Grid.ColumnDefinitions>
+
+        <CheckBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,8" Content="Show this direction in preview" IsChecked="{Binding IsPreviewVisible, Mode=TwoWay}" />
+
+        <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,8">Full Image</TextBlock>
+        <TextBox x:Name="FullPathTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,8,8" Text="{Binding FullImagePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <Button Grid.Row="1" Grid.Column="2" Margin="0,0,0,8" Content="Browse" Click="BrowseFull_OnClick" />
+
+        <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,8">Gray Map</TextBlock>
+        <TextBox x:Name="GrayPathTextBox" Grid.Row="2" Grid.Column="1" Margin="0,0,8,8" Text="{Binding GrayMapImagePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <Button Grid.Row="2" Grid.Column="2" Margin="0,0,0,8" Content="Browse" Click="BrowseGray_OnClick" />
+
+        <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,8">Normal Map</TextBlock>
+        <TextBox x:Name="NormalPathTextBox" Grid.Row="3" Grid.Column="1" Margin="0,0,8,8" Text="{Binding NormalMapImagePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <Button Grid.Row="3" Grid.Column="2" Margin="0,0,0,8" Content="Browse" Click="BrowseNormal_OnClick" />
+
+        <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,4,0,8">
+            <StackPanel>
+                <TextBlock FontWeight="SemiBold" Margin="0,0,0,10">Image Transform</TextBlock>
+
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="30" />
+                        <ColumnDefinition Width="30" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0">Offset X</TextBlock>
+                    <TextBox Grid.Column="1" Text="{Binding OverlayOffsetX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Grid.Column="2" Margin="6,0,4,0" Content="-" Tag="X:-1" Click="Nudge_OnClick" />
+                    <Button Grid.Column="3" Content="+" Tag="X:+1" Click="Nudge_OnClick" />
+                </Grid>
+
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="30" />
+                        <ColumnDefinition Width="30" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0">Offset Y</TextBlock>
+                    <TextBox Grid.Column="1" Text="{Binding OverlayOffsetY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Grid.Column="2" Margin="6,0,4,0" Content="-" Tag="Y:-1" Click="Nudge_OnClick" />
+                    <Button Grid.Column="3" Content="+" Tag="Y:+1" Click="Nudge_OnClick" />
+                </Grid>
+
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="30" />
+                        <ColumnDefinition Width="30" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="46" />
+                        <ColumnDefinition Width="46" />
+                        <ColumnDefinition Width="46" />
+                        <ColumnDefinition Width="46" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0">Rotation (deg)</TextBlock>
+                    <TextBox Grid.Column="1" Text="{Binding OverlayRotationDegrees, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Grid.Column="2" Margin="6,0,4,0" Content="-" Tag="R:-1" Click="Nudge_OnClick" />
+                    <Button Grid.Column="3" Content="+" Tag="R:+1" Click="Nudge_OnClick" />
+                    <Button Grid.Column="5" Content="0" Tag="0" Click="PresetRotation_OnClick" />
+                    <Button Grid.Column="6" Content="90" Tag="90" Click="PresetRotation_OnClick" />
+                    <Button Grid.Column="7" Content="180" Tag="180" Click="PresetRotation_OnClick" />
+                    <Button Grid.Column="8" Content="-90" Tag="-90" Click="PresetRotation_OnClick" />
+                </Grid>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="30" />
+                        <ColumnDefinition Width="30" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="92" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0">Render Order</TextBlock>
+                    <TextBox Grid.Column="1" Text="{Binding OverlayRenderOrder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Grid.Column="2" Margin="6,0,4,0" Content="-" Tag="O:-1" Click="Nudge_OnClick" />
+                    <Button Grid.Column="3" Content="+" Tag="O:+1" Click="Nudge_OnClick" />
+                    <Button Grid.Column="5" Content="Use Default" Click="ResetRenderOrder_OnClick" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock FontWeight="SemiBold" Margin="0,0,0,6">Preview Source Paths</TextBlock>
+                <TextBlock Text="{Binding ElementName=FullPathTextBox, Path=Text, StringFormat=Full: {0}}" Foreground="#374151" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding ElementName=GrayPathTextBox, Path=Text, StringFormat=Gray: {0}}" Foreground="#374151" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding ElementName=NormalPathTextBox, Path=Text, StringFormat=Normal: {0}}" Foreground="#374151" TextWrapping="Wrap" />
+                <TextBlock Margin="0,8,0,0" FontWeight="SemiBold" Text="Path Status" />
+                <TextBlock x:Name="FullPathHealthTextBlock" Foreground="#374151" TextWrapping="Wrap" />
+                <TextBlock x:Name="GrayPathHealthTextBlock" Foreground="#374151" TextWrapping="Wrap" />
+                <TextBlock x:Name="NormalPathHealthTextBlock" Foreground="#374151" TextWrapping="Wrap" />
+                <TextBlock Margin="0,8,0,0" FontSize="11" Foreground="#6B7280" TextWrapping="Wrap"
+                           Text="If a source is missing, fallback may use project-source-images or exported assets. Use Tools > Source Image Management when relinking is needed." />
+                <TextBlock Margin="0,4,0,0" FontSize="11" Foreground="#6B7280" Text="Use Save and Close to keep edits, or Cancel to discard edits from this session." />
+            </StackPanel>
+        </Border>
+
+        <DockPanel Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" LastChildFill="False">
+            <TextBlock VerticalAlignment="Center" Foreground="#6B7280" Text="Lower render-order values draw first." />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" DockPanel.Dock="Right">
+                <Button Width="110" Margin="0,0,8,0" Content="Cancel" Click="Cancel_OnClick" />
+                <Button Width="140" Content="Save and Close" Click="SaveAndClose_OnClick" />
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>

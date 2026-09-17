@@ -1,0 +1,52 @@
+{
+  "objectType": "VicHotel_Door_E",
+  "positionX": 760,
+  "positionY": 200,
+  "includeInPreview": true,
+  "linkedBaseObjectId": "197cd3f2-abcd-4aa0-860e-e3d1b596afe9",
+  "linkActionsToBaseObject": true,
+  "productionName": "",
+  "imageRotationDegrees": 90,
+  "renderZOrder": 1003,
+  "quantity": 1,
+  "quantifiablePlacementDistributionMode": "IndividualInstances",
+  "containedObjects": [],
+  "id": "ca290c79-d245-44c0-b5b5-127d4b5b3695",
+  "name": "VicHotel_Door_E",
+  "nameInGame": "East Door",
+  "hideEmptyConfiguration": false,
+  "scopeKind": "Templates",
+  "gameProperties": [
+    {
+      "id": "d32e2d5d-6c31-410d-8706-fe7e9aa8e582",
+      "name": "isOpen",
+      "defaultValue": "false",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "e9524c3e-88fc-440e-8d8a-bf877d94a1d3",
+      "name": "isLocked",
+      "defaultValue": "false",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "eb14b29c-322d-478a-a280-2caccbb527fd",
+      "name": "isQuantifiable",
+      "defaultValue": "true",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "e26dbd2c-eb45-483a-bcaa-bd2cb57a6c35",
+      "name": "quantity",
+      "defaultValue": "1",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    }
+  ],
+  "eventSubscriptions": [],
+  "timerDefinitions": [],
+  "soundEffectLibraryEntries": []
+}

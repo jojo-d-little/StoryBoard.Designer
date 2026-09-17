@@ -1,0 +1,4 @@
+timestampUtc,severity,event,sourcePath,message
+"2026-09-02T17:23:19.1425693Z","Info","OpenProject","C:\work\HobbyStuff\storyboarding\StoryboardDesigner.App\StarterProjects\MinimalStarter\MinimalStarter.sbe.json","Project load completed."
+"2026-09-02T17:23:19.1433922Z","Warning","GlobalNodeFallback","C:\work\HobbyStuff\storyboarding\StoryboardDesigner.App\StarterProjects\MinimalStarter\MinimalStarter.sbe.json","global-node.fallback-used.v1: Legacy root global-owned fields were used for compatibility load."
+"2026-09-02T17:23:19.1435222Z","Warning","GlobalNodeConflict","C:\work\HobbyStuff\storyboarding\StoryboardDesigner.App\StarterProjects\MinimalStarter\MinimalStarter.sbe.json","global-node.conflict-root-vs-global.v1: Both global node and root contain global-owned fields; global node values are authoritative."

@@ -1,0 +1,12 @@
+{
+  "scopeKind": 6,
+  "schemaVersion": "1.0",
+  "id": "f3211ed7-0612-41b9-93af-2c983b20f0c5",
+  "description": "",
+  "roomDisplayMode": "Independent",
+  "commandPhrases": [],
+  "childScopes": [],
+  "name": "Starter Room",
+  "additionalDirectionalTraversalMappings": [],
+  "availableGameActions": []
+}

@@ -1,0 +1,17 @@
+Validation report generated: 2026-09-02 13:24:36
+Project: Minimal Starter
+ExecutionKind: WholeProject
+RootScopePath: Global
+IncludeDescendants: True
+CandidateNodeCount: 12
+ExecutedRules: 56
+SkippedRules: 0
+StoppedEarly: False
+RemainingIssueCountAtStop: 0
+StopRuleId: (none)
+RemainingRuleCountAtStop: 0
+
+SkippedRuleId	SkipReason	SkipDetail
+
+RuleId	Severity	Path	Description	Hint
+PROJ-004	Error	Global / Player	Object 'Player' is marked isPlayer=true but is not configured as a container. Player object must be a container to support inventory pickup flow.	

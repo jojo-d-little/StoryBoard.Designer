@@ -1,0 +1,140 @@
+{
+  "gameObjects": [],
+  "description": "",
+  "roomImageCanvasWidth": 800,
+  "roomImageCanvasHeight": 600,
+  "roomDisplayMode": "Overlay",
+  "producerNotes": "",
+  "images": [
+    {
+      "slot": "Default",
+      "overlayRenderOrder": 150,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "North",
+      "overlayRenderOrder": 100,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_LongWall_MidDoor_01.png",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "NorthEast",
+      "overlayRenderOrder": 200,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "East",
+      "overlayRenderOrder": 100,
+      "overlayOffsetX": 3,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_ShortWall_MidDoor_01.png",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "SouthEast",
+      "overlayRenderOrder": 200,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "South",
+      "overlayRenderOrder": 100,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 180,
+      "fullImagePath": "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_LongWall_MidDoor_01.png",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "SouthWest",
+      "overlayRenderOrder": 200,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "West",
+      "overlayRenderOrder": 99,
+      "overlayOffsetX": -2,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 180,
+      "fullImagePath": "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_ShortWall_MidDoor_01.png",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "NorthWest",
+      "overlayRenderOrder": 200,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "Up",
+      "overlayRenderOrder": 150,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "Down",
+      "overlayRenderOrder": 0,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_Floor_01.png",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    }
+  ],
+  "id": "977bd55c-4f35-4098-90fe-c6a3b6d78f6c",
+  "name": "Room_4_Doors",
+  "nameInGame": "Room_4_Doors",
+  "hideEmptyConfiguration": false,
+  "validationErrors": [],
+  "ignoredValidationRuleIds": [],
+  "scopeKind": "RoomTemplates",
+  "gameObjectIds": [
+    "4dac4fd0-7356-4296-ab20-925eade7e625",
+    "ca290c79-d245-44c0-b5b5-127d4b5b3695",
+    "cb769cc6-54b5-404f-8812-371e4c007f0e",
+    "66b70162-ad97-4589-92f9-c81a5d40a847"
+  ],
+  "gameProperties": [],
+  "additionalVerbs": [],
+  "additionalDirectionals": [],
+  "additionalDirectionalTraversalMappings": [],
+  "availableGameActions": [],
+  "timerDefinitions": [],
+  "soundEffectLibraryEntries": []
+}

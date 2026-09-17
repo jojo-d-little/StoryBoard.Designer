@@ -1,0 +1,211 @@
+﻿{
+  "description": "A minimal single-room fixture.",
+  "roomDisplayMode": "Overlay",
+  "gameObjects": [
+    {
+      "linkActionsToBaseObject": false,
+      "isRuntimeMaterialized": false,
+      "productionName": "bookcase",
+      "imageRotationDegrees": 0,
+      "renderZOrder": 1003,
+      "isInventoriable": false,
+      "inventoryPointsDefaultValue": 1,
+      "isContainer": false,
+      "containerPointsDefaultValue": 1,
+      "isOpenable": false,
+      "isOpenDefaultValue": false,
+      "isLockable": false,
+      "isLockedDefaultValue": false,
+      "isActivatable": false,
+      "isActiveDefaultValue": false,
+      "isHidable": false,
+      "isHiddenDefaultValue": false,
+      "description": "A tall wooden bookcase.",
+      "isQuantifiable": false,
+      "quantity": 1,
+      "quantifiablePlacementDistributionMode": "GroupedStack",
+      "Id": "33333333-3333-3333-3333-333333333333",
+      "name": "bookcase",
+      "nameInGame": "bookcase",
+      "scopeKind": "GameObject",
+      "gameProperties": [
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "name": "imageRotationDegrees",
+          "defaultValue": "0",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "name": "imageScale",
+          "defaultValue": "1",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "name": "positionX",
+          "defaultValue": "0",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "name": "positionY",
+          "defaultValue": "0",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        }
+      ],
+      "availableGameActions": [
+        {
+          "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          "name": "lookBookcase",
+          "actionType": "EchoMessage",
+          "noVerbLinkage": false,
+          "verbListText": "look",
+          "direction": "",
+          "outcomeMessageMap": {
+            "Success": "it just looks like a boot case"
+          },
+          "childCommandForwardingMode": "None"
+        },
+        {
+          "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+          "name": "lookUnderBookcase",
+          "actionType": "EchoMessage",
+          "noVerbLinkage": false,
+          "verbListText": "look",
+          "direction": "under",
+          "outcomeMessageMap": {
+            "Success": "it\u0027s dusty down here."
+          },
+          "childCommandForwardingMode": "None"
+        }
+      ]
+    },
+    {
+      "linkActionsToBaseObject": false,
+      "isRuntimeMaterialized": false,
+      "productionName": "key",
+      "imageRotationDegrees": 0,
+      "renderZOrder": 1002,
+      "isInventoriable": false,
+      "inventoryPointsDefaultValue": 1,
+      "isContainer": false,
+      "containerPointsDefaultValue": 1,
+      "isOpenable": false,
+      "isOpenDefaultValue": false,
+      "isLockable": false,
+      "isLockedDefaultValue": false,
+      "isActivatable": false,
+      "isActiveDefaultValue": false,
+      "isHidable": false,
+      "isHiddenDefaultValue": false,
+      "description": "A small brass key.",
+      "isQuantifiable": false,
+      "quantity": 1,
+      "quantifiablePlacementDistributionMode": "GroupedStack",
+      "Id": "44444444-4444-4444-4444-444444444444",
+      "name": "key",
+      "nameInGame": "key",
+      "scopeKind": "GameObject",
+      "gameProperties": [
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "name": "imageRotationDegrees",
+          "defaultValue": "0",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "name": "imageScale",
+          "defaultValue": "1",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "name": "positionX",
+          "defaultValue": "0",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "name": "positionY",
+          "defaultValue": "0",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        }
+      ]
+    },
+    {
+      "linkActionsToBaseObject": false,
+      "isRuntimeMaterialized": false,
+      "productionName": "door",
+      "imageRotationDegrees": 0,
+      "renderZOrder": 1001,
+      "isInventoriable": false,
+      "inventoryPointsDefaultValue": 1,
+      "isContainer": false,
+      "containerPointsDefaultValue": 1,
+      "isOpenable": false,
+      "isOpenDefaultValue": false,
+      "isLockable": false,
+      "isLockedDefaultValue": false,
+      "isActivatable": false,
+      "isActiveDefaultValue": false,
+      "isHidable": false,
+      "isHiddenDefaultValue": false,
+      "description": "A heavy wooden door.",
+      "isQuantifiable": false,
+      "quantity": 1,
+      "quantifiablePlacementDistributionMode": "GroupedStack",
+      "Id": "55555555-5555-5555-5555-555555555555",
+      "name": "door",
+      "nameInGame": "door",
+      "scopeKind": "GameObject",
+      "gameProperties": [
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "name": "imageRotationDegrees",
+          "defaultValue": "0",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "name": "imageScale",
+          "defaultValue": "1",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "name": "positionX",
+          "defaultValue": "0",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "name": "positionY",
+          "defaultValue": "0",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        }
+      ]
+    }
+  ],
+  "Id": "11111111-1111-1111-1111-111111111111",
+  "name": "Single Room",
+  "nameInGame": "Single Room",
+  "scopeKind": "Room",
+  "additionalDirectionals": [
+    "under"
+  ],
+  "availableGameActions": []
+}

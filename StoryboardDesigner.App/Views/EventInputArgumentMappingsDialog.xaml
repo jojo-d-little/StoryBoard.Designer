@@ -1,0 +1,199 @@
+<Window x:Class="StoryboardDesigner.App.Views.EventInputArgumentMappingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="clr-namespace:StoryboardDesigner.App.Models"
+        Title="Event Input Argument Mappings"
+        Height="560"
+        Width="1180"
+        MinHeight="460"
+        MinWidth="980"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Margin="0,0,0,8"
+                   Foreground="#374151"
+                   TextWrapping="Wrap"
+                   Text="Mappings are subscription-level. Event payload keys are forwarded by default." />
+
+        <TextBlock Grid.Row="1"
+                   Margin="0,0,0,8"
+                   Foreground="#6B7280"
+                   Text="Use EventPayloadKey to rename payload values, or ConstantValue to inject a fixed action input value." />
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBlock VerticalAlignment="Center"
+                       Margin="0,0,8,0"
+                       Foreground="#374151"
+                       Text="Intended Action Type (optional):" />
+            <ComboBox x:Name="IntendedActionTypeComboBox"
+                      Width="320"
+                      IsEditable="False"
+                      ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=IntendedActionTypeOptions}"
+                      SelectedItem="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=SelectedIntendedActionType, Mode=OneWay}"
+                      SelectionChanged="IntendedActionTypeComboBox_OnSelectionChanged" />
+        </StackPanel>
+
+        <DockPanel Grid.Row="3">
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                <Button Width="110" Margin="0,0,8,0" Content="Add Mapping" Click="AddMapping_OnClick" />
+                <Button Width="130" Margin="0,0,8,0" Content="Remove Mapping" Click="RemoveMapping_OnClick" />
+            </StackPanel>
+
+            <DataGrid x:Name="MappingsDataGrid"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      SelectionMode="Single"
+                      SelectionUnit="FullRow"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal"
+                      RowHeaderWidth="0">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="Source Type" Width="160">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <ComboBox IsEditable="False"
+                                          ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=MappingSourceTypeOptions}"
+                                          SelectedItem="{Binding SourceType, UpdateSourceTrigger=PropertyChanged}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox IsEditable="False"
+                                          ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=MappingSourceTypeOptions}"
+                                          SelectedItem="{Binding SourceType, UpdateSourceTrigger=PropertyChanged}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTemplateColumn Header="Input Event Payload Arg Key" Width="300">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <ComboBox IsEditable="True"
+                                          StaysOpenOnEdit="True"
+                                          ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=InputPayloadKeySuggestions}"
+                                          Text="{Binding InputEventPaylloadArgKey, UpdateSourceTrigger=PropertyChanged}">
+                                    <ComboBox.Style>
+                                        <Style TargetType="ComboBox">
+                                            <Setter Property="IsEnabled" Value="True" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SourceType}" Value="{x:Static models:EventInputArgumentMappingSourceType.ConstantValue}">
+                                                    <Setter Property="IsEnabled" Value="False" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ComboBox.Style>
+                                </ComboBox>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox IsEditable="True"
+                                          StaysOpenOnEdit="True"
+                                          ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=InputPayloadKeySuggestions}"
+                                          Text="{Binding InputEventPaylloadArgKey, UpdateSourceTrigger=PropertyChanged}">
+                                    <ComboBox.Style>
+                                        <Style TargetType="ComboBox">
+                                            <Setter Property="IsEnabled" Value="True" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SourceType}" Value="{x:Static models:EventInputArgumentMappingSourceType.ConstantValue}">
+                                                    <Setter Property="IsEnabled" Value="False" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ComboBox.Style>
+                                </ComboBox>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTemplateColumn Header="Constant Value" Width="340">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <DockPanel LastChildFill="True">
+                                    <Button Content="Choose..."
+                                            Width="72"
+                                            Margin="0,0,8,0"
+                                            Click="ChooseConstantValue_OnClick" />
+                                    <ComboBox IsEditable="True"
+                                              StaysOpenOnEdit="True"
+                                              ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=SoundEffectKeySuggestions}"
+                                              Text="{Binding ConstantValue, UpdateSourceTrigger=PropertyChanged}">
+                                        <ComboBox.Style>
+                                            <Style TargetType="ComboBox">
+                                                <Setter Property="IsEnabled" Value="False" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SourceType}" Value="{x:Static models:EventInputArgumentMappingSourceType.ConstantValue}">
+                                                        <Setter Property="IsEnabled" Value="True" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ComboBox.Style>
+                                    </ComboBox>
+                                </DockPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <DockPanel LastChildFill="True">
+                                    <Button Content="Choose..."
+                                            Width="72"
+                                            Margin="0,0,8,0"
+                                            Click="ChooseConstantValue_OnClick" />
+                                    <ComboBox IsEditable="True"
+                                              StaysOpenOnEdit="True"
+                                              ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=SoundEffectKeySuggestions}"
+                                              Text="{Binding ConstantValue, UpdateSourceTrigger=PropertyChanged}">
+                                        <ComboBox.Style>
+                                            <Style TargetType="ComboBox">
+                                                <Setter Property="IsEnabled" Value="False" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SourceType}" Value="{x:Static models:EventInputArgumentMappingSourceType.ConstantValue}">
+                                                        <Setter Property="IsEnabled" Value="True" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ComboBox.Style>
+                                    </ComboBox>
+                                </DockPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTemplateColumn Header="Output Action Payload Arg Key" Width="320">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <ComboBox IsEditable="True"
+                                          StaysOpenOnEdit="True"
+                                          ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=OutputPayloadKeySuggestions}"
+                                          Text="{Binding OutputActionPayloadArgKey, UpdateSourceTrigger=PropertyChanged}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox IsEditable="True"
+                                          StaysOpenOnEdit="True"
+                                          ItemsSource="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=OutputPayloadKeySuggestions}"
+                                          Text="{Binding OutputActionPayloadArgKey, UpdateSourceTrigger=PropertyChanged}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Width="100" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
+            <Button Width="100" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

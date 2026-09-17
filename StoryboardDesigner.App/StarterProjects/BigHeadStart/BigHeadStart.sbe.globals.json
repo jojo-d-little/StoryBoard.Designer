@@ -1,0 +1,836 @@
+{
+  "gameObjects": [],
+  "baseObjects": [],
+  "phaseBooks": [],
+  "planetIds": [
+    "158e43eb-d556-4d44-8c6a-40df59d7884e"
+  ],
+  "phaseBookIds": [
+    "bb4dba02-f87e-4fd2-ad5f-f2a0243c5030"
+  ],
+  "sharedVariables": [],
+  "objectTemplateIds": [
+    "48ad369f-3dcc-478d-8f31-fdf20973ab2d",
+    "df279994-5be3-4c53-afd0-14935e571f10",
+    "82b9780c-0ece-4c74-9f08-eddf3b9f3cdb",
+    "b7f7d43e-3d02-46b3-a9fd-519997dfebac"
+  ],
+  "objectTemplates": [],
+  "roomTemplateIds": [
+    "394e58f5-2034-4243-8f43-2a9358cbc345",
+    "977bd55c-4f35-4098-90fe-c6a3b6d78f6c"
+  ],
+  "roomTemplates": [],
+  "id": "00000000-0000-0000-0000-000000000000",
+  "name": "",
+  "nameInGame": "",
+  "hideEmptyConfiguration": false,
+  "validationErrors": [],
+  "ignoredValidationRuleIds": [],
+  "scopeKind": "Global",
+  "baseObjectIds": [
+    "c5f8e19c-1814-46eb-9305-395b04ce86af",
+    "ef2f58e7-f01f-4ad0-a6c2-20f20042d5f2",
+    "197cd3f2-abcd-4aa0-860e-e3d1b596afe9"
+  ],
+  "gameObjectIds": [
+    "ec6fffd3-0f80-4d34-b99d-c3bf224b2b8b"
+  ],
+  "procedureIds": [],
+  "gameProperties": [],
+  "additionalVerbs": [
+    "go",
+    "look",
+    "open",
+    "close",
+    "take",
+    "drop",
+    "use",
+    "talk",
+    "pointclicked",
+    "submitwaypoints",
+    "rotate",
+    "face"
+  ],
+  "additionalDirectionals": [
+    "north",
+    "south",
+    "east",
+    "west",
+    "northeast",
+    "southeast",
+    "northwest",
+    "southwest",
+    "up",
+    "down"
+  ],
+  "additionalDirectionalTraversalMappings": [
+    {
+      "token": "east",
+      "traversalDirection": "East"
+    },
+    {
+      "token": "north",
+      "traversalDirection": "North"
+    },
+    {
+      "token": "northeast",
+      "traversalDirection": "NorthEast"
+    },
+    {
+      "token": "northwest",
+      "traversalDirection": "NorthWest"
+    },
+    {
+      "token": "south",
+      "traversalDirection": "South"
+    },
+    {
+      "token": "southeast",
+      "traversalDirection": "SouthEast"
+    },
+    {
+      "token": "southwest",
+      "traversalDirection": "SouthWest"
+    },
+    {
+      "token": "west",
+      "traversalDirection": "West"
+    }
+  ],
+  "availableGameActions": [
+    {
+      "id": "eeb3c3cd-7fa4-4da3-82d7-28d463d598a3",
+      "name": "drop_object",
+      "payload": {
+        "$payloadType": "removeObjectFromContainer",
+        "targetContainerId": ""
+      },
+      "actionType": "RemoveObjectFromContainer",
+      "noVerbLinkage": false,
+      "verbListText": "drop",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "f",
+        "RemoveFailed": "That didn\u0027t turn out well.",
+        "ResolveSourceFailed": "Remove it from where?",
+        "ResolveSubjectFailed": "",
+        "Success": "The {currentAction.removedObjectName} is now in the {currentAction.objectsNewLocationName}"
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "f980ef6e-a873-41ac-9431-a61875a2e030",
+      "name": "move_object",
+      "payload": {
+        "$payloadType": "moveRoomObjectOnGrid",
+        "directionToken": "",
+        "distanceInCells": 1,
+        "allowPartialMove": true,
+        "allowJumpOver": true,
+        "visualTransitionHint": "Slow",
+        "travelVisualizationMode": "LegByLeg"
+      },
+      "actionType": "MoveRoomObjectOnGrid",
+      "noVerbLinkage": false,
+      "verbListText": "move",
+      "direction": "",
+      "outcomeMessageMap": {
+        "BlockedByCollision": "Blocked",
+        "FailedBeforeAnyLegMoved": "",
+        "InvalidConfiguration": "IC",
+        "InvalidDirection": "Which Way?",
+        "InvalidDistance": "How far?",
+        "MovedAllLegs": "",
+        "MovedFullDistance": "You moved {currentAction.movedObjectName}",
+        "MovedPartialDistance": "You moved {currentAction.movedObjectName} a little",
+        "MovedPartialLegs": "",
+        "NoResolvedTarget": "NRT",
+        "ObjectMovementRestriction": "",
+        "OutOfBounds": "OOB",
+        "PartialSupportNotAllowed": "You don\u0027t sit there very well.",
+        "RuntimeMovableDisabled": "RMD",
+        "Success": "success?",
+        "TargetNotMovable": "TNM"
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "6371b69c-6e0e-4631-9ccf-47f1389780b4",
+      "name": "rotate_object",
+      "payload": {
+        "$payloadType": "rotateRoomObjectOnGrid",
+        "mode": "Turn",
+        "turnDegrees": 90,
+        "facingDirectionToken": "",
+        "visualTransitionHint": "Medium"
+      },
+      "actionType": "RotateRoomObjectOnGrid",
+      "noVerbLinkage": false,
+      "verbListText": "rotate, face",
+      "verbs": [
+        "rotate",
+        "face"
+      ],
+      "direction": "",
+      "outcomeMessageMap": {
+        "BlockedByCollision": "bbc",
+        "InvalidConfiguration": "ic",
+        "InvalidFacing": "Rotate which way?",
+        "InvalidRotationStep": "irs",
+        "MissingOrientationData": "mod",
+        "NoResolvedTarget": "nrt",
+        "OutOfBoundsAfterRotation": "oobr",
+        "Rotated": "You rotated it",
+        "RuntimeMovableDisabled": "That will not rotate right now",
+        "Success": "",
+        "TargetNotMovable": "tnm"
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "ec8b02ae-ea16-4fde-8aa1-6b4f840ea8eb",
+      "name": "stack_object",
+      "payload": {
+        "$payloadType": "stackRoomObjectOnAnother",
+        "visualTransitionHint": "Medium"
+      },
+      "actionType": "StackRoomObjectOnAnother",
+      "noVerbLinkage": false,
+      "verbListText": "stack",
+      "direction": "",
+      "outcomeMessageMap": {
+        "AmbiguousSubject": "ambig",
+        "AmbiguousTarget": "ambigT",
+        "BlockedByCollision": "bbc",
+        "DerivedVectorInvalid": "dvi",
+        "InvalidConfiguration": "ic",
+        "NoResolvedSubject": "NRS",
+        "NoResolvedTarget": "nrt",
+        "OutOfBounds": "oob",
+        "RuntimeMovableDisabled": "Can\u0027t seem to move it",
+        "Stacked": "Stacked it",
+        "Success": "",
+        "TargetNotMovable": "TNM",
+        "TargetNotStackable": "TNS",
+        "TargetTooSmall": "It does not fit."
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "fd5efaee-2f86-4de0-9ace-05fc75c75855",
+      "name": "select_object",
+      "payload": {
+        "$payloadType": "setActiveRoomObject",
+        "selectionCueEffectKey": ""
+      },
+      "actionType": "SetActiveRoomObject",
+      "noVerbLinkage": false,
+      "verbListText": "select",
+      "direction": "",
+      "outcomeMessageMap": {
+        "ActiveObjectSet": "The {currentAction.selectedObjectName} is not set as active",
+        "InvalidConfiguration": "ic",
+        "NoResolvedTarget": "nrt",
+        "Success": "success",
+        "TargetNotInCurrentRoom": "tnicr"
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "8019b7ba-47ba-4b19-a74a-6ee0015221bd",
+      "name": "clear_selected_objects",
+      "payload": {
+        "$payloadType": "clearRoomObjectSelections",
+        "clearScope": "All"
+      },
+      "actionType": "ClearRoomObjectSelections",
+      "noVerbLinkage": false,
+      "verbListText": "clear",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Cleared": "Active objects cleared.",
+        "NoActiveSelections": "There was nothing to clear",
+        "Success": ""
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "0507341e-3eb5-4f66-852d-0b6ba07c3e72",
+      "name": "play_bell_sound",
+      "actionType": "PlaySoundEffect",
+      "noVerbLinkage": true,
+      "verbListText": "",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "",
+        "Success": ""
+      },
+      "outcomeSoundEffectsMap": {
+        "Success": [
+          {
+            "soundEffectId": "711c34fb-1f62-497a-8f30-7ff767b1fec2",
+            "soundEffectKeyHint": "sound.alert.bellring",
+            "enabled": true,
+            "lateDeliveryPolicy": "PlayIfLate"
+          }
+        ]
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "0077c4a8-4b70-4de6-a1e3-22e1272170a3",
+      "name": "turn_the_page",
+      "actionType": "NextPhase",
+      "noVerbLinkage": true,
+      "verbListText": "",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Advanced": "",
+        "AtTerminal": "",
+        "PhaseGraphUnavailable": "phu",
+        "Success": ""
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "3ea00056-f020-42f0-bf81-e2d218f0ab04",
+      "name": "play_soundeffect",
+      "actionType": "PlaySoundEffect",
+      "noVerbLinkage": true,
+      "verbListText": "",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "",
+        "Success": ""
+      },
+      "outcomeSoundEffectsMap": {
+        "Success": [
+          {
+            "soundEffectId": "711c34fb-1f62-497a-8f30-7ff767b1fec2",
+            "soundEffectKeyHint": "sound.alert.bellring",
+            "enabled": true,
+            "lateDeliveryPolicy": "PlayIfLate"
+          }
+        ]
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "e955b325-0ed5-47e2-b926-79318be117cf",
+      "name": "manage_phase_ambsounds",
+      "actionType": "ManageNarrativePhaseAmbientSounds",
+      "noVerbLinkage": true,
+      "verbListText": "",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Success": ""
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "e1958f24-9629-4dbc-8871-468aed779694",
+      "name": "point_clicked",
+      "payload": {
+        "$payloadType": "selectRoomObjectByPoint",
+        "selectionCueEffectKey": ""
+      },
+      "actionType": "SelectRoomObjectByPoint",
+      "noVerbLinkage": false,
+      "verbListText": "pointclicked",
+      "direction": "",
+      "outcomeMessageMap": {
+        "ActiveObjectSet": "",
+        "InvalidConfiguration": "",
+        "NoResolvedTarget": "",
+        "PassiveTargetNotSelectable": "",
+        "Success": "",
+        "TargetNotInCurrentRoom": ""
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "84a294d8-bd52-403b-ba7c-5b78463ac5fb",
+      "name": "submit_waypoints",
+      "payload": {
+        "$payloadType": "moveRoomObjectByPoints",
+        "targetResolutionIntent": "PrimarySelection",
+        "allowPartialMove": false,
+        "allowJumpOver": false,
+        "visualTransitionHint": "Medium",
+        "travelVisualizationMode": "LegByLeg"
+      },
+      "actionType": "MoveRoomObjectByPoints",
+      "noVerbLinkage": false,
+      "verbListText": "submitwaypoints",
+      "direction": "",
+      "outcomeMessageMap": {
+        "BlockedByCollision": "Blocked",
+        "FailedBeforeAnyLegMoved": "Move Failed",
+        "InvalidConfiguration": "IC?",
+        "InvalidDirection": "Invalid direction",
+        "InvalidDistance": "Invalid distance",
+        "MovedAllLegs": "{currentAction.movedObjectName} moved",
+        "MovedFullDistance": "{currentAction.movedObjectName} was moved",
+        "MovedPartialDistance": "{currentAction.movedObjectName} move partially completed",
+        "MovedPartialLegs": "{currentAction.movedObjectName} moved partially",
+        "NoResolvedTarget": "Move what?",
+        "ObjectMovementRestriction": "This can\u0027t move that way",
+        "OutOfBounds": "Out of bounds",
+        "PartialSupportNotAllowed": "Partial move not allowed",
+        "RuntimeMovableDisabled": "RMD?",
+        "Success": "{currentAction.movedObjectName} was moved",
+        "TargetNotMovable": "Can\u0027t move that"
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "590da3bc-997d-4a4c-911d-b850d1c7315e",
+      "name": "go_direction",
+      "payload": {
+        "$payloadType": "navigateToAdjacent"
+      },
+      "actionType": "NavigateToAdjacent",
+      "noVerbLinkage": false,
+      "verbListText": "go",
+      "direction": "",
+      "outcomeMessageMap": {
+        "DirectionRequired": "Which way?",
+        "DoorClosed": "The door seems to be closed",
+        "Failure": "",
+        "Moved": "You left the {currentAction.PriorRoomName} and enter the {currentAction.DestinationRoomName}",
+        "MoveFailed": "I think I stubbed my toe",
+        "Success": "You left the {currentAction.PriorRoomName} and enter the {currentAction.DestinationRoomName}",
+        "TraversalAmbiguous": "Which way?",
+        "TraversalNotPassable": "Not passable",
+        "UnknownDestination": "Where?"
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "f94f60a0-301c-41da-b98e-853207dacf5e",
+      "name": "unlock_container",
+      "payload": {
+        "$payloadType": "unlockObject"
+      },
+      "actionType": "UnlockObject",
+      "noVerbLinkage": false,
+      "verbListText": "unlock",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "f",
+        "MissingRequiredKeys": "You do not have what it takes.",
+        "NoUnlockRequirementsDefined": "No Unlockable Requirements Defined",
+        "ObjectAlreadyUnlocked": "I think it was already?",
+        "ObjectNotLockable": "Do you really do that?",
+        "Success": "You unlocked the {currentAction.UnlockedObjectName}",
+        "WrongKey": "Not with that you don\u0027t"
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "a6563cec-9999-4817-9fff-05dc95408b1c",
+      "name": "lock_container",
+      "payload": {
+        "$payloadType": "lockObject"
+      },
+      "actionType": "LockObject",
+      "noVerbLinkage": false,
+      "verbListText": "lock",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "f",
+        "MissingRequiredKeys": "You do not have what it takes.",
+        "NoLockRequirementsDefined": "No Lock Requirements Defined",
+        "ObjectAlreadyLocked": "One step ahead of you, it already is",
+        "ObjectNotLockable": "Not really something that you do",
+        "Success": "Locked that {currentAction.LockedObjectName} right up",
+        "WrongKey": "Not with that."
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "7831cadb-bd6d-4cbe-8af2-217e0362400e",
+      "name": "get_object",
+      "payload": {
+        "$payloadType": "putObjectInContainer",
+        "targetContainerId": ""
+      },
+      "actionType": "PutObjectInContainer",
+      "noVerbLinkage": false,
+      "verbListText": "get, grab, put, take",
+      "verbs": [
+        "get",
+        "grab",
+        "put",
+        "take"
+      ],
+      "direction": "",
+      "outcomeMessageMap": {
+        "CapacityExceeded": "You don\u0027t have room for that, perhaps you need some help.",
+        "Failure": "The is a PutObjectInContainer Failure",
+        "PutFailed": "That\u0027s pretty heavy, you might need something to help carry that. ",
+        "ResolveTargetFailed": "Where do you want to put it?",
+        "Success": "The {currentAction.primaryitem} is now in {currentAction.targetContainerName}"
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "749b49a5-0b86-4dcd-aab3-b27b3d3187be",
+      "name": "look_around",
+      "payload": {
+        "$payloadType": "echoMessage"
+      },
+      "actionType": "EchoMessage",
+      "noVerbLinkage": false,
+      "verbListText": "look",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "",
+        "Success": "You are in the {currentRoom.nameInGame}"
+      },
+      "childCommandForwardingMode": "ChildrenAfterParent",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "8d1d7eae-9d8d-4c40-806d-eb04fb877e17",
+      "name": "open_openable",
+      "payload": {
+        "$payloadType": "openObject"
+      },
+      "actionType": "OpenObject",
+      "noVerbLinkage": false,
+      "verbListText": "open",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "",
+        "ObjectAlreadyOpen": "Too easy, it was already open",
+        "ObjectLocked": "It seems to be locked",
+        "ObjectNotOpenable": "I do not think that opens",
+        "Success": "The {currentAction.OpenedObjectName} opens"
+      },
+      "outcomeSoundEffectsMap": {
+        "ObjectLocked": [
+          {
+            "soundEffectId": "c57f3684-dd7b-4f37-b03f-dbc3e35670a9",
+            "soundEffectKeyHint": "background.Crickets",
+            "enabled": true,
+            "lateDeliveryPolicy": "PlayIfLate"
+          }
+        ],
+        "Success": [
+          {
+            "soundEffectId": "7499a24e-e328-498f-97a3-d4a70d621ae5",
+            "soundEffectKeyHint": "door.open.1",
+            "enabled": true,
+            "lateDeliveryPolicy": "PlayIfLate"
+          }
+        ]
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "f1425d24-9299-406b-b235-70ab15867f28",
+      "name": "close_openable",
+      "payload": {
+        "$payloadType": "closeObject"
+      },
+      "actionType": "CloseObject",
+      "noVerbLinkage": false,
+      "verbListText": "close",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "",
+        "ObjectAlreadyClosed": "It is alreaded closed silly",
+        "ObjectNotClosable": "Is that something you do?",
+        "Success": "{currentAction.ClosedObjectName} closed"
+      },
+      "outcomeSoundEffectsMap": {
+        "Success": [
+          {
+            "soundEffectId": "28e80a6b-b8bf-4ae8-ab69-8b1fa292b84c",
+            "soundEffectKeyHint": "door.close.1",
+            "enabled": true,
+            "lateDeliveryPolicy": "PlayIfLate"
+          }
+        ]
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "2db48d73-1154-4501-b116-24bb9d6cda5b",
+      "name": "play_long_drag",
+      "actionType": "PlaySoundEffect",
+      "noVerbLinkage": true,
+      "verbListText": "",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "",
+        "Success": ""
+      },
+      "outcomeSoundEffectsMap": {
+        "Success": [
+          {
+            "soundEffectId": "895eb610-233f-4799-9dfd-f8ffc2235e20",
+            "soundEffectKeyHint": "sound.drag.long",
+            "enabled": true,
+            "lateDeliveryPolicy": "PlayIfLate"
+          }
+        ]
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    },
+    {
+      "id": "c1066878-efec-43f4-91e9-3e023617079b",
+      "name": "play_hammer",
+      "actionType": "PlaySoundEffect",
+      "noVerbLinkage": true,
+      "verbListText": "",
+      "direction": "",
+      "outcomeMessageMap": {
+        "Failure": "",
+        "Success": ""
+      },
+      "outcomeSoundEffectsMap": {
+        "Success": [
+          {
+            "soundEffectId": "bc6df49b-eb64-4fd0-b0bc-992b441e765e",
+            "soundEffectKeyHint": "sound.effect.hammer",
+            "enabled": true,
+            "lateDeliveryPolicy": "PlayIfLate"
+          }
+        ]
+      },
+      "childCommandForwardingMode": "None",
+      "similarChildDispatchMode": "SingleMatchingChild"
+    }
+  ],
+  "eventSubscriptions": [
+    {
+      "id": "9ccb0c2f-aad6-453e-abc7-5b656c731c42",
+      "eventKey": "player_room_entered",
+      "subscriptionName": "player_room_entered",
+      "isEnabled": true,
+      "lane": "foreground",
+      "dispatchDisposition": "bubble",
+      "subscriptionVisibleWhenContained": false,
+      "subscriptionSourceMatchMode": "AnySource",
+      "subscriptionSecondarySourceMatchMode": "AnySource",
+      "actionBindings": [
+        {
+          "order": 1,
+          "isEnabled": true,
+          "condition": {
+            "quantityEvaluationMode": "AllResolvedMustPass",
+            "filters": []
+          },
+          "target": {
+            "actionName": "play_bell_sound",
+            "onMissingAction": "DiagnosticOnly",
+            "stopChainOnFailure": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "e9ae2220-fd61-4dad-a8ee-70975104f72b",
+      "eventKey": "player_room_exited",
+      "subscriptionName": "player_room_exited",
+      "isEnabled": true,
+      "lane": "foreground",
+      "dispatchDisposition": "bubble",
+      "subscriptionVisibleWhenContained": false,
+      "subscriptionSourceMatchMode": "AnySource",
+      "subscriptionSecondarySourceMatchMode": "AnySource",
+      "actionBindings": [
+        {
+          "order": 1,
+          "isEnabled": true,
+          "condition": {
+            "quantityEvaluationMode": "AllResolvedMustPass",
+            "filters": []
+          },
+          "target": {
+            "actionName": "play_hammer_sound",
+            "onMissingAction": "DiagnosticOnly",
+            "stopChainOnFailure": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "02ff8677-2b28-4cad-89f5-c99906882697",
+      "eventKey": "phase_changed",
+      "subscriptionName": "manage_phase_ambients",
+      "isEnabled": true,
+      "lane": "foreground",
+      "dispatchDisposition": "bubble",
+      "subscriptionVisibleWhenContained": false,
+      "subscriptionSourceMatchMode": "AnySource",
+      "subscriptionSecondarySourceMatchMode": "AnySource",
+      "actionBindings": [
+        {
+          "order": 1,
+          "isEnabled": true,
+          "condition": {
+            "quantityEvaluationMode": "AllResolvedMustPass",
+            "filters": []
+          },
+          "target": {
+            "actionName": "manage_phase_ambsounds",
+            "onMissingAction": "DiagnosticOnly",
+            "stopChainOnFailure": true
+          }
+        }
+      ]
+    }
+  ],
+  "timerDefinitions": [
+    {
+      "timerKey": "timer.sound.hammer",
+      "scheduleAfterMs": 1,
+      "fireMode": "OneShot",
+      "targetActionRef": "play_hammer_sound",
+      "lifetimeOwnerType": "Room",
+      "conflictBehavior": "ReplaceExisting",
+      "enabled": true
+    }
+  ],
+  "soundEffectLibraryEntries": [
+    {
+      "soundEffectId": "7499a24e-e328-498f-97a3-d4a70d621ae5",
+      "soundEffectKey": "door.open.1",
+      "displayName": "DoorOpen1",
+      "category": "Doors",
+      "assetRef": "ASSETROOT:/PlaceHolderSounds/CABINET DOOR OPEN.wav",
+      "soundEffectLane": "Sfx",
+      "repeatMode": "None",
+      "replayPolicy": "PlayAgain",
+      "durationMs": 1281
+    },
+    {
+      "soundEffectId": "c57f3684-dd7b-4f37-b03f-dbc3e35670a9",
+      "soundEffectKey": "background.Crickets",
+      "displayName": "Crickets",
+      "category": "Ambient",
+      "assetRef": "ASSETROOT:/PlaceHolderSounds/crickets_chirp_fast_D#.wav",
+      "soundEffectLane": "Sfx",
+      "fadeInMs": 3000,
+      "fadeOutMs": 3000,
+      "repeatMode": "RepeatCount",
+      "replayPolicy": "PlayAgain",
+      "repeatCount": 2,
+      "durationMs": 6786
+    },
+    {
+      "soundEffectId": "28e80a6b-b8bf-4ae8-ab69-8b1fa292b84c",
+      "soundEffectKey": "door.close.1",
+      "displayName": "DoorClose1",
+      "category": "Doors",
+      "assetRef": "ASSETROOT:/PlaceHolderSounds/CABINET DOOR CLOSE.wav",
+      "soundEffectLane": "Sfx",
+      "repeatMode": "None",
+      "replayPolicy": "PlayAgain",
+      "durationMs": 1246
+    },
+    {
+      "soundEffectId": "711c34fb-1f62-497a-8f30-7ff767b1fec2",
+      "soundEffectKey": "sound.alert.bellring",
+      "displayName": "BellRing",
+      "category": "Alerts",
+      "assetRef": "ASSETROOT:/PlaceHolderSounds/FIGHT BELL.wav",
+      "soundEffectLane": "Sfx",
+      "repeatMode": "None",
+      "replayPolicy": "PlayAgain",
+      "durationMs": 1928
+    },
+    {
+      "soundEffectId": "bc6df49b-eb64-4fd0-b0bc-992b441e765e",
+      "soundEffectKey": "sound.effect.hammer",
+      "displayName": "Hammer",
+      "category": "General",
+      "assetRef": "ASSETROOT:/PlaceHolderSounds/FF_TM_hammer_nail_standard_heavy_single.wav",
+      "soundEffectLane": "Sfx",
+      "repeatMode": "None",
+      "replayPolicy": "PlayAgain",
+      "durationMs": 1687
+    },
+    {
+      "soundEffectId": "c3355709-4e91-40bd-a08a-8db858878ac9",
+      "soundEffectKey": "sound.drag.short",
+      "displayName": "sound.drag.short",
+      "category": "General",
+      "assetRef": "ASSETROOT:/PlaceHolderSounds/DRAG_Short.wav",
+      "soundEffectLane": "Sfx",
+      "repeatMode": "None",
+      "replayPolicy": "PlayAgain",
+      "durationMs": 1643
+    },
+    {
+      "soundEffectId": "895eb610-233f-4799-9dfd-f8ffc2235e20",
+      "soundEffectKey": "sound.drag.long",
+      "displayName": "sound.drag.long",
+      "category": "General",
+      "assetRef": "ASSETROOT:/PlaceHolderSounds/DRAG_Long.wav",
+      "soundEffectLane": "Sfx",
+      "repeatMode": "UntilCanceled",
+      "replayPolicy": "PlayAgain",
+      "durationMs": 4947
+    },
+    {
+      "soundEffectId": "96b705b8-9a31-421d-bc98-2055fe62e7e4",
+      "soundEffectKey": "sound.amb.creaks",
+      "displayName": "sound.amb.creaks",
+      "category": "General",
+      "assetRef": "ASSETROOT:/PlaceHolderSounds/JS-haunted house 2 creaks-groans clip.wav",
+      "soundEffectLane": "Sfx",
+      "fadeInMs": 5000,
+      "fadeOutMs": 5000,
+      "repeatMode": "UntilCanceled",
+      "replayPolicy": "IgnoreIfAlreadyPlaying",
+      "durationMs": 23066
+    },
+    {
+      "soundEffectId": "4cb898d8-5252-4c05-b6dd-a7a07f0b5fe9",
+      "soundEffectKey": "sound.woodendoor.open",
+      "displayName": "WoodenDoorOpen",
+      "category": "General",
+      "assetRef": "ASSETROOT:/PlaceHolderSounds/Wooden Door Opens.wav",
+      "soundEffectLane": "Sfx",
+      "fadeOutMs": 500,
+      "repeatMode": "None",
+      "replayPolicy": "IgnoreIfAlreadyPlaying",
+      "durationMs": 1529
+    },
+    {
+      "soundEffectId": "fd8f26b8-950e-4827-b640-bec74b1fb9ca",
+      "soundEffectKey": "sound.woodendoor.close",
+      "displayName": "WoodenDoorClose",
+      "category": "General",
+      "assetRef": "ASSETROOT:/PlaceHolderSounds/Wooden-Door-Close.wav",
+      "soundEffectLane": "Sfx",
+      "repeatMode": "None",
+      "replayPolicy": "IgnoreIfAlreadyPlaying",
+      "durationMs": 2025
+    }
+  ]
+}

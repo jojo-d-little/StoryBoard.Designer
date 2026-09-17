@@ -1,0 +1,85 @@
+<Window x:Class="StoryboardDesigner.App.Views.LinkedActionTreeEditorDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:StoryboardDesigner.App.Views"
+        Title="Linked Action Flow"
+        Height="620"
+        Width="980"
+        MinHeight="520"
+        MinWidth="820"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="260" />
+        </Grid.ColumnDefinitions>
+
+        <TextBlock x:Name="HeaderText"
+                   Grid.Row="0"
+                   Grid.Column="0"
+                   Grid.ColumnSpan="2"
+                   Margin="0,0,0,10"
+                   FontSize="16"
+                   FontWeight="SemiBold"
+                   Foreground="#111827"
+                   Text="Linked Action Flow" />
+
+        <TreeView x:Name="FlowTree"
+                  Grid.Row="1"
+                  Grid.Column="0"
+                  Margin="0,0,12,0"
+                  ToolTip="Visual linked-action flow. Select a node to add, edit, remove, or change run mode."
+                  SelectedItemChanged="FlowTree_OnSelectedItemChanged">
+            <TreeView.ItemContainerStyle>
+                <Style TargetType="TreeViewItem">
+                    <Setter Property="IsExpanded" Value="True" />
+                </Style>
+            </TreeView.ItemContainerStyle>
+            <TreeView.Resources>
+                <HierarchicalDataTemplate DataType="{x:Type local:LinkedActionTreeEditorDialog+TreeNode}" ItemsSource="{Binding Children}">
+                    <TextBlock Text="{Binding Title}" />
+                </HierarchicalDataTemplate>
+            </TreeView.Resources>
+            <TreeView.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Run Conditionally" Click="RunConditionally_OnClick" />
+                    <MenuItem Header="Run Always" Click="RunAlways_OnClick" />
+                </ContextMenu>
+            </TreeView.ContextMenu>
+        </TreeView>
+
+        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Vertical">
+            <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Actions" />
+            <Button x:Name="AddExistingButton" Margin="0,0,0,8" Content="Add Existing" ToolTip="Attach an existing game action to the selected branch." Click="AddExisting_OnClick" />
+            <Button x:Name="AddNewButton" Margin="0,0,0,8" Content="Add New" ToolTip="Create and attach a new game action to the selected branch." Click="AddNew_OnClick" />
+            <Button x:Name="EditActionButton" Margin="0,0,0,8" Content="Edit Action" ToolTip="Open the selected action in the full action editor." Click="EditAction_OnClick" />
+            <Button x:Name="RemoveLinkButton" Margin="0,0,0,14" Content="Remove Link" ToolTip="Remove the selected link from this flow tree." Click="RemoveLink_OnClick" />
+
+            <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Mode" />
+            <Button x:Name="RunConditionalButton" Margin="0,0,0,8" Content="Run Conditionally" ToolTip="Execute this linked action only when conditional criteria pass." Click="RunConditionally_OnClick" />
+            <Button x:Name="RunAlwaysButton" Margin="0,0,0,8" Content="Run Always" ToolTip="Always execute this linked action when flow reaches it." Click="RunAlways_OnClick" />
+
+            <Border Margin="0,14,0,0" Padding="8" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6">
+                <TextBlock x:Name="HintText"
+                           TextWrapping="Wrap"
+                           Foreground="#4B5563"
+                           Text="Select an action node to switch mode, or select a branch to add links." />
+            </Border>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2"
+                    Grid.Column="0"
+                    Grid.ColumnSpan="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,12,0,0">
+            <Button Width="100" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
+            <Button Width="100" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

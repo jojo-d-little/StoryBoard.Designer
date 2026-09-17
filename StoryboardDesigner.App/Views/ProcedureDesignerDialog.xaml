@@ -1,0 +1,192 @@
+<Window x:Class="StoryboardDesigner.App.Views.ProcedureDesignerDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Procedure Designer"
+        Width="1080"
+        Height="700"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="12">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300" />
+            <ColumnDefinition Width="12" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <ListBox x:Name="ProceduresListBox"
+                     DisplayMemberPath="Name"
+                     SelectionChanged="ProceduresListBox_OnSelectionChanged" />
+
+            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,10,0,0">
+                <Button Width="96" Margin="0,0,8,0" Content="Add" Click="AddProcedure_OnClick" />
+                <Button Width="96" Content="Remove" Click="RemoveProcedure_OnClick" />
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Name" />
+                <TextBox x:Name="ProcedureNameTextBox" Grid.Column="1" TextChanged="ProcedureNameTextBox_OnTextChanged" />
+            </Grid>
+
+            <Grid Grid.Row="1" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Summary" />
+                <TextBox x:Name="ProcedureSummaryTextBox" Grid.Column="1" TextChanged="ProcedureSummaryTextBox_OnTextChanged" />
+            </Grid>
+
+            <Grid Grid.Row="2" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock VerticalAlignment="Top" Margin="0,4,8,0" Text="Description" />
+                <TextBox x:Name="ProcedureDescriptionTextBox"
+                         Grid.Column="1"
+                         Height="70"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"
+                         TextChanged="ProcedureDescriptionTextBox_OnTextChanged" />
+            </Grid>
+
+            <GroupBox Grid.Row="3" Header="Participants" Margin="0,0,0,8">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ListBox x:Name="ParticipantsListBox" MinHeight="150" DisplayMemberPath="ParticipantSummary" SelectionChanged="ParticipantsListBox_OnSelectionChanged" />
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,10">
+                        <Button Width="96" Margin="0,0,8,0" Content="Add" Click="AddParticipant_OnClick" />
+                        <Button Width="96" Content="Remove" Click="RemoveParticipant_OnClick" />
+                    </StackPanel>
+                    <Border Grid.Row="2" Padding="10" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="112" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="112" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,8" Text="Display" />
+                            <TextBox x:Name="ParticipantDisplayNameTextBox" Grid.Row="0" Grid.Column="1" Margin="0,0,14,8" TextChanged="ParticipantField_OnChanged" />
+                                <TextBlock Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Margin="0,0,10,8" Text="Quantity" />
+                                <StackPanel Grid.Row="0" Grid.Column="3" Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBox x:Name="ParticipantQuantityTextBox" Width="96" Margin="0,0,8,0" TextChanged="ParticipantField_OnChanged" />
+                                <CheckBox x:Name="ParticipantOptionalCheckBox"
+                                      VerticalAlignment="Center"
+                                      Content="Optional"
+                                      Checked="ParticipantField_OnChanged"
+                                      Unchecked="ParticipantField_OnChanged" />
+                                </StackPanel>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,8" Text="Match Kind" />
+                            <ComboBox x:Name="ParticipantMatchKindComboBox" Grid.Row="1" Grid.Column="1" Margin="0,0,14,8" SelectionChanged="ParticipantField_OnChanged" />
+                                <TextBlock Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Margin="0,0,10,8" Text="Consumption" />
+                                <ComboBox x:Name="ParticipantConsumptionComboBox" Grid.Row="1" Grid.Column="3" Margin="0,0,0,8" SelectionChanged="ParticipantField_OnChanged" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0" Text="Satisfaction" />
+                            <ComboBox x:Name="ParticipantSatisfactionComboBox" Grid.Row="2" Grid.Column="1" Margin="0,0,14,0" SelectionChanged="ParticipantField_OnChanged" />
+
+                            <Button x:Name="EditParticipantVariablesButton"
+                                    Grid.Row="2"
+                                    Grid.Column="3"
+                                    MinWidth="210"
+                                    Padding="12,4"
+                                    HorizontalAlignment="Right"
+                                    Content="Game Property Requirements"
+                                    Click="EditParticipantVariables_OnClick" />
+                        </Grid>
+                    </Border>
+                </Grid>
+            </GroupBox>
+
+            <GroupBox Grid.Row="4" Header="Mutations" Margin="0,0,0,8">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ListBox x:Name="MutationsListBox" MinHeight="150" DisplayMemberPath="MutationSummary" SelectionChanged="MutationsListBox_OnSelectionChanged" />
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,10">
+                        <Button Width="96" Margin="0,0,8,0" Content="Add" Click="AddMutation_OnClick" />
+                        <Button Width="96" Content="Remove" Click="RemoveMutation_OnClick" />
+                    </StackPanel>
+                    <Border Grid.Row="2" Padding="10" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="112" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="112" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,8" Text="Participant" />
+                            <TextBox x:Name="MutationParticipantKeyTextBox" Grid.Row="0" Grid.Column="1" Margin="0,0,14,8" IsReadOnly="True" />
+                            <TextBlock Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Margin="0,0,10,8" Text="Operation" />
+                            <ComboBox x:Name="MutationOperationComboBox" Grid.Row="0" Grid.Column="3" Margin="0,0,0,8" SelectionChanged="MutationField_OnChanged" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,8" Text="Variable" />
+                            <ComboBox x:Name="MutationVariableComboBox" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,0,0,8" SelectionChanged="MutationField_OnChanged" />
+
+                            <Grid Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0" Text="Value" />
+                                <TextBox x:Name="MutationValueTextBox" Grid.Column="1" Margin="0,0,14,0" TextChanged="MutationField_OnChanged" />
+                                <TextBlock Grid.Column="2" VerticalAlignment="Center" Margin="0,0,10,0" Text="Delta" />
+                                <TextBox x:Name="MutationDeltaTextBox" Grid.Column="3" TextChanged="MutationField_OnChanged" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </GroupBox>
+
+            <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Width="96" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
+                <Button Width="96" Content="Cancel" Click="Cancel_OnClick" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

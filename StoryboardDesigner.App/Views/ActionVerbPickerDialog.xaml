@@ -1,0 +1,59 @@
+<Window x:Class="StoryboardDesigner.App.Views.ActionVerbPickerDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Game Action Verbs"
+        Height="440"
+        Width="420"
+        MinHeight="380"
+        MinWidth="360"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="GuidanceTextBlock"
+               Grid.Row="0"
+                   Margin="0,0,0,8"
+                   TextWrapping="Wrap"
+                   Foreground="#374151"
+               Text="Choose the verbs that trigger this game action. Verbs already used with the current directional qualifier are unavailable. Select one primary verb from the checked verbs." />
+
+        <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="110" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Primary Verb" />
+            <ComboBox x:Name="PrimaryVerbComboBox"
+                      Grid.Column="1"
+                      IsEditable="False"
+                      ToolTip="Choose the default verb from selected verbs. This is used as the primary display verb."
+                      SelectionChanged="PrimaryVerbComboBox_OnSelectionChanged" />
+        </Grid>
+
+        <Border Grid.Row="2" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Background="#F9FAFB" Padding="8">
+            <ListBox x:Name="VerbListBox" BorderThickness="0" Background="Transparent">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <CheckBox Content="{Binding Text}"
+                                  IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                  IsEnabled="{Binding IsAvailable}"
+                                  ToolTip="{Binding DisabledReason}"
+                                  Checked="VerbCheckBox_OnChanged"
+                                  Unchecked="VerbCheckBox_OnChanged" />
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Width="92" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
+            <Button Width="92" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

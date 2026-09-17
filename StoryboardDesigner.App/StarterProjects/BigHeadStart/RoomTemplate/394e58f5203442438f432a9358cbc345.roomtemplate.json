@@ -1,0 +1,135 @@
+{
+  "gameObjects": [],
+  "description": "",
+  "roomImageCanvasWidth": 800,
+  "roomImageCanvasHeight": 600,
+  "roomDisplayMode": "Overlay",
+  "producerNotes": "",
+  "images": [
+    {
+      "slot": "North",
+      "overlayRenderOrder": 100,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 180,
+      "fullImagePath": "ASSETROOT:/PlaceHolderImages/LongBrickWall.png",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "NorthEast",
+      "overlayRenderOrder": 200,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "East",
+      "overlayRenderOrder": 100,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 180,
+      "fullImagePath": "ASSETROOT:/PlaceHolderImages/ShortBrickWall.png",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "SouthEast",
+      "overlayRenderOrder": 200,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "South",
+      "overlayRenderOrder": 100,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "ASSETROOT:/PlaceHolderImages/LongBrickWall.png",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "SouthWest",
+      "overlayRenderOrder": 200,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "West",
+      "overlayRenderOrder": 100,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "ASSETROOT:/PlaceHolderImages/ShortBrickWall.png",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "NorthWest",
+      "overlayRenderOrder": 200,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "Up",
+      "overlayRenderOrder": 150,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "Down",
+      "overlayRenderOrder": 0,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "ASSETROOT:/PlaceHolderImages/DarkBrownWoodenFloor800x600.png",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    },
+    {
+      "slot": "Default",
+      "overlayRenderOrder": 150,
+      "overlayOffsetX": 0,
+      "overlayOffsetY": 0,
+      "overlayRotationDegrees": 0,
+      "fullImagePath": "",
+      "grayMapImagePath": "",
+      "normalMapImagePath": ""
+    }
+  ],
+  "id": "394e58f5-2034-4243-8f43-2a9358cbc345",
+  "name": "Room_No_Doors",
+  "nameInGame": "Room_No_Doors",
+  "hideEmptyConfiguration": false,
+  "validationErrors": [],
+  "ignoredValidationRuleIds": [],
+  "scopeKind": "RoomTemplates",
+  "gameObjectIds": [],
+  "gameProperties": [],
+  "additionalVerbs": [],
+  "additionalDirectionals": [],
+  "additionalDirectionalTraversalMappings": [],
+  "availableGameActions": [],
+  "timerDefinitions": [],
+  "soundEffectLibraryEntries": []
+}

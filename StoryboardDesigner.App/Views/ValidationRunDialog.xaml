@@ -1,0 +1,74 @@
+<Window x:Class="StoryboardDesigner.App.Views.ValidationRunDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Run Validation"
+        Width="420"
+        Height="340"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#F9FAFB">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock FontSize="18"
+                   FontWeight="SemiBold"
+                   Foreground="#111827"
+                   Text="Run Validation" />
+
+        <TextBlock Grid.Row="1"
+                   Margin="0,8,0,12"
+                   Foreground="#374151"
+                   TextWrapping="Wrap"
+                   x:Name="ContextNodeTextBlock" />
+
+        <Border Grid.Row="2"
+                Background="#FFFFFF"
+                BorderBrush="#D1D5DB"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12"
+                Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock FontWeight="SemiBold" Foreground="#111827" Text="Scope" />
+                <RadioButton x:Name="NodeOnlyRadioButton" Margin="0,8,0,0" Content="Selected node only" />
+                <RadioButton x:Name="FromHereRadioButton" Margin="0,6,0,0" Content="Selected node and descendants" />
+                <RadioButton x:Name="WholeProjectRadioButton" Margin="0,6,0,0" Content="Whole project" />
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="3"
+                Background="#FFFFFF"
+                BorderBrush="#D1D5DB"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12">
+            <StackPanel>
+                <TextBlock FontWeight="SemiBold" Foreground="#111827" Text="Completion Mode" />
+                <RadioButton x:Name="FullReportRadioButton" Margin="0,8,0,0" Content="Full report" />
+                <RadioButton x:Name="StopOnFirstBlockingRadioButton" Margin="0,6,0,0" Content="Stop on first blocking issue" />
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="4"
+                    Margin="0,14,0,0"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Width="96"
+                    Height="32"
+                    Margin="0,0,8,0"
+                    IsCancel="True"
+                    Content="Cancel" />
+            <Button Width="120"
+                    Height="32"
+                    IsDefault="True"
+                    Click="Run_OnClick"
+                    Content="Run Validation" />
+        </StackPanel>
+    </Grid>
+</Window>

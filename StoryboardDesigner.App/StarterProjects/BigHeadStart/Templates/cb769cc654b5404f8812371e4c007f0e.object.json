@@ -1,0 +1,66 @@
+{
+  "objectType": "VicHotel_Door_S",
+  "positionX": 280,
+  "positionY": 560,
+  "includeInPreview": true,
+  "linkedBaseObjectId": "ef2f58e7-f01f-4ad0-a6c2-20f20042d5f2",
+  "linkActionsToBaseObject": true,
+  "productionName": "",
+  "imageRotationDegrees": 180,
+  "renderZOrder": 1002,
+  "quantity": 1,
+  "quantifiablePlacementDistributionMode": "IndividualInstances",
+  "containedObjects": [],
+  "id": "cb769cc6-54b5-404f-8812-371e4c007f0e",
+  "name": "VicHotel_Door_S",
+  "nameInGame": "South Door",
+  "hideEmptyConfiguration": false,
+  "scopeKind": "Templates",
+  "gameProperties": [
+    {
+      "id": "9e7a1cb7-3a39-46db-b859-95bdfa45d20d",
+      "name": "isOpen",
+      "defaultValue": "false",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "469ad298-423d-4052-bc95-a5bef06bcfa6",
+      "name": "isLocked",
+      "defaultValue": "false",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "7a7f5188-6e07-48bd-b203-82430c6b4902",
+      "name": "lookingFromHere",
+      "defaultValue": "",
+      "valueRestriction": "Unrestricted",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "dcb0f0d0-590f-4f11-8472-d2d234ffc4f2",
+      "name": "destinationFromHere",
+      "defaultValue": "",
+      "valueRestriction": "Unrestricted",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "bec851c6-f54d-4620-9acd-ef9347c3e7f2",
+      "name": "isQuantifiable",
+      "defaultValue": "true",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "a8df3567-eb5d-44a1-a886-32f96eba9b50",
+      "name": "quantity",
+      "defaultValue": "1",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    }
+  ],
+  "eventSubscriptions": [],
+  "timerDefinitions": [],
+  "soundEffectLibraryEntries": []
+}

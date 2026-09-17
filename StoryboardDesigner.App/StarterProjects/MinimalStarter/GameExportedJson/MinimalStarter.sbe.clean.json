@@ -1,0 +1,178 @@
+{
+  "schemaVersion": "1.0",
+  "name": "Minimal Starter",
+  "roomDesignerGridCellSize": 40,
+  "autoSaveSeconds": 60,
+  "roomImageCanvasWidth": 800,
+  "roomImageCanvasHeight": 600,
+  "commandVerbs": [],
+  "directionals": [],
+  "startingPlanetName": "Starter Planet",
+  "gameProperties": [],
+  "playerGameProperties": [],
+  "availableGameActions": [],
+  "gameObjects": [
+    {
+      "scopeKind": 7,
+      "sourceObjectId": "f631c497-5f2f-4cec-8971-8abfead1f911",
+      "productionName": "Player",
+      "isInventoriable": false,
+      "inventoryPointsDefaultValue": 1,
+      "isContainer": true,
+      "containerPointsDefaultValue": 10,
+      "isOpenable": false,
+      "isOpenDefaultValue": false,
+      "isLockable": false,
+      "isLockedDefaultValue": false,
+      "isActivatable": false,
+      "isActiveDefaultValue": false,
+      "isHidable": false,
+      "isHiddenDefaultValue": false,
+      "description": "",
+      "quantity": 1,
+      "quantifiablePlacementDistributionMode": "GroupedStack",
+      "childScopes": [],
+      "name": "Player",
+      "gameProperties": [
+        {
+          "id": "4cd39e96-1ffd-4817-92ab-f961eeaf8957",
+          "name": "containerPoints",
+          "defaultValue": "10",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        },
+        {
+          "id": "ad006a68-7c37-4db1-b1f8-35b33bece051",
+          "name": "containerPointsRemaining",
+          "defaultValue": "10",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "name": "imageRotationDegrees",
+          "defaultValue": "0",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "name": "imageScale",
+          "defaultValue": "1",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        },
+        {
+          "id": "92f2d858-0d07-4ce4-a811-7f57e23af9de",
+          "name": "isPlayer",
+          "defaultValue": "true",
+          "valueRestriction": "Unrestricted",
+          "lifetime": "Singleton"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "name": "positionX",
+          "defaultValue": "0",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "name": "positionY",
+          "defaultValue": "0",
+          "valueRestriction": "Numeric",
+          "lifetime": "Singleton"
+        }
+      ],
+      "additionalDirectionalTraversalMappings": []
+    }
+  ],
+  "planets": [
+    {
+      "scopeKind": 3,
+      "startingCountryName": "Starter Country",
+      "countries": [
+        {
+          "scopeKind": 4,
+          "startingAreaName": "Starter Area",
+          "areas": [
+            {
+              "scopeKind": 5,
+              "adjacencyMode": "EightDirectional",
+              "startingRoomId": "f3211ed7-0612-41b9-93af-2c983b20f0c5",
+              "roomIds": [
+                "f3211ed7-0612-41b9-93af-2c983b20f0c5"
+              ],
+              "childScopes": [],
+              "name": "Starter Area",
+              "gameProperties": [],
+              "additionalVerbs": [],
+              "additionalDirectionals": [],
+              "additionalDirectionalTraversalMappings": [],
+              "availableGameActions": []
+            }
+          ],
+          "childScopes": [
+            {
+              "scopeKind": 5,
+              "scopeName": "Starter Area",
+              "scopeNameInGame": "Starter Area",
+              "runtimeParentScopeNodeId": null,
+              "scopeTokens": [
+                "Starter Area"
+              ],
+              "parentScope": null,
+              "childScopes": [],
+              "additionalVerbs": [],
+              "additionalDirectionals": [],
+              "additionalDirectionalTraversalMappings": []
+            }
+          ],
+          "name": "Starter Country",
+          "gameProperties": [],
+          "additionalVerbs": [],
+          "additionalDirectionals": [],
+          "additionalDirectionalTraversalMappings": [],
+          "availableGameActions": []
+        }
+      ],
+      "childScopes": [
+        {
+          "scopeKind": 4,
+          "scopeName": "Starter Country",
+          "scopeNameInGame": "Starter Country",
+          "runtimeParentScopeNodeId": null,
+          "scopeTokens": [
+            "Starter Country"
+          ],
+          "parentScope": null,
+          "childScopes": [
+            {
+              "scopeKind": 5,
+              "scopeName": "Starter Area",
+              "scopeNameInGame": "Starter Area",
+              "runtimeParentScopeNodeId": null,
+              "scopeTokens": [
+                "Starter Area"
+              ],
+              "parentScope": null,
+              "childScopes": [],
+              "additionalVerbs": [],
+              "additionalDirectionals": [],
+              "additionalDirectionalTraversalMappings": []
+            }
+          ],
+          "additionalVerbs": [],
+          "additionalDirectionals": [],
+          "additionalDirectionalTraversalMappings": []
+        }
+      ],
+      "name": "Starter Planet",
+      "gameProperties": [],
+      "additionalVerbs": [],
+      "additionalDirectionals": [],
+      "additionalDirectionalTraversalMappings": [],
+      "availableGameActions": []
+    }
+  ]
+}

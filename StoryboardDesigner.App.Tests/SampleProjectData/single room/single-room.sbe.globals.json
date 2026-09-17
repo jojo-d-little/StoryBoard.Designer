@@ -1,0 +1,23 @@
+{
+  "scopeKind": "Global",
+  "formatVersion": "1.0",
+  "sourceProjectName": "SingleRoomFixture",
+  "additionalVerbs": [
+    "look",
+    "go",
+    "take",
+    "open"
+  ],
+  "additionalDirectionals": [
+    "north",
+    "south",
+    "east",
+    "west",
+    "up",
+    "down"
+  ],
+  "planetIds": [
+    "22222222-2222-2222-2222-222222222222"
+  ]
+}
+

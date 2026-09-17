@@ -1,0 +1,68 @@
+<UserControl x:Class="StoryboardDesigner.App.Views.Controls.OutputConsolePane"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="180"
+             d:DesignWidth="1240"
+             AutomationProperties.AutomationId="MainWindow.OutputConsolePane">
+    <DockPanel>
+        <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="0,0,0,8">
+            <TextBlock DockPanel.Dock="Left"
+                       VerticalAlignment="Center"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       Foreground="#111827"
+                       Text="Output" />
+            <TextBlock DockPanel.Dock="Right"
+                       Margin="12,0,6,0"
+                       VerticalAlignment="Center"
+                       Foreground="#374151"
+                       FontSize="11"
+                       Text="Diag Level" />
+            <ComboBox DockPanel.Dock="Right"
+                      Width="120"
+                      Height="24"
+                      VerticalAlignment="Center"
+                      ItemsSource="{Binding OutputRoomDesignerDiagnosticsLevelOptions}"
+                      SelectedItem="{Binding SelectedOutputRoomDesignerDiagnosticsLevel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <Button DockPanel.Dock="Right"
+                    Margin="8,0,0,0"
+                    Padding="10,3"
+                    AutomationProperties.AutomationId="MainWindow.Output.SaveButton"
+                    Content="Save to File"
+                    Command="{Binding SaveOutputConsoleCommand}" />
+            <Button DockPanel.Dock="Right"
+                    Padding="10,3"
+                    AutomationProperties.AutomationId="MainWindow.Output.ClearButton"
+                    Content="Clear"
+                    Command="{Binding ClearOutputConsoleCommand}" />
+        </DockPanel>
+
+        <ListBox x:Name="OutputListBox"
+                 AutomationProperties.AutomationId="MainWindow.OutputConsoleList"
+                 Background="#F9FAFB"
+                 BorderBrush="#D1D5DB"
+                 BorderThickness="1"
+                 SelectionMode="Extended"
+                 PreviewKeyDown="OutputListBox_OnPreviewKeyDown"
+                 Foreground="#111827"
+                 ItemsSource="{Binding OutputConsoleLines}">
+            <ListBox.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Copy Selected Lines" Click="OutputConsoleCopySelected_OnClick" />
+                </ContextMenu>
+            </ListBox.ContextMenu>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding}"
+                               FontFamily="Consolas"
+                               FontSize="12"
+                               TextWrapping="Wrap"
+                               Foreground="#111827" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </DockPanel>
+</UserControl>

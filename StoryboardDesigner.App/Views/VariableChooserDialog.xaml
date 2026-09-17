@@ -1,0 +1,106 @@
+<Window x:Class="StoryboardDesigner.App.Views.VariableChooserDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Choose Game Property"
+        Height="520"
+        Width="760"
+        MinHeight="420"
+        MinWidth="620"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Margin="0,0,0,8"
+                   Foreground="#4B5563"
+                   TextWrapping="Wrap"
+                   Text="Choose a game property from the current context. Use the filter box to narrow the list quickly." />
+
+        <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="220" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="ScopePathFilterTextBox"
+                     Grid.Column="0"
+                     Margin="0,0,6,0"
+                     ToolTip="Contains filter for scope path"
+                     TextChanged="Filters_OnTextChanged"
+                     PreviewKeyDown="FilterTextBox_OnPreviewKeyDown" />
+            <TextBox x:Name="OwnerVariableFilterTextBox"
+                     Grid.Column="1"
+                     Margin="0,0,6,0"
+                     ToolTip="Contains filter for owner.variable"
+                     TextChanged="Filters_OnTextChanged"
+                     PreviewKeyDown="FilterTextBox_OnPreviewKeyDown" />
+            <ComboBox x:Name="RoomFilterComboBox"
+                      Grid.Column="2"
+                      DisplayMemberPath="Label"
+                      SelectedValuePath="Value"
+                      SelectionChanged="RoomFilterComboBox_OnSelectionChanged" />
+        </Grid>
+
+                <StackPanel x:Name="ScopeOptionsPanel"
+                        Grid.Row="2"
+                        Margin="0,0,0,8"
+                        Orientation="Horizontal"
+                        Visibility="Collapsed">
+                    <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" Foreground="#4B5563" Text="Include:" />
+                    <CheckBox x:Name="IncludeParentCheckBox"
+                          Margin="0,0,12,0"
+                          Content="Parent variables"
+                          Checked="ScopeOptions_OnChanged"
+                          Unchecked="ScopeOptions_OnChanged" />
+                    <CheckBox x:Name="IncludeAncestorsCheckBox"
+                          Margin="0,0,12,0"
+                          Content="Ancestor variables"
+                          Checked="ScopeOptions_OnChanged"
+                          Unchecked="ScopeOptions_OnChanged" />
+                    <CheckBox x:Name="IncludeSiblingsCheckBox"
+                          Margin="0,0,12,0"
+                          Content="Sibling variables"
+                          Checked="ScopeOptions_OnChanged"
+                          Unchecked="ScopeOptions_OnChanged" />
+                      <CheckBox x:Name="IncludeTraversalLegsCheckBox"
+                          Content="Traversal legs"
+                          Checked="ScopeOptions_OnChanged"
+                          Unchecked="ScopeOptions_OnChanged" />
+                </StackPanel>
+
+        <DataGrid x:Name="ChoicesDataGrid"
+                      Grid.Row="3"
+                  IsReadOnly="True"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  CanUserResizeRows="False"
+                  SelectionMode="Single"
+                  SelectionUnit="FullRow"
+                  MouseDoubleClick="ChoicesDataGrid_OnMouseDoubleClick"
+                  PreviewKeyDown="ChoicesDataGrid_OnPreviewKeyDown">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Scoped Path"
+                                    Binding="{Binding ScopePath}"
+                                    SortMemberPath="ScopePath"
+                                    Width="*" />
+                <DataGridTextColumn Header="Owner.Variable"
+                                    Binding="{Binding OwnerVariable}"
+                                    SortMemberPath="OwnerVariable"
+                                    Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Width="100" Margin="0,0,8,0" Content="Select" Click="Select_OnClick" />
+            <Button Width="100" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -1,0 +1,111 @@
+<Window x:Class="StoryboardDesigner.App.Views.ImportGlobalsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Import Globals"
+        Width="560"
+        Height="510"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#F9FAFB">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock FontSize="18"
+                   FontWeight="SemiBold"
+                   Foreground="#111827"
+                   Text="Import Globals From Project" />
+
+        <TextBlock Grid.Row="1"
+                   Margin="0,8,0,12"
+                   Foreground="#374151"
+                   TextWrapping="Wrap"
+                   x:Name="SourcePathText" />
+
+        <Border Grid.Row="2"
+                Background="#FFFFFF"
+                BorderBrush="#D1D5DB"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12">
+            <StackPanel>
+                <TextBlock FontWeight="SemiBold"
+                           Foreground="#111827"
+                           Text="Sections To Import" />
+
+                <CheckBox x:Name="VerbsCheckBox"
+                          Margin="0,10,0,0"
+                          Content="Verbs" />
+
+                <CheckBox x:Name="DirectionalsCheckBox"
+                          Margin="0,8,0,0"
+                          Content="Directionals" />
+
+                <CheckBox x:Name="GlobalActionsCheckBox"
+                          Margin="0,8,0,0"
+                          Content="Global Actions" />
+
+                <CheckBox x:Name="GlobalSoundEffectsCheckBox"
+                          Margin="0,8,0,0"
+                          Content="Global Sound Effects" />
+
+                <CheckBox x:Name="GlobalEventSubscriptionsCheckBox"
+                          Margin="0,8,0,0"
+                          Content="Global Event Subscriptions" />
+
+                <CheckBox x:Name="GlobalTimersCheckBox"
+                          Margin="0,8,0,0"
+                          Content="Global Timers" />
+
+                <CheckBox x:Name="TemplateObjectsCheckBox"
+                          Margin="0,8,0,0"
+                          Content="Template Objects" />
+
+                <CheckBox x:Name="RoomTemplatesCheckBox"
+                          Margin="0,8,0,0"
+                          Content="Room Templates" />
+
+                <CheckBox x:Name="BaseObjectsCheckBox"
+                          Margin="0,8,0,0"
+                          Content="Base Objects" />
+
+                <CheckBox x:Name="GlobalObjectsCheckBox"
+                          Margin="0,8,0,0"
+                          Content="Global Objects" />
+
+                <Separator Margin="0,12,0,10" />
+
+                <TextBlock FontWeight="SemiBold"
+                           Foreground="#111827"
+                           Text="Collision Strategy (Section-specific by key/name)" />
+
+                <ComboBox x:Name="CollisionStrategyCombo"
+                          Margin="0,8,0,0"
+                          SelectedIndex="0">
+                    <ComboBoxItem Content="Keep Existing" Tag="Keep" />
+                    <ComboBoxItem Content="Replace Existing" Tag="Replace" />
+                </ComboBox>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="3"
+                    Margin="0,14,0,0"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Width="96"
+                    Height="32"
+                    Margin="0,0,8,0"
+                    IsCancel="True"
+                    Content="Cancel" />
+            <Button Width="120"
+                    Height="32"
+                    IsDefault="True"
+                    Click="Import_OnClick"
+                    Content="Import" />
+        </StackPanel>
+    </Grid>
+</Window>

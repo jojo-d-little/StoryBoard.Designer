@@ -1,0 +1,35 @@
+{
+  "name": "BigHeadStart",
+  "formatVersion": "1.0",
+  "sourceProjectName": "BigHeadStart",
+  "gameDisplayName": "",
+  "gameSummary": "",
+  "gamePreviewImages": [],
+  "updatedUtc": "2026-09-07T23:38:38.2774454Z",
+  "hideEmptyConfiguration": false,
+  "autoSaveSeconds": 60,
+  "roomImageCanvasWidth": 800,
+  "roomImageCanvasHeight": 600,
+  "roomDesignerGridCellSize": 40,
+  "stackScaleStepDefault": 0.08,
+  "minStackScaleDefault": 0.5,
+  "simulatorReplayFilePath": "",
+  "defaultTraversalMode": "EightDirectional",
+  "projectIgnoredValidationRuleIds": [],
+  "globalIgnoredValidationRuleIds": [],
+  "objectTemplatesIgnoredValidationRuleIds": [
+    "OBJ-005",
+    "TRV-005"
+  ],
+  "roomTemplatesIgnoredValidationRuleIds": [
+    "OBJ-005",
+    "TRV-005"
+  ],
+  "baseObjectsIgnoredValidationRuleIds": [
+    "OBJ-005",
+    "TRV-005"
+  ],
+  "startingPlanetName": "New Planet",
+  "playerCharacterObjectName": "Player",
+  "playerIgnoredValidationRuleIds": []
+}

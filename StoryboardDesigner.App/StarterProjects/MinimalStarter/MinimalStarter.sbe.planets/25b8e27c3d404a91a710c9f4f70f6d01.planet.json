@@ -1,0 +1,17 @@
+{
+  "id": "25b8e27c-3d40-4a91-a710-c9f4f70f6d01",
+  "name": "Starter Planet",
+  "startingCountryName": "Starter Country",
+  "validationErrors": [],
+  "gameProperties": [],
+  "additionalVerbs": [],
+  "additionalDirectionals": [],
+  "ignoredValidationRuleIds": [],
+  "baseObjectsIgnoredValidationRuleIds": [],
+  "additionalDirectionalTraversalMappings": [],
+  "availableGameActions": [],
+  "baseObjects": [],
+  "countryIds": [
+    "56a02162-fb18-44e5-b206-d4f2fd88241e"
+  ]
+}

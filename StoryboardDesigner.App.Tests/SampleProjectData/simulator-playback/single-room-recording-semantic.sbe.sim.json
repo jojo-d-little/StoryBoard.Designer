@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1.0",
+  "projectName": "single-room",
+  "createdAtUtc": "2026-09-07T15:10:33.6673189Z",
+  "steps": [
+    {
+      "sequence": 1,
+      "enteredAtUtc": "2026-06-27T00:00:01Z",
+      "deltaMsFromPrevious": 0,
+      "commandText": "look bookcase",
+      "requestCommandCorrelationId": null,
+      "requestRawCommandText": "",
+      "requestClarificationAnswers": [],
+      "outputLines": [],
+      "diagnostics": [
+        "Unable to resolve current room from game state."
+      ],
+      "moveLegTelemetry": [],
+      "success": false
+    },
+    {
+      "sequence": 2,
+      "enteredAtUtc": "2026-06-27T00:00:02Z",
+      "deltaMsFromPrevious": 1000,
+      "commandText": "look bookcase",
+      "requestCommandCorrelationId": null,
+      "requestRawCommandText": "",
+      "requestClarificationAnswers": [],
+      "outputLines": [],
+      "diagnostics": [
+        "Unable to resolve current room from game state."
+      ],
+      "moveLegTelemetry": [],
+      "success": false
+    }
+  ]
+}

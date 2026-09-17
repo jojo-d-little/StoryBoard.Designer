@@ -1,0 +1,117 @@
+{
+  "objectType": "VicHotel_Base_Door_EW",
+  "positionX": 0,
+  "positionY": 200,
+  "includeInPreview": true,
+  "linkedBaseObjectId": "197cd3f2-abcd-4aa0-860e-e3d1b596afe9",
+  "linkActionsToBaseObject": true,
+  "productionName": "",
+  "imageRotationDegrees": 270,
+  "renderZOrder": 1004,
+  "quantity": 1,
+  "quantifiablePlacementDistributionMode": "IndividualInstances",
+  "containedObjects": [],
+  "id": "4dac4fd0-7356-4296-ab20-925eade7e625",
+  "name": "VicHotel_Base_Door_EW",
+  "nameInGame": "West Door",
+  "hideEmptyConfiguration": false,
+  "scopeKind": "Templates",
+  "gameProperties": [
+    {
+      "id": "91862d64-4095-4fc2-b244-e6ba383817e6",
+      "name": "isOpen",
+      "defaultValue": "false",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "85ee3f69-53a1-44d7-ae2c-a99f760ba2ec",
+      "name": "isLocked",
+      "defaultValue": "false",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "acf21632-cf22-4f3b-9c09-e269e592326c",
+      "name": "isQuantifiable",
+      "defaultValue": "true",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    },
+    {
+      "id": "83668112-27e3-4c5c-b69e-2df105cc41ba",
+      "name": "quantity",
+      "defaultValue": "1",
+      "valueRestriction": "Numeric",
+      "lifetime": "Singleton"
+    }
+  ],
+  "eventSubscriptions": [
+    {
+      "id": "c7decec9-6eb5-43e2-abfc-9e6565e2897a",
+      "eventKey": "item_opened",
+      "subscriptionName": "item_opened",
+      "isEnabled": true,
+      "lane": "foreground",
+      "dispatchDisposition": "bubble",
+      "subscriptionVisibleWhenContained": false,
+      "subscriptionSourceMatchMode": "SelfOnly",
+      "subscriptionSecondarySourceMatchMode": "AnySource",
+      "actionBindings": [
+        {
+          "inputArgumentMappings": [
+            {
+              "inputEventPaylloadArgKey": "@const:sound.play.overrideSoundEffectKey",
+              "outputActionPayloadArgKey": "sound.woodendoor.open"
+            }
+          ],
+          "order": 1,
+          "isEnabled": true,
+          "condition": {
+            "quantityEvaluationMode": "AllResolvedMustPass",
+            "filters": []
+          },
+          "target": {
+            "actionName": "play_soundeffect",
+            "onMissingAction": "DiagnosticOnly",
+            "stopChainOnFailure": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "071463af-1e0e-4336-b830-6c1329ac2668",
+      "eventKey": "item_closed",
+      "subscriptionName": "item_closed",
+      "isEnabled": true,
+      "lane": "foreground",
+      "dispatchDisposition": "bubble",
+      "subscriptionVisibleWhenContained": false,
+      "subscriptionSourceMatchMode": "SelfOnly",
+      "subscriptionSecondarySourceMatchMode": "AnySource",
+      "actionBindings": [
+        {
+          "inputArgumentMappings": [
+            {
+              "inputEventPaylloadArgKey": "@const:sound.play.overrideSoundEffectKey",
+              "outputActionPayloadArgKey": "sound.woodendoor.close"
+            }
+          ],
+          "order": 1,
+          "isEnabled": true,
+          "condition": {
+            "quantityEvaluationMode": "AllResolvedMustPass",
+            "filters": []
+          },
+          "target": {
+            "actionName": "play_soundeffect",
+            "onMissingAction": "DiagnosticOnly",
+            "stopChainOnFailure": true
+          }
+        }
+      ]
+    }
+  ],
+  "timerDefinitions": [],
+  "soundEffectLibraryEntries": []
+}

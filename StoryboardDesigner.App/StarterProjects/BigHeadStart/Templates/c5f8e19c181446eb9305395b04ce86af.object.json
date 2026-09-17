@@ -1,0 +1,131 @@
+{
+  "objectType": "BlueCrate",
+  "positionX": 0,
+  "positionY": 0,
+  "includeInPreview": true,
+  "linkActionsToBaseObject": false,
+  "productionName": "This is a simple box that can eb moved around and stacked",
+  "nameSynonyms": [
+    "Blue Box",
+    "Box"
+  ],
+  "imageVariants": [
+    {
+      "variantName": "default",
+      "fullImagePath": "ASSETROOT:/PlaceHolderImages/BlueCrate.png",
+      "imageLocalAlignmentRotationDegrees": 0,
+      "imageLocalAlignmentOffsetX": 0,
+      "imageLocalAlignmentOffsetY": 0,
+      "imageScale": 0.17,
+      "isDefault": true
+    }
+  ],
+  "imageRotationDegrees": 0,
+  "appearance": {
+    "spatialType": "SolidObject",
+    "isMovable": true,
+    "isMovableDefaultValue": true,
+    "stackGroup": 1,
+    "footprintWidthCells": 2,
+    "footprintHeightCells": 2,
+    "footprintOrientation": "N",
+    "headingDirection": "N",
+    "objectHeightUnits": 1,
+    "isHeightPinned": false,
+    "stackScaleStepOverride": 0.08,
+    "minStackScaleOverride": 0.5
+  },
+  "isInventoriable": false,
+  "inventoryPointsDefaultValue": 1,
+  "isContainer": false,
+  "containerPointsDefaultValue": 1,
+  "isOpenable": false,
+  "isOpenDefaultValue": false,
+  "isLockable": false,
+  "isLockedDefaultValue": false,
+  "isActivatable": false,
+  "isActiveDefaultValue": false,
+  "isHidable": false,
+  "isHiddenDefaultValue": false,
+  "description": "",
+  "isQuantifiable": false,
+  "quantity": 1,
+  "quantifiablePlacementDistributionMode": "GroupedStack",
+  "containedObjects": [],
+  "id": "c5f8e19c-1814-46eb-9305-395b04ce86af",
+  "name": "BlueCrate",
+  "nameInGame": "Blue Crate",
+  "hideEmptyConfiguration": false,
+  "validationErrors": [],
+  "ignoredValidationRuleIds": [],
+  "scopeKind": "Templates",
+  "procedureIds": [],
+  "gameProperties": [
+    {
+      "id": "c527fc19-8c19-40b9-8cd7-97fcbd6d46dd",
+      "name": "isMovable",
+      "defaultValue": "true",
+      "valueRestriction": "TrueFalse",
+      "lifetime": "Singleton"
+    }
+  ],
+  "additionalVerbs": [],
+  "additionalDirectionals": [],
+  "additionalDirectionalTraversalMappings": [],
+  "availableGameActions": [],
+  "eventSubscriptions": [
+    {
+      "id": "9c68e789-6fce-4841-9403-7b4267af1140",
+      "eventKey": "item_moved",
+      "subscriptionName": "item_moved",
+      "isEnabled": true,
+      "lane": "foreground",
+      "dispatchDisposition": "bubble",
+      "subscriptionVisibleWhenContained": false,
+      "subscriptionSourceMatchMode": "SelfOnly",
+      "subscriptionSecondarySourceMatchMode": "AnySource",
+      "actionBindings": [
+        {
+          "inputArgumentMappings": [
+            {
+              "inputEventPaylloadArgKey": "estimatedMoveDurationMs",
+              "outputActionPayloadArgKey": "sound.play.maxPlayDurationMs"
+            }
+          ],
+          "order": 1,
+          "isEnabled": true,
+          "condition": {
+            "quantityEvaluationMode": "AllResolvedMustPass",
+            "filters": []
+          },
+          "target": {
+            "actionName": "play_long_drag",
+            "onMissingAction": "DiagnosticOnly",
+            "stopChainOnFailure": true
+          }
+        },
+        {
+          "inputArgumentMappings": [
+            {
+              "inputEventPaylloadArgKey": "estimatedMoveDurationMs",
+              "outputActionPayloadArgKey": "sound.play.startDelayMs"
+            }
+          ],
+          "order": 2,
+          "isEnabled": true,
+          "condition": {
+            "quantityEvaluationMode": "AllResolvedMustPass",
+            "filters": []
+          },
+          "target": {
+            "actionName": "play_hammer",
+            "onMissingAction": "DiagnosticOnly",
+            "stopChainOnFailure": true
+          }
+        }
+      ]
+    }
+  ],
+  "timerDefinitions": [],
+  "soundEffectLibraryEntries": []
+}

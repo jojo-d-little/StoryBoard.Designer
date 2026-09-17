@@ -1,0 +1,22 @@
+{
+  "id": "44444444-4444-4444-4444-444444444444",
+  "parentCountryId": "33333333-3333-3333-3333-333333333333",
+  "name": "FixtureArea",
+  "adjacencyMode": "EightDirectional",
+  "startingRoomId": "11111111-1111-1111-1111-111111111111",
+  "gameProperties": [],
+  "additionalVerbs": [],
+  "additionalDirectionals": [],
+  "availableGameActions": [],
+  "roomIds": [
+    "11111111-1111-1111-1111-111111111111"
+  ],
+  "links": [],
+  "roomPlacements": [
+    {
+      "roomId": "11111111-1111-1111-1111-111111111111",
+      "x": 400,
+      "y": 240
+    }
+  ]
+}

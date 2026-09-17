@@ -1,0 +1,75 @@
+﻿{
+  "planetIds": [
+    "5f0b8a2e-3cb3-4a10-8c17-1b6cb64d1001"
+  ],
+  "schemaVersion": "1.0",
+  "gamePreviewImages": [],
+  "autoSaveSeconds": 60,
+  "roomImageCanvasWidth": 800,
+  "roomImageCanvasHeight": 600,
+  "roomDesignerGridCellSize": 40,
+  "startingPlanetName": "Earth",
+  "name": "Birmingham",
+  "nameInGame": "Birmingham",
+  "scopeKind": "Global",
+  "gameObjectIds": [
+    "cec66601-fb3e-4759-b64f-1bb717ebc214"
+  ],
+  "gameProperties": [],
+  "additionalVerbs": [
+    "*",
+    "break",
+    "close",
+    "drop",
+    "go",
+    "investigate",
+    "look",
+    "open",
+    "pickup",
+    "put",
+    "remove",
+    "take",
+    "talk",
+    "use",
+    "what"
+  ],
+  "additionalDirectionals": [
+    "north",
+    "south",
+    "east",
+    "west",
+    "northeast",
+    "southeast",
+    "northwest",
+    "southwest",
+    "up",
+    "down",
+    "into"
+  ],
+  "additionalDirectionalTraversalMappings": [
+    {
+      "token": "down",
+      "traversalDirection": "South"
+    },
+    {
+      "token": "east",
+      "traversalDirection": "East"
+    },
+    {
+      "token": "north",
+      "traversalDirection": "North"
+    },
+    {
+      "token": "south",
+      "traversalDirection": "South"
+    },
+    {
+      "token": "up",
+      "traversalDirection": "North"
+    },
+    {
+      "token": "west",
+      "traversalDirection": "West"
+    }
+  ]
+}

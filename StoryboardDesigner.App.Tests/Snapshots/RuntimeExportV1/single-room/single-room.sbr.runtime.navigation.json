@@ -1,0 +1,20 @@
+﻿{
+  "schemaVersion": "1.0",
+  "areas": [
+    {
+      "planet": "FixturePlanet",
+      "country": "FixtureCountry",
+      "area": "FixtureArea",
+      "adjacencyMode": "EightDirectional",
+      "links": [],
+      "traversalConnections": [],
+      "roomPlacements": [
+        {
+          "roomId": "11111111-1111-1111-1111-111111111111",
+          "x": 400,
+          "y": 240
+        }
+      ]
+    }
+  ]
+}

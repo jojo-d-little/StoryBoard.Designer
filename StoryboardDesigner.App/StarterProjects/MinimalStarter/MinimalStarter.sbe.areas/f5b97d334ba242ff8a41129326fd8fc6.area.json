@@ -1,0 +1,24 @@
+{
+  "id": "f5b97d33-4ba2-42ff-8a41-129326fd8fc6",
+  "parentCountryId": "56a02162-fb18-44e5-b206-d4f2fd88241e",
+  "name": "Starter Area",
+  "validationErrors": [],
+  "adjacencyMode": "EightDirectional",
+  "roomDropBehavior": "KeepDisconnected",
+  "traversalModeOverride": null,
+  "startingRoomId": "f3211ed7-0612-41b9-93af-2c983b20f0c5",
+  "gameProperties": [],
+  "additionalVerbs": [],
+  "additionalDirectionals": [],
+  "ignoredValidationRuleIds": [],
+  "baseObjectsIgnoredValidationRuleIds": [],
+  "additionalDirectionalTraversalMappings": [],
+  "availableGameActions": [],
+  "baseObjects": [],
+  "roomIds": [
+    "f3211ed7-0612-41b9-93af-2c983b20f0c5"
+  ],
+  "links": [],
+  "traversalConnections": [],
+  "roomPlacements": []
+}

@@ -1,0 +1,11 @@
+{
+  "uiState": {
+    "planetName": "",
+    "countryName": "",
+    "areaName": "",
+    "selectedWorkspaceTabIndex": 0,
+    "lastSelectedNodePath": "project:global/templates:objects/template-object:BasicQuantityItem#0/scoped-actions:Object",
+    "lastTreeValidationActionId": "validate-whole-project",
+    "lastTreeValidationCompletionMode": "FullReport"
+  }
+}
