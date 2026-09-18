@@ -1,5 +1,6 @@
 global using Storyboard.Shared.GameManager;
 global using Storyboard.Shared.HostContracts;
+global using Storyboard.Shared.DesignerContracts;
 global using Storyboard.Shared.RuntimeContracts.Enums;
 global using Storyboard.Shared.RuntimeContracts;
 global using StoryboardDesigner.App.Validation.Contracts;

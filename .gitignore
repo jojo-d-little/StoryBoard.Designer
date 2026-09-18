@@ -10,7 +10,7 @@ obj/
 # Local package credentials and environment files
 *.nuget.g.props
 *.nuget.g.targets
-NuGet.Config
+NuGet.Config.local
 .env
 .env.*
 
@@ -18,3 +18,7 @@ NuGet.Config
 TestResults/
 artifacts/
 coverage/
+
+# Generated runtime load diagnostics
+*.load-diagnostics.csv
+*.designer-load-diagnostics.csv

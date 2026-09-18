@@ -20,8 +20,7 @@ public sealed class Bite4BaselineCoverageSmokeTests
         StaTestRunner.Run(() =>
         {
             var executablePath = AppExecutableLocator.ResolveDesignerExecutablePath();
-            var solutionRoot = AppExecutableLocator.ResolveSolutionRoot();
-            var canonicalFixturePath = Path.Combine(solutionRoot, "Samples", "MapDemo1", "MapDemo1.sbe.json");
+            var canonicalFixturePath = Path.Combine(AppContext.BaseDirectory, "Samples", "MapDemo1", "MapDemo1.sbe.json");
             Assert.True(File.Exists(canonicalFixturePath), $"Canonical fixture not found: {canonicalFixturePath}");
 
             var priorFixturePath = Environment.GetEnvironmentVariable(SmokeProjectPathEnvironmentVariable);

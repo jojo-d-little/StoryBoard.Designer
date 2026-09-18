@@ -152,7 +152,7 @@ public class JsonExportServiceRuntimeExportSnapshotTests
         var service = new JsonExportService();
         var repoRoot = FindRepositoryRoot();
         var sourceProjectPath = Path.Combine(
-            repoRoot,
+            AppContext.BaseDirectory,
             "Samples",
             "Birmingham",
             "Birmingham.sbe.json");

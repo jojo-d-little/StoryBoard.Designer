@@ -122,18 +122,6 @@ public sealed class SampleRoomRenderOrderMigrationGuardrailTests
 
     private static string FindRepositoryRoot()
     {
-        var current = new DirectoryInfo(AppContext.BaseDirectory);
-        while (current is not null)
-        {
-            var marker = Path.Combine(current.FullName, "StoryboardDesigner.slnx");
-            if (File.Exists(marker))
-            {
-                return current.FullName;
-            }
-
-            current = current.Parent;
-        }
-
-        throw new InvalidOperationException("Unable to locate repository root from test execution directory.");
+        return AppContext.BaseDirectory;
     }
 }

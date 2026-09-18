@@ -13,7 +13,7 @@ public class JsonExportServiceRuntimeExportValidationTests
     {
         var service = new JsonExportService();
         var sourceProjectPath = Path.Combine(
-            FindRepositoryRoot(),
+            AppContext.BaseDirectory,
             "Samples",
             "Birmingham",
             "Birmingham.sbe.json");

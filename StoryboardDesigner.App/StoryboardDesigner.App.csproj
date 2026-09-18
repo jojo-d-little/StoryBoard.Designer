@@ -15,30 +15,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\Storyboard.GameEngine\Config\presentation-effects.catalog.json">
-      <Link>Config\presentation-effects.catalog.json</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\Storyboard.GameEngine\Config\event-payload.manifest.json">
-      <Link>Config\event-payload.manifest.json</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\Storyboard.GameEngine\Config\session-anchordata.manifest.json">
-      <Link>Config\session-anchordata.manifest.json</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\Storyboard.GameEngine\Config\action-payload.manifest.json">
-      <Link>Config\action-payload.manifest.json</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="StarterProjects\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Storyboard.GameEngine\Storyboard.GameEngine.csproj" />
-    <PackageReference Include="Storyboard.Contracts" Version="0.1.0-experimental.2" />
+    <PackageReference Include="Storyboard.GameEngine" Version="1.0.1" />
+    <PackageReference Include="Storyboard.Contracts" Version="0.1.0-experimental.4" />
   </ItemGroup>
 
 </Project>
