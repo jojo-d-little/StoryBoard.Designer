@@ -23,6 +23,7 @@
   <ItemGroup>
     <PackageReference Include="Storyboard.GameEngine" Version="1.0.1" />
     <PackageReference Include="Storyboard.Contracts" Version="0.1.0-experimental.4" />
+    <PackageReference Include="Storyboard.Foundation" Version="0.1.1" />
   </ItemGroup>
 
 </Project>

@@ -1817,19 +1817,23 @@ public class JsonExportServiceRuntimeExportTests
     }
 
     [Fact]
-    public void ExportRuntimeProjectV1_ResolvesAssetRootTokenPaths_ForImagesAndSounds()
+    public void ExportRuntimeProjectV1_ResolvesNamedAssetRootExpressions_ForImagesAndSounds()
     {
         var service = new JsonExportService();
         var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempRoot);
 
         var prior = Environment.GetEnvironmentVariable(AssetSourcePathResolver.AssetSourceRootEnvironmentVariable);
+        var namedPrior = Environment.GetEnvironmentVariable("STORYBOARD_ASSET_SOURCE_ROOT_SHARED");
         try
         {
-            Environment.SetEnvironmentVariable(AssetSourcePathResolver.AssetSourceRootEnvironmentVariable, tempRoot);
+            var primaryRoot = Path.Combine(tempRoot, "primary-assets");
+            var namedRoot = Path.Combine(tempRoot, "shared-assets");
+            Environment.SetEnvironmentVariable(AssetSourcePathResolver.AssetSourceRootEnvironmentVariable, primaryRoot);
+            Environment.SetEnvironmentVariable("STORYBOARD_ASSET_SOURCE_ROOT_SHARED", namedRoot);
 
-            var imageSourceFolder = Path.Combine(tempRoot, "FormalImages");
-            var soundSourceFolder = Path.Combine(tempRoot, "PlaceHolderSounds");
+            var imageSourceFolder = Path.Combine(primaryRoot, "FormalImages");
+            var soundSourceFolder = Path.Combine(namedRoot, "PlaceHolderSounds");
             Directory.CreateDirectory(imageSourceFolder);
             Directory.CreateDirectory(soundSourceFolder);
 
@@ -1846,7 +1850,7 @@ public class JsonExportServiceRuntimeExportTests
                         Slot = RoomImageSlot.North,
                         Image = new RoomImageVariant
                         {
-                            FullImagePath = "ASSETROOT:/FormalImages/token-image.png"
+                            FullImagePath = "%STORYBOARD_ASSET_SOURCE_ROOT%/FormalImages/token-image.png"
                         }
                     }
                 ]
@@ -1865,7 +1869,7 @@ public class JsonExportServiceRuntimeExportTests
             {
                 SoundEffectId = Guid.NewGuid(),
                 SoundEffectKey = "token-sound",
-                AssetRef = "ASSETROOT:/PlaceHolderSounds/token-sound.wav"
+                AssetRef = "%STORYBOARD_ASSET_SOURCE_ROOT_SHARED%/PlaceHolderSounds/token-sound.wav"
             });
 
             var projectFilePath = Path.Combine(tempRoot, "TokenExport.sbe.json");
@@ -1883,7 +1887,7 @@ public class JsonExportServiceRuntimeExportTests
                 .EnumerateArray()
                 .Select(static value => value.GetString())
                 .ToList();
-            Assert.Contains("ASSETROOT:/FormalImages/token-image.png", imageSources);
+            Assert.Contains("%STORYBOARD_ASSET_SOURCE_ROOT%/FormalImages/token-image.png", imageSources);
 
             var soundSources = manifestDoc.RootElement
                 .GetProperty("sounds")
@@ -1893,11 +1897,12 @@ public class JsonExportServiceRuntimeExportTests
                 .EnumerateArray()
                 .Select(static value => value.GetString())
                 .ToList();
-            Assert.Contains("ASSETROOT:/PlaceHolderSounds/token-sound.wav", soundSources);
+            Assert.Contains("%STORYBOARD_ASSET_SOURCE_ROOT_SHARED%/PlaceHolderSounds/token-sound.wav", soundSources);
         }
         finally
         {
             Environment.SetEnvironmentVariable(AssetSourcePathResolver.AssetSourceRootEnvironmentVariable, prior);
+            Environment.SetEnvironmentVariable("STORYBOARD_ASSET_SOURCE_ROOT_SHARED", namedPrior);
             if (Directory.Exists(tempRoot))
             {
                 Directory.Delete(tempRoot, recursive: true);
