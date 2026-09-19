@@ -54,6 +54,17 @@ Designer may depend on both packages. Neither package may depend on Designer.
 - [ ] CI restores both packages from GitHub Packages.
 - [ ] Remaining Designer → GameEngine coupling is documented for the later decoupling effort.
 
+## Asset-root path convention
+
+Designer persisted asset references use the canonical environment-token form:
+
+```text
+%STORYBOARD_ASSET_SOURCE_ROOT%/path/to/asset.png
+```
+
+Named roots use the same form, for example `%STORYBOARD_ASSET_SOURCE_ROOT_VICTORIAN%/...`.
+The legacy `ASSETROOT:/...` alias was intentionally retired after the controlled project migration and must not be introduced in new Designer projects or documentation.
+
 ## Later decoupling handoff
 
 After package migration is stable, inventory the coupling by category:

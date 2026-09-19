@@ -55,6 +55,17 @@ Then:
 - [ ] Restore from a clean package cache.
 - [ ] Build the consumer before deleting local files, so compiler errors identify remaining dependencies.
 
+## Asset-root path convention
+
+Canonical persisted asset references use environment-variable tokens:
+
+```text
+%STORYBOARD_ASSET_SOURCE_ROOT%/path/to/asset.png
+```
+
+Named asset roots use the corresponding token, such as `%STORYBOARD_ASSET_SOURCE_ROOT_SHARED%/...`.
+The legacy `ASSETROOT:/...` token was intentionally retired after the controlled project migration; architecture and consumer documentation must use the canonical form.
+
 Runtime, save-game, and host schema files are copied by NuGet to the application output under `schemas/runtime/...`, `schemas/save-game/...`, and `schemas/host/...`. Locate them relative to `AppContext.BaseDirectory`; do not probe the NuGet cache or copy them from the contracts source tree. The package also preserves those archive paths for package-level consumers.
 
 The package likewise copies `transport/host-transport-manifest.json` to the application output. This file is the delivered JSON transport artifact; it is separate from the compiled transport metadata types.

@@ -21,7 +21,7 @@ public class DesignerImagePathResolverTests
             Directory.CreateDirectory(Path.GetDirectoryName(sourcePath) ?? tempRoot);
             File.WriteAllBytes(sourcePath, Encoding.UTF8.GetBytes("source"));
 
-            var configuredPath = "ASSETROOT:/FormalImages/Rooms/token-source.png";
+            var configuredPath = "%STORYBOARD_ASSET_SOURCE_ROOT%/FormalImages/Rooms/token-source.png";
             var resolved = DesignerImagePathResolver.ResolveSourcePath(configuredPath, projectFilePath);
 
             Assert.Equal(sourcePath, resolved);

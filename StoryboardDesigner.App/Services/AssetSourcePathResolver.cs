@@ -7,7 +7,6 @@ internal static class AssetSourcePathResolver
 {
     public const string AssetSourceRootEnvironmentVariable = "STORYBOARD_ASSET_SOURCE_ROOT";
     public const string AssetSourceRootEnvironmentVariablePrefix = "STORYBOARD_ASSET_SOURCE_ROOT_";
-    public const string AssetRootPrefix = "ASSETROOT:/";
 
     public static IReadOnlyList<AssetRoot> GetConfiguredAssetRoots()
     {
@@ -65,8 +64,7 @@ internal static class AssetSourcePathResolver
     public static PathExpressionResolutionResult ResolveConfiguredPath(string? configuredPath, string? projectRootFolder)
     {
         var trimmed = configuredPath?.Trim() ?? string.Empty;
-        var expression = ExpandLegacyAssetRootAlias(trimmed);
-        return PathExpressionResolver.Resolve(expression, new PathExpressionOptions
+        return PathExpressionResolver.Resolve(trimmed, new PathExpressionOptions
         {
             AllowAbsolutePaths = true,
             AllowRelativePaths = true,
@@ -130,12 +128,6 @@ internal static class AssetSourcePathResolver
             deepestMatches.Select(match => match.Root.VariableName).ToArray());
     }
 
-    public static bool TryResolveAssetRootPath(string configuredPath, out string absolutePath)
-    {
-        return TryResolveConfiguredPath(configuredPath, projectRootFolder: null, out absolutePath)
-            && configuredPath.StartsWith(AssetRootPrefix, StringComparison.OrdinalIgnoreCase);
-    }
-
     private static bool IsAssetRootVariable(string variableName)
     {
         if (string.Equals(variableName, AssetSourceRootEnvironmentVariable, StringComparison.OrdinalIgnoreCase))
@@ -154,16 +146,6 @@ internal static class AssetSourcePathResolver
             && suffix.Skip(1).All(character => (character is >= 'A' and <= 'Z') || (character is >= '0' and <= '9') || character == '_');
     }
 
-    private static string ExpandLegacyAssetRootAlias(string configuredPath)
-    {
-        if (!configuredPath.StartsWith(AssetRootPrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            return configuredPath;
-        }
-
-        var relativeSegment = configuredPath[AssetRootPrefix.Length..].TrimStart('/', '\\');
-        return $"%{AssetSourceRootEnvironmentVariable}%/{relativeSegment}";
-    }
 }
 
 internal sealed record AssetSourcePathNormalizationResult(

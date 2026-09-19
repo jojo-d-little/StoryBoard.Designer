@@ -165,7 +165,28 @@ public sealed class AssetSourcePathResolverTests
     }
 
     [Fact]
-    public void ResolveConfiguredPath_ReadsLegacyAssetRootAlias()
+    public void ResolveConfiguredPath_ReadsCanonicalAssetRootToken()
+    {
+        var root = CreateTempDirectory();
+        var prior = SetEnvironmentVariable(AssetSourcePathResolver.AssetSourceRootEnvironmentVariable, root);
+        try
+        {
+            var result = AssetSourcePathResolver.ResolveConfiguredPath(
+                "%STORYBOARD_ASSET_SOURCE_ROOT%/FormalImages/door.png",
+                null);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(Path.Combine(root, "FormalImages", "door.png"), result.PhysicalPath);
+        }
+        finally
+        {
+            RestoreEnvironmentVariable(AssetSourcePathResolver.AssetSourceRootEnvironmentVariable, prior);
+            DeleteDirectory(root);
+        }
+    }
+
+    [Fact]
+    public void ResolveConfiguredPath_DoesNotResolveLegacyAssetRootAlias()
     {
         var root = CreateTempDirectory();
         var prior = SetEnvironmentVariable(AssetSourcePathResolver.AssetSourceRootEnvironmentVariable, root);
@@ -173,8 +194,8 @@ public sealed class AssetSourcePathResolverTests
         {
             var result = AssetSourcePathResolver.ResolveConfiguredPath("ASSETROOT:/FormalImages/door.png", null);
 
-            Assert.True(result.IsSuccess);
-            Assert.Equal(Path.Combine(root, "FormalImages", "door.png"), result.PhysicalPath);
+            Assert.False(result.IsSuccess);
+            Assert.Null(result.PhysicalPath);
         }
         finally
         {
