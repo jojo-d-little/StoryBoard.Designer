@@ -39,6 +39,8 @@ public partial class GameObjectSettingsDialog : Window
     private ObjectMovementRestrictions? _movementRestrictions;
     private bool _movementRestrictionsLockedByLink;
     private readonly int _projectRoomGridCellSize = 40;
+    private readonly int _projectRoomCanvasWidth = 800;
+    private readonly int _projectRoomCanvasHeight = 600;
     private LockOperationRequirements _lockOperationRequirements = new();
     private CompositeObjectSettingsEditRequest _compositeSettings = new(
         IsCompositeReversible: false,
@@ -88,6 +90,8 @@ public partial class GameObjectSettingsDialog : Window
         _minStackScaleOverride = SanitizeOptionalFinite(initialValues.MinStackScaleOverride);
         _movementRestrictions = CloneMovementRestrictions(initialValues.MovementRestrictions);
         _projectRoomGridCellSize = initialValues.ProjectRoomGridCellSize > 0 ? initialValues.ProjectRoomGridCellSize : 40;
+        _projectRoomCanvasWidth = initialValues.ProjectRoomCanvasWidth > 0 ? initialValues.ProjectRoomCanvasWidth : 800;
+        _projectRoomCanvasHeight = initialValues.ProjectRoomCanvasHeight > 0 ? initialValues.ProjectRoomCanvasHeight : 600;
         _availableCompositePartOptions = initialValues.AvailableCompositePartOptions ?? Array.Empty<GameObjectSelectionOption>();
         _availableLockKeyOptions = initialValues.AvailableLockKeyOptions ?? _availableCompositePartOptions;
         _compositeSettings = new CompositeObjectSettingsEditRequest(
@@ -231,6 +235,8 @@ public partial class GameObjectSettingsDialog : Window
                 MinStackScaleOverride: _minStackScaleOverride,
                 MovementRestrictions: CloneMovementRestrictions(_movementRestrictions),
                 ProjectRoomGridCellSize: _projectRoomGridCellSize,
+                ProjectRoomCanvasWidth: _projectRoomCanvasWidth,
+                ProjectRoomCanvasHeight: _projectRoomCanvasHeight,
                 LinkedBaseObjectName: LinkedBaseObjectNameTextBox.Text.Trim());
         }
     }
@@ -324,7 +330,9 @@ public partial class GameObjectSettingsDialog : Window
             HeightInRoom: _heightInRoom,
             StackScaleStepOverride: _stackScaleStepOverride,
             MinStackScaleOverride: _minStackScaleOverride,
-            ProjectRoomGridCellSize: _projectRoomGridCellSize))
+            ProjectRoomGridCellSize: _projectRoomGridCellSize,
+            ProjectRoomCanvasWidth: _projectRoomCanvasWidth,
+            ProjectRoomCanvasHeight: _projectRoomCanvasHeight))
         {
             Owner = this
         };

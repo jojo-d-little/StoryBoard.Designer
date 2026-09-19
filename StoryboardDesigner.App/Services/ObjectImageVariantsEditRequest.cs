@@ -25,4 +25,6 @@ public sealed record ObjectImageVariantsEditRequest(
     int HeightInRoom = 0,
     double? StackScaleStepOverride = null,
     double? MinStackScaleOverride = null,
-    int ProjectRoomGridCellSize = 40);
+    int ProjectRoomGridCellSize = 40,
+    int ProjectRoomCanvasWidth = 800,
+    int ProjectRoomCanvasHeight = 600);

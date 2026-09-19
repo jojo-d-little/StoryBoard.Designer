@@ -141,9 +141,19 @@
                                   RenderTransformOrigin="0.5,0.5" />
                         </Grid>
 
+                        <StackPanel x:Name="LargeGuidePromptPanel" Grid.Row="1" Margin="0,8,0,0" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
+                            <TextBlock Text="This footprint is too large for the compact guide."
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"
+                                       Foreground="#4B5563"
+                                       Width="260" />
+                            <Button Width="220" Height="30" Margin="0,10,0,0" Content="Open Large Object Visual Guide" Click="OpenLargeGuideButton_OnClick" />
+                        </StackPanel>
+
                         <StackPanel Grid.Row="2" Margin="0,8,0,0" Orientation="Horizontal" HorizontalAlignment="Center">
                             <Button x:Name="RotateLeftButton" Width="86" Height="26" Content="Rotate Left" Margin="0,0,8,0" Click="RotateLeftButton_OnClick" ToolTip="Rotate heading 45° counterclockwise." />
                             <Button x:Name="RotateRightButton" Width="90" Height="26" Content="Rotate Right" Click="RotateRightButton_OnClick" ToolTip="Rotate heading 45° clockwise." />
+                            <Button Width="220" Height="26" Margin="8,0,0,0" Content="Open Large Visual Guide" Click="OpenLargeGuideButton_OnClick" ToolTip="Open the full room-sized alignment surface." />
                         </StackPanel>
 
                         <TextBlock x:Name="GuideLegendTextBlock"
@@ -154,7 +164,7 @@
                                    TextWrapping="Wrap"
                                    ToolTip="Legend for how footprint orientation and heading are represented in the guide." />
 
-                        <StackPanel Grid.Row="4" Margin="0,8,0,0">
+                        <StackPanel x:Name="CompactGuideVariantFitPanel" Grid.Row="4" Margin="0,8,0,0">
                             <TextBlock x:Name="GuideVariantFitCaptionTextBlock"
                                        FontWeight="SemiBold"
                                        FontSize="11"

@@ -60,4 +60,6 @@ public sealed record ObjectBasicPropertiesEditRequest(
     double? MinStackScaleOverride = null,
     ObjectMovementRestrictions? MovementRestrictions = null,
     int ProjectRoomGridCellSize = 40,
+    int ProjectRoomCanvasWidth = 800,
+    int ProjectRoomCanvasHeight = 600,
     string LinkedBaseObjectName = "");

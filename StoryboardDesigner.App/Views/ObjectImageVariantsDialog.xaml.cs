@@ -25,6 +25,8 @@ public partial class ObjectImageVariantsDialog : Window
     private readonly string _projectFilePath;
     private readonly string _preferredImageSourceBucket;
     private readonly int _projectRoomGridCellSize;
+    private readonly int _projectRoomCanvasWidth;
+    private readonly int _projectRoomCanvasHeight;
     private double _imageRotationDegrees;
     private readonly List<ObjectImageVariant> _imageVariants;
     private readonly IReadOnlyList<string> _chooserReferenceTokens;
@@ -44,6 +46,7 @@ public partial class ObjectImageVariantsDialog : Window
     private double? _stackScaleStepOverride;
     private double? _minStackScaleOverride;
     private bool _isUpdatingGuideVariantFitEditors;
+    private const int CompactGuideMaximumFootprintCells = 7;
 
     public ObjectImageVariantsDialog(ObjectImageVariantsEditRequest initial)
     {
@@ -52,6 +55,8 @@ public partial class ObjectImageVariantsDialog : Window
         _projectFilePath = initial.ProjectFilePath;
         _preferredImageSourceBucket = initial.PreferredImageSourceBucket;
         _projectRoomGridCellSize = initial.ProjectRoomGridCellSize > 0 ? initial.ProjectRoomGridCellSize : 40;
+        _projectRoomCanvasWidth = initial.ProjectRoomCanvasWidth > 0 ? initial.ProjectRoomCanvasWidth : 800;
+        _projectRoomCanvasHeight = initial.ProjectRoomCanvasHeight > 0 ? initial.ProjectRoomCanvasHeight : 600;
         _imageRotationDegrees = initial.ImageRotationDegrees;
         _imageVariants = NormalizeImageVariants(initial.ImageVariants);
         _chooserReferenceTokens = initial.ImageVariantChooserReferenceTokens ?? Array.Empty<string>();
@@ -561,11 +566,65 @@ public partial class ObjectImageVariantsDialog : Window
 
     private void RefreshGuidePreview()
     {
+        var useLargeGuide = RequiresLargeGuide();
+        GuideSurfaceGrid.Visibility = useLargeGuide ? Visibility.Collapsed : Visibility.Visible;
+        LargeGuidePromptPanel.Visibility = useLargeGuide ? Visibility.Visible : Visibility.Collapsed;
+        CompactGuideVariantFitPanel.Visibility = useLargeGuide ? Visibility.Collapsed : Visibility.Visible;
         DrawFootprintGuide();
         UpdateGuideImageOverlay();
         UpdateHeadingArrowTransform();
         UpdateGuideLegend();
         UpdateGuideVariantFitEditors(GetSelectedVariant());
+    }
+
+    private bool RequiresLargeGuide()
+    {
+        var width = ParsePositiveIntOrFallback(FootprintWidthTextBox.Text, _footprintWidthCells);
+        var height = ParsePositiveIntOrFallback(FootprintHeightTextBox.Text, _footprintHeightCells);
+        return width > CompactGuideMaximumFootprintCells || height > CompactGuideMaximumFootprintCells;
+    }
+
+    private void OpenLargeGuideButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (GetSelectedVariant() is not { } selected)
+        {
+            return;
+        }
+
+        var footprintWidth = ParsePositiveIntOrFallback(FootprintWidthTextBox.Text, _footprintWidthCells);
+        var footprintHeight = ParsePositiveIntOrFallback(FootprintHeightTextBox.Text, _footprintHeightCells);
+        var footprintOrientation = NormalizeCardinalDirection(GetSelectedComboString(FootprintOrientationComboBox, _footprintOrientation));
+        var headingDirection = NormalizeHeadingDirection(GetSelectedComboString(HeadingDirectionComboBox, _headingDirection));
+
+        var dialog = new LargeObjectVisualGuideDialog(
+            selected,
+            footprintWidth,
+            footprintHeight,
+            footprintOrientation,
+            headingDirection,
+            _projectRoomGridCellSize,
+            _projectRoomCanvasWidth,
+            _projectRoomCanvasHeight,
+            _projectFilePath,
+            _preferredImageSourceBucket,
+            (width, height) =>
+            {
+                _footprintWidthCells = width;
+                _footprintHeightCells = height;
+                FootprintWidthTextBox.Text = width.ToString(CultureInfo.InvariantCulture);
+                FootprintHeightTextBox.Text = height.ToString(CultureInfo.InvariantCulture);
+                RefreshGuidePreview();
+            })
+        {
+            Owner = this
+        };
+
+        dialog.Closed += (_, _) =>
+        {
+            RefreshVariantList(selected.VariantName);
+            RefreshGuidePreview();
+        };
+        dialog.Show();
     }
 
     private void UpdateGuideVariantFitEditors(ObjectImageVariant? selected)
