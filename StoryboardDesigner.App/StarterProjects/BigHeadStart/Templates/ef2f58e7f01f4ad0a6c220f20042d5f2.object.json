@@ -9,7 +9,7 @@
   "imageVariants": [
     {
       "variantName": "Closed",
-      "fullImagePath": "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_DoorClosed.png",
+      "fullImagePath": "%STORYBOARD_ASSET_SOURCE_ROOT%/FormalImages/Victorian/HotelRoom/VicHotel_DoorClosed.png",
       "imageLocalAlignmentRotationDegrees": 0,
       "imageLocalAlignmentOffsetX": 6,
       "imageLocalAlignmentOffsetY": 0,
@@ -18,7 +18,7 @@
     },
     {
       "variantName": "Open",
-      "fullImagePath": "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_DoorOpen.png",
+      "fullImagePath": "%STORYBOARD_ASSET_SOURCE_ROOT%/FormalImages/Victorian/HotelRoom/VicHotel_DoorOpen.png",
       "imageLocalAlignmentRotationDegrees": 0,
       "imageLocalAlignmentOffsetX": 6,
       "imageLocalAlignmentOffsetY": 0,

@@ -12,7 +12,7 @@
   "imageVariants": [
     {
       "variantName": "default",
-      "fullImagePath": "ASSETROOT:/PlaceHolderImages/BlueCrate.png",
+      "fullImagePath": "%STORYBOARD_ASSET_SOURCE_ROOT%/PlaceHolderImages/BlueCrate.png",
       "imageLocalAlignmentRotationDegrees": 0,
       "imageLocalAlignmentOffsetX": 0,
       "imageLocalAlignmentOffsetY": 0,

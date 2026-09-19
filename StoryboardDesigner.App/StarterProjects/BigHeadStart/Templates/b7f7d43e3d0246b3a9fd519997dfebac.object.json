@@ -9,7 +9,7 @@
   "imageVariants": [
     {
       "variantName": "Closed",
-      "fullImagePath": "ASSETROOT:/PlaceHolderImages/DarkDoor.png",
+      "fullImagePath": "%STORYBOARD_ASSET_SOURCE_ROOT%/PlaceHolderImages/DarkDoor.png",
       "imageLocalAlignmentRotationDegrees": 0,
       "imageLocalAlignmentOffsetX": 25,
       "imageLocalAlignmentOffsetY": 0,
@@ -18,7 +18,7 @@
     },
     {
       "variantName": "Open",
-      "fullImagePath": "ASSETROOT:/PlaceHolderImages/DarkDoorOpen.png",
+      "fullImagePath": "%STORYBOARD_ASSET_SOURCE_ROOT%/PlaceHolderImages/DarkDoorOpen.png",
       "imageLocalAlignmentRotationDegrees": 0,
       "imageLocalAlignmentOffsetX": 25,
       "imageLocalAlignmentOffsetY": 0,

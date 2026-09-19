@@ -22,7 +22,7 @@
       "overlayOffsetX": 0,
       "overlayOffsetY": 0,
       "overlayRotationDegrees": 0,
-      "fullImagePath": "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_LongWall_MidDoor_01.png",
+      "fullImagePath": "%STORYBOARD_ASSET_SOURCE_ROOT%/FormalImages/Victorian/HotelRoom/VicHotel_LongWall_MidDoor_01.png",
       "grayMapImagePath": "",
       "normalMapImagePath": ""
     },
@@ -42,7 +42,7 @@
       "overlayOffsetX": 3,
       "overlayOffsetY": 0,
       "overlayRotationDegrees": 0,
-      "fullImagePath": "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_ShortWall_MidDoor_01.png",
+      "fullImagePath": "%STORYBOARD_ASSET_SOURCE_ROOT%/FormalImages/Victorian/HotelRoom/VicHotel_ShortWall_MidDoor_01.png",
       "grayMapImagePath": "",
       "normalMapImagePath": ""
     },
@@ -62,7 +62,7 @@
       "overlayOffsetX": 0,
       "overlayOffsetY": 0,
       "overlayRotationDegrees": 180,
-      "fullImagePath": "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_LongWall_MidDoor_01.png",
+      "fullImagePath": "%STORYBOARD_ASSET_SOURCE_ROOT%/FormalImages/Victorian/HotelRoom/VicHotel_LongWall_MidDoor_01.png",
       "grayMapImagePath": "",
       "normalMapImagePath": ""
     },
@@ -82,7 +82,7 @@
       "overlayOffsetX": -2,
       "overlayOffsetY": 0,
       "overlayRotationDegrees": 180,
-      "fullImagePath": "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_ShortWall_MidDoor_01.png",
+      "fullImagePath": "%STORYBOARD_ASSET_SOURCE_ROOT%/FormalImages/Victorian/HotelRoom/VicHotel_ShortWall_MidDoor_01.png",
       "grayMapImagePath": "",
       "normalMapImagePath": ""
     },
@@ -112,7 +112,7 @@
       "overlayOffsetX": 0,
       "overlayOffsetY": 0,
       "overlayRotationDegrees": 0,
-      "fullImagePath": "ASSETROOT:/FormalImages/Victorian/HotelRoom/VicHotel_Floor_01.png",
+      "fullImagePath": "%STORYBOARD_ASSET_SOURCE_ROOT%/FormalImages/Victorian/HotelRoom/VicHotel_Floor_01.png",
       "grayMapImagePath": "",
       "normalMapImagePath": ""
     }
