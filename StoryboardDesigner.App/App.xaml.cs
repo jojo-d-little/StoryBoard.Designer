@@ -1,4 +1,5 @@
 using StoryboardDesigner.App.Composition;
+using StoryboardDesigner.App.Services;
 using System.IO;
 using System.Text;
 using System.Windows.Threading;
@@ -16,6 +17,7 @@ public partial class App : System.Windows.Application
 	protected override void OnStartup(System.Windows.StartupEventArgs e)
 	{
 		RegisterGlobalUnhandledExceptionHandlers();
+		UserEnvironmentVariableRefreshService.RefreshMissingProcessVariables();
 
 		base.OnStartup(e);
 
