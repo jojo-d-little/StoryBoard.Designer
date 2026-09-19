@@ -12,9 +12,6 @@ jobs:
   build-and-test:
     runs-on: windows-latest
 
-    env:
-      NuGetPackageSourceCredentials_github-storyboard: "Username=github-actions;Password=${{ secrets.GITHUB_TOKEN }}"
-
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -23,6 +20,18 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.x
+
+      - name: Authenticate to GitHub Packages
+        shell: pwsh
+        env:
+          GH_PACKAGES_READ_TOKEN: ${{ secrets.GH_PACKAGES_READ_TOKEN }}
+        run: >-
+          dotnet nuget update source github-storyboard
+          --source https://nuget.pkg.github.com/jojo-d-little/index.json
+          --username jojo-d-little
+          --password $env:GH_PACKAGES_READ_TOKEN
+          --store-password-in-clear-text
+          --configfile NuGet.Config
 
       - name: Restore
         run: |
