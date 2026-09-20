@@ -35,6 +35,15 @@
                                 Background="#334F9DFF"
                                 IsHitTestVisible="False" />
                         <Image x:Name="GuideImage" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Top" Opacity="0.88" RenderTransformOrigin="0.5,0.5" />
+                        <Rectangle x:Name="BitmapBoundaryOverlay"
+                                   HorizontalAlignment="Left"
+                                   VerticalAlignment="Top"
+                                   Stroke="#7C3AED"
+                                   StrokeThickness="1.5"
+                                   StrokeDashArray="4,3"
+                                   Opacity="0.8"
+                                   IsHitTestVisible="False"
+                                   RenderTransformOrigin="0.5,0.5" />
                         <Path x:Name="HeadingArrow"
                               Data="M 0 -32 L 9 -12 L 3 -12 L 3 20 L -3 20 L -3 -12 L -9 -12 Z"
                               Fill="#DC2626"
@@ -65,6 +74,13 @@
                         <Button Width="60" Margin="8,0,0,0" Content="Apply" Click="ApplyGridButton_OnClick" />
                     </StackPanel>
                     <TextBlock Margin="0,4,0,12" Foreground="#6B7280" FontSize="11" Text="The initial surface uses the project room grid. Increasing it only enlarges this editor." TextWrapping="Wrap" />
+                    <CheckBox x:Name="ShowBitmapBoundaryCheckBox"
+                              Margin="0,0,0,12"
+                              Content="Show bitmap boundary"
+                              IsChecked="True"
+                              Checked="ShowBitmapBoundaryCheckBox_OnChanged"
+                              Unchecked="ShowBitmapBoundaryCheckBox_OnChanged"
+                              ToolTip="Show the full rendered image rectangle, including transparent pixels." />
 
                     <TextBlock Text="Scale" />
                     <StackPanel Orientation="Horizontal" Margin="0,3,0,8">
@@ -90,6 +106,7 @@
                         <TextBox x:Name="OffsetYTextBox" Width="72" Margin="5,0" TextChanged="AlignmentTextBox_OnTextChanged" />
                         <Button Width="34" Content="+" Click="IncreaseOffsetYButton_OnClick" />
                     </StackPanel>
+                    <TextBlock x:Name="ImageMetricsTextBlock" Margin="0,10,0,0" Foreground="#374151" FontSize="11" TextWrapping="Wrap" />
                     <TextBlock x:Name="StatusTextBlock" Margin="0,10,0,0" Foreground="#6B7280" FontSize="11" TextWrapping="Wrap" />
                 </StackPanel>
             </Border>

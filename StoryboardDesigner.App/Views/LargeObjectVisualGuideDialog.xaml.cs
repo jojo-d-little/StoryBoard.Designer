@@ -102,8 +102,12 @@ public partial class LargeObjectVisualGuideDialog : Window
         var source = LoadImage(_variant.FullImagePath);
         GuideImage.Source = source;
         var scale = _variant.ImageScale <= 0 ? 1 : _variant.ImageScale;
-        GuideImage.Width = (source?.PixelWidth ?? _cellSize) * scale;
-        GuideImage.Height = (source?.PixelHeight ?? _cellSize) * scale;
+        var rawWidth = source?.PixelWidth ?? _cellSize;
+        var rawHeight = source?.PixelHeight ?? _cellSize;
+        var renderedWidth = rawWidth * scale;
+        var renderedHeight = rawHeight * scale;
+        GuideImage.Width = renderedWidth;
+        GuideImage.Height = renderedHeight;
         var rotation = double.IsFinite(_variant.ImageLocalAlignmentRotationDegrees) ? _variant.ImageLocalAlignmentRotationDegrees : 0;
         var offset = RotateOffset(
             double.IsFinite(_variant.ImageLocalAlignmentOffsetX) ? _variant.ImageLocalAlignmentOffsetX : 0,
@@ -111,7 +115,17 @@ public partial class LargeObjectVisualGuideDialog : Window
             rotation);
         GuideImage.Margin = new Thickness(footprintLeft + offset.X, footprintTop + offset.Y, 0, 0);
         GuideImage.RenderTransform = new RotateTransform(rotation);
+        BitmapBoundaryOverlay.Width = GuideImage.Width;
+        BitmapBoundaryOverlay.Height = GuideImage.Height;
+        BitmapBoundaryOverlay.Margin = GuideImage.Margin;
+        BitmapBoundaryOverlay.RenderTransform = new RotateTransform(rotation);
+        BitmapBoundaryOverlay.Visibility = ShowBitmapBoundaryCheckBox.IsChecked == true
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         HeadingArrow.RenderTransform = new RotateTransform(DirectionToDegrees(_headingDirection));
+        ImageMetricsTextBlock.Text = source is null
+            ? $"Bitmap: unavailable; rendered fallback: {FormatPixels(renderedWidth)} × {FormatPixels(renderedHeight)}px at scale {Format(scale)}."
+            : $"Bitmap: {rawWidth} × {rawHeight}px; rendered: {FormatPixels(renderedWidth)} × {FormatPixels(renderedHeight)}px at scale {Format(scale)}.";
         StatusTextBlock.Text = $"Footprint: {footprintWidth} × {footprintHeight} cells; surface: {_gridColumns} × {_gridRows} cells; cell: {_cellSize}px.";
     }
 
@@ -218,6 +232,16 @@ public partial class LargeObjectVisualGuideDialog : Window
 
     private void CloseButton_OnClick(object sender, RoutedEventArgs e) => Close();
 
+    private void ShowBitmapBoundaryCheckBox_OnChanged(object sender, RoutedEventArgs e)
+    {
+        if (BitmapBoundaryOverlay is not null)
+        {
+            BitmapBoundaryOverlay.Visibility = ShowBitmapBoundaryCheckBox.IsChecked == true
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+    }
+
     private void GetOrientedDimensions(out int width, out int height)
     {
         if (_footprintOrientation is "E" or "W")
@@ -257,6 +281,7 @@ public partial class LargeObjectVisualGuideDialog : Window
 
     private static bool TryParse(string value, out double result) => double.TryParse(value.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out result) && double.IsFinite(result);
     private static string Format(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+    private static string FormatPixels(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
     private static string NormalizeCardinalDirection(string? value) => value?.Trim().ToUpperInvariant() is "E" or "S" or "W" ? value.Trim().ToUpperInvariant() : "N";
     private static string NormalizeHeadingDirection(string? value) => value?.Trim().ToUpperInvariant() is "N" or "NE" or "E" or "SE" or "S" or "SW" or "W" or "NW" ? value.Trim().ToUpperInvariant() : "N";
     private static double DirectionToDegrees(string direction) => direction switch { "NE" => 45, "E" => 90, "SE" => 135, "S" => 180, "SW" => 225, "W" => 270, "NW" => 315, _ => 0 };
