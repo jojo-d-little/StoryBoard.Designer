@@ -27,7 +27,13 @@
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <Grid x:Name="GuideSurfaceGrid" Background="#FFFFFF" HorizontalAlignment="Left" VerticalAlignment="Top">
                         <UniformGrid x:Name="GuideCellGrid" />
-                        <Border x:Name="FootprintOverlay" BorderBrush="#2563EB" BorderThickness="2" Background="#334F9DFF" IsHitTestVisible="False" />
+                        <Border x:Name="FootprintOverlay"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Top"
+                                BorderBrush="#2563EB"
+                                BorderThickness="2"
+                                Background="#334F9DFF"
+                                IsHitTestVisible="False" />
                         <Image x:Name="GuideImage" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Top" Opacity="0.88" RenderTransformOrigin="0.5,0.5" />
                         <Path x:Name="HeadingArrow"
                               Data="M 0 -32 L 9 -12 L 3 -12 L 3 20 L -3 20 L -3 -12 L -9 -12 Z"
