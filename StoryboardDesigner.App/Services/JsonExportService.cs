@@ -6302,7 +6302,24 @@ public sealed class JsonExportService : IJsonExportService
             SelectedWorkspaceTabIndex = uiState.SelectedWorkspaceTabIndex,
             LastSelectedNodePath = uiState.LastSelectedNodePath,
             LastTreeValidationActionId = uiState.LastTreeValidationActionId,
-            LastTreeValidationCompletionMode = uiState.LastTreeValidationCompletionMode
+            LastTreeValidationCompletionMode = uiState.LastTreeValidationCompletionMode,
+            QuickAccessRecentSectionRatio = uiState.QuickAccessRecentSectionRatio,
+            RecentHierarchyNodes = (uiState.RecentHierarchyNodes ?? [])
+                .Select(ToProjectHierarchyQuickAccessEntryDto)
+                .ToList(),
+            HierarchyBookmarks = (uiState.HierarchyBookmarks ?? [])
+                .Select(ToProjectHierarchyQuickAccessEntryDto)
+                .ToList()
+        };
+    }
+
+    private static ProjectHierarchyQuickAccessEntryDto ToProjectHierarchyQuickAccessEntryDto(ProjectHierarchyQuickAccessEntry entry)
+    {
+        return new ProjectHierarchyQuickAccessEntryDto
+        {
+            NodePath = entry.NodePath,
+            DisplayName = entry.DisplayName,
+            NodeTypeLabel = entry.NodeTypeLabel
         };
     }
 
@@ -6323,7 +6340,26 @@ public sealed class JsonExportService : IJsonExportService
             SelectedWorkspaceTabIndex = uiState.SelectedWorkspaceTabIndex,
             LastSelectedNodePath = uiState.LastSelectedNodePath,
             LastTreeValidationActionId = uiState.LastTreeValidationActionId,
-            LastTreeValidationCompletionMode = uiState.LastTreeValidationCompletionMode
+            LastTreeValidationCompletionMode = uiState.LastTreeValidationCompletionMode,
+            QuickAccessRecentSectionRatio = uiState.QuickAccessRecentSectionRatio is > 0 and < 1
+                ? uiState.QuickAccessRecentSectionRatio
+                : 0.5,
+            RecentHierarchyNodes = (uiState.RecentHierarchyNodes ?? [])
+                .Select(ToProjectHierarchyQuickAccessEntryModel)
+                .ToList(),
+            HierarchyBookmarks = (uiState.HierarchyBookmarks ?? [])
+                .Select(ToProjectHierarchyQuickAccessEntryModel)
+                .ToList()
+        };
+    }
+
+    private static ProjectHierarchyQuickAccessEntry ToProjectHierarchyQuickAccessEntryModel(ProjectHierarchyQuickAccessEntryDto entry)
+    {
+        return new ProjectHierarchyQuickAccessEntry
+        {
+            NodePath = entry.NodePath,
+            DisplayName = entry.DisplayName,
+            NodeTypeLabel = entry.NodeTypeLabel
         };
     }
 

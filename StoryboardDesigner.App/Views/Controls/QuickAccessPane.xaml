@@ -1,0 +1,165 @@
+<UserControl x:Class="StoryboardDesigner.App.Views.Controls.QuickAccessPane"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="480"
+             d:DesignWidth="320"
+             AutomationProperties.AutomationId="MainWindow.QuickAccessPane">
+    <UserControl.Resources>
+        <Style x:Key="SectionHeadingStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#374151" />
+        </Style>
+        <Style x:Key="NavigationButtonStyle" TargetType="Button">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E5E7EB" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <DataTemplate x:Key="QuickAccessItemContentTemplate">
+            <StackPanel>
+                <TextBlock Text="{Binding DisplayName, Mode=OneWay}" FontWeight="SemiBold" Foreground="#111827" TextTrimming="CharacterEllipsis" />
+                <TextBlock FontSize="11" Foreground="#6B7280" TextTrimming="CharacterEllipsis">
+                    <Run Text="{Binding NodeTypeLabel, Mode=OneWay}" />
+                    <Run Text="  ·  " />
+                    <Run Text="{Binding Context, Mode=OneWay}" />
+                </TextBlock>
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <DockPanel>
+        <TextBlock DockPanel.Dock="Top" FontSize="18" FontWeight="SemiBold" Foreground="#111827" Margin="0,0,0,10"
+                   Text="Quick Access" />
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition x:Name="RecentSectionRow" Height="*" MinHeight="72" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition x:Name="BookmarksSectionRow" Height="*" MinHeight="72" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Style="{StaticResource SectionHeadingStyle}" Text="Recent" />
+                <TextBlock Grid.Row="1" Margin="0,5,0,8" Foreground="#6B7280" FontSize="11" TextWrapping="Wrap"
+                           Text="The last 10 hierarchy nodes used in this project." />
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <TextBlock Margin="4,2,0,10" Foreground="#9CA3AF" FontStyle="Italic" Text="No recent nodes yet.">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding RecentHierarchyNodes.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <ItemsControl ItemsSource="{Binding RecentHierarchyNodes}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Style="{StaticResource NavigationButtonStyle}"
+                                            Content="{Binding}"
+                                            ContentTemplate="{StaticResource QuickAccessItemContentTemplate}"
+                                            ToolTip="{Binding AvailabilityToolTip}"
+                                            Command="{Binding DataContext.NavigateToHierarchyQuickAccessItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <GridSplitter Grid.Row="1"
+                          Height="6"
+                          Margin="0,8"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Center"
+                          ResizeDirection="Rows"
+                          ResizeBehavior="PreviousAndNext"
+                          ShowsPreview="True"
+                          Background="#D1D5DB"
+                          DragStarted="SectionSplitter_OnDragStarted"
+                          DragCompleted="SectionSplitter_OnDragCompleted"
+                          AutomationProperties.AutomationId="QuickAccess.SectionSplitter" />
+
+            <Grid Grid.Row="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0" Margin="0,2,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock VerticalAlignment="Center" Style="{StaticResource SectionHeadingStyle}" Text="Bookmarks" />
+                    <Button Grid.Column="1" Padding="8,4" Content="+ Add Bookmark"
+                            AutomationProperties.AutomationId="QuickAccess.AddBookmark"
+                            ToolTip="Bookmark the node currently selected in the Project Hierarchy"
+                            Command="{Binding AddHierarchyBookmarkCommand}" />
+                </Grid>
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <TextBlock Margin="4,2,0,8" Foreground="#9CA3AF" FontStyle="Italic" Text="No bookmarks yet.">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HierarchyBookmarks.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <ItemsControl ItemsSource="{Binding HierarchyBookmarks}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,5">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button Style="{StaticResource NavigationButtonStyle}"
+                                                Margin="0"
+                                                Content="{Binding}"
+                                                ContentTemplate="{StaticResource QuickAccessItemContentTemplate}"
+                                                ToolTip="{Binding AvailabilityToolTip}"
+                                                Command="{Binding DataContext.NavigateToHierarchyQuickAccessItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" />
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="4,0,0,0">
+                                            <Button Width="24" Padding="0" Content="↑" ToolTip="Move bookmark up"
+                                                    Command="{Binding DataContext.MoveHierarchyBookmarkUpCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Width="24" Padding="0" Margin="2,0,0,0" Content="↓" ToolTip="Move bookmark down"
+                                                    Command="{Binding DataContext.MoveHierarchyBookmarkDownCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Width="24" Padding="0" Margin="2,0,0,0" Content="×" ToolTip="Remove bookmark"
+                                                    Command="{Binding DataContext.RemoveHierarchyBookmarkCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+    </DockPanel>
+</UserControl>

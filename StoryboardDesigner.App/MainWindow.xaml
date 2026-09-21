@@ -128,7 +128,7 @@
                   ShowsPreview="True" />
 
         <Border Grid.Column="4" Margin="6,12,12,12" Padding="12" Background="#FFFFFF" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="8">
-            <controls:SettingsAccessPane />
+            <controls:QuickAccessPane />
         </Border>
         </Grid>
 

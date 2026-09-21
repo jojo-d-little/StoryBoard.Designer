@@ -11,4 +11,7 @@ public sealed class ProjectUiState
     public string LastSelectedNodePath { get; set; } = string.Empty;
     public string LastTreeValidationActionId { get; set; } = string.Empty;
     public string LastTreeValidationCompletionMode { get; set; } = string.Empty;
+    public double QuickAccessRecentSectionRatio { get; set; } = 0.5;
+    public List<ProjectHierarchyQuickAccessEntry> RecentHierarchyNodes { get; set; } = [];
+    public List<ProjectHierarchyQuickAccessEntry> HierarchyBookmarks { get; set; } = [];
 }

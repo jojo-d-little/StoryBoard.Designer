@@ -143,6 +143,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         InitializeFileCommands();
         InitializeRoomImageCommands();
         InitializeOutputConsoleCommands();
+        InitializeHierarchyQuickAccessCommands();
 
         EnsureProjectCommandCatalogs();
         RebuildProjectSoundEffectCategorySuggestions();
@@ -158,6 +159,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<string> ProjectCommandQualifierOptions { get; }
     public ObservableCollection<RoomDesignerTabViewModel> OpenRoomEditors { get; }
     public ObservableCollection<AreaNavigationEditorTabViewModel> OpenAreaEditors { get; }
+    public ObservableCollection<HierarchyQuickAccessItemViewModel> RecentHierarchyNodes { get; } = new();
+    public ObservableCollection<HierarchyQuickAccessItemViewModel> HierarchyBookmarks { get; } = new();
     public ObservableCollection<string> OutputConsoleLines => _outputConsoleLines;
     public IReadOnlyList<string> ProjectSoundEffectCategories => _projectSoundEffectCategories;
     public IReadOnlyList<GameDiagnosticsLevel> OutputRoomDesignerDiagnosticsLevelOptions { get; } =
@@ -172,6 +175,22 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public ProjectModel Project => _project;
     public string? ProjectFilePath => _projectFilePath;
     public bool IsProjectDirty => _isProjectDirty;
+    public double QuickAccessRecentSectionRatio
+    {
+        get => Math.Clamp(_project.UiState.QuickAccessRecentSectionRatio, 0.1, 0.9);
+        set
+        {
+            var normalized = Math.Clamp(value, 0.1, 0.9);
+            if (Math.Abs(_project.UiState.QuickAccessRecentSectionRatio - normalized) < 0.001)
+            {
+                return;
+            }
+
+            _project.UiState.QuickAccessRecentSectionRatio = normalized;
+            OnPropertyChanged();
+            PersistUiStateSidecarIfPossible();
+        }
+    }
 
     internal void AttachShellOrchestrator(IMainWindowShellOrchestrator shellOrchestrator)
     {
@@ -350,8 +369,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
             _selectedNode = value;
             OnPropertyChanged();
+            TrackRecentHierarchyNode(value);
             ResolveSelection();
             RefreshProjectExplorerCommandStates();
+            RefreshHierarchyQuickAccessCommandStates();
             PersistUiStateSidecarIfPossible();
         }
     }
@@ -3079,6 +3100,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private void LoadProjectIntoHierarchy()
     {
+        OnPropertyChanged(nameof(QuickAccessRecentSectionRatio));
         _suspendUiStatePersistence = true;
         try
         {
@@ -3103,6 +3125,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         RefreshHierarchyValidationProjection();
 
         RefreshSharedPropertyIndicators();
+
+        RefreshHierarchyQuickAccessItems();
 
         UpdateProjectSummary();
         if (!TryRestoreUiState())
@@ -3304,9 +3328,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         {
             var currentPath = BuildNodePath(node);
             var normalizedCurrentPath = NormalizeNodePathForGroupingCompatibility(currentPath);
+            var legacyPath = BuildLegacyNodePath(node);
             var matched = restorePathCandidates.FirstOrDefault(candidate =>
                 string.Equals(candidate, currentPath, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(candidate, normalizedCurrentPath, StringComparison.OrdinalIgnoreCase));
+                || string.Equals(candidate, normalizedCurrentPath, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(candidate, legacyPath, StringComparison.OrdinalIgnoreCase));
             if (matched is null)
             {
                 continue;
@@ -3372,6 +3398,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         return string.Join("/", segments);
     }
 
+    private static string BuildLegacyNodePath(HierarchyNodeViewModel node)
+    {
+        var segments = GetAncestry(node)
+            .AsEnumerable()
+            .Reverse()
+            .Select(GetLegacyNodePathSegment)
+            .Where(static segment => !string.IsNullOrWhiteSpace(segment));
+        return string.Join("/", segments);
+    }
+
     private static IEnumerable<string> BuildRestorePathCandidates(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -3419,20 +3455,28 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             GlobalObjectsNodeViewModel => "player:objects",
             ObjectTemplatesNodeViewModel => "templates:objects",
             RoomTemplatesNodeViewModel => "templates:rooms",
+            PhaseBooksNodeViewModel => "phases:books",
+            PhaseNodeViewModel phaseNode => $"phase:{phaseNode.PhaseNode.Id:N}",
             TemplateRoomNodeViewModel roomTemplateNode => $"template-room:{roomTemplateNode.Room.Id:N}",
-            GameObjectNodeViewModel objectNode => $"object:{BuildSiblingScopedSegment(objectNode, objectNode.GameObject.ScopeName)}",
-            GlobalObjectNodeViewModel objectNode => $"player-object:{BuildSiblingScopedSegment(objectNode, objectNode.GameObject.ScopeName)}",
-            TemplateGameObjectNodeViewModel objectNode => $"template-object:{BuildSiblingScopedSegment(objectNode, objectNode.GameObject.ScopeName)}",
+            GameObjectNodeViewModel objectNode => $"object:{objectNode.GameObject.ObjectId:N}",
+            GlobalObjectNodeViewModel objectNode => $"player-object:{objectNode.GameObject.ObjectId:N}",
+            TemplateGameObjectNodeViewModel objectNode => $"template-object:{objectNode.GameObject.ObjectId:N}",
             GamePropertiesContainerNodeViewModel propertiesNode => $"properties:{propertiesNode.Scope}",
             GamePropertyNodeViewModel variableNode => $"property:{variableNode.Variable.Id:N}",
             ScopedActionsNodeViewModel scopedActionsNode => $"scoped-actions:{scopedActionsNode.Scope}",
             ScopedActionEntryNodeViewModel scopedActionEntryNode => $"scoped-action:{scopedActionEntryNode.Action.Id:N}",
             ScopedVerbsNodeViewModel scopedVerbsNode => $"scoped-verbs:{scopedVerbsNode.Scope}",
             ScopedDirectionalsNodeViewModel scopedDirectionalsNode => $"scoped-directionals:{scopedDirectionalsNode.Scope}",
+            ScopedDirectionalEntryNodeViewModel directionalNode => $"scoped-directional:{SanitizePathSegment(directionalNode.Directional)}",
             ScopedSoundEffectsNodeViewModel scopedSoundEffectsNode => $"scoped-sound-effects:{scopedSoundEffectsNode.Scope}",
             ScopedEventSubscriptionsNodeViewModel scopedEventSubscriptionsNode => $"scoped-event-subscriptions:{scopedEventSubscriptionsNode.Scope}",
+            ScopedEventSubscriptionEntryNodeViewModel subscriptionNode => $"scoped-event-subscription:{subscriptionNode.Entry.Id:N}",
             ScopedSoundEffectEntryNodeViewModel scopedSoundEffectEntryNode => $"scoped-sound-effect:{scopedSoundEffectEntryNode.Entry.SoundEffectId:N}",
             ScopedProceduresNodeViewModel scopedProceduresNode => $"scoped-procedures:{scopedProceduresNode.Scope}",
+            ScopedProcedureEntryNodeViewModel procedureNode => $"scoped-procedure:{procedureNode.Procedure.Id:N}",
+            ScopedTimerDefinitionsNodeViewModel timerDefinitionsNode => $"scoped-timers:{timerDefinitionsNode.Scope}",
+            ScopedTimerDefinitionEntryNodeViewModel timerNode => $"scoped-timer:{SanitizePathSegment(timerNode.Entry.TimerKey)}",
+            ScopedVerbEntryNodeViewModel verbNode => $"scoped-verb:{SanitizePathSegment(verbNode.Verb)}",
             GlobalSettingsNodeViewModel => "settings:global",
             PlanetSettingsNodeViewModel => "settings:planet",
             CountrySettingsNodeViewModel => "settings:country",
@@ -3440,6 +3484,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             RoomSettingsNodeViewModel => "settings:room",
             GameObjectSettingsNodeViewModel => "settings:object",
             _ => node.GetType().Name
+        };
+    }
+
+    private static string GetLegacyNodePathSegment(HierarchyNodeViewModel node)
+    {
+        return node switch
+        {
+            GameObjectNodeViewModel objectNode => $"object:{BuildSiblingScopedSegment(objectNode, objectNode.GameObject.ScopeName)}",
+            GlobalObjectNodeViewModel objectNode => $"player-object:{BuildSiblingScopedSegment(objectNode, objectNode.GameObject.ScopeName)}",
+            TemplateGameObjectNodeViewModel objectNode => $"template-object:{BuildSiblingScopedSegment(objectNode, objectNode.GameObject.ScopeName)}",
+            PhaseBooksNodeViewModel or PhaseNodeViewModel or ScopedDirectionalEntryNodeViewModel
+                or ScopedEventSubscriptionEntryNodeViewModel or ScopedProcedureEntryNodeViewModel
+                or ScopedTimerDefinitionsNodeViewModel or ScopedTimerDefinitionEntryNodeViewModel
+                or ScopedVerbEntryNodeViewModel => node.GetType().Name,
+            _ => GetNodePathSegment(node)
         };
     }
 

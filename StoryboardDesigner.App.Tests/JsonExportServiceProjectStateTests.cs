@@ -34,7 +34,26 @@ public class JsonExportServiceProjectStateTests
                     AreaName = "Area-51",
                     MapDesignerAreaId = Guid.NewGuid(),
                     RoomId = Guid.NewGuid(),
-                    SelectedWorkspaceTabIndex = 1
+                    SelectedWorkspaceTabIndex = 1,
+                    QuickAccessRecentSectionRatio = 0.35,
+                    RecentHierarchyNodes =
+                    [
+                        new ProjectHierarchyQuickAccessEntry
+                        {
+                            NodePath = "project:global/planet:11111111111111111111111111111111",
+                            DisplayName = "Earth",
+                            NodeTypeLabel = "Planet"
+                        }
+                    ],
+                    HierarchyBookmarks =
+                    [
+                        new ProjectHierarchyQuickAccessEntry
+                        {
+                            NodePath = "project:global/planet:11111111111111111111111111111111/country:22222222222222222222222222222222",
+                            DisplayName = "USA",
+                            NodeTypeLabel = "Country"
+                        }
+                    ]
                 }
             };
 
@@ -57,6 +76,9 @@ public class JsonExportServiceProjectStateTests
             Assert.Equal(model.UiState.MapDesignerAreaId, loaded.UiState.MapDesignerAreaId);
             Assert.Equal(model.UiState.SelectedWorkspaceTabIndex, loaded.UiState.SelectedWorkspaceTabIndex);
             Assert.Equal(model.UiState.RoomId, loaded.UiState.RoomId);
+            Assert.Equal(0.35, loaded.UiState.QuickAccessRecentSectionRatio);
+            Assert.Equal("Earth", Assert.Single(loaded.UiState.RecentHierarchyNodes).DisplayName);
+            Assert.Equal("USA", Assert.Single(loaded.UiState.HierarchyBookmarks).DisplayName);
         }
         finally
         {
