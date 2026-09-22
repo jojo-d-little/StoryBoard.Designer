@@ -8,7 +8,7 @@ namespace StoryboardDesigner.App.SmokeTests;
 public sealed class Bite2GameSimulatorTabInteractionSmokeTests
 {
     [Fact]
-    public void Can_Find_RunSimulator_And_SimulatorSetup_Menu_EntryPoints()
+    public void Can_Find_LegacySimulator_And_DevelopmentWebPortal_Menu_EntryPoints()
     {
         StaTestRunner.Run(() =>
         {
@@ -30,6 +30,14 @@ public sealed class Bite2GameSimulatorTabInteractionSmokeTests
                     throwOnTimeout: false).Result;
                 Assert.NotNull(runSimulatorMenuItem);
                 SmokeUiRetryHelpers.AssertAppStillRunning(app, "finding run simulator menu item");
+
+                var runDevelopmentMenuItem = Retry.WhileNull(
+                    () => mainWindow!.FindFirstDescendant(cf => cf.ByAutomationId("MainWindow.Menu.RunDevelopmentWebPortal")),
+                    timeout: TimeSpan.FromSeconds(8),
+                    interval: TimeSpan.FromMilliseconds(100),
+                    throwOnTimeout: false).Result;
+                Assert.NotNull(runDevelopmentMenuItem);
+                SmokeUiRetryHelpers.AssertAppStillRunning(app, "finding run development WebPortal menu item");
 
                 var toolsMenuItem = Retry.WhileNull(
                     () => mainWindow!.FindFirstDescendant(cf => cf.ByAutomationId("MainWindow.Menu.Tools"))?.AsMenuItem(),

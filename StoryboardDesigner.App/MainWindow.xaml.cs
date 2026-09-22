@@ -64,6 +64,7 @@ public partial class MainWindow : Window
         }
 
         _viewModel.PersistUiStateSnapshot();
+        _viewModel.ShutdownDevelopmentLaunch();
         _viewModel.OutputConsoleLines.CollectionChanged -= OutputConsoleLines_OnCollectionChanged;
         _viewModel.PropertyChanged -= ViewModel_OnPropertyChanged;
         _windowPlacementService.Save(this, HierarchyPaneColumn.ActualWidth, InspectorPaneColumn.ActualWidth);

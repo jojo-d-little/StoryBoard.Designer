@@ -24,6 +24,7 @@ internal static class DesignerAppCompositionFactory
         IGameObjectSelectionOptionDiscoveryService gameObjectSelectionOptionDiscoveryService = new GameObjectSelectionOptionDiscoveryService();
         IEventSubscriptionActionNameSuggestionDiscoveryService eventSubscriptionActionNameSuggestionDiscoveryService = new EventSubscriptionActionNameSuggestionDiscoveryService();
         IExternalSimulatorWorkflowService externalSimulatorWorkflowService = new ExternalSimulatorWorkflowService(projectCreationPreferencesService);
+        IDevelopmentGameHostWorkflowService developmentGameHostWorkflowService = new DevelopmentGameHostWorkflowService(projectCreationPreferencesService);
 
         var mainViewModel = new MainWindowViewModel(
             jsonExportService,
@@ -36,7 +37,9 @@ internal static class DesignerAppCompositionFactory
             phaseTextPresentationCueCatalogService: phaseTextPresentationCueCatalogService,
             gameObjectSelectionOptionDiscoveryService: gameObjectSelectionOptionDiscoveryService,
             eventSubscriptionActionNameSuggestionDiscoveryService: eventSubscriptionActionNameSuggestionDiscoveryService,
-            externalSimulatorWorkflowService: externalSimulatorWorkflowService);
+            externalSimulatorWorkflowService: externalSimulatorWorkflowService,
+            developmentGameHostWorkflowService: developmentGameHostWorkflowService,
+            projectCreationPreferencesService: projectCreationPreferencesService);
 
         var mainWindow = new MainWindow(mainViewModel, windowPlacementService);
         IShellDiagnosticsSink diagnosticsSink = new MainWindowOutputConsoleShellDiagnosticsSink(mainViewModel);

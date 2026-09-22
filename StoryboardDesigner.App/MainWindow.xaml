@@ -45,12 +45,18 @@
             <MenuItem Header="_Run Simulator"
                       AutomationProperties.AutomationId="MainWindow.Menu.RunSimulator"
                       Command="{Binding RunSimulatorCommand}" />
+            <MenuItem Header="Run Development _WebPortal"
+                      AutomationProperties.AutomationId="MainWindow.Menu.RunDevelopmentWebPortal"
+                      Command="{Binding RunDevelopmentCommand}" />
             <MenuItem Header="_Validate Project" Command="{Binding ValidateProjectCommand}" />
             <MenuItem Header="_Tools"
                       AutomationProperties.AutomationId="MainWindow.Menu.Tools">
                 <MenuItem Header="Simulator Setup"
                           AutomationProperties.AutomationId="MainWindow.Menu.Tools.SimulatorSetup"
                           Command="{Binding SimulatorSetupCommand}" />
+                <MenuItem Header="Development WebPortal Setup"
+                          AutomationProperties.AutomationId="MainWindow.Menu.Tools.DevelopmentWebPortalSetup"
+                          Command="{Binding DevelopmentLaunchSetupCommand}" />
                 <Separator />
                 <MenuItem Header="Open Shared Variables Manager"
                           AutomationProperties.AutomationId="MainWindow.Menu.Tools.SharedVariablesManager"

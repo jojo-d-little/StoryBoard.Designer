@@ -34,9 +34,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly IGameObjectSelectionOptionDiscoveryService _gameObjectSelectionOptionDiscoveryService;
     private readonly IEventSubscriptionActionNameSuggestionDiscoveryService _eventSubscriptionActionNameSuggestionDiscoveryService;
     private readonly IExternalSimulatorWorkflowService _externalSimulatorWorkflowService;
+    private readonly IDevelopmentGameHostWorkflowService _developmentGameHostWorkflowService;
+    private readonly IProjectCreationPreferencesService _projectCreationPreferencesService;
     private readonly IActionScriptEvaluationService _actionScriptEvaluationService;
     private IMainWindowShellOrchestrator? _shellOrchestrator;
     private bool _isShellWorkflowBusy;
+    private bool _isDevelopmentLaunchBusy;
     private ProjectModel _project;
 
     private HierarchyNodeViewModel? _selectedNode;
@@ -103,7 +106,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         IPhaseTextPresentationCueCatalogService? phaseTextPresentationCueCatalogService = null,
         IGameObjectSelectionOptionDiscoveryService? gameObjectSelectionOptionDiscoveryService = null,
         IEventSubscriptionActionNameSuggestionDiscoveryService? eventSubscriptionActionNameSuggestionDiscoveryService = null,
-        IExternalSimulatorWorkflowService? externalSimulatorWorkflowService = null)
+        IExternalSimulatorWorkflowService? externalSimulatorWorkflowService = null,
+        IDevelopmentGameHostWorkflowService? developmentGameHostWorkflowService = null,
+        IProjectCreationPreferencesService? projectCreationPreferencesService = null)
     {
         _jsonExportService = jsonExportService;
         _recentProjectsService = recentProjectsService;
@@ -115,6 +120,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _gameObjectSelectionOptionDiscoveryService = gameObjectSelectionOptionDiscoveryService ?? new GameObjectSelectionOptionDiscoveryService();
         _eventSubscriptionActionNameSuggestionDiscoveryService = eventSubscriptionActionNameSuggestionDiscoveryService ?? new EventSubscriptionActionNameSuggestionDiscoveryService();
         _externalSimulatorWorkflowService = externalSimulatorWorkflowService ?? new ExternalSimulatorWorkflowService(new ProjectCreationPreferencesService());
+        _developmentGameHostWorkflowService = developmentGameHostWorkflowService ?? new DevelopmentGameHostWorkflowService(new ProjectCreationPreferencesService());
+        _projectCreationPreferencesService = projectCreationPreferencesService ?? new ProjectCreationPreferencesService();
         _actionScriptEvaluationService = actionScriptEvaluationService;
         _project = new ProjectModel { Name = "Untitled Project" };
 
@@ -175,6 +182,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public ProjectModel Project => _project;
     public string? ProjectFilePath => _projectFilePath;
     public bool IsProjectDirty => _isProjectDirty;
+
+    /// <summary>
+    /// Stops Designer-owned development processes during application shutdown.
+    /// </summary>
+    public void ShutdownDevelopmentLaunch()
+    {
+        _developmentGameHostWorkflowService.Stop();
+    }
     public double QuickAccessRecentSectionRatio
     {
         get => Math.Clamp(_project.UiState.QuickAccessRecentSectionRatio, 0.1, 0.9);

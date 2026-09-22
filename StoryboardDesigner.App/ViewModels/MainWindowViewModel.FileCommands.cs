@@ -42,6 +42,8 @@ public sealed partial class MainWindowViewModel
     private RelayCommand _editProjectDefaultPresentationCuesCommand = null!;
     private RelayCommand _editApplicationPresentationCueCatalogCommand = null!;
     private RelayCommand _runSimulatorCommand = null!;
+    private RelayCommand _runDevelopmentCommand = null!;
+    private RelayCommand _developmentLaunchSetupCommand = null!;
     private RelayCommand _simulatorSetupCommand = null!;
     private RelayCommand _hideEmptyConfigurationGlobalCommand = null!;
     private RelayCommand _showEmptyConfigurationGlobalCommand = null!;
@@ -67,6 +69,8 @@ public sealed partial class MainWindowViewModel
     public ICommand EditProjectDefaultPresentationCuesCommand => _editProjectDefaultPresentationCuesCommand;
     public ICommand EditApplicationPresentationCueCatalogCommand => _editApplicationPresentationCueCatalogCommand;
     public ICommand RunSimulatorCommand => _runSimulatorCommand;
+    public ICommand RunDevelopmentCommand => _runDevelopmentCommand;
+    public ICommand DevelopmentLaunchSetupCommand => _developmentLaunchSetupCommand;
     public ICommand SimulatorSetupCommand => _simulatorSetupCommand;
     public ICommand HideEmptyConfigurationGlobalCommand => _hideEmptyConfigurationGlobalCommand;
     public ICommand ShowEmptyConfigurationGlobalCommand => _showEmptyConfigurationGlobalCommand;
@@ -90,6 +94,8 @@ public sealed partial class MainWindowViewModel
         _editProjectDefaultPresentationCuesCommand = new RelayCommand(EditProjectDefaultPresentationCuesExecute, CanExecuteEditProjectDefaultEchoMessages);
         _editApplicationPresentationCueCatalogCommand = new RelayCommand(EditApplicationPresentationCueCatalogExecute, CanExecuteGlobalFileWorkflowCommand);
         _runSimulatorCommand = new RelayCommand(RunSimulatorExecute, CanExecuteGlobalFileWorkflowCommand);
+        _runDevelopmentCommand = new RelayCommand(RunDevelopmentExecute, CanExecuteDevelopmentLaunchCommand);
+        _developmentLaunchSetupCommand = new RelayCommand(DevelopmentLaunchSetupExecute, CanExecuteGlobalFileWorkflowCommand);
         _simulatorSetupCommand = new RelayCommand(SimulatorSetupExecute, CanExecuteGlobalFileWorkflowCommand);
         _hideEmptyConfigurationGlobalCommand = new RelayCommand(HideEmptyConfigurationGlobalExecute, CanExecuteGlobalFileWorkflowCommand);
         _showEmptyConfigurationGlobalCommand = new RelayCommand(ShowEmptyConfigurationGlobalExecute, CanExecuteGlobalFileWorkflowCommand);
@@ -124,6 +130,8 @@ public sealed partial class MainWindowViewModel
         _editProjectDefaultPresentationCuesCommand.RaiseCanExecuteChanged();
         _editApplicationPresentationCueCatalogCommand.RaiseCanExecuteChanged();
         _runSimulatorCommand.RaiseCanExecuteChanged();
+        _runDevelopmentCommand.RaiseCanExecuteChanged();
+        _developmentLaunchSetupCommand.RaiseCanExecuteChanged();
         _simulatorSetupCommand.RaiseCanExecuteChanged();
         _hideEmptyConfigurationGlobalCommand.RaiseCanExecuteChanged();
         _showEmptyConfigurationGlobalCommand.RaiseCanExecuteChanged();
@@ -521,6 +529,94 @@ public sealed partial class MainWindowViewModel
         ExportStatus = result.StatusMessage;
     }
 
+    private bool CanExecuteDevelopmentLaunchCommand()
+    {
+        return CanExecuteGlobalFileWorkflowCommand() && !_isDevelopmentLaunchBusy;
+    }
+
+    private async void RunDevelopmentExecute()
+    {
+        if (string.IsNullOrWhiteSpace(_projectFilePath))
+        {
+            _projectUiService.ShowWarning("Save the project before launching WebPortal.", "Run Development WebPortal");
+            return;
+        }
+
+        if (!SaveProjectWithValidationSummary("Run Development WebPortal"))
+        {
+            _projectUiService.ShowWarning(ExportStatus, "Run Development WebPortal");
+            return;
+        }
+
+        if (!TryEnsureNoBlockingValidationErrors("launch development WebPortal", out var blockingValidationFailure))
+        {
+            ExportStatus = blockingValidationFailure;
+            _projectUiService.ShowWarning(blockingValidationFailure, "Run Development WebPortal");
+            return;
+        }
+
+        var runtimeProjectPath = ResolveRuntimeProjectPath(_projectFilePath);
+        _isDevelopmentLaunchBusy = true;
+        RefreshFileCommandCanExecuteStates();
+
+        try
+        {
+            var result = await _developmentGameHostWorkflowService.LaunchAsync(
+                new DevelopmentGameHostLaunchRequest
+                {
+                    ProjectFilePath = _projectFilePath,
+                    RuntimeProjectPath = runtimeProjectPath
+                });
+
+            if (!result.Success)
+            {
+                var details = result.Diagnostics.Count == 0
+                    ? result.StatusMessage
+                    : $"{result.StatusMessage}{Environment.NewLine}{string.Join(Environment.NewLine, result.Diagnostics)}";
+                _projectUiService.ShowWarning(details, "Run Development WebPortal");
+                ExportStatus = result.StatusMessage;
+                return;
+            }
+
+            var browserError = string.Empty;
+            var browserOpened = result.BrowserUri is not null
+                && _projectUiService.TryOpenUriInDefaultBrowser(result.BrowserUri.AbsoluteUri, out browserError);
+            if (!browserOpened)
+            {
+                _developmentGameHostWorkflowService.Stop();
+                var detail = string.IsNullOrWhiteSpace(browserError) ? "Unable to open the system browser." : browserError;
+                _projectUiService.ShowWarning($"Development host is ready, but WebPortal could not be opened.{Environment.NewLine}{detail}", "Run Development WebPortal");
+                ExportStatus = "Development host ready, but browser launch failed.";
+                return;
+            }
+
+            ExportStatus = $"Development WebPortal launched at {result.BrowserUri} ({result.GameKey}).";
+        }
+        catch (Exception ex)
+        {
+            _developmentGameHostWorkflowService.Stop();
+            _projectUiService.ShowWarning($"Development launch failed.{Environment.NewLine}{ex.Message}", "Run Development WebPortal");
+            ExportStatus = "Development launch failed.";
+        }
+        finally
+        {
+            _isDevelopmentLaunchBusy = false;
+            RefreshFileCommandCanExecuteStates();
+        }
+    }
+
+    private static string ResolveRuntimeProjectPath(string projectFilePath)
+    {
+        var folder = Path.GetDirectoryName(projectFilePath) ?? string.Empty;
+        var baseName = Path.GetFileNameWithoutExtension(projectFilePath);
+        if (baseName.EndsWith(".sbe", StringComparison.OrdinalIgnoreCase))
+        {
+            baseName = baseName[..^4];
+        }
+
+        return Path.Combine(folder, "GameRuntimeJson", $"{baseName}.sbr.runtime.json");
+    }
+
     private void SimulatorSetupExecute()
     {
         var request = new SimulatorSetupDialogRequest
@@ -545,6 +641,25 @@ public sealed partial class MainWindowViewModel
         }
 
         ExportStatus = result.StatusMessage;
+    }
+
+    private void DevelopmentLaunchSetupExecute()
+    {
+        var preferences = _projectCreationPreferencesService.Load();
+        var dialog = new Views.DevelopmentLaunchSetupDialog(preferences.DevelopmentUsername)
+        {
+            Owner = System.Windows.Application.Current?.MainWindow
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            ExportStatus = "Development WebPortal setup canceled.";
+            return;
+        }
+
+        preferences.DevelopmentUsername = dialog.DevelopmentUsername;
+        _projectCreationPreferencesService.Save(preferences);
+        ExportStatus = "Development WebPortal setup saved.";
     }
 
     private void ManageSourceImagesExecute()
