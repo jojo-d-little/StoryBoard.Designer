@@ -21,6 +21,11 @@ public sealed class DevelopmentGameHostLaunchResult
     public IReadOnlyList<string> Diagnostics { get; init; } = Array.Empty<string>();
 
     /// <summary>
+    /// Gets the exact non-secret process launch details emitted to the Designer output console.
+    /// </summary>
+    public IReadOnlyList<string> LaunchDiagnostics { get; init; } = Array.Empty<string>();
+
+    /// <summary>
     /// Gets the host base URI after readiness succeeds.
     /// </summary>
     public Uri? HostUri { get; init; }
@@ -50,8 +55,4 @@ public sealed class DevelopmentGameHostLaunchResult
     /// </summary>
     public string? GameKey { get; init; }
 
-    /// <summary>
-    /// Gets whether an already-ready matching host was reused.
-    /// </summary>
-    public bool ReusedExistingHost { get; init; }
 }

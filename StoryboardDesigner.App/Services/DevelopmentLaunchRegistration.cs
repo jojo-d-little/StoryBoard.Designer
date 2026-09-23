@@ -41,6 +41,11 @@ public static class DevelopmentLaunchRegistration
     public const string DevelopmentUsernameQueryParameter = "username";
 
     /// <summary>
+    /// The WebPortal query parameter that requests automatic session startup.
+    /// </summary>
+    public const string AutoStartSessionQueryParameter = "autoStartSession";
+
+    /// <summary>
     /// The default local development username used when no Designer preference is configured.
     /// </summary>
     public const string DefaultDevelopmentUsername = "dev";

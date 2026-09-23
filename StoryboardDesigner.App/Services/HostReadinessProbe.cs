@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Storyboard.Shared.HostContracts.Transport;
 
 namespace StoryboardDesigner.App.Services;
 
@@ -22,7 +23,7 @@ internal sealed class HostReadinessProbe : IHostReadinessProbe
         TimeSpan timeout,
         CancellationToken cancellationToken)
     {
-        var healthUri = new Uri(hostUri, "/health");
+        var healthUri = new Uri(hostUri, HostTransportRoutes.Health);
         var deadline = DateTime.UtcNow + timeout;
         var lastMessage = "GameHost readiness endpoint did not respond.";
 

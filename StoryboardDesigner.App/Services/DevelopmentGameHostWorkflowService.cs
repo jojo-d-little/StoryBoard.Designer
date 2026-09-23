@@ -16,10 +16,7 @@ public sealed class DevelopmentGameHostWorkflowService : IDevelopmentGameHostWor
     private readonly IHostReadinessProbe _readinessProbe;
     private readonly TimeSpan _readinessTimeout;
     private IManagedProcess? _activeProcess;
-    private string? _activeProjectPath;
-    private string? _activeRuntimeProjectPath;
     private string? _activeRegistrationFilePath;
-    private Uri? _activeHostUri;
 
     public DevelopmentGameHostWorkflowService(
         IProjectCreationPreferencesService preferencesService,
@@ -53,11 +50,6 @@ public sealed class DevelopmentGameHostWorkflowService : IDevelopmentGameHostWor
         var preferences = _preferencesService.Load();
         var developmentUsername = ResolveDevelopmentUsername(preferences.DevelopmentUsername);
 
-        if (CanReuse(projectPath, runtimeProjectPath))
-        {
-            return BuildSuccess(identity, _activeHostUri!, _activeRegistrationFilePath!, developmentUsername, reusedExistingHost: true);
-        }
-
         Stop();
 
         if (!TryResolveExecutablePath(preferences.GameHostExecutablePath, DevelopmentLaunchRegistration.GameHostExecutableEnvironmentVariable, "Storyboard.GameHost.exe", out var hostExecutablePath, out var hostFailure))
@@ -86,6 +78,7 @@ public sealed class DevelopmentGameHostWorkflowService : IDevelopmentGameHostWor
             return Failure("Failed to prepare GameHost launch.", ex.Message, registrationFilePath);
         }
 
+        var launchDiagnostics = BuildLaunchDiagnostics(startInfo);
         IManagedProcess process;
         try
         {
@@ -94,14 +87,11 @@ public sealed class DevelopmentGameHostWorkflowService : IDevelopmentGameHostWor
         catch (Exception ex)
         {
             TryDeleteRegistrationFile(registrationFilePath);
-            return Failure("Failed to start GameHost process.", ex.Message, registrationFilePath);
+            return Failure("Failed to start GameHost process.", ex.Message, registrationFilePath, launchDiagnostics);
         }
 
         _activeProcess = process;
-        _activeProjectPath = projectPath;
-        _activeRuntimeProjectPath = runtimeProjectPath;
         _activeRegistrationFilePath = registrationFilePath;
-        _activeHostUri = hostUri;
 
         HostReadinessResult readiness;
         try
@@ -121,10 +111,10 @@ public sealed class DevelopmentGameHostWorkflowService : IDevelopmentGameHostWor
         if (!readiness.IsReady)
         {
             Stop();
-            return Failure("GameHost did not become ready.", readiness.Message, registrationFilePath);
+            return Failure("GameHost did not become ready.", readiness.Message, registrationFilePath, launchDiagnostics);
         }
 
-        return BuildSuccess(identity, hostUri, registrationFilePath, developmentUsername, reusedExistingHost: false);
+        return BuildSuccess(identity, hostUri, registrationFilePath, developmentUsername, launchDiagnostics);
     }
 
     public void Stop()
@@ -141,22 +131,8 @@ public sealed class DevelopmentGameHostWorkflowService : IDevelopmentGameHostWor
             }
 
             _activeProcess = null;
-            _activeProjectPath = null;
-            _activeRuntimeProjectPath = null;
             _activeRegistrationFilePath = null;
-            _activeHostUri = null;
         }
-    }
-
-    private bool CanReuse(string projectPath, string runtimeProjectPath)
-    {
-        return _activeProcess is not null
-            && !_activeProcess.HasExited
-            && string.Equals(_activeProjectPath, projectPath, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(_activeRuntimeProjectPath, runtimeProjectPath, StringComparison.OrdinalIgnoreCase)
-            && _activeHostUri is not null
-            && _activeRegistrationFilePath is not null
-            && File.Exists(_activeRegistrationFilePath);
     }
 
     private static ProcessStartInfo BuildStartInfo(
@@ -170,7 +146,9 @@ public sealed class DevelopmentGameHostWorkflowService : IDevelopmentGameHostWor
         {
             WorkingDirectory = workingDirectory,
             UseShellExecute = false,
-            CreateNoWindow = true
+            // Development launches intentionally expose the GameHost console so its live
+            // logging is visible while the WebPortal is being exercised.
+            CreateNoWindow = false
         };
 
         startInfo.ArgumentList.Add("--GameHost:Transport:Port");
@@ -292,21 +270,19 @@ public sealed class DevelopmentGameHostWorkflowService : IDevelopmentGameHostWor
         Uri hostUri,
         string registrationFilePath,
         string developmentUsername,
-        bool reusedExistingHost)
+        IReadOnlyList<string> launchDiagnostics)
     {
         return new DevelopmentGameHostLaunchResult
         {
             Success = true,
-            StatusMessage = reusedExistingHost
-                ? "Development GameHost is already ready; opening WebPortal."
-                : "Development GameHost is ready; opening WebPortal.",
+            StatusMessage = "Development GameHost is ready; opening WebPortal.",
             HostUri = hostUri,
             BrowserUri = BuildBrowserUri(hostUri, developmentUsername),
             DevelopmentUsername = developmentUsername,
+            LaunchDiagnostics = launchDiagnostics,
             RegistrationFilePath = registrationFilePath,
             GameId = identity.GameId,
-            GameKey = identity.GameKey,
-            ReusedExistingHost = reusedExistingHost
+            GameKey = identity.GameKey
         };
     }
 
@@ -316,7 +292,8 @@ public sealed class DevelopmentGameHostWorkflowService : IDevelopmentGameHostWor
         browserUri.Query = string.Join(
             "&",
             $"{DevelopmentLaunchRegistration.WebPortalLaunchModeQueryParameter}={Uri.EscapeDataString(DevelopmentLaunchRegistration.DevelopmentSimulatorLaunchMode)}",
-            $"{DevelopmentLaunchRegistration.DevelopmentUsernameQueryParameter}={Uri.EscapeDataString(developmentUsername)}");
+            $"{DevelopmentLaunchRegistration.DevelopmentUsernameQueryParameter}={Uri.EscapeDataString(developmentUsername)}",
+            $"{DevelopmentLaunchRegistration.AutoStartSessionQueryParameter}=true");
         return browserUri.Uri;
     }
 
@@ -330,15 +307,60 @@ public sealed class DevelopmentGameHostWorkflowService : IDevelopmentGameHostWor
     private static DevelopmentGameHostLaunchResult Failure(
         string statusMessage,
         string diagnostic,
-        string? registrationFilePath = null)
+        string? registrationFilePath = null,
+        IReadOnlyList<string>? launchDiagnostics = null)
     {
         return new DevelopmentGameHostLaunchResult
         {
             Success = false,
             StatusMessage = statusMessage,
             Diagnostics = [diagnostic],
+            LaunchDiagnostics = launchDiagnostics ?? Array.Empty<string>(),
             RegistrationFilePath = registrationFilePath
         };
+    }
+
+    private static IReadOnlyList<string> BuildLaunchDiagnostics(ProcessStartInfo startInfo)
+    {
+        var executablePath = Path.GetFullPath(startInfo.FileName);
+        var arguments = startInfo.ArgumentList.ToArray();
+        var lines = new List<string>
+        {
+            $"[DEV-HOST] Executable: {executablePath}",
+            $"[DEV-HOST] Working directory: {startInfo.WorkingDirectory}",
+            $"[DEV-HOST] Console window: {(startInfo.CreateNoWindow ? "hidden" : "visible")}",
+            $"[DEV-HOST] Command: {FormatCommandLine(executablePath, arguments)}",
+            $"[DEV-HOST] Argument count: {arguments.Length}"
+        };
+
+        for (var index = 0; index < arguments.Length; index++)
+        {
+            lines.Add($"[DEV-HOST] Argument[{index}]: {arguments[index]}");
+        }
+
+        lines.Add("[DEV-HOST] Environment overrides:");
+        foreach (var variableName in new[]
+        {
+            "DOTNET_ENVIRONMENT",
+            "ASPNETCORE_ENVIRONMENT",
+            DevelopmentLaunchRegistration.DiscoveryJsonPathEnvironmentVariable,
+            DevelopmentLaunchRegistration.WebPortalRootEnvironmentVariable
+        })
+        {
+            if (startInfo.Environment.TryGetValue(variableName, out var value))
+            {
+                lines.Add($"[DEV-HOST] Environment[{variableName}]: {value}");
+            }
+        }
+
+        return lines;
+    }
+
+    private static string FormatCommandLine(string executablePath, IEnumerable<string> arguments)
+    {
+        return string.Join(
+            " ",
+            new[] { executablePath }.Concat(arguments).Select(static value => $"\"{value.Replace("\"", "\\\"")}\""));
     }
 
     private static void TryDeleteRegistrationFile(string path)

@@ -2,14 +2,18 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Development WebPortal Setup"
-        Height="250"
+        Height="430"
         Width="640"
-        MinHeight="250"
+        MinHeight="430"
         MinWidth="560"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize">
     <Grid Margin="16">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -23,13 +27,52 @@
                  Grid.Row="1"
                  Margin="0,4,0,0"
                  AutomationProperties.AutomationId="DevelopmentLaunchSetup.Username" />
+
         <TextBlock Grid.Row="2"
                    Margin="0,12,0,0"
                    Foreground="#6B7280"
-                   TextWrapping="Wrap"
-                   Text="This username is passed as non-secret WebPortal bootstrap context for mode=devsimulator. Passwords and credential handles remain owned by GameHost and are not configured here." />
+                   Text="GameHost executable path (machine setting, optional)" />
+        <Grid Grid.Row="3" Margin="0,4,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="GameHostExecutablePathTextBox"
+                     Grid.Column="0"
+                     AutomationProperties.AutomationId="DevelopmentLaunchSetup.GameHostExecutablePath" />
+            <Button Grid.Column="1"
+                    Width="92"
+                    Margin="8,0,0,0"
+                    Content="Browse..."
+                    Click="BrowseGameHost_OnClick" />
+        </Grid>
 
-        <StackPanel Grid.Row="3"
+        <TextBlock Grid.Row="4"
+                   Margin="0,12,0,0"
+                   Foreground="#6B7280"
+                   Text="WebPortal root path (machine setting, optional)" />
+        <Grid Grid.Row="5" Margin="0,4,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="WebPortalRootPathTextBox"
+                     Grid.Column="0"
+                     AutomationProperties.AutomationId="DevelopmentLaunchSetup.WebPortalRootPath" />
+            <Button Grid.Column="1"
+                    Width="92"
+                    Margin="8,0,0,0"
+                    Content="Browse..."
+                    Click="BrowseWebPortal_OnClick" />
+        </Grid>
+
+        <TextBlock Grid.Row="6"
+                   Margin="0,12,0,0"
+                   Foreground="#6B7280"
+                   TextWrapping="Wrap"
+                   Text="Leave either path blank to use automatic discovery or environment overrides. The WebPortal root must contain index.html. The username is non-secret bootstrap context; passwords and credential handles remain owned by GameHost." />
+
+        <StackPanel Grid.Row="7"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Margin="0,14,0,0">

@@ -568,6 +568,11 @@ public sealed partial class MainWindowViewModel
                     RuntimeProjectPath = runtimeProjectPath
                 });
 
+            foreach (var launchDiagnostic in result.LaunchDiagnostics)
+            {
+                AppendOutputConsoleLine(launchDiagnostic);
+            }
+
             if (!result.Success)
             {
                 var details = result.Diagnostics.Count == 0
@@ -646,7 +651,10 @@ public sealed partial class MainWindowViewModel
     private void DevelopmentLaunchSetupExecute()
     {
         var preferences = _projectCreationPreferencesService.Load();
-        var dialog = new Views.DevelopmentLaunchSetupDialog(preferences.DevelopmentUsername)
+        var dialog = new Views.DevelopmentLaunchSetupDialog(
+            preferences.DevelopmentUsername,
+            preferences.GameHostExecutablePath,
+            preferences.WebPortalRootPath)
         {
             Owner = System.Windows.Application.Current?.MainWindow
         };
@@ -658,6 +666,8 @@ public sealed partial class MainWindowViewModel
         }
 
         preferences.DevelopmentUsername = dialog.DevelopmentUsername;
+        preferences.GameHostExecutablePath = dialog.GameHostExecutablePath;
+        preferences.WebPortalRootPath = dialog.WebPortalRootPath;
         _projectCreationPreferencesService.Save(preferences);
         ExportStatus = "Development WebPortal setup saved.";
     }

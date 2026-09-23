@@ -1,7 +1,7 @@
 namespace StoryboardDesigner.App.Services;
 
 /// <summary>
-/// Polls the existing GameHost health endpoint without introducing a shared contract.
+/// Polls the existing versioned GameHost health endpoint without introducing a shared contract.
 /// </summary>
 public interface IHostReadinessProbe
 {

@@ -1,12 +1,12 @@
 namespace StoryboardDesigner.App.Services;
 
 /// <summary>
-/// Owns Designer-side creation, launch, readiness, reuse, and cleanup for a development GameHost.
+/// Owns Designer-side creation, fresh launch, readiness, and cleanup for a development GameHost.
 /// </summary>
 public interface IDevelopmentGameHostWorkflowService
 {
     /// <summary>
-    /// Starts or reuses a ready development GameHost for the exported project.
+    /// Stops any prior Designer-owned host and starts a fresh development GameHost for the exported project.
     /// </summary>
     /// <param name="request">The saved project and runtime export paths.</param>
     /// <param name="cancellationToken">Cancels the launch and readiness wait.</param>

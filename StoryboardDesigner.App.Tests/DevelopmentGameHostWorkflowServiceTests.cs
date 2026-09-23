@@ -26,9 +26,8 @@ public sealed class DevelopmentGameHostWorkflowServiceTests
         });
 
         Assert.True(result.Success);
-        Assert.False(result.ReusedExistingHost);
         Assert.Equal("/client/", result.BrowserUri?.AbsolutePath);
-        Assert.Equal("?mode=devsimulator&username=designer-dev", result.BrowserUri?.Query);
+        Assert.Equal("?mode=devsimulator&username=designer-dev&autoStartSession=true", result.BrowserUri?.Query);
         Assert.Equal("designer-dev", result.DevelopmentUsername);
         Assert.NotNull(result.GameId);
         Assert.NotNull(result.GameKey);
@@ -39,6 +38,13 @@ public sealed class DevelopmentGameHostWorkflowServiceTests
         Assert.Contains("LoopbackOnly", launcher.Started[0].ArgumentList);
         Assert.Contains("--GameHost:Transport:Port", launcher.Started[0].ArgumentList);
         Assert.Equal(readiness.LastHostUri, result.HostUri);
+        Assert.False(launcher.Started[0].UseShellExecute);
+        Assert.False(launcher.Started[0].CreateNoWindow);
+        Assert.Contains(result.LaunchDiagnostics, line => line.Contains(launcher.Started[0].FileName, StringComparison.Ordinal));
+        Assert.Contains(result.LaunchDiagnostics, line => line.Contains("Console window: visible", StringComparison.Ordinal));
+        Assert.Contains(result.LaunchDiagnostics, line => line.Contains("Argument[0]: --GameHost:Transport:Port", StringComparison.Ordinal));
+        Assert.Contains(result.LaunchDiagnostics, line => line.Contains(DevelopmentLaunchRegistration.DiscoveryJsonPathEnvironmentVariable, StringComparison.Ordinal));
+        Assert.Contains(result.LaunchDiagnostics, line => line.Contains(DevelopmentLaunchRegistration.WebPortalRootEnvironmentVariable, StringComparison.Ordinal));
 
         using var document = JsonDocument.Parse(File.ReadAllText(result.RegistrationFilePath!));
         var entry = Assert.Single(document.RootElement.GetProperty("games").EnumerateArray());
@@ -82,14 +88,16 @@ public sealed class DevelopmentGameHostWorkflowServiceTests
         Assert.Contains("registration failed", result.Diagnostics);
         Assert.True(process.KillCalled);
         Assert.False(File.Exists(result.RegistrationFilePath));
+        Assert.NotEmpty(result.LaunchDiagnostics);
     }
 
     [Fact]
-    public async Task LaunchAsync_ReusesReadyHostForSameExport()
+    public async Task LaunchAsync_StartsFreshHostForEachRun()
     {
         using var fixture = LaunchFixture.Create();
-        var process = new FakeManagedProcess(4314);
-        var launcher = new FakeProcessLauncher(process);
+        var firstProcess = new FakeManagedProcess(4314);
+        var secondProcess = new FakeManagedProcess(4315);
+        var launcher = new FakeProcessLauncher(firstProcess, secondProcess);
         var readiness = new FakeReadinessProbe(new HostReadinessResult { IsReady = true });
         var service = new DevelopmentGameHostWorkflowService(
             fixture.Preferences,
@@ -107,13 +115,13 @@ public sealed class DevelopmentGameHostWorkflowServiceTests
 
         Assert.True(first.Success);
         Assert.True(second.Success);
-        Assert.True(second.ReusedExistingHost);
-        Assert.Single(launcher.Started);
-        Assert.Equal(first.HostUri, second.HostUri);
-        Assert.Equal(first.RegistrationFilePath, second.RegistrationFilePath);
-        Assert.False(process.KillCalled);
+        Assert.Equal(2, launcher.Started.Count);
+        Assert.NotEqual(first.RegistrationFilePath, second.RegistrationFilePath);
+        Assert.True(firstProcess.KillCalled);
+        Assert.False(secondProcess.KillCalled);
 
         service.Stop();
+        Assert.True(secondProcess.KillCalled);
     }
 
     private sealed class LaunchFixture : IDisposable
@@ -185,18 +193,18 @@ public sealed class DevelopmentGameHostWorkflowServiceTests
 
     private sealed class FakeProcessLauncher : IProcessLauncher
     {
-        private readonly IManagedProcess _process;
+        private readonly IReadOnlyList<IManagedProcess> _processes;
         public List<ProcessStartInfo> Started { get; } = [];
 
-        public FakeProcessLauncher(IManagedProcess process)
+        public FakeProcessLauncher(params IManagedProcess[] processes)
         {
-            _process = process;
+            _processes = processes;
         }
 
         public IManagedProcess Start(ProcessStartInfo startInfo)
         {
             Started.Add(startInfo);
-            return _process;
+            return _processes[Started.Count - 1];
         }
     }
 
