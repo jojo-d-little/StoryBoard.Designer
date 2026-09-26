@@ -116,6 +116,8 @@ public sealed class Room : ScopeNodeBase, INotifyPropertyChanged
         }
     }
 
+    public RoomAmbientLighting? AmbientLighting { get; set; }
+
     public List<GamePropertyDefinition> Variables { get; set; } = new();
     public RuntimeRoomImageDisplayMode RoomDisplayMode { get; set; } = RuntimeRoomImageDisplayMode.Independent;
     public AreaAdjacencyMode? TraversalModeOverride { get; set; }

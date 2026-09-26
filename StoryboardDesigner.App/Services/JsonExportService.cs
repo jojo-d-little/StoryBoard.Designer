@@ -360,6 +360,7 @@ public sealed class JsonExportService : IJsonExportService
             RoomImageCanvasWidth = project.RoomImageCanvasWidth,
             RoomImageCanvasHeight = project.RoomImageCanvasHeight,
             RoomDesignerGridCellSize = project.RoomDesignerGridCellSize,
+            PointLightDefaults = LightingContractMapper.ToProjectPointLightDefaultsDto(project.PointLightDefaults),
             StackScaleStepDefault = project.StackScaleStepDefault,
             MinStackScaleDefault = project.MinStackScaleDefault,
             SimulatorReplayFilePath = project.SimulatorReplayFilePath,
@@ -547,6 +548,7 @@ public sealed class JsonExportService : IJsonExportService
                 ProducerNotes = room.ProducerNotes,
                 RoomImageCanvasWidth = ResolveEffectiveRoomCanvasWidth(project, room),
                 RoomImageCanvasHeight = ResolveEffectiveRoomCanvasHeight(project, room),
+                AmbientLighting = LightingContractMapper.ToProjectRoomAmbientLightingDto(room.AmbientLighting),
                 RoomDisplayMode = room.RoomDisplayMode,
                 ValidationErrors = room.ValidationErrors.ToList(),
                 TraversalModeOverride = room.TraversalModeOverride?.ToString(),
@@ -950,6 +952,7 @@ public sealed class JsonExportService : IJsonExportService
                 RoomImageCanvasWidth = dto.RoomImageCanvasWidth,
                 RoomImageCanvasHeight = dto.RoomImageCanvasHeight,
                 RoomDesignerGridCellSize = dto.RoomDesignerGridCellSize,
+                PointLightDefaults = LightingContractMapper.ToPointLightDefaultsModel(dto.PointLightDefaults),
                 StackScaleStepDefault = dto.StackScaleStepDefault ?? ProjectModel.DefaultStackScaleStep,
                 MinStackScaleDefault = dto.MinStackScaleDefault ?? ProjectModel.DefaultMinStackScale,
                 SimulatorReplayFilePath = dto.SimulatorReplayFilePath,
@@ -1296,6 +1299,7 @@ public sealed class JsonExportService : IJsonExportService
             ProducerNotes = room.ProducerNotes,
             RoomImageCanvasWidth = room.RoomImageCanvasWidth,
             RoomImageCanvasHeight = room.RoomImageCanvasHeight,
+            AmbientLighting = LightingContractMapper.ToProjectRoomAmbientLightingDto(room.AmbientLighting),
             RoomDisplayMode = room.RoomDisplayMode,
             ValidationErrors = room.ValidationErrors.ToList(),
             TraversalModeOverride = room.TraversalModeOverride?.ToString(),
@@ -1420,6 +1424,7 @@ public sealed class JsonExportService : IJsonExportService
             RoomImageCanvasWidth = project.RoomImageCanvasWidth,
             RoomImageCanvasHeight = project.RoomImageCanvasHeight,
             RoomDesignerGridCellSize = project.RoomDesignerGridCellSize,
+            PointLightDefaults = LightingContractMapper.ToRuntimePointLightDefaultsDto(project.PointLightDefaults),
             AdditionalVerbs = runtimeGlobalVerbs,
             AdditionalDirectionals = project.Directionals.ToList(),
             AdditionalDirectionalTraversalMappings = NullIfEmpty(ToRuntimeDirectionalTraversalMappings(project.DirectionalTraversalMappings)),
@@ -1951,6 +1956,7 @@ public sealed class JsonExportService : IJsonExportService
                 Description = room.Description,
                 RoomImageCanvasWidth = ResolveEffectiveRoomCanvasWidth(project, room),
                 RoomImageCanvasHeight = ResolveEffectiveRoomCanvasHeight(project, room),
+                AmbientLighting = LightingContractMapper.ToRuntimeRoomAmbientLightingDto(room.AmbientLighting),
                 RoomDisplayMode = ToRuntimeRoomImageDisplayMode(room.RoomDisplayMode),
                 AvailableGameActions = ToCleanCommandActionDtos(room.AvailableActions).OrderBy(action => action.Name, StringComparer.OrdinalIgnoreCase).ThenBy(action => action.Id).ToList(),
                 GameProperties = NullIfEmpty(room.Variables.Select(ToCleanGamePropertyDto).OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase).ToList()),
@@ -4344,6 +4350,7 @@ public sealed class JsonExportService : IJsonExportService
             RoomImageCanvasHeight = room.RoomImageCanvasHeight.GetValueOrDefault() > 0
                 ? room.RoomImageCanvasHeight!.Value
                 : (defaultRoomCanvasHeight > 0 ? defaultRoomCanvasHeight : 600),
+            AmbientLighting = LightingContractMapper.ToRoomAmbientLightingModel(room.AmbientLighting),
             RoomDisplayMode = roomDisplayMode,
             ValidationErrors = (room.ValidationErrors ?? new List<string>())
                 .Where(static value => !string.IsNullOrWhiteSpace(value))
@@ -4452,6 +4459,9 @@ public sealed class JsonExportService : IJsonExportService
                 ? null
                 : obj.ImageVariantChooserScript,
             Appearance = ToProjectGameObjectAppearanceDto(obj),
+            PointLight = LightingContractMapper.ToProjectPointLightDto(obj.PointLight),
+            LightOcclusion = LightingContractMapper.ToProjectLightOcclusionDto(obj.LightOcclusion),
+            IsPointLightEnabledDefaultValue = obj.IsPointLightEnabledDefaultValue,
             ImageRotationDegrees = obj.ImageRotationDegrees,
             PositionX = SanitizeCoordinateForPersistence(obj.PositionX),
             PositionY = SanitizeCoordinateForPersistence(obj.PositionY),
@@ -4598,6 +4608,9 @@ public sealed class JsonExportService : IJsonExportService
             HeightInRoom = obj.Appearance?.HeightInRoom ?? 0,
             AuthoredBaseHeightInRoom = obj.Appearance?.AuthoredBaseHeightInRoom ?? 0,
             IsHeightPinned = obj.Appearance?.IsHeightPinned ?? false,
+            PointLight = LightingContractMapper.ToPointLightModel(obj.PointLight),
+            LightOcclusion = LightingContractMapper.ToLightOcclusionModel(obj.LightOcclusion),
+            IsPointLightEnabledDefaultValue = obj.IsPointLightEnabledDefaultValue ?? true,
             OccupiedCellIds = NormalizeOccupiedCellIds(obj.Appearance?.OccupiedCellIds),
             OccupancyDerivationSourceEcho = obj.Appearance?.OccupancyDerivationSourceEcho ?? string.Empty,
             StackScaleStepOverride = SanitizeOptionalFinite(obj.Appearance?.StackScaleStepOverride),
@@ -4762,6 +4775,9 @@ public sealed class JsonExportService : IJsonExportService
             obj.HeightInRoom = definition.HeightInRoom;
             obj.AuthoredBaseHeightInRoom = definition.AuthoredBaseHeightInRoom;
             obj.IsHeightPinned = definition.IsHeightPinned;
+            obj.PointLight = LightingModelCloner.ClonePointLight(definition.PointLight);
+            obj.LightOcclusion = LightingModelCloner.CloneLightOcclusion(definition.LightOcclusion);
+            obj.IsPointLightEnabledDefaultValue = definition.IsPointLightEnabledDefaultValue;
             obj.OccupiedCellIds = NormalizeOccupiedCellIds(definition.OccupiedCellIds);
             obj.OccupancyDerivationSourceEcho = definition.OccupancyDerivationSourceEcho;
             obj.StackScaleStepOverride = definition.StackScaleStepOverride;
@@ -6046,6 +6062,9 @@ public sealed class JsonExportService : IJsonExportService
                 ? null
                 : effectiveDefinitionOwnedSource.ImageVariantChooserScript,
             Appearance = ToCleanGameObjectAppearanceDto(obj, effectiveDefinitionOwnedSource),
+            PointLight = LightingContractMapper.ToRuntimePointLightDto(effectiveDefinitionOwnedSource.PointLight),
+            LightOcclusion = LightingContractMapper.ToRuntimeLightOcclusionDto(effectiveDefinitionOwnedSource.LightOcclusion),
+            IsPointLightEnabledDefaultValue = obj.IsPointLightEnabledDefaultValue,
             Description = effectiveDescription ?? string.Empty,
             AdditionalVerbs = NullIfEmpty(obj.AdditionalVerbs.OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToList()),
             AdditionalDirectionals = NullIfEmpty(obj.AdditionalDirectionals.OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToList()),
@@ -8465,6 +8484,7 @@ public sealed class JsonExportService : IJsonExportService
             PhaseAmbientSoundEffectId = phaseNode.PhaseAmbientSoundEffectId,
             PhaseAmbientTimerKey = string.IsNullOrWhiteSpace(phaseNode.PhaseAmbientTimerKey) ? null : phaseNode.PhaseAmbientTimerKey,
             PhaseAmbienceMode = phaseNode.PhaseAmbienceMode,
+            PhaseAmbientOverlay = LightingContractMapper.ToProjectPhaseAmbientOverlayDto(phaseNode.PhaseAmbientOverlay),
             ParentPhaseId = phaseNode.ParentScope is PhaseNode parent ? parent.Id : null,
             ChildPhaseIds = phaseNode.Children
                 .Select(static child => child.Id)
@@ -8504,6 +8524,7 @@ public sealed class JsonExportService : IJsonExportService
             PhaseAmbientSoundEffectId = dto.PhaseAmbientSoundEffectId,
             PhaseAmbientTimerKey = dto.PhaseAmbientTimerKey,
             PhaseAmbienceMode = dto.PhaseAmbienceMode,
+            PhaseAmbientOverlay = LightingContractMapper.ToPhaseAmbientOverlayModel(dto.PhaseAmbientOverlay),
             Variables = (dto.GameProperties ?? new List<GamePropertyDefinitionDto>())
                 .Select(ToVariableModel)
                 .ToList(),
@@ -8647,6 +8668,7 @@ public sealed class JsonExportService : IJsonExportService
             PhaseAmbientSoundEffectId = phaseNode.PhaseAmbientSoundEffectId,
             PhaseAmbientTimerKey = string.IsNullOrWhiteSpace(phaseNode.PhaseAmbientTimerKey) ? null : phaseNode.PhaseAmbientTimerKey,
             PhaseAmbienceMode = phaseNode.PhaseAmbienceMode,
+            PhaseAmbientOverlay = LightingContractMapper.ToRuntimePhaseAmbientOverlayDto(phaseNode.PhaseAmbientOverlay),
             GameProperties = NullIfEmpty(phaseNode.Variables
                 .Select(ToCleanGamePropertyDto)
                 .OrderBy(static variable => variable.Name, StringComparer.OrdinalIgnoreCase)
@@ -8742,6 +8764,7 @@ public sealed class JsonExportService : IJsonExportService
             PhaseAmbientSoundEffectId = source.PhaseAmbientSoundEffectId,
             PhaseAmbientTimerKey = source.PhaseAmbientTimerKey,
             PhaseAmbienceMode = source.PhaseAmbienceMode,
+            PhaseAmbientOverlay = source.PhaseAmbientOverlay,
             BaseObjectIds = source.BaseObjectIds,
             GameObjectIds = source.GameObjectIds,
             ProcedureIds = source.ProcedureIds,

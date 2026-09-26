@@ -66,6 +66,8 @@ public sealed class ProjectModel : ScopeNodeBase
         set => _roomDesignerGridCellSize = value > 0 ? value : 40;
     }
 
+    public PointLightDefaults? PointLightDefaults { get; set; }
+
     public double StackScaleStepDefault
     {
         get => _stackScaleStepDefault;

@@ -385,6 +385,10 @@ public sealed class GameObject : ScopeNodeBase, INotifyPropertyChanged
         }
     }
 
+    public PointLight? PointLight { get; set; }
+    public LightOcclusion? LightOcclusion { get; set; }
+    public bool IsPointLightEnabledDefaultValue { get; set; } = true;
+
     public List<string> OccupiedCellIds
     {
         get => _occupiedCellIds;

@@ -1,5 +1,5 @@
-using System.Windows;
 using System.Globalization;
+using System.Windows;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using Storyboard.Shared.Config;
@@ -13,6 +13,7 @@ public partial class GlobalSettingsDialog : Window
     private string _gameDisplayName;
     private string _gameSummary;
     private List<string> _gamePreviewImages;
+    private PointLightDefaults? _pointLightDefaults;
     private readonly IReadOnlyList<string> _soundEffectCategorySuggestions;
 
     public GlobalSettingsDialog(
@@ -33,6 +34,8 @@ public partial class GlobalSettingsDialog : Window
         RefreshGridCellSizeOptions(initialValues.RoomDesignerGridCellSize);
         StackScaleStepDefaultTextBox.Text = initialValues.StackScaleStepDefault.ToString("0.###", CultureInfo.InvariantCulture);
         MinStackScaleDefaultTextBox.Text = initialValues.MinStackScaleDefault.ToString("0.###", CultureInfo.InvariantCulture);
+        _pointLightDefaults = LightingModelCloner.ClonePointLightDefaults(initialValues.PointLightDefaults);
+        RefreshLightingSummary();
         _gameDisplayName = initialValues.GameDisplayName?.Trim() ?? string.Empty;
         _gameSummary = initialValues.GameSummary?.Trim() ?? string.Empty;
         _gamePreviewImages = NormalizePreviewImages(initialValues.GamePreviewImages);
@@ -61,7 +64,8 @@ public partial class GlobalSettingsDialog : Window
                 TryParseMinStackScale(MinStackScaleDefaultTextBox.Text.Trim(), out var minStackScaleDefault) ? minStackScaleDefault : -1,
                 _gameDisplayName,
                 _gameSummary,
-                _gamePreviewImages.ToList());
+                _gamePreviewImages.ToList(),
+                LightingModelCloner.ClonePointLightDefaults(_pointLightDefaults));
         }
     }
 
@@ -95,23 +99,13 @@ public partial class GlobalSettingsDialog : Window
 
         if (!TryParseStackScaleStep(StackScaleStepDefaultTextBox.Text.Trim(), out _))
         {
-            System.Windows.MessageBox.Show(
-                this,
-                $"Please enter a decimal number from {StackScalePolicy.MinStackScaleStep:0.##} to {StackScalePolicy.MaxStackScaleStep:0.##} for stack scale step.",
-                "Global Settings",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            System.Windows.MessageBox.Show(this, $"Please enter a decimal number from {StackScalePolicy.MinStackScaleStep:0.##} to {StackScalePolicy.MaxStackScaleStep:0.##} for stack scale step.", "Global Settings", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
         if (!TryParseMinStackScale(MinStackScaleDefaultTextBox.Text.Trim(), out _))
         {
-            System.Windows.MessageBox.Show(
-                this,
-                $"Please enter a decimal number from {StackScalePolicy.MinMinStackScale:0.##} to {StackScalePolicy.MaxMinStackScale:0.##} for min stack scale.",
-                "Global Settings",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            System.Windows.MessageBox.Show(this, $"Please enter a decimal number from {StackScalePolicy.MinMinStackScale:0.##} to {StackScalePolicy.MaxMinStackScale:0.##} for min stack scale.", "Global Settings", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -150,6 +144,29 @@ public partial class GlobalSettingsDialog : Window
 
         var target = preferred ?? PreferredDefaultGridCellSize;
         RoomGridCellSizeComboBox.SelectedItem = ResolveBestFitGridCellSize(values, target);
+    }
+
+    private void ManageLighting_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ManagePointLightDefaultsDialog(_pointLightDefaults)
+        {
+            Owner = this
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        _pointLightDefaults = LightingModelCloner.ClonePointLightDefaults(dialog.PointLightDefaults);
+        RefreshLightingSummary();
+    }
+
+    private void RefreshLightingSummary()
+    {
+        LightingSummaryTextBlock.Text = _pointLightDefaults is null
+            ? "Not configured"
+            : "Configured fallback values";
     }
 
     private static bool TryParsePositiveWholeNumber(string text, out int value)
@@ -214,10 +231,7 @@ public partial class GlobalSettingsDialog : Window
             return preferred;
         }
 
-        return validValues
-            .OrderBy(value => Math.Abs(value - preferred))
-            .ThenBy(value => value)
-            .First();
+        return validValues.OrderBy(value => Math.Abs(value - preferred)).ThenBy(value => value).First();
     }
 
     private static int GreatestCommonDivisor(int a, int b)
@@ -251,9 +265,7 @@ public partial class GlobalSettingsDialog : Window
             return;
         }
 
-        _soundEffectLibraryEntries = dialog.Entries
-            .Select(CloneSoundEffectEntry)
-            .ToList();
+        _soundEffectLibraryEntries = dialog.Entries.Select(CloneSoundEffectEntry).ToList();
     }
 
     private void ManagePresentation_OnClick(object sender, RoutedEventArgs e)

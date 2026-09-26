@@ -30,6 +30,7 @@ public sealed class PhaseNode : ScopeNodeBase
     public Guid? PhaseAmbientSoundEffectId { get; set; }
     public string? PhaseAmbientTimerKey { get; set; }
     public PhaseAmbienceMode? PhaseAmbienceMode { get; set; }
+    public PhaseAmbientOverlay? PhaseAmbientOverlay { get; set; }
     public List<GamePropertyDefinition> Variables { get; set; } = new();
     public List<CommandAction> AvailableActions { get; set; } = new();
     public List<string> AdditionalVerbs { get; set; } = new();

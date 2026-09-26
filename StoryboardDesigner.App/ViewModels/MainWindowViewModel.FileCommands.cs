@@ -11,6 +11,7 @@ using Storyboard.Shared.RuntimeContracts.Dtos;
 using StoryboardDesigner.App.Validation.Contracts;
 using StoryboardDesigner.App.Validation.Execution;
 using StoryboardDesigner.App.Validation.Rules.Actions;
+using StoryboardDesigner.App.Validation.Rules.Lighting;
 using StoryboardDesigner.App.Validation.Rules.Objects;
 using StoryboardDesigner.App.Validation.Rules.Project;
 using StoryboardDesigner.App.Validation.Rules.Scripting;
@@ -1725,6 +1726,7 @@ public sealed partial class MainWindowViewModel
         registry.Register(new TraversalDoorOpenStateLinkConventionRule());
         registry.Register(new RoomPlacementReferenceIntegrityRule());
         registry.Register(new RoomCanvasDimensionsRule());
+        registry.Register(new LightingAuthoringValidationRule());
         if (includeImagePathAvailabilityRule)
         {
             registry.Register(new ImagePathAvailabilityRule());

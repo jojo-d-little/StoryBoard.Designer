@@ -6988,7 +6988,8 @@ public sealed partial class MainWindowViewModel
             _project.MinStackScaleDefault,
             _project.GameDisplayName,
             _project.GameSummary,
-            _project.GamePreviewImages.ToList());
+            _project.GamePreviewImages.ToList(),
+            LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults));
 
         var startingPlanetOptions = _project.Planets
             .Select(planet => planet.Name)
@@ -7037,6 +7038,7 @@ public sealed partial class MainWindowViewModel
                          || !string.Equals(_project.GameDisplayName, updated.GameDisplayName?.Trim() ?? string.Empty, StringComparison.Ordinal)
                          || !string.Equals(_project.GameSummary, updated.GameSummary?.Trim() ?? string.Empty, StringComparison.Ordinal)
                          || !AreStringListsEquivalent(_project.GamePreviewImages, updated.GamePreviewImages)
+                         || !ArePointLightDefaultsEquivalent(_project.PointLightDefaults, updated.PointLightDefaults)
                          || !AreSoundEffectLibraryEntriesEquivalent(_project.GlobalScope.SoundEffectLibraryEntries, updatedSoundEffectLibraryEntries);
 
         if (!hasChanges)
@@ -7055,6 +7057,7 @@ public sealed partial class MainWindowViewModel
         _project.GameDisplayName = updated.GameDisplayName?.Trim() ?? string.Empty;
         _project.GameSummary = updated.GameSummary?.Trim() ?? string.Empty;
         _project.GamePreviewImages = NormalizePreviewImagePaths(updated.GamePreviewImages);
+        _project.PointLightDefaults = LightingModelCloner.ClonePointLightDefaults(updated.PointLightDefaults);
         _project.GlobalScope.SoundEffectLibraryEntries = updatedSoundEffectLibraryEntries
             .Select(CloneSoundEffectLibraryEntry)
             .ToList();
@@ -7072,6 +7075,33 @@ public sealed partial class MainWindowViewModel
         SelectedNode = projectNode;
         ExportStatus = "Updated global settings.";
         return true;
+    }
+
+    private static bool ArePointLightDefaultsEquivalent(PointLightDefaults? left, PointLightDefaults? right)
+    {
+        if (left is null || right is null)
+        {
+            return left is null && right is null;
+        }
+
+        return AreNearlyEqualNullable(left.RadiusPx, right.RadiusPx)
+               && AreNearlyEqualNullable(left.IntensityScale, right.IntensityScale)
+               && string.Equals(left.Color, right.Color, StringComparison.Ordinal)
+               && string.Equals(left.OuterColor, right.OuterColor, StringComparison.Ordinal)
+               && AreNearlyEqualNullable(left.GradientExponent, right.GradientExponent)
+               && AreNearlyEqualNullable(left.LightHeightCells, right.LightHeightCells)
+               && AreNearlyEqualNullable(left.SwayAmountPx, right.SwayAmountPx)
+               && AreNearlyEqualNullable(left.SwayHz, right.SwayHz)
+               && AreNearlyEqualNullable(left.SwayDirectionDeg, right.SwayDirectionDeg)
+               && AreNearlyEqualNullable(left.FlickerAmount, right.FlickerAmount)
+               && AreNearlyEqualNullable(left.FlickerHz, right.FlickerHz)
+               && string.Equals(left.FlickerStyle, right.FlickerStyle, StringComparison.Ordinal);
+    }
+
+    private static bool AreNearlyEqualNullable(double? left, double? right)
+    {
+        return left.HasValue == right.HasValue
+               && (!left.HasValue || AreNearlyEqual(left.Value, right!.Value));
     }
 
     private static bool AreStringListsEquivalent(IReadOnlyList<string> left, IReadOnlyList<string> right)
@@ -10695,6 +10725,9 @@ public sealed partial class MainWindowViewModel
             HeightInRoom = template.HeightInRoom,
             AuthoredBaseHeightInRoom = template.AuthoredBaseHeightInRoom,
             IsHeightPinned = template.IsHeightPinned,
+            PointLight = LightingModelCloner.ClonePointLight(template.PointLight),
+            LightOcclusion = LightingModelCloner.CloneLightOcclusion(template.LightOcclusion),
+            IsPointLightEnabledDefaultValue = template.IsPointLightEnabledDefaultValue,
             OccupiedCellIds = template.OccupiedCellIds.ToList(),
             OccupancyDerivationSourceEcho = template.OccupancyDerivationSourceEcho,
             StackScaleStepOverride = template.StackScaleStepOverride,

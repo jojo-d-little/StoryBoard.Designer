@@ -1,5 +1,7 @@
 namespace StoryboardDesigner.App.Services;
 
+using StoryboardDesigner.App.Models;
+
 public sealed record GlobalSettingsEditRequest(
 	int AutoSaveSeconds,
 	string StartingPlanetName,
@@ -11,4 +13,5 @@ public sealed record GlobalSettingsEditRequest(
 	double MinStackScaleDefault,
 	string GameDisplayName,
 	string GameSummary,
-	List<string> GamePreviewImages);
+	List<string> GamePreviewImages,
+	PointLightDefaults? PointLightDefaults);
