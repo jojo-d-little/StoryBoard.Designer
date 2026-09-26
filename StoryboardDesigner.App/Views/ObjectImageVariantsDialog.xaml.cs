@@ -45,6 +45,9 @@ public partial class ObjectImageVariantsDialog : Window
     private int _heightInRoom;
     private double? _stackScaleStepOverride;
     private double? _minStackScaleOverride;
+    private PointLight? _pointLight;
+    private LightOcclusion? _lightOcclusion;
+    private bool _isPointLightEnabledDefaultValue;
     private bool _isUpdatingGuideVariantFitEditors;
     private const int CompactGuideMaximumFootprintCells = 7;
 
@@ -75,6 +78,9 @@ public partial class ObjectImageVariantsDialog : Window
         _heightInRoom = initial.HeightInRoom < 0 ? 0 : initial.HeightInRoom;
         _stackScaleStepOverride = SanitizeOptionalStackScaleStep(initial.StackScaleStepOverride);
         _minStackScaleOverride = SanitizeOptionalMinStackScale(initial.MinStackScaleOverride);
+        _pointLight = LightingModelCloner.ClonePointLight(initial.PointLight);
+        _lightOcclusion = LightingModelCloner.CloneLightOcclusion(initial.LightOcclusion);
+        _isPointLightEnabledDefaultValue = initial.IsPointLightEnabledDefaultValue;
 
         IsMovableCheckBox.IsChecked = _isMovable;
         SetBooleanComboSelection(MovableDefaultValueComboBox, _isMovableDefaultValue);
@@ -125,6 +131,12 @@ public partial class ObjectImageVariantsDialog : Window
     public double? StackScaleStepOverride => _stackScaleStepOverride;
 
     public double? MinStackScaleOverride => _minStackScaleOverride;
+
+    public PointLight? PointLight => LightingModelCloner.ClonePointLight(_pointLight);
+
+    public LightOcclusion? LightOcclusion => LightingModelCloner.CloneLightOcclusion(_lightOcclusion);
+
+    public bool IsPointLightEnabledDefaultValue => _isPointLightEnabledDefaultValue;
 
     private double GuideSurfaceSizePixels => GuideGridCellCount * _projectRoomGridCellSize;
 
@@ -571,6 +583,7 @@ public partial class ObjectImageVariantsDialog : Window
         LargeGuidePromptPanel.Visibility = useLargeGuide ? Visibility.Visible : Visibility.Collapsed;
         CompactGuideVariantFitPanel.Visibility = useLargeGuide ? Visibility.Collapsed : Visibility.Visible;
         DrawFootprintGuide();
+        UpdateGuidePointLightMarker();
         UpdateGuideImageOverlay();
         UpdateHeadingArrowTransform();
         UpdateGuideLegend();
@@ -613,6 +626,12 @@ public partial class ObjectImageVariantsDialog : Window
                 _footprintHeightCells = height;
                 FootprintWidthTextBox.Text = width.ToString(CultureInfo.InvariantCulture);
                 FootprintHeightTextBox.Text = height.ToString(CultureInfo.InvariantCulture);
+                RefreshGuidePreview();
+            },
+            _pointLight,
+            pointLight =>
+            {
+                _pointLight = LightingModelCloner.ClonePointLight(pointLight);
                 RefreshGuidePreview();
             })
         {
@@ -732,7 +751,87 @@ public partial class ObjectImageVariantsDialog : Window
     {
         var normalizedOrientation = NormalizeCardinalDirection(GetSelectedComboString(FootprintOrientationComboBox, _footprintOrientation));
         var normalizedHeading = NormalizeHeadingDirection(GetSelectedComboString(HeadingDirectionComboBox, _headingDirection));
-        GuideLegendTextBlock.Text = $"Blue box = footprint bounds. Gray grid = visual reference. Red arrow = object front (heading {normalizedHeading}). Footprint orientation = {normalizedOrientation}. Local rotation aligns the selected image variant to the footprint.";
+        var lightHint = _pointLight is null
+            ? "CLICK THE BLUE FOOTPRINT to place a point light."
+            : "Yellow marker = point-light origin; click the blue footprint to move it.";
+        GuideLegendTextBlock.Text = $"Blue box = footprint bounds. Gray grid = visual reference. Red arrow = object front (heading {normalizedHeading}). Footprint orientation = {normalizedOrientation}. {lightHint} Local rotation aligns the selected image variant to the footprint.";
+    }
+
+    private void UpdateGuidePointLightMarker()
+    {
+        if (GuidePointLightMarker is null)
+        {
+            return;
+        }
+
+        if (_pointLight?.OffsetXPx is not double offsetX
+            || _pointLight.OffsetYPx is not double offsetY
+            || !double.IsFinite(offsetX)
+            || !double.IsFinite(offsetY))
+        {
+            GuidePointLightMarker.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        ResolveGuideFootprintRect(out var left, out var top, out var width, out var height);
+        if (offsetX < 0 || offsetY < 0 || offsetX > width || offsetY > height)
+        {
+            GuidePointLightMarker.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        GuidePointLightMarker.Margin = new Thickness(
+            left + offsetX - GuidePointLightMarker.Width / 2d,
+            top + offsetY - GuidePointLightMarker.Height / 2d,
+            0,
+            0);
+        GuidePointLightMarker.Visibility = Visibility.Visible;
+    }
+
+    private void GuideSurfaceGrid_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (RequiresLargeGuide())
+        {
+            return;
+        }
+
+        var point = e.GetPosition(GuideSurfaceGrid);
+        ResolveGuideFootprintRect(out var left, out var top, out var width, out var height);
+        if (point.X < left || point.Y < top || point.X > left + width || point.Y > top + height)
+        {
+            return;
+        }
+
+        _pointLight ??= new PointLight();
+        _pointLight.OffsetXPx = Math.Clamp(point.X - left, 0, width);
+        _pointLight.OffsetYPx = Math.Clamp(point.Y - top, 0, height);
+        UpdateGuidePointLightMarker();
+        UpdateGuideLegend();
+        e.Handled = true;
+    }
+
+    private void ManageLightingButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ObjectLightingDialog(
+            _pointLight,
+            _lightOcclusion,
+            _isPointLightEnabledDefaultValue,
+            _projectRoomGridCellSize,
+            _footprintWidthCells,
+            _footprintHeightCells)
+        {
+            Owner = this
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        _pointLight = LightingModelCloner.ClonePointLight(dialog.PointLight);
+        _lightOcclusion = LightingModelCloner.CloneLightOcclusion(dialog.LightOcclusion);
+        _isPointLightEnabledDefaultValue = dialog.IsPointLightEnabledDefaultValue;
+        RefreshGuidePreview();
     }
 
     private static void GetOrientedFootprintDimensions(

@@ -75,7 +75,7 @@ public partial class ManagePointLightDefaultsDialog : Window
         }
 
         _updatingNumericControl = true;
-        GetTextBox(key).Text = FormatDouble(e.NewValue);
+        GetTextBox(key).Text = FormatNumericValue(key, e.NewValue);
         _updatingNumericControl = false;
     }
 
@@ -142,10 +142,10 @@ public partial class ManagePointLightDefaultsDialog : Window
         var textBox = GetTextBox(key);
         var slider = GetSlider(key);
         _updatingNumericControl = true;
-        textBox.Text = FormatOptionalDouble(value);
+        textBox.Text = FormatOptionalDouble(key, value);
         if (value.HasValue)
         {
-            slider.Value = Math.Clamp(value.Value, slider.Minimum, slider.Maximum);
+            slider.Value = Math.Clamp(RoundNumericValue(key, value.Value), slider.Minimum, slider.Maximum);
         }
         else
         {
@@ -169,7 +169,7 @@ public partial class ManagePointLightDefaultsDialog : Window
             || !TryReadOptionalColor(PointLightColorHexTextBox.Text, "Inner color", out var color, out error)
             || !TryReadOptionalColor(PointLightOuterColorHexTextBox.Text, "Outer color", out var outerColor, out error)
             || !TryReadOptionalRange("GradientExponent", "Gradient exponent", 0, null, out var gradientExponent, out error)
-            || !TryReadOptionalRange("Height", "Light height", 0, null, out var height, out error)
+            || !TryReadOptionalRange("Height", "Light elevation offset", 0, null, out var height, out error)
             || !TryReadOptionalRange("SwayAmount", "Sway amount", 0, null, out var swayAmount, out error)
             || !TryReadOptionalRange("SwayHz", "Sway frequency", 0, null, out var swayHz, out error)
             || !TryReadOptionalRange("SwayDirection", "Sway direction", null, null, out var swayDirection, out error)
@@ -357,14 +357,32 @@ public partial class ManagePointLightDefaultsDialog : Window
             : null;
     }
 
-    private static string FormatOptionalDouble(double? value)
+    private static string FormatOptionalDouble(string key, double? value)
     {
-        return value?.ToString("0.###", CultureInfo.InvariantCulture) ?? string.Empty;
+        return value.HasValue ? FormatNumericValue(key, value.Value) : string.Empty;
     }
 
-    private static string FormatDouble(double value)
+    private static string FormatNumericValue(string key, double value)
     {
-        return value.ToString("0.###", CultureInfo.InvariantCulture);
+        var precision = GetNumericPrecision(key);
+        return Math.Round(value, precision, MidpointRounding.AwayFromZero)
+            .ToString(precision == 0 ? "0" : $"0.{new string('0', precision)}", CultureInfo.InvariantCulture);
+    }
+
+    private static double RoundNumericValue(string key, double value)
+    {
+        return Math.Round(value, GetNumericPrecision(key), MidpointRounding.AwayFromZero);
+    }
+
+    private static int GetNumericPrecision(string key)
+    {
+        return key switch
+        {
+            "Radius" or "SwayAmount" or "SwayDirection" => 0,
+            "Height" => 1,
+            "Intensity" or "GradientExponent" or "SwayHz" or "FlickerAmount" or "FlickerHz" => 2,
+            _ => 2
+        };
     }
 
     private static string? NormalizeOptionalText(string? value)

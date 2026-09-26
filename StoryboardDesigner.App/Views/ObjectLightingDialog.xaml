@@ -1,0 +1,187 @@
+<Window x:Class="StoryboardDesigner.App.Views.ObjectLightingDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Object Lighting"
+        Width="960"
+        Height="1000"
+        MinWidth="820"
+        MinHeight="760"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Margin="0,0,0,10" Padding="8" Background="#EFF6FF" BorderBrush="#93C5FD" BorderThickness="1" CornerRadius="4">
+            <TextBlock Foreground="#1E3A8A" TextWrapping="Wrap"
+                       Text="Position reference: the light X/Y offsets are measured in pixels from the top-left corner of the oriented footprint. They are not relative to the sprite anchor, image bounds, or image offsets. Use the footprint guide to place the origin visually." />
+        </Border>
+
+        <StackPanel Grid.Row="1" Margin="0,0,0,12">
+            <CheckBox x:Name="PointLightEnabledCheckBox" Content="Object has a point light" Checked="PointLightEnabledCheckBox_OnChanged" Unchecked="PointLightEnabledCheckBox_OnChanged" ToolTip="When unchecked, the complete object point-light definition is removed. Click the footprint guide to create it again." />
+            <CheckBox x:Name="PointLightDefaultEnabledCheckBox" Margin="20,6,0,0" Content="Start disabled" ToolTip="Optional exception: when checked, this object's point light starts disabled at runtime. Leave unchecked for the normal enabled-by-default behavior." />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <GroupBox Header="Point Light" Padding="10">
+                    <Grid x:Name="PointLightEditorGrid">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="220" /><ColumnDefinition Width="84" /><ColumnDefinition Width="*" /><ColumnDefinition Width="34" /><ColumnDefinition Width="34" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="X offset from footprint top-left (px)" ToolTip="Horizontal light origin measured from the top-left corner of the oriented footprint." />
+                        <TextBox x:Name="PointLightOffsetXTextBox" Grid.Row="0" Grid.Column="1" Margin="0,0,8,10" Tag="OffsetX" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                        <RepeatButton Grid.Row="0" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="OffsetX" Click="NumericDecrement_OnClick" />
+                        <RepeatButton Grid.Row="0" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="OffsetX" Click="NumericIncrement_OnClick" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Y offset from footprint top-left (px)" ToolTip="Vertical light origin measured from the top-left corner of the oriented footprint." />
+                        <TextBox x:Name="PointLightOffsetYTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,8,10" Tag="OffsetY" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                        <RepeatButton Grid.Row="1" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="OffsetY" Click="NumericDecrement_OnClick" />
+                        <RepeatButton Grid.Row="1" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="OffsetY" Click="NumericIncrement_OnClick" />
+
+                        <TextBlock Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" Margin="0,0,8,10" VerticalAlignment="Center" Foreground="#4B5563" FontSize="11" TextWrapping="Wrap" Text="Click the footprint in the alignment editor to place the light visually. Use these fields or the nudge buttons for exact adjustments." />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Radius (px)" ToolTip="How far the light reaches from its origin." />
+                        <TextBox x:Name="PointLightRadiusTextBox" Grid.Row="2" Grid.Column="1" Margin="0,0,8,10" Tag="Radius" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                        <Slider x:Name="PointLightRadiusSlider" Grid.Row="2" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="1000" SmallChange="1" LargeChange="50" Tag="Radius" ValueChanged="NumericSlider_OnValueChanged" />
+                        <RepeatButton Grid.Row="2" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="Radius" Click="NumericDecrement_OnClick" />
+                        <RepeatButton Grid.Row="2" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="Radius" Click="NumericIncrement_OnClick" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Intensity scale" ToolTip="Overall brightness multiplier. 1.00 is neutral." />
+                        <TextBox x:Name="PointLightIntensityTextBox" Grid.Row="3" Grid.Column="1" Margin="0,0,8,10" Tag="Intensity" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                        <Slider x:Name="PointLightIntensitySlider" Grid.Row="3" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="2" SmallChange="0.05" LargeChange="0.25" Tag="Intensity" ValueChanged="NumericSlider_OnValueChanged" />
+                        <RepeatButton Grid.Row="3" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="Intensity" Click="NumericDecrement_OnClick" />
+                        <RepeatButton Grid.Row="3" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="Intensity" Click="NumericIncrement_OnClick" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Direction (deg)" ToolTip="Direction of a cone light, measured in degrees. It has no visible effect for a full 360-degree cone." />
+                        <TextBox x:Name="PointLightDirectionTextBox" Grid.Row="4" Grid.Column="1" Margin="0,0,8,10" Tag="Direction" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                        <Slider x:Name="PointLightDirectionSlider" Grid.Row="4" Grid.Column="2" Margin="0,0,8,10" Minimum="-180" Maximum="180" SmallChange="1" LargeChange="45" Tag="Direction" ValueChanged="NumericSlider_OnValueChanged" />
+                        <RepeatButton Grid.Row="4" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="Direction" Click="NumericDecrement_OnClick" />
+                        <RepeatButton Grid.Row="4" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="Direction" Click="NumericIncrement_OnClick" />
+
+                        <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Cone angle (deg)" ToolTip="Angular spread of the light. 360 degrees is an omnidirectional point light." />
+                        <TextBox x:Name="PointLightConeAngleTextBox" Grid.Row="5" Grid.Column="1" Margin="0,0,8,10" Tag="ConeAngle" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                        <Slider x:Name="PointLightConeAngleSlider" Grid.Row="5" Grid.Column="2" Margin="0,0,8,10" Minimum="1" Maximum="360" SmallChange="1" LargeChange="45" Tag="ConeAngle" ValueChanged="NumericSlider_OnValueChanged" />
+                        <RepeatButton Grid.Row="5" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="ConeAngle" Click="NumericDecrement_OnClick" />
+                        <RepeatButton Grid.Row="5" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="ConeAngle" Click="NumericIncrement_OnClick" />
+
+                        <TextBlock Grid.Row="10" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Motion mode" ToolTip="Selects which authored animation, if any, affects this light." />
+                        <ComboBox x:Name="PointLightMotionModeComboBox" Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="4" Margin="0,0,0,10" SelectionChanged="PointLightMotionModeComboBox_OnSelectionChanged" />
+
+                        <TextBlock Grid.Row="11" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Phase offset" ToolTip="Optional animation timing offset in radians. Use different values to keep two lights from being synchronized in their sway or flicker movement. Leave blank to use the engine default." />
+                        <TextBox x:Name="PointLightPhaseTextBox" Grid.Row="11" Grid.Column="1" Margin="0,0,8,10" Tag="Phase" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                        <Slider x:Name="PointLightPhaseSlider" Grid.Row="11" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="6.28" SmallChange="0.01" LargeChange="0.25" Tag="Phase" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Phase range: 0 to 6.28 radians. 1.57 is approximately a quarter phase; 3.14 is approximately a half phase." />
+                        <RepeatButton Grid.Row="11" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="Phase" Click="NumericDecrement_OnClick" ToolTip="Decrease phase offset by 0.01 radians." />
+                        <RepeatButton Grid.Row="11" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="Phase" Click="NumericIncrement_OnClick" ToolTip="Increase phase offset by 0.01 radians." />
+
+                        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Inner color" ToolTip="Color at the center of the light." />
+                        <StackPanel Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="4" Orientation="Horizontal" Margin="0,0,0,10">
+                            <Border x:Name="PointLightColorPreview" Width="32" Height="24" Margin="0,0,8,0" BorderBrush="#6B7280" BorderThickness="1" />
+                            <TextBox x:Name="PointLightColorHexTextBox" Width="90" Margin="0,0,8,0" IsReadOnly="True" VerticalContentAlignment="Center" />
+                            <Button Width="72" Margin="0,0,6,0" Content="Pick..." Click="PickInnerColor_OnClick" />
+                            <Button Width="60" Content="Clear" Click="ClearInnerColor_OnClick" />
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="7" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Outer color" ToolTip="Color toward the edge of the light radius." />
+                        <StackPanel Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="4" Orientation="Horizontal" Margin="0,0,0,10">
+                            <Border x:Name="PointLightOuterColorPreview" Width="32" Height="24" Margin="0,0,8,0" BorderBrush="#6B7280" BorderThickness="1" />
+                            <TextBox x:Name="PointLightOuterColorHexTextBox" Width="90" Margin="0,0,8,0" IsReadOnly="True" VerticalContentAlignment="Center" />
+                            <Button Width="72" Margin="0,0,6,0" Content="Pick..." Click="PickOuterColor_OnClick" />
+                            <Button Width="60" Content="Clear" Click="ClearOuterColor_OnClick" />
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="8" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Gradient exponent" ToolTip="Controls how quickly brightness falls off across the radius." />
+                        <TextBox x:Name="PointLightGradientExponentTextBox" Grid.Row="8" Grid.Column="1" Margin="0,0,8,10" Tag="GradientExponent" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                        <Slider x:Name="PointLightGradientExponentSlider" Grid.Row="8" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="8" SmallChange="0.1" LargeChange="1" Tag="GradientExponent" ValueChanged="NumericSlider_OnValueChanged" />
+                        <RepeatButton Grid.Row="8" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="GradientExponent" Click="NumericDecrement_OnClick" />
+                        <RepeatButton Grid.Row="8" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="GradientExponent" Click="NumericIncrement_OnClick" />
+
+                        <TextBlock Grid.Row="9" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Light elevation offset (cells)" ToolTip="Additional elevation above the object's effective height. Runtime resolves total light height as height in room + object height units + this offset." />
+                        <TextBox x:Name="PointLightHeightTextBox" Grid.Row="9" Grid.Column="1" Margin="0,0,8,10" Tag="Height" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                        <Slider x:Name="PointLightHeightSlider" Grid.Row="9" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="10" SmallChange="0.1" LargeChange="1" Tag="Height" ValueChanged="NumericSlider_OnValueChanged" />
+                        <RepeatButton Grid.Row="9" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="Height" Click="NumericDecrement_OnClick" />
+                        <RepeatButton Grid.Row="9" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="Height" Click="NumericIncrement_OnClick" />
+
+                        <GroupBox x:Name="SwayEditorGroup" Grid.Row="12" Grid.Column="0" Grid.ColumnSpan="5" Margin="0,0,0,10" Header="Sway" Padding="8">
+                            <Grid x:Name="SwayEditorGrid">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="180" /><ColumnDefinition Width="84" /><ColumnDefinition Width="*" /><ColumnDefinition Width="34" /><ColumnDefinition Width="34" /></Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Amount (px)" ToolTip="Maximum movement distance for a swaying light. Zero means no visible sway." />
+                                <TextBox x:Name="PointLightSwayAmountTextBox" Grid.Row="0" Grid.Column="1" Margin="0,0,8,10" Tag="SwayAmount" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                                <Slider x:Name="PointLightSwayAmountSlider" Grid.Row="0" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="200" SmallChange="1" LargeChange="25" Tag="SwayAmount" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Common range: 0 to 200 pixels." />
+                                <RepeatButton Grid.Row="0" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="SwayAmount" Click="NumericDecrement_OnClick" />
+                                <RepeatButton Grid.Row="0" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="SwayAmount" Click="NumericIncrement_OnClick" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Frequency (Hz)" ToolTip="Speed of the swaying motion in cycles per second." />
+                                <TextBox x:Name="PointLightSwayHzTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,8,10" Tag="SwayHz" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                                <Slider x:Name="PointLightSwayHzSlider" Grid.Row="1" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="10" SmallChange="0.1" LargeChange="1" Tag="SwayHz" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Common range: 0 to 10 Hz." />
+                                <RepeatButton Grid.Row="1" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="SwayHz" Click="NumericDecrement_OnClick" />
+                                <RepeatButton Grid.Row="1" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="SwayHz" Click="NumericIncrement_OnClick" />
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Direction (deg)" ToolTip="Direction in which the light moves while swaying." />
+                                <TextBox x:Name="PointLightSwayDirectionTextBox" Grid.Row="2" Grid.Column="1" Margin="0,0,8,0" Tag="SwayDirection" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                                <Slider x:Name="PointLightSwayDirectionSlider" Grid.Row="2" Grid.Column="2" Margin="0,0,8,0" Minimum="-180" Maximum="180" SmallChange="1" LargeChange="45" Tag="SwayDirection" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Direction from -180 to 180 degrees." />
+                                <RepeatButton Grid.Row="2" Grid.Column="3" Margin="0,0,4,0" Content="−" Tag="SwayDirection" Click="NumericDecrement_OnClick" />
+                                <RepeatButton Grid.Row="2" Grid.Column="4" Content="+" Tag="SwayDirection" Click="NumericIncrement_OnClick" />
+                            </Grid>
+                        </GroupBox>
+
+                        <GroupBox x:Name="FlickerEditorGroup" Grid.Row="13" Grid.Column="0" Grid.ColumnSpan="5" Header="Flicker" Padding="8">
+                            <Grid x:Name="FlickerEditorGrid">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="180" /><ColumnDefinition Width="84" /><ColumnDefinition Width="*" /><ColumnDefinition Width="34" /><ColumnDefinition Width="34" /></Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Amount" ToolTip="Flicker strength from 0 to 1. Zero means steady output." />
+                                <TextBox x:Name="PointLightFlickerAmountTextBox" Grid.Row="0" Grid.Column="1" Margin="0,0,8,10" Tag="FlickerAmount" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                                <Slider x:Name="PointLightFlickerAmountSlider" Grid.Row="0" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="1" SmallChange="0.05" LargeChange="0.1" Tag="FlickerAmount" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Flicker strength from 0 to 1." />
+                                <RepeatButton Grid.Row="0" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="FlickerAmount" Click="NumericDecrement_OnClick" />
+                                <RepeatButton Grid.Row="0" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="FlickerAmount" Click="NumericIncrement_OnClick" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Frequency (Hz)" ToolTip="Speed of the flicker modulation in cycles per second." />
+                                <TextBox x:Name="PointLightFlickerHzTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,8,10" Tag="FlickerHz" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                                <Slider x:Name="PointLightFlickerHzSlider" Grid.Row="1" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="20" SmallChange="0.1" LargeChange="2" Tag="FlickerHz" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Common range: 0 to 20 Hz." />
+                                <RepeatButton Grid.Row="1" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="FlickerHz" Click="NumericDecrement_OnClick" />
+                                <RepeatButton Grid.Row="1" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="FlickerHz" Click="NumericIncrement_OnClick" />
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="Style" ToolTip="Swell produces smoother modulation; flame produces more irregular variation." />
+                                <ComboBox x:Name="PointLightFlickerStyleComboBox" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="4" />
+                            </Grid>
+                        </GroupBox>
+                    </Grid>
+                </GroupBox>
+
+                <GroupBox Header="Light Occlusion / Cast a Shadow" Margin="0,12,0,0" Padding="10">
+                    <Grid>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="180" /><ColumnDefinition Width="84" /><ColumnDefinition Width="*" /><ColumnDefinition Width="34" /><ColumnDefinition Width="34" /></Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Grid.ColumnSpan="5" Orientation="Horizontal" Margin="0,0,0,10">
+                            <CheckBox x:Name="LightOcclusionEnabledCheckBox" VerticalAlignment="Center" Content="Object casts a shadow" Checked="LightOcclusionEnabledCheckBox_OnChanged" Unchecked="LightOcclusionEnabledCheckBox_OnChanged" ToolTip="When checked, this object contributes an object-specific shadow/occlusion strength override." />
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Strength" ToolTip="Occlusion strength from 0 (none) to 1 (full authored strength)." />
+                        <TextBox x:Name="LightOcclusionStrengthTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,8,0" Tag="OcclusionStrength" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                        <Slider x:Name="LightOcclusionStrengthSlider" Grid.Row="1" Grid.Column="2" Margin="0,0,8,0" Minimum="0" Maximum="1" SmallChange="0.05" LargeChange="0.1" Tag="OcclusionStrength" ValueChanged="NumericSlider_OnValueChanged" />
+                        <RepeatButton Grid.Row="1" Grid.Column="3" Margin="0,0,4,0" Content="−" Tag="OcclusionStrength" Click="NumericDecrement_OnClick" />
+                        <RepeatButton Grid.Row="1" Grid.Column="4" Content="+" Tag="OcclusionStrength" Click="NumericIncrement_OnClick" />
+                    </Grid>
+                </GroupBox>
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Width="100" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
+            <Button Width="100" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -25,7 +25,7 @@
 
             <Border Grid.Column="0" BorderBrush="#D1D5DB" BorderThickness="1" Background="#F3F4F6" Padding="8">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                    <Grid x:Name="GuideSurfaceGrid" Background="#FFFFFF" HorizontalAlignment="Left" VerticalAlignment="Top">
+                    <Grid x:Name="GuideSurfaceGrid" Background="#FFFFFF" HorizontalAlignment="Left" VerticalAlignment="Top" Cursor="Hand" ToolTip="Click inside the blue footprint to place or move the point-light origin. Coordinates are measured from the footprint's top-left corner." MouseLeftButtonDown="GuideSurfaceGrid_OnMouseLeftButtonDown">
                         <UniformGrid x:Name="GuideCellGrid" />
                         <Border x:Name="FootprintOverlay"
                                 HorizontalAlignment="Left"
@@ -34,7 +34,7 @@
                                 BorderThickness="2"
                                 Background="#334F9DFF"
                                 IsHitTestVisible="False" />
-                        <Image x:Name="GuideImage" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Top" Opacity="0.88" RenderTransformOrigin="0.5,0.5" />
+                        <Image x:Name="GuideImage" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Top" Opacity="0.88" RenderTransformOrigin="0.5,0.5" IsHitTestVisible="False" />
                         <Rectangle x:Name="BitmapBoundaryOverlay"
                                    HorizontalAlignment="Left"
                                    VerticalAlignment="Top"
@@ -51,7 +51,18 @@
                               StrokeThickness="1.2"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center"
-                              RenderTransformOrigin="0.5,0.5" />
+                              RenderTransformOrigin="0.5,0.5"
+                              IsHitTestVisible="False" />
+                        <Ellipse x:Name="PointLightMarker"
+                                 Width="14"
+                                 Height="14"
+                                 HorizontalAlignment="Left"
+                                 VerticalAlignment="Top"
+                                 Fill="#FDE047"
+                                 Stroke="#92400E"
+                                 StrokeThickness="2"
+                                 IsHitTestVisible="False"
+                                 Visibility="Collapsed" />
                     </Grid>
                 </ScrollViewer>
             </Border>

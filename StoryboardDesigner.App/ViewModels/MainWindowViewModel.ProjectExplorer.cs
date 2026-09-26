@@ -1611,7 +1611,8 @@ public sealed partial class MainWindowViewModel
             node.PhaseNode.NarrativePresentationCueEffectKey,
             node.PhaseNode.PhaseAmbientSoundEffectId,
             node.PhaseNode.PhaseAmbientTimerKey,
-            node.PhaseNode.PhaseAmbienceMode);
+            node.PhaseNode.PhaseAmbienceMode,
+            LightingModelCloner.ClonePhaseAmbientOverlay(node.PhaseNode.PhaseAmbientOverlay));
 
         if (!_treeContextInteractionService.TryEditPhaseNode(
                 current,
@@ -1659,7 +1660,8 @@ public sealed partial class MainWindowViewModel
             || !string.Equals(node.PhaseNode.NarrativePresentationCueEffectKey, narrativeCueEffectKey, StringComparison.Ordinal)
             || node.PhaseNode.PhaseAmbientSoundEffectId != updated.PhaseAmbientSoundEffectId
             || !string.Equals(node.PhaseNode.PhaseAmbientTimerKey, timerKey, StringComparison.Ordinal)
-            || node.PhaseNode.PhaseAmbienceMode != updated.PhaseAmbienceMode;
+            || node.PhaseNode.PhaseAmbienceMode != updated.PhaseAmbienceMode
+            || !ArePhaseAmbientOverlayEquivalent(node.PhaseNode.PhaseAmbientOverlay, updated.PhaseAmbientOverlay);
 
         if (!hasChanges)
         {
@@ -1677,8 +1679,22 @@ public sealed partial class MainWindowViewModel
         node.PhaseNode.PhaseAmbientSoundEffectId = updated.PhaseAmbientSoundEffectId;
         node.PhaseNode.PhaseAmbientTimerKey = timerKey;
         node.PhaseNode.PhaseAmbienceMode = updated.PhaseAmbienceMode;
+        node.PhaseNode.PhaseAmbientOverlay = LightingModelCloner.ClonePhaseAmbientOverlay(updated.PhaseAmbientOverlay);
 
         return ReloadAndSelectPhaseNode(node.PhaseNode.Id, "Updated phase settings.");
+    }
+
+    private static bool ArePhaseAmbientOverlayEquivalent(PhaseAmbientOverlay? left, PhaseAmbientOverlay? right)
+    {
+        if (left is null || right is null)
+        {
+            return left is null && right is null;
+        }
+
+        return AreNearlyEqualNullable(left.AmbientScale, right.AmbientScale)
+               && string.Equals(left.Color, right.Color, StringComparison.Ordinal)
+               && left.ColorMode == right.ColorMode
+               && AreNearlyEqualNullable(left.ColorBlend, right.ColorBlend);
     }
 
     private bool DeletePhaseNode(PhaseNodeViewModel node)
@@ -7626,7 +7642,8 @@ public sealed partial class MainWindowViewModel
             roomNode.Room.NameInGame,
             ResolveEffectiveRoomCanvasWidth(roomNode.Room),
             ResolveEffectiveRoomCanvasHeight(roomNode.Room),
-            _project.RoomDesignerGridCellSize);
+            _project.RoomDesignerGridCellSize,
+            LightingModelCloner.CloneRoomAmbientLighting(roomNode.Room.AmbientLighting));
 
         if (!_treeContextInteractionService.TryEditRoomSettings(current, out var updated))
         {
@@ -7643,7 +7660,8 @@ public sealed partial class MainWindowViewModel
                          || !string.Equals(roomNode.Room.NameInGame, updated.NameInGame, StringComparison.Ordinal)
                          || !string.Equals(roomNode.Room.ProducerNotes, updated.ProducerNotes, StringComparison.Ordinal)
                          || roomNode.Room.RoomImageCanvasWidth != updated.RoomCanvasWidth
-                         || roomNode.Room.RoomImageCanvasHeight != updated.RoomCanvasHeight;
+                         || roomNode.Room.RoomImageCanvasHeight != updated.RoomCanvasHeight
+                         || !AreRoomAmbientLightingEquivalent(roomNode.Room.AmbientLighting, updated.AmbientLighting);
 
         if (!hasChanges)
         {
@@ -7655,6 +7673,7 @@ public sealed partial class MainWindowViewModel
         roomNode.Room.ProducerNotes = updated.ProducerNotes;
         roomNode.Room.RoomImageCanvasWidth = updated.RoomCanvasWidth;
         roomNode.Room.RoomImageCanvasHeight = updated.RoomCanvasHeight;
+        roomNode.Room.AmbientLighting = LightingModelCloner.CloneRoomAmbientLighting(updated.AmbientLighting);
         RefreshScopedNameIndex(areaNode.Area.Rooms, static room => room.Name);
 
         foreach (var editor in OpenRoomEditors.Where(tab => ReferenceEquals(tab.Room, roomNode.Room) || tab.Room.Id == roomNode.Room.Id))
@@ -7678,7 +7697,8 @@ public sealed partial class MainWindowViewModel
             templateRoomNode.Room.NameInGame,
             ResolveEffectiveRoomCanvasWidth(templateRoomNode.Room),
             ResolveEffectiveRoomCanvasHeight(templateRoomNode.Room),
-            _project.RoomDesignerGridCellSize);
+            _project.RoomDesignerGridCellSize,
+            LightingModelCloner.CloneRoomAmbientLighting(templateRoomNode.Room.AmbientLighting));
 
         if (!_treeContextInteractionService.TryEditRoomSettings(current, out var updated))
         {
@@ -7690,7 +7710,8 @@ public sealed partial class MainWindowViewModel
                          || !string.Equals(templateRoomNode.Room.NameInGame, updated.NameInGame, StringComparison.Ordinal)
                          || !string.Equals(templateRoomNode.Room.ProducerNotes, updated.ProducerNotes, StringComparison.Ordinal)
                          || templateRoomNode.Room.RoomImageCanvasWidth != updated.RoomCanvasWidth
-                         || templateRoomNode.Room.RoomImageCanvasHeight != updated.RoomCanvasHeight;
+                         || templateRoomNode.Room.RoomImageCanvasHeight != updated.RoomCanvasHeight
+                         || !AreRoomAmbientLightingEquivalent(templateRoomNode.Room.AmbientLighting, updated.AmbientLighting);
 
         if (!hasChanges)
         {
@@ -7702,12 +7723,24 @@ public sealed partial class MainWindowViewModel
         templateRoomNode.Room.ProducerNotes = updated.ProducerNotes;
         templateRoomNode.Room.RoomImageCanvasWidth = updated.RoomCanvasWidth;
         templateRoomNode.Room.RoomImageCanvasHeight = updated.RoomCanvasHeight;
+        templateRoomNode.Room.AmbientLighting = LightingModelCloner.CloneRoomAmbientLighting(updated.AmbientLighting);
         RefreshScopedNameIndex(_project.RoomTemplates, static room => room.Name);
 
         NotifyProjectEdited();
         SelectedNode = templateRoomNode;
         ExportStatus = "Updated room template settings.";
         return true;
+    }
+
+    private static bool AreRoomAmbientLightingEquivalent(RoomAmbientLighting? left, RoomAmbientLighting? right)
+    {
+        if (left is null || right is null)
+        {
+            return left is null && right is null;
+        }
+
+        return AreNearlyEqualNullable(left.Ambient, right.Ambient)
+               && string.Equals(left.AmbientColor, right.AmbientColor, StringComparison.Ordinal);
     }
 
     public bool EditObjectBasicProperties(GameObjectNodeViewModel objectNode)
@@ -7813,6 +7846,9 @@ public sealed partial class MainWindowViewModel
                          || !AreEquivalentImageVariants(objectNode.GameObject.ImageVariants, updated.ImageVariants)
                          || !string.Equals(objectNode.GameObject.ImageVariantChooserScript, updated.ImageVariantChooserScript, StringComparison.Ordinal)
                          || !AreEquivalentLockOperationRequirements(objectNode.GameObject.LockOperationRequirements, updated.LockOperationRequirements)
+                         || !AreEquivalentPointLight(objectNode.GameObject.PointLight, updated.PointLight)
+                         || !AreEquivalentLightOcclusion(objectNode.GameObject.LightOcclusion, updated.LightOcclusion)
+                         || objectNode.GameObject.IsPointLightEnabledDefaultValue != updated.IsPointLightEnabledDefaultValue
                          || hasDescriptionOverrideChange;
 
         if (!hasChanges)
@@ -7878,6 +7914,9 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.ImageVariants = NormalizeObjectImageVariantsForModel(updated.ImageVariants, updated.FullImagePath);
         objectNode.GameObject.ImageVariantChooserScript = updated.ImageVariantChooserScript?.Trim() ?? string.Empty;
         objectNode.GameObject.LockOperationRequirements = CloneLockOperationRequirements(updated.LockOperationRequirements);
+        objectNode.GameObject.PointLight = LightingModelCloner.ClonePointLight(updated.PointLight);
+        objectNode.GameObject.LightOcclusion = LightingModelCloner.CloneLightOcclusion(updated.LightOcclusion);
+        objectNode.GameObject.IsPointLightEnabledDefaultValue = updated.IsPointLightEnabledDefaultValue;
         var addedInstanceCount = 0;
         if (shouldExpandIndividualInstances)
         {
@@ -8104,7 +8143,10 @@ public sealed partial class MainWindowViewModel
                 MovementRestrictions: CloneMovementRestrictions(gameObject.MovementRestrictions),
                 ProjectRoomGridCellSize: _project.RoomDesignerGridCellSize,
                 ProjectRoomCanvasWidth: _project.RoomImageCanvasWidth,
-                ProjectRoomCanvasHeight: _project.RoomImageCanvasHeight);
+                ProjectRoomCanvasHeight: _project.RoomImageCanvasHeight,
+                PointLight: LightingModelCloner.ClonePointLight(gameObject.PointLight),
+                LightOcclusion: LightingModelCloner.CloneLightOcclusion(gameObject.LightOcclusion),
+                IsPointLightEnabledDefaultValue: gameObject.IsPointLightEnabledDefaultValue);
         }
 
         return new ObjectBasicPropertiesEditRequest(
@@ -8160,7 +8202,10 @@ public sealed partial class MainWindowViewModel
             MovementRestrictions: CloneMovementRestrictions(gameObject.MovementRestrictions),
             ProjectRoomGridCellSize: _project.RoomDesignerGridCellSize,
             ProjectRoomCanvasWidth: _project.RoomImageCanvasWidth,
-            ProjectRoomCanvasHeight: _project.RoomImageCanvasHeight);
+            ProjectRoomCanvasHeight: _project.RoomImageCanvasHeight,
+            PointLight: LightingModelCloner.ClonePointLight(gameObject.PointLight),
+            LightOcclusion: LightingModelCloner.CloneLightOcclusion(gameObject.LightOcclusion),
+            IsPointLightEnabledDefaultValue: gameObject.IsPointLightEnabledDefaultValue);
     }
 
     private static bool AreEquivalentImageVariants(IReadOnlyList<ObjectImageVariant>? left, IReadOnlyList<ObjectImageVariant>? right)
@@ -8190,6 +8235,40 @@ public sealed partial class MainWindowViewModel
         }
 
         return true;
+    }
+
+    private static bool AreEquivalentPointLight(PointLight? left, PointLight? right)
+    {
+        if (left is null || right is null)
+        {
+            return left is null && right is null;
+        }
+
+        return AreNearlyEqualNullable(left.OffsetXPx, right.OffsetXPx)
+               && AreNearlyEqualNullable(left.OffsetYPx, right.OffsetYPx)
+               && AreNearlyEqualNullable(left.RadiusPx, right.RadiusPx)
+               && AreNearlyEqualNullable(left.DirectionDeg, right.DirectionDeg)
+               && AreNearlyEqualNullable(left.ConeAngleDeg, right.ConeAngleDeg)
+               && string.Equals(left.MotionMode, right.MotionMode, StringComparison.Ordinal)
+               && AreNearlyEqualNullable(left.Phase, right.Phase)
+               && string.Equals(left.Color, right.Color, StringComparison.Ordinal)
+               && string.Equals(left.OuterColor, right.OuterColor, StringComparison.Ordinal)
+               && AreNearlyEqualNullable(left.GradientExponent, right.GradientExponent)
+               && AreNearlyEqualNullable(left.IntensityScale, right.IntensityScale)
+               && AreNearlyEqualNullable(left.LightHeightCells, right.LightHeightCells)
+               && AreNearlyEqualNullable(left.SwayAmountPx, right.SwayAmountPx)
+               && AreNearlyEqualNullable(left.SwayHz, right.SwayHz)
+               && AreNearlyEqualNullable(left.SwayDirectionDeg, right.SwayDirectionDeg)
+               && AreNearlyEqualNullable(left.FlickerAmount, right.FlickerAmount)
+               && AreNearlyEqualNullable(left.FlickerHz, right.FlickerHz)
+               && string.Equals(left.FlickerStyle, right.FlickerStyle, StringComparison.Ordinal);
+    }
+
+    private static bool AreEquivalentLightOcclusion(LightOcclusion? left, LightOcclusion? right)
+    {
+        return left is null || right is null
+            ? left is null && right is null
+            : AreNearlyEqualNullable(left.Strength, right.Strength);
     }
 
     private static bool AreEquivalentMovementRestrictions(ObjectMovementRestrictions? left, ObjectMovementRestrictions? right)

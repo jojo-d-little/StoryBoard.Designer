@@ -1,3 +1,5 @@
+using StoryboardDesigner.App.Models;
+
 namespace StoryboardDesigner.App.Services;
 
 public sealed record PhaseNodeEditRequest(
@@ -12,4 +14,5 @@ public sealed record PhaseNodeEditRequest(
     string? NarrativePresentationCueEffectKey,
     Guid? PhaseAmbientSoundEffectId,
     string? PhaseAmbientTimerKey,
-    PhaseAmbienceMode? PhaseAmbienceMode);
+    PhaseAmbienceMode? PhaseAmbienceMode,
+    PhaseAmbientOverlay? PhaseAmbientOverlay);

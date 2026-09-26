@@ -1,42 +1,105 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using Color = System.Windows.Media.Color;
 using MessageBox = System.Windows.MessageBox;
+using Point = System.Windows.Point;
 using TextBox = System.Windows.Controls.TextBox;
+using WpfMouseButtonEventArgs = System.Windows.Input.MouseButtonEventArgs;
+using WpfMouseEventArgs = System.Windows.Input.MouseEventArgs;
 
 namespace StoryboardDesigner.App.Views;
 
 public partial class ColorPickerDialog : Window
 {
-    private bool _updatingControls;
+    private bool _draggingColorField;
+    private bool _draggingHueField;
+    private double _hue;
+    private double _saturation;
+    private double _brightness;
     private Color _color;
 
     public ColorPickerDialog(string? initialColor)
     {
         InitializeComponent();
         _color = TryParseHex(initialColor, out var parsed) ? parsed : Colors.White;
-        RefreshControls();
+        UpdateHsvFromColor();
+        Loaded += (_, _) => RefreshControls();
     }
 
     public string? SelectedColor { get; private set; }
 
-    private void ColorSlider_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    private void ColorField_OnMouseLeftButtonDown(object sender, WpfMouseButtonEventArgs e)
     {
-        if (_updatingControls || sender is not Slider slider || slider.Tag is not string channel)
+        _draggingColorField = true;
+        ColorField.CaptureMouse();
+        UpdateColorField(e.GetPosition(ColorField));
+        e.Handled = true;
+    }
+
+    private void ColorField_OnMouseLeftButtonUp(object sender, WpfMouseButtonEventArgs e)
+    {
+        _draggingColorField = false;
+        ColorField.ReleaseMouseCapture();
+        e.Handled = true;
+    }
+
+    private void ColorField_OnMouseMove(object sender, WpfMouseEventArgs e)
+    {
+        if (_draggingColorField)
+        {
+            UpdateColorField(e.GetPosition(ColorField));
+        }
+    }
+
+    private void HueField_OnMouseLeftButtonDown(object sender, WpfMouseButtonEventArgs e)
+    {
+        _draggingHueField = true;
+        HueField.CaptureMouse();
+        UpdateHue(e.GetPosition(HueField));
+        e.Handled = true;
+    }
+
+    private void HueField_OnMouseLeftButtonUp(object sender, WpfMouseButtonEventArgs e)
+    {
+        _draggingHueField = false;
+        HueField.ReleaseMouseCapture();
+        e.Handled = true;
+    }
+
+    private void HueField_OnMouseMove(object sender, WpfMouseEventArgs e)
+    {
+        if (_draggingHueField)
+        {
+            UpdateHue(e.GetPosition(HueField));
+        }
+    }
+
+    private void UpdateColorField(Point point)
+    {
+        if (ColorField.ActualWidth <= 0 || ColorField.ActualHeight <= 0)
         {
             return;
         }
 
-        var value = (byte)Math.Clamp((int)Math.Round(e.NewValue), 0, 255);
-        _color = channel switch
+        _saturation = Math.Clamp(point.X / ColorField.ActualWidth, 0, 1);
+        _brightness = Math.Clamp(1 - (point.Y / ColorField.ActualHeight), 0, 1);
+        _color = HsvToColor(_hue, _saturation, _brightness);
+        RefreshControls();
+    }
+
+    private void UpdateHue(Point point)
+    {
+        if (HueField.ActualHeight <= 0)
         {
-            "Red" => Color.FromRgb(value, _color.G, _color.B),
-            "Green" => Color.FromRgb(_color.R, value, _color.B),
-            "Blue" => Color.FromRgb(_color.R, _color.G, value),
-            _ => _color
-        };
+            return;
+        }
+
+        _hue = Math.Clamp(point.Y / HueField.ActualHeight, 0, 1) * 360;
+        _color = HsvToColor(_hue, _saturation, _brightness);
         RefreshControls();
     }
 
@@ -53,7 +116,6 @@ public partial class ColorPickerDialog : Window
             return;
         }
 
-        value = Math.Clamp(value, (byte)0, (byte)255);
         _color = channel switch
         {
             "Red" => Color.FromRgb(value, _color.G, _color.B),
@@ -61,6 +123,7 @@ public partial class ColorPickerDialog : Window
             "Blue" => Color.FromRgb(_color.R, _color.G, value),
             _ => _color
         };
+        UpdateHsvFromColor();
         RefreshControls();
     }
 
@@ -73,6 +136,7 @@ public partial class ColorPickerDialog : Window
         }
 
         _color = parsed;
+        UpdateHsvFromColor();
         RefreshControls();
     }
 
@@ -96,16 +160,85 @@ public partial class ColorPickerDialog : Window
 
     private void RefreshControls()
     {
-        _updatingControls = true;
-        RedSlider.Value = _color.R;
-        GreenSlider.Value = _color.G;
-        BlueSlider.Value = _color.B;
+        ColorField.Background = new SolidColorBrush(HsvToColor(_hue, 1, 1));
         RedTextBox.Text = _color.R.ToString(CultureInfo.InvariantCulture);
         GreenTextBox.Text = _color.G.ToString(CultureInfo.InvariantCulture);
         BlueTextBox.Text = _color.B.ToString(CultureInfo.InvariantCulture);
         HexTextBox.Text = FormatHex(_color);
         ColorPreview.Background = new SolidColorBrush(_color);
-        _updatingControls = false;
+        PositionColorFieldThumb();
+        PositionHueThumb();
+    }
+
+    private void PositionColorFieldThumb()
+    {
+        var x = (_saturation * ColorField.ActualWidth) - (ColorFieldThumb.Width / 2);
+        var y = ((1 - _brightness) * ColorField.ActualHeight) - (ColorFieldThumb.Height / 2);
+        Canvas.SetLeft(ColorFieldThumb, Math.Clamp(x, -ColorFieldThumb.Width / 2, ColorField.ActualWidth - ColorFieldThumb.Width / 2));
+        Canvas.SetTop(ColorFieldThumb, Math.Clamp(y, -ColorFieldThumb.Height / 2, ColorField.ActualHeight - ColorFieldThumb.Height / 2));
+    }
+
+    private void PositionHueThumb()
+    {
+        var y = ((_hue % 360 + 360) % 360 / 360 * HueField.ActualHeight) - (HueThumb.Height / 2);
+        Canvas.SetLeft(HueThumb, 0);
+        Canvas.SetTop(HueThumb, Math.Clamp(y, -HueThumb.Height / 2, HueField.ActualHeight - HueThumb.Height / 2));
+    }
+
+    private void UpdateHsvFromColor()
+    {
+        var red = _color.R / 255d;
+        var green = _color.G / 255d;
+        var blue = _color.B / 255d;
+        var max = Math.Max(red, Math.Max(green, blue));
+        var min = Math.Min(red, Math.Min(green, blue));
+        var delta = max - min;
+
+        _brightness = max;
+        _saturation = max <= double.Epsilon ? 0 : delta / max;
+        if (delta <= double.Epsilon)
+        {
+            return;
+        }
+
+        _hue = max switch
+        {
+            _ when Math.Abs(max - red) < double.Epsilon => 60 * (((green - blue) / delta) % 6),
+            _ when Math.Abs(max - green) < double.Epsilon => 60 * (((blue - red) / delta) + 2),
+            _ => 60 * (((red - green) / delta) + 4)
+        };
+
+        if (_hue < 0)
+        {
+            _hue += 360;
+        }
+    }
+
+    private static Color HsvToColor(double hue, double saturation, double brightness)
+    {
+        var normalizedHue = ((hue % 360) + 360) % 360;
+        var chroma = brightness * saturation;
+        var x = chroma * (1 - Math.Abs((normalizedHue / 60 % 2) - 1));
+        var match = brightness - chroma;
+        var rgb = normalizedHue switch
+        {
+            < 60 => (chroma, x, 0d),
+            < 120 => (x, chroma, 0d),
+            < 180 => (0d, chroma, x),
+            < 240 => (0d, x, chroma),
+            < 300 => (x, 0d, chroma),
+            _ => (chroma, 0d, x)
+        };
+
+        return Color.FromRgb(
+            ToByte(rgb.Item1 + match),
+            ToByte(rgb.Item2 + match),
+            ToByte(rgb.Item3 + match));
+    }
+
+    private static byte ToByte(double value)
+    {
+        return (byte)Math.Clamp((int)Math.Round(value * 255), 0, 255);
     }
 
     private static bool TryParseHex(string? text, out Color color)

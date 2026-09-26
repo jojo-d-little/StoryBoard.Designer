@@ -68,13 +68,13 @@ Implement validation using the shared schema constraints plus cross-field rules:
 Implement the smallest UI surface for each owner:
 
 - [x] Project settings: point-light defaults.
-- [ ] Room settings: ambient intensity and color.
-- [ ] Phase settings: ambient scale, color mode, color, and blend amount.
-- [ ] Object appearance/alignment workspace: enable point-light authoring and place the light relative to the clearly labeled top-left footprint cell.
-- [ ] Object lighting-details dialog: radius, intensity, colors, cone, height, sway, and flicker.
-- [ ] Object occlusion controls: strength and clear/remove behavior.
-- [ ] Provide explicit create, edit, and remove actions for every optional lighting object.
-- [ ] Make clear that sprite anchor, image bounds, and image offsets do not define light placement.
+- [x] Room settings: ambient intensity and color.
+- [x] Phase settings: ambient scale, color mode, color, and blend amount.
+- [x] Object appearance/alignment workspace: enable point-light authoring and place the light relative to the clearly labeled top-left footprint cell.
+- [x] Object lighting-details dialog: radius, intensity, colors, cone, height, sway, and flicker.
+- [x] Object occlusion controls: strength and clear/remove behavior.
+- [x] Provide explicit create, edit, and remove actions for every optional lighting object.
+- [x] Make clear that sprite anchor, image bounds, and image offsets do not define light placement.
 
 **Checkpoint:** a user can author and remove each supported lighting field without editing JSON manually.
 

@@ -53,19 +53,19 @@
                     <ColumnDefinition Width="34" />
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Radius (px)" ToolTip="How far the light reaches from its origin." />
+                <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Radius (px)" ToolTip="Controls how far the light reaches from its origin. Larger values affect a wider area. Leave blank to use the engine default." />
                 <TextBox x:Name="PointLightRadiusTextBox" Grid.Row="0" Grid.Column="1" Margin="0,0,8,10" Tag="Radius" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
                 <Slider x:Name="PointLightRadiusSlider" Grid.Row="0" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="1000" TickFrequency="50" SmallChange="1" LargeChange="50" IsSnapToTickEnabled="False" Tag="Radius" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Common range: 0 to 1000 px." />
                 <RepeatButton Grid.Row="0" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="Radius" Click="NumericDecrement_OnClick" ToolTip="Decrease by one step" />
                 <RepeatButton Grid.Row="0" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="Radius" Click="NumericIncrement_OnClick" ToolTip="Increase by one step" />
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Intensity scale" ToolTip="Multiplies the light contribution." />
+                <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Intensity scale" ToolTip="Overall brightness multiplier. 1.00 is neutral, 0 disables the contribution, and larger values brighten it. Leave blank to use the engine default." />
                 <TextBox x:Name="PointLightIntensityTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,8,10" Tag="Intensity" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
                 <Slider x:Name="PointLightIntensitySlider" Grid.Row="1" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="2" TickFrequency="0.25" SmallChange="0.05" LargeChange="0.25" IsSnapToTickEnabled="False" Tag="Intensity" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Common range: 0 to 2." />
                 <RepeatButton Grid.Row="1" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="Intensity" Click="NumericDecrement_OnClick" ToolTip="Decrease by 0.05" />
                 <RepeatButton Grid.Row="1" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="Intensity" Click="NumericIncrement_OnClick" ToolTip="Increase by 0.05" />
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Inner color" ToolTip="Color at the light source." />
+                <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Inner color" ToolTip="Color at the center of the light. Leave blank to use the engine default." />
                 <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="4" Orientation="Horizontal" Margin="0,0,0,10">
                     <Border x:Name="PointLightColorPreview" Width="32" Height="24" Margin="0,0,8,0" BorderBrush="#6B7280" BorderThickness="1" />
                     <TextBox x:Name="PointLightColorHexTextBox" Width="90" Margin="0,0,8,0" IsReadOnly="True" VerticalContentAlignment="Center" />
@@ -73,7 +73,7 @@
                     <Button Width="60" Content="Clear" Click="ClearInnerColor_OnClick" />
                 </StackPanel>
 
-                <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Outer color" ToolTip="Color at the edge of the light radius." />
+                <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Outer color" ToolTip="Color toward the edge of the light radius. Leave blank to use the engine default." />
                 <StackPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="4" Orientation="Horizontal" Margin="0,0,0,10">
                     <Border x:Name="PointLightOuterColorPreview" Width="32" Height="24" Margin="0,0,8,0" BorderBrush="#6B7280" BorderThickness="1" />
                     <TextBox x:Name="PointLightOuterColorHexTextBox" Width="90" Margin="0,0,8,0" IsReadOnly="True" VerticalContentAlignment="Center" />
@@ -81,49 +81,49 @@
                     <Button Width="60" Content="Clear" Click="ClearOuterColor_OnClick" />
                 </StackPanel>
 
-                <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Gradient exponent" ToolTip="Controls how quickly the light falls off." />
+                <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Gradient exponent" ToolTip="Controls how quickly brightness falls off across the radius. Lower values spread the light more evenly; higher values concentrate it near the source. Leave blank to use the engine default." />
                 <TextBox x:Name="PointLightGradientExponentTextBox" Grid.Row="4" Grid.Column="1" Margin="0,0,8,10" Tag="GradientExponent" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
                 <Slider x:Name="PointLightGradientExponentSlider" Grid.Row="4" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="8" TickFrequency="1" SmallChange="0.1" LargeChange="1" IsSnapToTickEnabled="False" Tag="GradientExponent" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Common range: 0 to 8." />
                 <RepeatButton Grid.Row="4" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="GradientExponent" Click="NumericDecrement_OnClick" ToolTip="Decrease by 0.1" />
                 <RepeatButton Grid.Row="4" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="GradientExponent" Click="NumericIncrement_OnClick" ToolTip="Increase by 0.1" />
 
-                <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Light height (cells)" ToolTip="Vertical light height used by runtime lighting calculations." />
+                <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Light elevation offset (cells)" ToolTip="Additional elevation applied above the object's effective height. Runtime resolves total light height as height in room + object height units + this offset. Leave blank to use the engine default." />
                 <TextBox x:Name="PointLightHeightTextBox" Grid.Row="5" Grid.Column="1" Margin="0,0,8,10" Tag="Height" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
-                <Slider x:Name="PointLightHeightSlider" Grid.Row="5" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="10" TickFrequency="1" SmallChange="0.1" LargeChange="1" IsSnapToTickEnabled="False" Tag="Height" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Common range: 0 to 10 cells." />
+                <Slider x:Name="PointLightHeightSlider" Grid.Row="5" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="10" TickFrequency="1" SmallChange="0.1" LargeChange="1" IsSnapToTickEnabled="False" Tag="Height" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Common offset range: 0 to 10 cells." />
                 <RepeatButton Grid.Row="5" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="Height" Click="NumericDecrement_OnClick" ToolTip="Decrease by 0.1" />
                 <RepeatButton Grid.Row="5" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="Height" Click="NumericIncrement_OnClick" ToolTip="Increase by 0.1" />
 
-                <TextBlock Grid.Row="6" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Sway amount (px)" ToolTip="Maximum movement distance for a swaying light." />
+                <TextBlock Grid.Row="6" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Sway amount (px)" ToolTip="Maximum movement distance for a swaying light. Zero means no visible sway. Leave blank to use the engine default." />
                 <TextBox x:Name="PointLightSwayAmountTextBox" Grid.Row="6" Grid.Column="1" Margin="0,0,8,10" Tag="SwayAmount" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
                 <Slider x:Name="PointLightSwayAmountSlider" Grid.Row="6" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="200" TickFrequency="25" SmallChange="1" LargeChange="25" IsSnapToTickEnabled="False" Tag="SwayAmount" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Common range: 0 to 200 px." />
                 <RepeatButton Grid.Row="6" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="SwayAmount" Click="NumericDecrement_OnClick" ToolTip="Decrease by one step" />
                 <RepeatButton Grid.Row="6" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="SwayAmount" Click="NumericIncrement_OnClick" ToolTip="Increase by one step" />
 
-                <TextBlock Grid.Row="7" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Sway frequency (Hz)" ToolTip="Speed of the swaying motion." />
+                <TextBlock Grid.Row="7" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Sway frequency (Hz)" ToolTip="Speed of the swaying motion in cycles per second. Higher values move faster. Leave blank to use the engine default." />
                 <TextBox x:Name="PointLightSwayHzTextBox" Grid.Row="7" Grid.Column="1" Margin="0,0,8,10" Tag="SwayHz" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
                 <Slider x:Name="PointLightSwayHzSlider" Grid.Row="7" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="10" TickFrequency="1" SmallChange="0.1" LargeChange="1" IsSnapToTickEnabled="False" Tag="SwayHz" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Common range: 0 to 10 Hz." />
                 <RepeatButton Grid.Row="7" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="SwayHz" Click="NumericDecrement_OnClick" ToolTip="Decrease by 0.1" />
                 <RepeatButton Grid.Row="7" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="SwayHz" Click="NumericIncrement_OnClick" ToolTip="Increase by 0.1" />
 
-                <TextBlock Grid.Row="8" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Sway direction (deg)" ToolTip="Direction of the sway in degrees." />
+                <TextBlock Grid.Row="8" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Sway direction (deg)" ToolTip="Direction in which the light moves while swaying, measured in degrees. Leave blank to use the engine default." />
                 <TextBox x:Name="PointLightSwayDirectionTextBox" Grid.Row="8" Grid.Column="1" Margin="0,0,8,10" Tag="SwayDirection" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
                 <Slider x:Name="PointLightSwayDirectionSlider" Grid.Row="8" Grid.Column="2" Margin="0,0,8,10" Minimum="-180" Maximum="180" TickFrequency="45" SmallChange="1" LargeChange="45" IsSnapToTickEnabled="False" Tag="SwayDirection" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Common range: -180 to 180 degrees." />
                 <RepeatButton Grid.Row="8" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="SwayDirection" Click="NumericDecrement_OnClick" ToolTip="Decrease by one degree" />
                 <RepeatButton Grid.Row="8" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="SwayDirection" Click="NumericIncrement_OnClick" ToolTip="Increase by one degree" />
 
-                <TextBlock Grid.Row="9" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Flicker amount" ToolTip="Strength of flicker modulation." />
+                <TextBlock Grid.Row="9" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Flicker amount" ToolTip="Strength of flicker modulation from 0 to 1. Zero means steady output; 1 is the strongest modulation. Leave blank to use the engine default." />
                 <TextBox x:Name="PointLightFlickerAmountTextBox" Grid.Row="9" Grid.Column="1" Margin="0,0,8,10" Tag="FlickerAmount" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
                 <Slider x:Name="PointLightFlickerAmountSlider" Grid.Row="9" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="1" TickFrequency="0.1" SmallChange="0.05" LargeChange="0.1" IsSnapToTickEnabled="False" Tag="FlickerAmount" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Range: 0 to 1." />
                 <RepeatButton Grid.Row="9" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="FlickerAmount" Click="NumericDecrement_OnClick" ToolTip="Decrease by 0.05" />
                 <RepeatButton Grid.Row="9" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="FlickerAmount" Click="NumericIncrement_OnClick" ToolTip="Increase by 0.05" />
 
-                <TextBlock Grid.Row="10" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Flicker frequency (Hz)" ToolTip="Speed of the flicker motion." />
+                <TextBlock Grid.Row="10" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Flicker frequency (Hz)" ToolTip="Speed of the flicker modulation in cycles per second. Higher values flicker faster. Leave blank to use the engine default." />
                 <TextBox x:Name="PointLightFlickerHzTextBox" Grid.Row="10" Grid.Column="1" Margin="0,0,8,10" Tag="FlickerHz" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
-                <Slider x:Name="PointLightFlickerHzSlider" Grid.Row="10" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="20" TickFrequency="2" SmallChange="0.5" LargeChange="2" IsSnapToTickEnabled="False" Tag="FlickerHz" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Common range: 0 to 20 Hz." />
-                <RepeatButton Grid.Row="10" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="FlickerHz" Click="NumericDecrement_OnClick" ToolTip="Decrease by 0.5" />
-                <RepeatButton Grid.Row="10" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="FlickerHz" Click="NumericIncrement_OnClick" ToolTip="Increase by 0.5" />
+                <Slider x:Name="PointLightFlickerHzSlider" Grid.Row="10" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="20" TickFrequency="2" SmallChange="0.1" LargeChange="2" IsSnapToTickEnabled="False" Tag="FlickerHz" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Common range: 0 to 20 Hz." />
+                <RepeatButton Grid.Row="10" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="FlickerHz" Click="NumericDecrement_OnClick" ToolTip="Decrease by 0.1" />
+                <RepeatButton Grid.Row="10" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="FlickerHz" Click="NumericIncrement_OnClick" ToolTip="Increase by 0.1" />
 
-                <TextBlock Grid.Row="11" Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Flicker style" ToolTip="Shape of the flicker animation." />
+                <TextBlock Grid.Row="11" Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Flicker style" ToolTip="Chooses the character of the flicker animation. Swell is smoother and more gradual; flame is more irregular. Leave blank to use the engine default." />
                 <ComboBox x:Name="PointLightFlickerStyleComboBox" Grid.Row="11" Grid.Column="1" Grid.ColumnSpan="4" IsEditable="False" />
             </Grid>
         </ScrollViewer>

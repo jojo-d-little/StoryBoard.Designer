@@ -1,4 +1,5 @@
 using Storyboard.Shared.RuntimeContracts.Dtos;
+using Storyboard.Shared.RuntimeContracts.Enums;
 using StoryboardDesigner.App.Models;
 
 namespace StoryboardDesigner.App.Services;
@@ -132,7 +133,7 @@ internal static class LightingContractMapper
                 AmbientScale = source.AmbientScale,
                 Color = source.Color,
                 ColorMode = source.ColorMode,
-                ColorBlend = source.ColorBlend
+                ColorBlend = source.ColorMode == PhaseAmbientColorMode.Blend ? source.ColorBlend : null
             };
     }
 
@@ -145,7 +146,7 @@ internal static class LightingContractMapper
                 AmbientScale = source.AmbientScale,
                 Color = source.Color,
                 ColorMode = source.ColorMode,
-                ColorBlend = source.ColorBlend
+                ColorBlend = source.ColorMode == PhaseAmbientColorMode.Blend ? source.ColorBlend : null
             };
     }
 
@@ -237,7 +238,7 @@ internal static class LightingContractMapper
                 AmbientScale = source.AmbientScale,
                 Color = source.Color,
                 ColorMode = source.ColorMode,
-                ColorBlend = source.ColorBlend
+                ColorBlend = source.ColorMode == PhaseAmbientColorMode.Blend ? source.ColorBlend : null
             };
     }
 

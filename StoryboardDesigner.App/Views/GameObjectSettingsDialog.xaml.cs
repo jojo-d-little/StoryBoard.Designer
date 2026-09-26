@@ -36,6 +36,9 @@ public partial class GameObjectSettingsDialog : Window
     private int _heightInRoom;
     private double? _stackScaleStepOverride;
     private double? _minStackScaleOverride;
+    private PointLight? _pointLight;
+    private LightOcclusion? _lightOcclusion;
+    private bool _isPointLightEnabledDefaultValue = true;
     private ObjectMovementRestrictions? _movementRestrictions;
     private bool _movementRestrictionsLockedByLink;
     private readonly int _projectRoomGridCellSize = 40;
@@ -88,6 +91,9 @@ public partial class GameObjectSettingsDialog : Window
         _heightInRoom = initialValues.HeightInRoom < 0 ? 0 : initialValues.HeightInRoom;
         _stackScaleStepOverride = SanitizeOptionalFinite(initialValues.StackScaleStepOverride);
         _minStackScaleOverride = SanitizeOptionalFinite(initialValues.MinStackScaleOverride);
+        _pointLight = LightingModelCloner.ClonePointLight(initialValues.PointLight);
+        _lightOcclusion = LightingModelCloner.CloneLightOcclusion(initialValues.LightOcclusion);
+        _isPointLightEnabledDefaultValue = initialValues.IsPointLightEnabledDefaultValue;
         _movementRestrictions = CloneMovementRestrictions(initialValues.MovementRestrictions);
         _projectRoomGridCellSize = initialValues.ProjectRoomGridCellSize > 0 ? initialValues.ProjectRoomGridCellSize : 40;
         _projectRoomCanvasWidth = initialValues.ProjectRoomCanvasWidth > 0 ? initialValues.ProjectRoomCanvasWidth : 800;
@@ -237,7 +243,10 @@ public partial class GameObjectSettingsDialog : Window
                 ProjectRoomGridCellSize: _projectRoomGridCellSize,
                 ProjectRoomCanvasWidth: _projectRoomCanvasWidth,
                 ProjectRoomCanvasHeight: _projectRoomCanvasHeight,
-                LinkedBaseObjectName: LinkedBaseObjectNameTextBox.Text.Trim());
+                LinkedBaseObjectName: LinkedBaseObjectNameTextBox.Text.Trim(),
+                PointLight: LightingModelCloner.ClonePointLight(_pointLight),
+                LightOcclusion: LightingModelCloner.CloneLightOcclusion(_lightOcclusion),
+                IsPointLightEnabledDefaultValue: _isPointLightEnabledDefaultValue);
         }
     }
 
@@ -330,6 +339,9 @@ public partial class GameObjectSettingsDialog : Window
             HeightInRoom: _heightInRoom,
             StackScaleStepOverride: _stackScaleStepOverride,
             MinStackScaleOverride: _minStackScaleOverride,
+            PointLight: _pointLight,
+            LightOcclusion: _lightOcclusion,
+            IsPointLightEnabledDefaultValue: _isPointLightEnabledDefaultValue,
             ProjectRoomGridCellSize: _projectRoomGridCellSize,
             ProjectRoomCanvasWidth: _projectRoomCanvasWidth,
             ProjectRoomCanvasHeight: _projectRoomCanvasHeight))
@@ -359,6 +371,9 @@ public partial class GameObjectSettingsDialog : Window
         _heightInRoom = dialog.HeightInRoom;
         _stackScaleStepOverride = dialog.StackScaleStepOverride;
         _minStackScaleOverride = dialog.MinStackScaleOverride;
+        _pointLight = LightingModelCloner.ClonePointLight(dialog.PointLight);
+        _lightOcclusion = LightingModelCloner.CloneLightOcclusion(dialog.LightOcclusion);
+        _isPointLightEnabledDefaultValue = dialog.IsPointLightEnabledDefaultValue;
         _fullImagePath = ResolveDefaultVariantPath(_imageVariants, _fullImagePath);
         RefreshImageSummaryAndValidationHint();
     }

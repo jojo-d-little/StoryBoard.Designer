@@ -20,6 +20,8 @@ public partial class LargeObjectVisualGuideDialog : Window
     private readonly string _projectFilePath;
     private readonly string _preferredImageSourceBucket;
     private readonly Action<int, int>? _onFootprintChanged;
+    private PointLight? _pointLight;
+    private readonly Action<PointLight?>? _onPointLightChanged;
     private int _gridColumns;
     private int _gridRows;
     private bool _isRefreshingEditors;
@@ -35,7 +37,9 @@ public partial class LargeObjectVisualGuideDialog : Window
         int projectCanvasHeight,
         string projectFilePath,
         string preferredImageSourceBucket,
-        Action<int, int>? onFootprintChanged = null)
+        Action<int, int>? onFootprintChanged = null,
+        PointLight? pointLight = null,
+        Action<PointLight?>? onPointLightChanged = null)
     {
         InitializeComponent();
         _variant = variant;
@@ -47,6 +51,8 @@ public partial class LargeObjectVisualGuideDialog : Window
         _projectFilePath = projectFilePath;
         _preferredImageSourceBucket = preferredImageSourceBucket;
         _onFootprintChanged = onFootprintChanged;
+        _pointLight = LightingModelCloner.ClonePointLight(pointLight);
+        _onPointLightChanged = onPointLightChanged;
 
         _gridColumns = Math.Max(1, (projectCanvasWidth > 0 ? projectCanvasWidth : 800) / _cellSize);
         _gridRows = Math.Max(1, (projectCanvasHeight > 0 ? projectCanvasHeight : 600) / _cellSize);
@@ -122,6 +128,7 @@ public partial class LargeObjectVisualGuideDialog : Window
         BitmapBoundaryOverlay.Visibility = ShowBitmapBoundaryCheckBox.IsChecked == true
             ? Visibility.Visible
             : Visibility.Collapsed;
+        UpdatePointLightMarker(footprintLeft, footprintTop, footprintWidthPixels, footprintHeightPixels);
         HeadingArrow.RenderTransform = new RotateTransform(DirectionToDegrees(_headingDirection));
         ImageMetricsTextBlock.Text = source is null
             ? $"Bitmap: unavailable; rendered fallback: {FormatPixels(renderedWidth)} × {FormatPixels(renderedHeight)}px at scale {Format(scale)}."
@@ -231,6 +238,51 @@ public partial class LargeObjectVisualGuideDialog : Window
     }
 
     private void CloseButton_OnClick(object sender, RoutedEventArgs e) => Close();
+
+    private void GuideSurfaceGrid_OnMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        GetOrientedDimensions(out var footprintWidth, out var footprintHeight);
+        var footprintWidthPixels = footprintWidth * _cellSize;
+        var footprintHeightPixels = footprintHeight * _cellSize;
+        var footprintLeft = (_gridColumns * _cellSize - footprintWidthPixels) / 2d;
+        var footprintTop = (_gridRows * _cellSize - footprintHeightPixels) / 2d;
+        var point = e.GetPosition(GuideSurfaceGrid);
+        if (point.X < footprintLeft || point.Y < footprintTop || point.X > footprintLeft + footprintWidthPixels || point.Y > footprintTop + footprintHeightPixels)
+        {
+            return;
+        }
+
+        _pointLight ??= new PointLight();
+        _pointLight.OffsetXPx = Math.Clamp(point.X - footprintLeft, 0, footprintWidthPixels);
+        _pointLight.OffsetYPx = Math.Clamp(point.Y - footprintTop, 0, footprintHeightPixels);
+        UpdatePointLightMarker(footprintLeft, footprintTop, footprintWidthPixels, footprintHeightPixels);
+        StatusTextBlock.Text = $"Footprint: {footprintWidth} × {footprintHeight} cells; light origin: {_pointLight.OffsetXPx:0} × {_pointLight.OffsetYPx:0}px from top-left.";
+        _onPointLightChanged?.Invoke(LightingModelCloner.ClonePointLight(_pointLight));
+        e.Handled = true;
+    }
+
+    private void UpdatePointLightMarker(double footprintLeft, double footprintTop, double footprintWidthPixels, double footprintHeightPixels)
+    {
+        if (_pointLight?.OffsetXPx is not double offsetX
+            || _pointLight.OffsetYPx is not double offsetY
+            || !double.IsFinite(offsetX)
+            || !double.IsFinite(offsetY)
+            || offsetX < 0
+            || offsetY < 0
+            || offsetX > footprintWidthPixels
+            || offsetY > footprintHeightPixels)
+        {
+            PointLightMarker.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        PointLightMarker.Margin = new Thickness(
+            footprintLeft + offsetX - PointLightMarker.Width / 2d,
+            footprintTop + offsetY - PointLightMarker.Height / 2d,
+            0,
+            0);
+        PointLightMarker.Visibility = Visibility.Visible;
+    }
 
     private void ShowBitmapBoundaryCheckBox_OnChanged(object sender, RoutedEventArgs e)
     {

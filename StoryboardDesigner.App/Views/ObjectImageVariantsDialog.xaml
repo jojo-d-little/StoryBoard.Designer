@@ -44,6 +44,8 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="150" />
@@ -105,6 +107,19 @@
                     <TextBlock Grid.Row="11" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Min Stack Scale" ToolTip="Optional per-object minimum scale clamp." />
                     <TextBox x:Name="MinStackScaleOverrideTextBox" Grid.Row="11" Grid.Column="1" Margin="0,8,0,0" ToolTip="Optional decimal from 0.25 to 1.00. Leave blank to use project default." PreviewTextInput="OptionalDecimalTextBox_OnPreviewTextInput" DataObject.Pasting="OptionalDecimalTextBox_OnPasting" />
 
+                    <Border Grid.Row="12" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,8,0,0" Padding="6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4" Background="#F9FAFB">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock FontWeight="SemiBold" Text="Footprint Lighting" />
+                            </StackPanel>
+                            <Button x:Name="ManageLightingButton" Grid.Column="1" Width="140" Height="26" Margin="8,0,0,0" Content="Manage Lighting..." Click="ManageLightingButton_OnClick" ToolTip="Edit point-light and occlusion settings." />
+                        </Grid>
+                    </Border>
+
                 </Grid>
 
 
@@ -120,7 +135,7 @@
 
                         <TextBlock Grid.Row="0" FontWeight="SemiBold" Text="Footprint + Heading Visual Guide" />
 
-                        <Grid x:Name="GuideSurfaceGrid" Grid.Row="1" Margin="0,8,0,0" Width="280" Height="280" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Grid x:Name="GuideSurfaceGrid" Grid.Row="1" Margin="0,8,0,0" Width="280" Height="280" HorizontalAlignment="Center" VerticalAlignment="Center" Cursor="Hand" ToolTip="Click inside the blue footprint to place or move the point-light origin. Coordinates are measured from the footprint's top-left corner." MouseLeftButtonDown="GuideSurfaceGrid_OnMouseLeftButtonDown">
                             <UniformGrid x:Name="FootprintGuideGrid" Rows="7" Columns="7" />
                             <Border x:Name="GuideFootprintOverlay"
                                     HorizontalAlignment="Left"
@@ -130,7 +145,7 @@
                                     Background="#334F9DFF"
                                     CornerRadius="2"
                                     IsHitTestVisible="False" />
-                            <Image x:Name="GuideImageOverlay" Width="88" Height="88" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Top" Opacity="0.88" RenderTransformOrigin="0.5,0.5" />
+                            <Image x:Name="GuideImageOverlay" Width="88" Height="88" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Top" Opacity="0.88" RenderTransformOrigin="0.5,0.5" IsHitTestVisible="False" />
                             <Path x:Name="GuideHeadingArrow"
                                   Data="M 0 -32 L 9 -12 L 3 -12 L 3 20 L -3 20 L -3 -12 L -9 -12 Z"
                                   Fill="#DC2626"
@@ -138,7 +153,18 @@
                                   StrokeThickness="1.2"
                                   HorizontalAlignment="Center"
                                   VerticalAlignment="Center"
-                                  RenderTransformOrigin="0.5,0.5" />
+                                  RenderTransformOrigin="0.5,0.5"
+                                  IsHitTestVisible="False" />
+                            <Ellipse x:Name="GuidePointLightMarker"
+                                     Width="14"
+                                     Height="14"
+                                     HorizontalAlignment="Left"
+                                     VerticalAlignment="Top"
+                                     Fill="#FDE047"
+                                     Stroke="#92400E"
+                                     StrokeThickness="2"
+                                     IsHitTestVisible="False"
+                                     Visibility="Collapsed" />
                         </Grid>
 
                         <StackPanel x:Name="LargeGuidePromptPanel" Grid.Row="1" Margin="0,8,0,0" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">

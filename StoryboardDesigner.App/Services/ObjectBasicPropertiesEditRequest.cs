@@ -62,4 +62,7 @@ public sealed record ObjectBasicPropertiesEditRequest(
     int ProjectRoomGridCellSize = 40,
     int ProjectRoomCanvasWidth = 800,
     int ProjectRoomCanvasHeight = 600,
-    string LinkedBaseObjectName = "");
+    string LinkedBaseObjectName = "",
+    PointLight? PointLight = null,
+    LightOcclusion? LightOcclusion = null,
+    bool IsPointLightEnabledDefaultValue = true);

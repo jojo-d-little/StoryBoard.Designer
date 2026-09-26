@@ -227,6 +227,56 @@ public sealed class JsonExportServiceLightingPersistenceTests
     }
 
     [Fact]
+    public void SaveProjectModel_OverridePhaseAmbientOverlay_DoesNotRegainIgnoredColorBlendAfterReload()
+    {
+        var service = new JsonExportService();
+        var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+
+        try
+        {
+            var page = new PhaseNode
+            {
+                Tier = PhaseTier.Page,
+                PhaseKey = "book.chapter.page",
+                DisplayName = "Page",
+                PhaseAmbientOverlay = new PhaseAmbientOverlay
+                {
+                    Color = "#304050",
+                    ColorMode = PhaseAmbientColorMode.Override,
+                    ColorBlend = null
+                }
+            };
+            var chapter = new PhaseNode { Tier = PhaseTier.Chapter, PhaseKey = "book.chapter", DisplayName = "Chapter" };
+            chapter.AddChildScope(page);
+            var book = new PhaseNode { Tier = PhaseTier.Book, PhaseKey = "book", DisplayName = "Book" };
+            book.AddChildScope(chapter);
+            var project = new ProjectModel { Name = "OverrideAmbient", PhaseBooks = [book] };
+            var projectFilePath = Path.Combine(tempRoot, "OverrideAmbient.sbe.json");
+
+            service.SaveProjectModel(projectFilePath, project);
+
+            var phasePath = Path.Combine(tempRoot, "Book", $"{page.Id:N}.phase.json");
+            using (var document = JsonDocument.Parse(File.ReadAllText(phasePath)))
+            {
+                Assert.False(document.RootElement.GetProperty("phaseAmbientOverlay").TryGetProperty("colorBlend", out _));
+            }
+
+            var loaded = service.TryLoadProjectModel(projectFilePath)!;
+            var loadedPage = loaded.PhaseBooks.Single().Children.Single().Children.Single();
+            Assert.Equal(PhaseAmbientColorMode.Override, loadedPage.PhaseAmbientOverlay!.ColorMode);
+            Assert.Null(loadedPage.PhaseAmbientOverlay.ColorBlend);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void ExportCleanProjectV1_WritesRuntimeLightingFields_WithLocalObjectOffsets()
     {
         var service = new JsonExportService();

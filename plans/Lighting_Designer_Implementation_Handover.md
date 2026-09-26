@@ -51,7 +51,7 @@ Supported defaults are:
 - `color`
 - `outerColor`
 - `gradientExponent`
-- `lightHeightCells`
+- `lightHeightCells` (authored light elevation offset; Runtime combines it with object elevation and height)
 - `swayAmountPx`
 - `swayHz`
 - `swayDirectionDeg`
@@ -134,13 +134,24 @@ The point-light definition contains:
   cell corner.
 - `radiusPx`, `intensityScale`, `color`, `outerColor`, and `gradientExponent`.
 - `directionDeg` and `coneAngleDeg`.
-- `lightHeightCells`.
+- `lightHeightCells` (authored light elevation offset in cells).
 - `motionMode`, `phase`, sway fields, and flicker fields.
 
 The local offset is not a sprite offset and is not an absolute room coordinate.
 It is relative to the object’s logical top-left footprint cell. The light
 follows the object when the object moves, stacks, or rotates. Runtime/Host owns
 the later conversion to absolute room-space pixels.
+
+For vertical resolution, Designer stores the authored light elevation offset,
+not the final room-space light height. Runtime calculates the effective light
+height as:
+
+```text
+heightInRoom + objectHeightUnits + lightElevationOffset
+```
+
+When `lightHeightCells` is omitted, the project point-light default supplies
+the offset fallback.
 
 Light occlusion contains:
 
