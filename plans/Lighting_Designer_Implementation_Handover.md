@@ -254,3 +254,15 @@ Designer work is ready for Runtime integration when:
 - Validation and defaults match this document and the schemas.
 - Exported Designer DTOs contain local offsets, not Host absolute coordinates.
 - Fixtures cover the cases above.
+
+## Final integration review
+
+Verified on 2026-09-26:
+
+- Restore: `dotnet restore .\StoryboardDesigner.slnx -p:RestoreUseStaticGraphEvaluation=true` succeeded for all three projects.
+- Build: `dotnet build .\StoryboardDesigner.slnx --no-restore -m:1` succeeded with 0 warnings and 0 errors. The default parallel solution build failed inside MSBuild without reporting an error; serializing the build avoids that failure.
+- Tests: `StoryboardDesigner.App.Tests` passed 895/895; `StoryboardDesigner.App.SmokeTests` passed 8/8 with desktop and user-profile access. The first sandboxed smoke run failed because the test process could not access `%AppData%` and could not discover WPF window controls.
+- Restored package assets resolve both `Storyboard.Contracts` and `Storyboard.GameEngine` to 1.0.6. The project references remain floating (`1.0.*-*` and `1.0.*`); pin them to 1.0.6 if floating upgrades are not intentional.
+- No Designer-local lighting DTO/schema copies or Runtime-effective, Host-coordinate, delta-emission, or WebPortal-lighting implementation were found.
+
+No unresolved UI or contract questions were identified in this review. Standalone room lights remain intentionally deferred; this effort supports one optional object-owned point light, as scoped above.

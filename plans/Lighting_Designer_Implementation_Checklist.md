@@ -82,31 +82,31 @@ Implement the smallest UI surface for each owner:
 
 Cover the full Designer persistence path with fixtures for:
 
-- [ ] Project defaults and a project with no lighting.
-- [ ] Room ambient and a room with ambient omitted, defaulting at Runtime to `1`.
-- [ ] Page overlay, chapter fallback, override color, and blend color.
-- [ ] Point-light object with local pixel offset.
-- [ ] Solid object with default full occlusion.
-- [ ] Explicit occlusion override including zero.
-- [ ] Lighting omitted entirely.
-- [ ] Copied/template object preserving authored lighting.
-- [ ] Explicit disabled default light.
-- [ ] Older project load/save with no lighting fields.
-- [ ] Invalid ranges, colors, units, and incompatible combinations.
+- [x] Project defaults and a project with no lighting.
+- [x] Room ambient and a room with ambient omitted, defaulting at Runtime to `1`.
+- [x] Page overlay, chapter fallback, override color, and blend color.
+- [x] Point-light object with local pixel offset.
+- [x] Solid object with default full occlusion.
+- [x] Explicit occlusion override including zero.
+- [x] Lighting omitted entirely.
+- [x] Copied/template object preserving authored lighting.
+- [x] Explicit disabled default light.
+- [x] Older project load/save with no lighting fields.
+- [x] Invalid ranges, colors, units, and incompatible combinations.
 
 Also verify that exported Designer/runtime payloads contain local offsets and
 authored values only—not absolute room `x`/`y`, effective inherited values, or
 Host DTOs.
 
-**Checkpoint:** focused tests pass and serialization snapshots demonstrate backward compatibility.
+**Checkpoint:** focused persistence, export, template-copy, and validation tests pass; serialization snapshots demonstrate backward compatibility and preserve omission/default behavior.
 
 ## 7. Final integration gate
 
-- [ ] Review the implementation against the completion criteria in the Designer handoff.
-- [ ] Run `dotnet restore`, `dotnet build`, and `dotnet test` from a clean package state.
-- [ ] Confirm no local contract DTO/schema copies were introduced.
-- [ ] Confirm no WebPortal rendering, Host projection, delta emission, or absolute-coordinate logic was added to Designer.
-- [ ] Record any deferred UI decisions or contract questions in the handoff before passing work to Runtime.
+- [x] Review the implementation against the completion criteria in the Designer handoff.
+- [x] Restore, build, and test all solution projects. Use static graph restore and a serialized solution build in this environment; see the handoff verification note.
+- [x] Confirm no local contract DTO/schema copies were introduced.
+- [x] Confirm no WebPortal rendering, Host projection, delta emission, or absolute-coordinate logic was added to Designer.
+- [x] Record the intentional deferred scope and verification results in the handoff before passing work to Runtime.
 
 ## Keep these boundaries firm
 

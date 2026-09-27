@@ -8691,7 +8691,10 @@ public sealed partial class MainWindowViewModel
             MovementRestrictions: CloneMovementRestrictions(objectNode.GameObject.MovementRestrictions),
             ProjectRoomGridCellSize: _project.RoomDesignerGridCellSize,
             ProjectRoomCanvasWidth: _project.RoomImageCanvasWidth,
-            ProjectRoomCanvasHeight: _project.RoomImageCanvasHeight);
+            ProjectRoomCanvasHeight: _project.RoomImageCanvasHeight,
+            PointLight: LightingModelCloner.ClonePointLight(objectNode.GameObject.PointLight),
+            LightOcclusion: LightingModelCloner.CloneLightOcclusion(objectNode.GameObject.LightOcclusion),
+            IsPointLightEnabledDefaultValue: objectNode.GameObject.IsPointLightEnabledDefaultValue);
 
         if (linkedDefinition is not null)
         {
@@ -8776,6 +8779,9 @@ public sealed partial class MainWindowViewModel
                          || !AreEquivalentImageVariants(objectNode.GameObject.ImageVariants, updated.ImageVariants)
                          || !string.Equals(objectNode.GameObject.ImageVariantChooserScript, updated.ImageVariantChooserScript, StringComparison.Ordinal)
                          || !AreEquivalentLockOperationRequirements(objectNode.GameObject.LockOperationRequirements, updated.LockOperationRequirements)
+                         || !AreEquivalentPointLight(objectNode.GameObject.PointLight, updated.PointLight)
+                         || !AreEquivalentLightOcclusion(objectNode.GameObject.LightOcclusion, updated.LightOcclusion)
+                         || objectNode.GameObject.IsPointLightEnabledDefaultValue != updated.IsPointLightEnabledDefaultValue
                          || hasDescriptionOverrideChange;
 
         if (!hasChanges)
@@ -8833,6 +8839,9 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.ImageVariants = NormalizeObjectImageVariantsForModel(updated.ImageVariants, updated.FullImagePath);
         objectNode.GameObject.ImageVariantChooserScript = updated.ImageVariantChooserScript?.Trim() ?? string.Empty;
         objectNode.GameObject.LockOperationRequirements = CloneLockOperationRequirements(updated.LockOperationRequirements);
+        objectNode.GameObject.PointLight = LightingModelCloner.ClonePointLight(updated.PointLight);
+        objectNode.GameObject.LightOcclusion = LightingModelCloner.CloneLightOcclusion(updated.LightOcclusion);
+        objectNode.GameObject.IsPointLightEnabledDefaultValue = updated.IsPointLightEnabledDefaultValue;
         RefreshScopedNameIndex(scopedObjects, static obj => obj.Name);
 
         NotifyProjectEdited();

@@ -178,6 +178,50 @@ public sealed class MainWindowViewModelBaseObjectMovementRestrictionsTests
     }
 
     [Fact]
+    public void EditObjectBasicProperties_BaseCatalogObject_RoundTripsLightingThroughDialog()
+    {
+        var baseObject = new GameObject
+        {
+            ObjectId = Guid.NewGuid(),
+            Name = "Lit Base Object",
+            PointLight = new PointLight { RadiusPx = 120, Color = "#FFE080" },
+            LightOcclusion = new LightOcclusion { Strength = 0.5 },
+            IsPointLightEnabledDefaultValue = false
+        };
+        var project = new ProjectModel { BaseObjects = [baseObject] };
+        ScopeHierarchy.AttachParents(project);
+        var treeContext = new TreeContextInteractionServiceStub
+        {
+            EditObjectBasicPropertiesHandler = initialValues => initialValues with
+            {
+                PointLight = new PointLight { RadiusPx = 240, Color = "#FF8040" },
+                LightOcclusion = new LightOcclusion { Strength = 0.25 },
+                IsPointLightEnabledDefaultValue = true
+            }
+        };
+        var viewModel = MainWindowViewModelTestHarness.CreateViewModel(
+            project,
+            treeContext,
+            new ProjectUiServiceStub());
+        var rootNode = new ProjectRootNodeViewModel(project);
+        var baseCatalogNode = new ObjectTemplatesNodeViewModel(project, rootNode, isBaseCatalog: true);
+        var objectNode = new TemplateGameObjectNodeViewModel(baseObject, baseCatalogNode);
+
+        var edited = viewModel.EditObjectBasicProperties(objectNode);
+
+        Assert.True(edited);
+        var request = Assert.IsType<ObjectBasicPropertiesEditRequest>(treeContext.LastObjectBasicPropertiesRequest);
+        Assert.Equal(120, request.PointLight!.RadiusPx);
+        Assert.Equal("#FFE080", request.PointLight.Color);
+        Assert.Equal(0.5, request.LightOcclusion!.Strength);
+        Assert.False(request.IsPointLightEnabledDefaultValue);
+        Assert.Equal(240, baseObject.PointLight!.RadiusPx);
+        Assert.Equal("#FF8040", baseObject.PointLight.Color);
+        Assert.Equal(0.25, baseObject.LightOcclusion!.Strength);
+        Assert.True(baseObject.IsPointLightEnabledDefaultValue);
+    }
+
+    [Fact]
     public void EditObjectBasicProperties_GlobalBaseObject_CanUpdateSpatialTypeToPassive()
     {
         var baseObject = new GameObject

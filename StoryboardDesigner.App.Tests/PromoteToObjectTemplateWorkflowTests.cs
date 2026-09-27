@@ -32,6 +32,9 @@ public sealed class PromoteToObjectTemplateWorkflowTests
 
         var source = sourceNode.GameObject;
         var previousActionCount = source.AvailableActions.Count;
+        source.PointLight = new PointLight { OffsetXPx = 12, OffsetYPx = 18, RadiusPx = 90 };
+        source.LightOcclusion = new LightOcclusion { Strength = 0.6 };
+        source.IsPointLightEnabledDefaultValue = false;
 
         var handled = viewModel.ExecuteTreeContextAction("create-template-from-object", sourceNode);
 
@@ -44,6 +47,12 @@ public sealed class PromoteToObjectTemplateWorkflowTests
         Assert.NotEqual(source.ObjectId, definition.ObjectId);
         Assert.Equal(source.Name, definition.Name);
         Assert.Equal(previousActionCount, definition.AvailableActions.Count);
+        Assert.NotSame(source.PointLight, definition.PointLight);
+        Assert.Equal(12, definition.PointLight!.OffsetXPx);
+        Assert.Equal(18, definition.PointLight.OffsetYPx);
+        Assert.NotSame(source.LightOcclusion, definition.LightOcclusion);
+        Assert.Equal(0.6, definition.LightOcclusion!.Strength);
+        Assert.False(definition.IsPointLightEnabledDefaultValue);
     }
 
     [Fact]

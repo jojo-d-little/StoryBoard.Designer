@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Storyboard.Shared.RuntimeContracts.Dtos;
 using Storyboard.Shared.RuntimeContracts.Enums;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
@@ -7,6 +8,63 @@ namespace StoryboardDesigner.App.Tests;
 
 public sealed class JsonExportServiceLightingPersistenceTests
 {
+    [Fact]
+    public void SaveProjectModel_RoundTripsLightingOnBaseObjectsAcrossCatalogScopes()
+    {
+        var service = new JsonExportService();
+        var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+
+        try
+        {
+            static GameObject LitBase(string name) => new()
+            {
+                Name = name,
+                PointLight = new PointLight { OffsetXPx = 17, OffsetYPx = 23, RadiusPx = 210, Color = "#FFA060" },
+                LightOcclusion = new LightOcclusion { Strength = 0.4 },
+                IsPointLightEnabledDefaultValue = false
+            };
+
+            var projectBase = LitBase("Project Base");
+            var planetBase = LitBase("Planet Base");
+            var countryBase = LitBase("Country Base");
+            var areaBase = LitBase("Area Base");
+            var area = new Area { Name = "Area", BaseObjects = [areaBase] };
+            var country = new Country { Name = "Country", BaseObjects = [countryBase], Areas = [area] };
+            var planet = new Planet { Name = "Planet", BaseObjects = [planetBase], Countries = [country] };
+            var project = new ProjectModel { Name = "LitBaseCatalogs", BaseObjects = [projectBase], Planets = [planet] };
+            var projectFilePath = Path.Combine(tempRoot, "LitBaseCatalogs.sbe.json");
+
+            service.SaveProjectModel(projectFilePath, project);
+            var loaded = service.TryLoadProjectModel(projectFilePath)!;
+
+            var bases = loaded.BaseObjects
+                .Concat(loaded.Planets.SelectMany(p => p.BaseObjects))
+                .Concat(loaded.Planets.SelectMany(p => p.Countries).SelectMany(c => c.BaseObjects))
+                .Concat(loaded.Planets.SelectMany(p => p.Countries).SelectMany(c => c.Areas).SelectMany(a => a.BaseObjects))
+                .ToDictionary(obj => obj.Name);
+
+            foreach (var source in new[] { projectBase, planetBase, countryBase, areaBase })
+            {
+                var persisted = bases[source.Name];
+                Assert.NotNull(persisted.PointLight);
+                Assert.Equal(17, persisted.PointLight!.OffsetXPx);
+                Assert.Equal(23, persisted.PointLight.OffsetYPx);
+                Assert.Equal(210, persisted.PointLight.RadiusPx);
+                Assert.Equal("#FFA060", persisted.PointLight.Color);
+                Assert.Equal(0.4, persisted.LightOcclusion!.Strength);
+                Assert.False(persisted.IsPointLightEnabledDefaultValue);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
     [Fact]
     public void SaveProjectModel_RoundTripsLightingAcrossAuthoringScopes()
     {
@@ -43,6 +101,20 @@ public sealed class JsonExportServiceLightingPersistenceTests
                 LightOcclusion = new LightOcclusion { Strength = 0.65 },
                 IsPointLightEnabledDefaultValue = false
             };
+            var zeroOcclusionObject = new GameObject
+            {
+                Name = "No Shadow Override",
+                LightOcclusion = new LightOcclusion { Strength = 0 }
+            };
+            var defaultOcclusionObject = new GameObject
+            {
+                Name = "Solid Default Shadow",
+                SpatialType = RuntimeObjectSpatialTypes.SolidObject,
+                ObjectHeightUnits = 1,
+                FootprintWidthCells = 1,
+                FootprintHeightCells = 1,
+                LightOcclusion = new LightOcclusion()
+            };
 
             var room = new Room
             {
@@ -52,7 +124,7 @@ public sealed class JsonExportServiceLightingPersistenceTests
                     Ambient = 0.4,
                     AmbientColor = "#203040"
                 },
-                GameObjects = [roomObject]
+                GameObjects = [roomObject, zeroOcclusionObject, defaultOcclusionObject]
             };
 
             var area = new Area { Name = "Area", Rooms = [room] };
@@ -134,6 +206,14 @@ public sealed class JsonExportServiceLightingPersistenceTests
                 Assert.Equal(0.65, objectDocument.RootElement.GetProperty("lightOcclusion").GetProperty("strength").GetDouble());
                 Assert.False(objectDocument.RootElement.GetProperty("isPointLightEnabledDefaultValue").GetBoolean());
             }
+            using (var zeroOcclusionDocument = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempRoot, "GameObject", $"{zeroOcclusionObject.ObjectId:N}.object.json"))))
+            {
+                Assert.Equal(0, zeroOcclusionDocument.RootElement.GetProperty("lightOcclusion").GetProperty("strength").GetDouble());
+            }
+            using (var defaultOcclusionDocument = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempRoot, "GameObject", $"{defaultOcclusionObject.ObjectId:N}.object.json"))))
+            {
+                Assert.False(defaultOcclusionDocument.RootElement.GetProperty("lightOcclusion").TryGetProperty("strength", out _));
+            }
 
             using (var phaseDocument = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempRoot, "Book", $"{page.Id:N}.phase.json"))))
             {
@@ -144,7 +224,8 @@ public sealed class JsonExportServiceLightingPersistenceTests
             }
 
             var loaded = service.TryLoadProjectModel(projectFilePath)!;
-            var loadedObject = loaded.Planets.Single().Countries.Single().Areas.Single().Rooms.Single().GameObjects.Single();
+            var loadedObject = loaded.Planets.Single().Countries.Single().Areas.Single().Rooms.Single()
+                .GameObjects.Single(gameObject => gameObject.ObjectId == roomObject.ObjectId);
             var loadedPage = loaded.PhaseBooks.Single().Children.Single().Children.Single();
 
             Assert.Equal(220, loaded.PointLightDefaults!.RadiusPx);
@@ -156,6 +237,12 @@ public sealed class JsonExportServiceLightingPersistenceTests
             Assert.Equal(24.25, loadedObject.PointLight.OffsetYPx);
             Assert.Equal(0.65, loadedObject.LightOcclusion!.Strength);
             Assert.False(loadedObject.IsPointLightEnabledDefaultValue);
+            var loadedZeroOcclusionObject = loaded.Planets.Single().Countries.Single().Areas.Single().Rooms.Single()
+                .GameObjects.Single(gameObject => gameObject.ObjectId == zeroOcclusionObject.ObjectId);
+            Assert.Equal(0, loadedZeroOcclusionObject.LightOcclusion!.Strength);
+            var loadedDefaultOcclusionObject = loaded.Planets.Single().Countries.Single().Areas.Single().Rooms.Single()
+                .GameObjects.Single(gameObject => gameObject.ObjectId == defaultOcclusionObject.ObjectId);
+            Assert.Equal(1d, loadedDefaultOcclusionObject.LightOcclusion!.Strength);
             Assert.Equal(0.6, loadedPage.PhaseAmbientOverlay!.AmbientScale);
             Assert.Equal(PhaseAmbientColorMode.Blend, loadedPage.PhaseAmbientOverlay.ColorMode);
             Assert.Equal(0, loadedPage.PhaseAmbientOverlay.ColorBlend);
@@ -366,6 +453,85 @@ public sealed class JsonExportServiceLightingPersistenceTests
             var overlay = phaseDocument.RootElement.GetProperty("phaseAmbientOverlay");
             Assert.Equal(1.2, overlay.GetProperty("ambientScale").GetDouble());
             Assert.Equal("Override", overlay.GetProperty("colorMode").GetString());
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void ExportCleanProjectV1_OmitsAbsentLightingAndLeavesChapterOverlayAvailableForPageFallback()
+    {
+        var service = new JsonExportService();
+        var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+
+        try
+        {
+            var ordinaryObject = new GameObject { Name = "Unlit Object" };
+            var room = new Room { Name = "Unlit Room", GameObjects = [ordinaryObject] };
+            var area = new Area { Name = "Area", Rooms = [room] };
+            var country = new Country { Name = "Country", Areas = [area] };
+            var planet = new Planet { Name = "Planet", Countries = [country] };
+            var page = new PhaseNode { Tier = PhaseTier.Page, PhaseKey = "book.chapter.page", DisplayName = "Page" };
+            var chapter = new PhaseNode
+            {
+                Tier = PhaseTier.Chapter,
+                PhaseKey = "book.chapter",
+                DisplayName = "Chapter",
+                PhaseAmbientOverlay = new PhaseAmbientOverlay
+                {
+                    AmbientScale = 0.7,
+                    Color = "#304050",
+                    ColorMode = PhaseAmbientColorMode.Override
+                }
+            };
+            chapter.AddChildScope(page);
+            var book = new PhaseNode { Tier = PhaseTier.Book, PhaseKey = "book", DisplayName = "Book" };
+            book.AddChildScope(chapter);
+            var project = new ProjectModel
+            {
+                Name = "LightingOmissionAndFallback",
+                Planets = [planet],
+                PhaseBooks = [book]
+            };
+            var projectFilePath = Path.Combine(tempRoot, "LightingOmissionAndFallback.sbe.json");
+
+            service.ExportCleanProjectV1(projectFilePath, project);
+
+            var runtimeRoot = Path.Combine(tempRoot, "GameRuntimeJson");
+            using (var projectDocument = JsonDocument.Parse(File.ReadAllText(Path.Combine(runtimeRoot, "LightingOmissionAndFallback.sbr.runtime.json"))))
+            {
+                Assert.False(projectDocument.RootElement.TryGetProperty("pointLightDefaults", out _));
+            }
+            using (var roomDocument = JsonDocument.Parse(File.ReadAllText(Path.Combine(runtimeRoot, "Room", $"{room.Id:D}".ToUpperInvariant() + ".runtime.json"))))
+            {
+                Assert.False(roomDocument.RootElement.TryGetProperty("ambientLighting", out _));
+            }
+            using (var objectDocument = JsonDocument.Parse(File.ReadAllText(Path.Combine(runtimeRoot, "GameObject", $"{ordinaryObject.ObjectId:D}".ToUpperInvariant() + ".runtime.json"))))
+            {
+                Assert.False(objectDocument.RootElement.TryGetProperty("pointLight", out _));
+                Assert.False(objectDocument.RootElement.TryGetProperty("lightOcclusion", out _));
+            }
+
+            var chapterPath = Path.Combine(runtimeRoot, "Book", $"{chapter.Id:D}".ToUpperInvariant() + ".runtime.json");
+            using (var chapterDocument = JsonDocument.Parse(File.ReadAllText(chapterPath)))
+            {
+                Assert.Equal(0.7, chapterDocument.RootElement.GetProperty("phaseAmbientOverlay").GetProperty("ambientScale").GetDouble());
+            }
+
+            var pagePath = Path.Combine(runtimeRoot, "Book", $"{page.Id:D}".ToUpperInvariant() + ".runtime.json");
+            using (var pageDocument = JsonDocument.Parse(File.ReadAllText(pagePath)))
+            {
+                Assert.False(pageDocument.RootElement.TryGetProperty("phaseAmbientOverlay", out _));
+            }
+
+            Assert.Equal(1d, new RuntimeRoomAmbientLightingDto().Ambient);
+            Assert.Equal(1d, new RuntimeLightOcclusionDto().Strength);
         }
         finally
         {

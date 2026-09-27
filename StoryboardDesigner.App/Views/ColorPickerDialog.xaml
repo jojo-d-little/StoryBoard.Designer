@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Choose Color"
         Height="500"
-        Width="650"
+        Width="720"
         MinHeight="500"
-        MinWidth="650"
+        MinWidth="680"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize">
     <Grid Margin="16">
@@ -26,8 +26,9 @@
         <Grid Grid.Row="1" Margin="0,0,0,14">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="32" />
-                <ColumnDefinition Width="170" />
+                <ColumnDefinition Width="40" />
+                <ColumnDefinition Width="88" />
+                <ColumnDefinition Width="150" />
             </Grid.ColumnDefinitions>
 
             <Grid x:Name="ColorField"
@@ -61,30 +62,53 @@
 
             <Grid x:Name="HueField"
                   Grid.Column="1"
-                  Margin="8,0,8,0"
                   ClipToBounds="True"
                   MouseLeftButtonDown="HueField_OnMouseLeftButtonDown"
                   MouseLeftButtonUp="HueField_OnMouseLeftButtonUp"
                   MouseMove="HueField_OnMouseMove">
-                <Border>
-                    <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                            <GradientStop Color="#FFFF0000" Offset="0" />
-                            <GradientStop Color="#FFFFFF00" Offset="0.1667" />
-                            <GradientStop Color="#FF00FF00" Offset="0.3333" />
-                            <GradientStop Color="#FF00FFFF" Offset="0.5" />
-                            <GradientStop Color="#FF0000FF" Offset="0.6667" />
-                            <GradientStop Color="#FFFF00FF" Offset="0.8333" />
-                            <GradientStop Color="#FFFF0000" Offset="1" />
-                        </LinearGradientBrush>
-                    </Border.Background>
-                </Border>
-                <Canvas IsHitTestVisible="False">
-                    <Rectangle x:Name="HueThumb" Width="32" Height="6" Fill="Transparent" Stroke="White" StrokeThickness="2" />
-                </Canvas>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid x:Name="HueTrack" Grid.Row="1" ClipToBounds="True">
+                    <Border>
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                <GradientStop Color="#FFFF0000" Offset="0" />
+                                <GradientStop Color="#FFFFFF00" Offset="0.1667" />
+                                <GradientStop Color="#FF00FF00" Offset="0.3333" />
+                                <GradientStop Color="#FF00FFFF" Offset="0.5" />
+                                <GradientStop Color="#FF0000FF" Offset="0.6667" />
+                                <GradientStop Color="#FFFF00FF" Offset="0.8333" />
+                                <GradientStop Color="#FFFF0000" Offset="1" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                    </Border>
+                    <Canvas x:Name="HueThumbCanvas" IsHitTestVisible="False">
+                        <Rectangle x:Name="HueThumb" Width="32" Height="6" Fill="Transparent" Stroke="White" StrokeThickness="2" />
+                    </Canvas>
+                </Grid>
+                <RepeatButton Grid.Row="0" Width="24" Height="20" HorizontalAlignment="Center" Margin="0,0,0,4" Content="▲" FontSize="9" Tag="-1" Click="HueNudge_OnClick" ToolTip="Nudge hue up by 1° (hold to repeat)." />
+                <RepeatButton Grid.Row="2" Width="24" Height="20" HorizontalAlignment="Center" Margin="0,4,0,0" Content="▼" FontSize="9" Tag="1" Click="HueNudge_OnClick" ToolTip="Nudge hue down by 1° (hold to repeat)." />
             </Grid>
 
-            <StackPanel Grid.Column="2" Margin="12,0,0,0">
+            <UniformGrid x:Name="HueSwatchPanel" Grid.Column="2" Rows="4" Columns="3" Margin="8,0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Button Width="20" Height="20" Margin="2" Padding="0" Background="#FFFF0000" BorderBrush="#6B7280" BorderThickness="1" Tag="0" Click="HueSwatch_OnClick" ToolTip="Red hue" />
+                <Button Width="20" Height="20" Margin="2" Padding="0" Background="#FFFF8000" BorderBrush="#6B7280" BorderThickness="1" Tag="30" Click="HueSwatch_OnClick" ToolTip="Orange hue" />
+                <Button Width="20" Height="20" Margin="2" Padding="0" Background="#FFFFFF00" BorderBrush="#6B7280" BorderThickness="1" Tag="60" Click="HueSwatch_OnClick" ToolTip="Yellow hue" />
+                <Button Width="20" Height="20" Margin="2" Padding="0" Background="#FF80FF00" BorderBrush="#6B7280" BorderThickness="1" Tag="90" Click="HueSwatch_OnClick" ToolTip="Chartreuse hue" />
+                <Button Width="20" Height="20" Margin="2" Padding="0" Background="#FF00FF00" BorderBrush="#6B7280" BorderThickness="1" Tag="120" Click="HueSwatch_OnClick" ToolTip="Green hue" />
+                <Button Width="20" Height="20" Margin="2" Padding="0" Background="#FF00FF80" BorderBrush="#6B7280" BorderThickness="1" Tag="150" Click="HueSwatch_OnClick" ToolTip="Spring green hue" />
+                <Button Width="20" Height="20" Margin="2" Padding="0" Background="#FF00FFFF" BorderBrush="#6B7280" BorderThickness="1" Tag="180" Click="HueSwatch_OnClick" ToolTip="Cyan hue" />
+                <Button Width="20" Height="20" Margin="2" Padding="0" Background="#FF0080FF" BorderBrush="#6B7280" BorderThickness="1" Tag="210" Click="HueSwatch_OnClick" ToolTip="Azure hue" />
+                <Button Width="20" Height="20" Margin="2" Padding="0" Background="#FF0000FF" BorderBrush="#6B7280" BorderThickness="1" Tag="240" Click="HueSwatch_OnClick" ToolTip="Blue hue" />
+                <Button Width="20" Height="20" Margin="2" Padding="0" Background="#FF8000FF" BorderBrush="#6B7280" BorderThickness="1" Tag="270" Click="HueSwatch_OnClick" ToolTip="Violet hue" />
+                <Button Width="20" Height="20" Margin="2" Padding="0" Background="#FFFF00FF" BorderBrush="#6B7280" BorderThickness="1" Tag="300" Click="HueSwatch_OnClick" ToolTip="Magenta hue" />
+                <Button Width="20" Height="20" Margin="2" Padding="0" Background="#FFFF0080" BorderBrush="#6B7280" BorderThickness="1" Tag="330" Click="HueSwatch_OnClick" ToolTip="Rose hue" />
+            </UniformGrid>
+
+            <StackPanel Grid.Column="3" Margin="8,0,0,0">
                 <TextBlock Margin="0,0,0,6" FontWeight="SemiBold" Text="Preview" />
                 <Border x:Name="ColorPreview" Height="100" Margin="0,0,0,12" BorderBrush="#6B7280" BorderThickness="1" />
                 <TextBlock Foreground="#374151" Text="The left-to-right axis changes saturation. The top-to-bottom axis changes brightness." TextWrapping="Wrap" />

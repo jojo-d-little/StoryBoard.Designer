@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -8,6 +9,8 @@ using Color = System.Windows.Media.Color;
 using MessageBox = System.Windows.MessageBox;
 using Point = System.Windows.Point;
 using TextBox = System.Windows.Controls.TextBox;
+using WpfButton = System.Windows.Controls.Button;
+using WpfRepeatButton = System.Windows.Controls.Primitives.RepeatButton;
 using WpfMouseButtonEventArgs = System.Windows.Input.MouseButtonEventArgs;
 using WpfMouseEventArgs = System.Windows.Input.MouseEventArgs;
 
@@ -59,7 +62,7 @@ public partial class ColorPickerDialog : Window
     {
         _draggingHueField = true;
         HueField.CaptureMouse();
-        UpdateHue(e.GetPosition(HueField));
+        UpdateHue(e.GetPosition(HueTrack));
         e.Handled = true;
     }
 
@@ -74,7 +77,7 @@ public partial class ColorPickerDialog : Window
     {
         if (_draggingHueField)
         {
-            UpdateHue(e.GetPosition(HueField));
+            UpdateHue(e.GetPosition(HueTrack));
         }
     }
 
@@ -93,12 +96,35 @@ public partial class ColorPickerDialog : Window
 
     private void UpdateHue(Point point)
     {
-        if (HueField.ActualHeight <= 0)
+        if (HueTrack.ActualHeight <= 0)
         {
             return;
         }
 
-        _hue = Math.Clamp(point.Y / HueField.ActualHeight, 0, 1) * 360;
+        SetHue(Math.Clamp(point.Y / HueTrack.ActualHeight, 0, 1) * 360);
+    }
+
+    private void HueSwatch_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is WpfButton { Tag: string hueText }
+            && double.TryParse(hueText, NumberStyles.Float, CultureInfo.InvariantCulture, out var hue))
+        {
+            SetHue(hue);
+        }
+    }
+
+    private void HueNudge_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is WpfRepeatButton { Tag: string amountText }
+            && double.TryParse(amountText, NumberStyles.Float, CultureInfo.InvariantCulture, out var amount))
+        {
+            SetHue(_hue + amount);
+        }
+    }
+
+    private void SetHue(double hue)
+    {
+        _hue = ((hue % 360) + 360) % 360;
         _color = HsvToColor(_hue, _saturation, _brightness);
         RefreshControls();
     }
@@ -168,6 +194,25 @@ public partial class ColorPickerDialog : Window
         ColorPreview.Background = new SolidColorBrush(_color);
         PositionColorFieldThumb();
         PositionHueThumb();
+        RefreshHueSwatchSelection();
+    }
+
+    private void RefreshHueSwatchSelection()
+    {
+        foreach (var swatch in HueSwatchPanel.Children.OfType<WpfButton>())
+        {
+            if (swatch.Tag is not string hueText
+                || !double.TryParse(hueText, NumberStyles.Float, CultureInfo.InvariantCulture, out var swatchHue))
+            {
+                continue;
+            }
+
+            var difference = Math.Abs(_hue - swatchHue);
+            var circularDifference = Math.Min(difference, 360 - difference);
+            var selected = circularDifference < 0.5;
+            swatch.BorderBrush = selected ? System.Windows.Media.Brushes.Black : new SolidColorBrush(Color.FromRgb(107, 114, 128));
+            swatch.BorderThickness = selected ? new Thickness(2) : new Thickness(1);
+        }
     }
 
     private void PositionColorFieldThumb()
@@ -180,9 +225,9 @@ public partial class ColorPickerDialog : Window
 
     private void PositionHueThumb()
     {
-        var y = ((_hue % 360 + 360) % 360 / 360 * HueField.ActualHeight) - (HueThumb.Height / 2);
-        Canvas.SetLeft(HueThumb, 0);
-        Canvas.SetTop(HueThumb, Math.Clamp(y, -HueThumb.Height / 2, HueField.ActualHeight - HueThumb.Height / 2));
+        var y = ((_hue % 360 + 360) % 360 / 360 * HueTrack.ActualHeight) - (HueThumb.Height / 2);
+        Canvas.SetLeft(HueThumb, (HueThumbCanvas.ActualWidth - HueThumb.Width) / 2);
+        Canvas.SetTop(HueThumb, Math.Clamp(y, -HueThumb.Height / 2, HueTrack.ActualHeight - HueThumb.Height / 2));
     }
 
     private void UpdateHsvFromColor()
