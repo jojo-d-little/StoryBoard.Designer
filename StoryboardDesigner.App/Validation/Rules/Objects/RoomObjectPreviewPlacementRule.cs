@@ -46,7 +46,10 @@ public sealed class RoomObjectPreviewPlacementRule : IValidationRule
             yield break;
         }
 
-        if (gameObject.IncludeInPreview && string.IsNullOrWhiteSpace(gameObject.ResolveDefaultImagePath()))
+        var hasRenderableLight = gameObject.PointLight is not null;
+        if (gameObject.IncludeInPreview
+            && !hasRenderableLight
+            && string.IsNullOrWhiteSpace(gameObject.ResolveDefaultImagePath()))
         {
             var objectName = string.IsNullOrWhiteSpace(gameObject.ScopeName) ? "(unnamed object)" : gameObject.ScopeName.Trim();
             yield return new ValidationIssue(

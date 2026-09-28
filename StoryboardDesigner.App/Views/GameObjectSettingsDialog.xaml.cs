@@ -31,6 +31,7 @@ public partial class GameObjectSettingsDialog : Window
     private int _footprintWidthCells = 1;
     private int _footprintHeightCells = 1;
     private string _footprintOrientation = "N";
+    private string _footprintCornerStyle = "rounded";
     private string _headingDirection = "N";
     private int _objectHeightUnits = 1;
     private int _heightInRoom;
@@ -86,6 +87,7 @@ public partial class GameObjectSettingsDialog : Window
         _footprintWidthCells = SanitizePoints(initialValues.FootprintWidthCells);
         _footprintHeightCells = SanitizePoints(initialValues.FootprintHeightCells);
         _footprintOrientation = NormalizeCardinalDirection(initialValues.FootprintOrientation);
+        _footprintCornerStyle = string.Equals(initialValues.FootprintCornerStyle, "sharp", StringComparison.OrdinalIgnoreCase) ? "sharp" : "rounded";
         _headingDirection = NormalizeHeadingDirection(initialValues.HeadingDirection);
         _objectHeightUnits = initialValues.ObjectHeightUnits < 0 ? 0 : initialValues.ObjectHeightUnits;
         _heightInRoom = initialValues.HeightInRoom < 0 ? 0 : initialValues.HeightInRoom;
@@ -234,6 +236,7 @@ public partial class GameObjectSettingsDialog : Window
                 FootprintWidthCells: _footprintWidthCells,
                 FootprintHeightCells: _footprintHeightCells,
                 FootprintOrientation: _footprintOrientation,
+                FootprintCornerStyle: _footprintCornerStyle,
                 HeadingDirection: _headingDirection,
                 ObjectHeightUnits: _objectHeightUnits,
                 HeightInRoom: _heightInRoom,
@@ -334,6 +337,7 @@ public partial class GameObjectSettingsDialog : Window
             FootprintWidthCells: _footprintWidthCells,
             FootprintHeightCells: _footprintHeightCells,
             FootprintOrientation: _footprintOrientation,
+            FootprintCornerStyle: _footprintCornerStyle,
             HeadingDirection: _headingDirection,
             ObjectHeightUnits: _objectHeightUnits,
             HeightInRoom: _heightInRoom,
@@ -366,6 +370,7 @@ public partial class GameObjectSettingsDialog : Window
         _footprintWidthCells = dialog.FootprintWidthCells;
         _footprintHeightCells = dialog.FootprintHeightCells;
         _footprintOrientation = dialog.FootprintOrientation;
+        _footprintCornerStyle = dialog.FootprintCornerStyle;
         _headingDirection = dialog.HeadingDirection;
         _objectHeightUnits = dialog.ObjectHeightUnits;
         _heightInRoom = dialog.HeightInRoom;

@@ -257,7 +257,7 @@ public sealed class ProjectUiService : IProjectUiService
             + reportFilePath + Environment.NewLine + Environment.NewLine
             + "Save anyway?";
 
-        var owner = GetOwnerWindow();
+        var owner = System.Windows.Application.Current?.MainWindow;
         var result = owner is null
             ? System.Windows.MessageBox.Show(
                 message,
@@ -284,7 +284,7 @@ public sealed class ProjectUiService : IProjectUiService
         {
             _validationReportWindow = new ValidationReportWindow(reportTitle, issues, reportFilePath, navigateToIssue)
             {
-                Owner = GetOwnerWindow()
+                Owner = System.Windows.Application.Current?.MainWindow
             };
             _validationReportWindow.Closed += (_, _) => _validationReportWindow = null;
             _validationReportWindow.Show();
@@ -294,7 +294,7 @@ public sealed class ProjectUiService : IProjectUiService
         _validationReportWindow.Close();
         _validationReportWindow = new ValidationReportWindow(reportTitle, issues, reportFilePath, navigateToIssue)
         {
-            Owner = GetOwnerWindow()
+            Owner = System.Windows.Application.Current?.MainWindow
         };
         _validationReportWindow.Closed += (_, _) => _validationReportWindow = null;
         _validationReportWindow.Show();

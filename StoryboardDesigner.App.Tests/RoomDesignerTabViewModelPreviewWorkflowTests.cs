@@ -314,6 +314,12 @@ public sealed class RoomDesignerTabViewModelPreviewWorkflowTests
                     {
                         Name = "NoImage",
                         IncludeInPreview = true
+                    },
+                    new GameObject
+                    {
+                        Name = "LightOnly",
+                        IncludeInPreview = true,
+                        PointLight = new PointLight { RadiusPx = 80 }
                     }
                 ]
             };
@@ -322,8 +328,8 @@ public sealed class RoomDesignerTabViewModelPreviewWorkflowTests
 
             var renderableNames = viewModel.RenderableRoomChildObjects.Select(item => item.DisplayName).ToList();
 
-            Assert.Single(renderableNames);
-            Assert.Equal("Included", renderableNames[0]);
+            Assert.Equal(new[] { "Included", "LightOnly" }, renderableNames);
+            Assert.True(viewModel.RoomChildObjects.Single(item => item.DisplayName == "LightOnly").IsLightOnly);
         }
         finally
         {

@@ -292,7 +292,7 @@ public sealed class JsonExportServiceLightingPersistenceTests
             using (var objectDocument = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempRoot, "GameObject", $"{roomObject.ObjectId:N}.object.json"))))
             {
                 Assert.False(objectDocument.RootElement.TryGetProperty("pointLight", out _));
-                Assert.False(objectDocument.RootElement.TryGetProperty("lightOcclusion", out _));
+                Assert.Equal(1, objectDocument.RootElement.GetProperty("lightOcclusion").GetProperty("strength").GetDouble());
             }
 
             var loaded = service.TryLoadProjectModel(projectFilePath)!;
@@ -301,7 +301,7 @@ public sealed class JsonExportServiceLightingPersistenceTests
             Assert.Null(loaded.PointLightDefaults);
             Assert.Null(loaded.Planets.Single().Countries.Single().Areas.Single().Rooms.Single().AmbientLighting);
             Assert.Null(loadedObject.PointLight);
-            Assert.Null(loadedObject.LightOcclusion);
+            Assert.Equal(1, loadedObject.LightOcclusion?.Strength);
             Assert.True(loadedObject.IsPointLightEnabledDefaultValue);
         }
         finally
@@ -464,7 +464,7 @@ public sealed class JsonExportServiceLightingPersistenceTests
     }
 
     [Fact]
-    public void ExportCleanProjectV1_OmitsAbsentLightingAndLeavesChapterOverlayAvailableForPageFallback()
+    public void ExportCleanProjectV1_DefaultsShadowCastingAndLeavesChapterOverlayAvailableForPageFallback()
     {
         var service = new JsonExportService();
         var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
@@ -515,7 +515,7 @@ public sealed class JsonExportServiceLightingPersistenceTests
             using (var objectDocument = JsonDocument.Parse(File.ReadAllText(Path.Combine(runtimeRoot, "GameObject", $"{ordinaryObject.ObjectId:D}".ToUpperInvariant() + ".runtime.json"))))
             {
                 Assert.False(objectDocument.RootElement.TryGetProperty("pointLight", out _));
-                Assert.False(objectDocument.RootElement.TryGetProperty("lightOcclusion", out _));
+                Assert.Equal(1, objectDocument.RootElement.GetProperty("lightOcclusion").GetProperty("strength").GetDouble());
             }
 
             var chapterPath = Path.Combine(runtimeRoot, "Book", $"{chapter.Id:D}".ToUpperInvariant() + ".runtime.json");

@@ -167,7 +167,7 @@
                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="180" /><ColumnDefinition Width="84" /><ColumnDefinition Width="*" /><ColumnDefinition Width="34" /><ColumnDefinition Width="34" /></Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Grid.ColumnSpan="5" Orientation="Horizontal" Margin="0,0,0,10">
-                            <CheckBox x:Name="LightOcclusionEnabledCheckBox" VerticalAlignment="Center" Content="Object casts a shadow" Checked="LightOcclusionEnabledCheckBox_OnChanged" Unchecked="LightOcclusionEnabledCheckBox_OnChanged" ToolTip="When checked, this object contributes an object-specific shadow/occlusion strength override." />
+                            <CheckBox x:Name="LightOcclusionEnabledCheckBox" VerticalAlignment="Center" Content="Object casts a shadow" Checked="LightOcclusionEnabledCheckBox_OnChanged" Unchecked="LightOcclusionEnabledCheckBox_OnChanged" ToolTip="Enabled by default for solid objects with a footprint and positive height. Uncheck to explicitly disable this object's shadow." />
                         </StackPanel>
                         <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Strength" ToolTip="Occlusion strength from 0 (none) to 1 (full authored strength)." />
                         <TextBox x:Name="LightOcclusionStrengthTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,8,0" Tag="OcclusionStrength" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />

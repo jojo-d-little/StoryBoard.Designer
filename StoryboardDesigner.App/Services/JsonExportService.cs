@@ -4460,7 +4460,7 @@ public sealed class JsonExportService : IJsonExportService
                 : obj.ImageVariantChooserScript,
             Appearance = ToProjectGameObjectAppearanceDto(obj),
             PointLight = LightingContractMapper.ToProjectPointLightDto(obj.PointLight),
-            LightOcclusion = LightingContractMapper.ToProjectLightOcclusionDto(obj.LightOcclusion),
+            LightOcclusion = LightingContractMapper.ToProjectLightOcclusionDto(ResolveDefaultLightOcclusion(obj)),
             IsPointLightEnabledDefaultValue = obj.IsPointLightEnabledDefaultValue,
             ImageRotationDegrees = obj.ImageRotationDegrees,
             PositionX = SanitizeCoordinateForPersistence(obj.PositionX),
@@ -4603,6 +4603,7 @@ public sealed class JsonExportService : IJsonExportService
             FootprintWidthCells = obj.Appearance?.FootprintWidthCells > 0 ? obj.Appearance.FootprintWidthCells : 1,
             FootprintHeightCells = obj.Appearance?.FootprintHeightCells > 0 ? obj.Appearance.FootprintHeightCells : 1,
             FootprintOrientation = NormalizeCardinalDirection(obj.Appearance?.FootprintOrientation),
+            FootprintCornerStyle = NormalizeFootprintCornerStyle(obj.Appearance?.FootprintCornerStyle),
             HeadingDirection = NormalizeHeadingDirection(obj.Appearance?.HeadingDirection),
             ObjectHeightUnits = obj.Appearance?.ObjectHeightUnits >= 0 ? obj.Appearance.ObjectHeightUnits : 1,
             HeightInRoom = obj.Appearance?.HeightInRoom ?? 0,
@@ -4770,6 +4771,7 @@ public sealed class JsonExportService : IJsonExportService
             obj.FootprintWidthCells = definition.FootprintWidthCells;
             obj.FootprintHeightCells = definition.FootprintHeightCells;
             obj.FootprintOrientation = definition.FootprintOrientation;
+            obj.FootprintCornerStyle = NormalizeFootprintCornerStyle(definition.FootprintCornerStyle);
             obj.HeadingDirection = definition.HeadingDirection;
             obj.ObjectHeightUnits = definition.ObjectHeightUnits;
             obj.HeightInRoom = definition.HeightInRoom;
@@ -5106,6 +5108,7 @@ public sealed class JsonExportService : IJsonExportService
             FootprintWidthCells = obj.FootprintWidthCells,
             FootprintHeightCells = obj.FootprintHeightCells,
             FootprintOrientation = NormalizeCardinalDirection(obj.FootprintOrientation),
+            FootprintCornerStyle = NormalizeFootprintCornerStyle(obj.FootprintCornerStyle),
             HeadingDirection = NormalizeHeadingDirection(obj.HeadingDirection),
             ObjectHeightUnits = obj.ObjectHeightUnits,
             HeightInRoom = obj.HeightInRoom,
@@ -5128,6 +5131,7 @@ public sealed class JsonExportService : IJsonExportService
             appearance.FootprintWidthCells,
             appearance.FootprintHeightCells,
             appearance.FootprintOrientation,
+            appearance.FootprintCornerStyle,
             appearance.HeadingDirection,
             appearance.ObjectHeightUnits,
             appearance.HeightInRoom,
@@ -5156,6 +5160,7 @@ public sealed class JsonExportService : IJsonExportService
             FootprintWidthCells = effectiveDefinitionOwnedSource.FootprintWidthCells,
             FootprintHeightCells = effectiveDefinitionOwnedSource.FootprintHeightCells,
             FootprintOrientation = ToCardinalDirection(effectiveDefinitionOwnedSource.FootprintOrientation),
+            FootprintCornerStyle = NormalizeFootprintCornerStyle(effectiveDefinitionOwnedSource.FootprintCornerStyle),
             HeadingDirection = ToHeadingDirection(effectiveDefinitionOwnedSource.HeadingDirection),
             ObjectHeightUnits = effectiveDefinitionOwnedSource.ObjectHeightUnits,
             HeightInRoom = obj.HeightInRoom,
@@ -5178,6 +5183,7 @@ public sealed class JsonExportService : IJsonExportService
             appearance.FootprintWidthCells,
             appearance.FootprintHeightCells,
             appearance.FootprintOrientation,
+            appearance.FootprintCornerStyle,
             appearance.HeadingDirection,
             appearance.ObjectHeightUnits,
             appearance.HeightInRoom,
@@ -5200,6 +5206,7 @@ public sealed class JsonExportService : IJsonExportService
         int footprintWidthCells,
         int footprintHeightCells,
         Direction8? footprintOrientation,
+        string? footprintCornerStyle,
         Direction8? headingDirection,
         int objectHeightUnits,
         int heightInRoom,
@@ -5219,6 +5226,7 @@ public sealed class JsonExportService : IJsonExportService
             footprintWidthCells,
             footprintHeightCells,
             footprintOrientation?.ToString(),
+            footprintCornerStyle,
             headingDirection?.ToString(),
             objectHeightUnits,
             heightInRoom,
@@ -5239,6 +5247,7 @@ public sealed class JsonExportService : IJsonExportService
         int footprintWidthCells,
         int footprintHeightCells,
         string? footprintOrientation,
+        string? footprintCornerStyle,
         string? headingDirection,
         int objectHeightUnits,
         int heightInRoom,
@@ -5257,6 +5266,7 @@ public sealed class JsonExportService : IJsonExportService
                && footprintWidthCells == 1
                && footprintHeightCells == 1
                && string.Equals(NormalizeCardinalDirection(footprintOrientation), "N", StringComparison.Ordinal)
+               && string.Equals(NormalizeFootprintCornerStyle(footprintCornerStyle), "sharp", StringComparison.Ordinal)
                && string.Equals(NormalizeHeadingDirection(headingDirection), "N", StringComparison.Ordinal)
                && objectHeightUnits == 1
                && heightInRoom == 0
@@ -5531,6 +5541,24 @@ public sealed class JsonExportService : IJsonExportService
     private static bool HasAnyRule(RuntimeObjectMovementRestrictionRuleDto? source)
     {
         return source is not null && (source.MaxDistance.HasValue || source.AllowJumpOver.HasValue);
+    }
+
+    private static string NormalizeFootprintCornerStyle(string? style) =>
+        string.Equals(style?.Trim(), "sharp", StringComparison.OrdinalIgnoreCase) ? "sharp" : "rounded";
+
+    private static LightOcclusion? ResolveDefaultLightOcclusion(GameObject gameObject)
+    {
+        if (gameObject.LightOcclusion is not null)
+        {
+            return gameObject.LightOcclusion;
+        }
+
+        return gameObject.SpatialType == RuntimeObjectSpatialTypes.SolidObject
+            && gameObject.ObjectHeightUnits > 0
+            && gameObject.FootprintWidthCells > 0
+            && gameObject.FootprintHeightCells > 0
+                ? new LightOcclusion { Strength = 1d }
+                : null;
     }
 
     private static string NormalizeCardinalDirection(string? direction)
@@ -6063,7 +6091,7 @@ public sealed class JsonExportService : IJsonExportService
                 : effectiveDefinitionOwnedSource.ImageVariantChooserScript,
             Appearance = ToCleanGameObjectAppearanceDto(obj, effectiveDefinitionOwnedSource),
             PointLight = LightingContractMapper.ToRuntimePointLightDto(effectiveDefinitionOwnedSource.PointLight),
-            LightOcclusion = LightingContractMapper.ToRuntimeLightOcclusionDto(effectiveDefinitionOwnedSource.LightOcclusion),
+            LightOcclusion = LightingContractMapper.ToRuntimeLightOcclusionDto(ResolveDefaultLightOcclusion(effectiveDefinitionOwnedSource)),
             IsPointLightEnabledDefaultValue = obj.IsPointLightEnabledDefaultValue,
             Description = effectiveDescription ?? string.Empty,
             AdditionalVerbs = NullIfEmpty(obj.AdditionalVerbs.OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToList()),

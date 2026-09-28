@@ -7830,6 +7830,7 @@ public sealed partial class MainWindowViewModel
                          || objectNode.GameObject.FootprintWidthCells != updated.FootprintWidthCells
                          || objectNode.GameObject.FootprintHeightCells != updated.FootprintHeightCells
                          || !string.Equals(objectNode.GameObject.FootprintOrientation, updated.FootprintOrientation, StringComparison.Ordinal)
+                         || !string.Equals(objectNode.GameObject.FootprintCornerStyle, updated.FootprintCornerStyle, StringComparison.Ordinal)
                          || !string.Equals(objectNode.GameObject.HeadingDirection, updated.HeadingDirection, StringComparison.Ordinal)
                          || objectNode.GameObject.ObjectHeightUnits != updated.ObjectHeightUnits
                          || objectNode.GameObject.HeightInRoom != updated.HeightInRoom
@@ -7898,6 +7899,7 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.FootprintWidthCells = updated.FootprintWidthCells;
         objectNode.GameObject.FootprintHeightCells = updated.FootprintHeightCells;
         objectNode.GameObject.FootprintOrientation = updated.FootprintOrientation;
+        objectNode.GameObject.FootprintCornerStyle = updated.FootprintCornerStyle;
         objectNode.GameObject.HeadingDirection = updated.HeadingDirection;
         objectNode.GameObject.ObjectHeightUnits = updated.ObjectHeightUnits;
         objectNode.GameObject.HeightInRoom = updated.HeightInRoom;
@@ -8041,6 +8043,7 @@ public sealed partial class MainWindowViewModel
             FootprintWidthCells = instance.FootprintWidthCells,
             FootprintHeightCells = instance.FootprintHeightCells,
             FootprintOrientation = instance.FootprintOrientation,
+            FootprintCornerStyle = instance.FootprintCornerStyle,
             HeadingDirection = instance.HeadingDirection,
             ObjectHeightUnits = instance.ObjectHeightUnits,
             HeightInRoom = instance.HeightInRoom,
@@ -8135,6 +8138,7 @@ public sealed partial class MainWindowViewModel
                 FootprintWidthCells: gameObject.FootprintWidthCells,
                 FootprintHeightCells: gameObject.FootprintHeightCells,
                 FootprintOrientation: gameObject.FootprintOrientation,
+                FootprintCornerStyle: gameObject.FootprintCornerStyle,
                 HeadingDirection: gameObject.HeadingDirection,
                 ObjectHeightUnits: gameObject.ObjectHeightUnits,
                 HeightInRoom: gameObject.HeightInRoom,
@@ -8194,6 +8198,7 @@ public sealed partial class MainWindowViewModel
             FootprintWidthCells: gameObject.FootprintWidthCells,
             FootprintHeightCells: gameObject.FootprintHeightCells,
             FootprintOrientation: gameObject.FootprintOrientation,
+            FootprintCornerStyle: gameObject.FootprintCornerStyle,
             HeadingDirection: gameObject.HeadingDirection,
             ObjectHeightUnits: gameObject.ObjectHeightUnits,
             HeightInRoom: gameObject.HeightInRoom,
@@ -8533,6 +8538,7 @@ public sealed partial class MainWindowViewModel
                          || objectNode.GameObject.FootprintWidthCells != updated.FootprintWidthCells
                          || objectNode.GameObject.FootprintHeightCells != updated.FootprintHeightCells
                          || !string.Equals(objectNode.GameObject.FootprintOrientation, updated.FootprintOrientation, StringComparison.Ordinal)
+                         || !string.Equals(objectNode.GameObject.FootprintCornerStyle, updated.FootprintCornerStyle, StringComparison.Ordinal)
                          || !string.Equals(objectNode.GameObject.HeadingDirection, updated.HeadingDirection, StringComparison.Ordinal)
                          || objectNode.GameObject.ObjectHeightUnits != updated.ObjectHeightUnits
                          || objectNode.GameObject.HeightInRoom != updated.HeightInRoom
@@ -8589,6 +8595,7 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.FootprintWidthCells = updated.FootprintWidthCells;
         objectNode.GameObject.FootprintHeightCells = updated.FootprintHeightCells;
         objectNode.GameObject.FootprintOrientation = updated.FootprintOrientation;
+        objectNode.GameObject.FootprintCornerStyle = updated.FootprintCornerStyle;
         objectNode.GameObject.HeadingDirection = updated.HeadingDirection;
         objectNode.GameObject.ObjectHeightUnits = updated.ObjectHeightUnits;
         objectNode.GameObject.HeightInRoom = updated.HeightInRoom;
@@ -8683,6 +8690,7 @@ public sealed partial class MainWindowViewModel
             FootprintWidthCells: objectNode.GameObject.FootprintWidthCells,
             FootprintHeightCells: objectNode.GameObject.FootprintHeightCells,
             FootprintOrientation: objectNode.GameObject.FootprintOrientation,
+            FootprintCornerStyle: objectNode.GameObject.FootprintCornerStyle,
             HeadingDirection: objectNode.GameObject.HeadingDirection,
             ObjectHeightUnits: objectNode.GameObject.ObjectHeightUnits,
             HeightInRoom: objectNode.GameObject.HeightInRoom,
@@ -8763,6 +8771,7 @@ public sealed partial class MainWindowViewModel
                          || objectNode.GameObject.FootprintWidthCells != updated.FootprintWidthCells
                          || objectNode.GameObject.FootprintHeightCells != updated.FootprintHeightCells
                          || !string.Equals(objectNode.GameObject.FootprintOrientation, updated.FootprintOrientation, StringComparison.Ordinal)
+                         || !string.Equals(objectNode.GameObject.FootprintCornerStyle, updated.FootprintCornerStyle, StringComparison.Ordinal)
                          || !string.Equals(objectNode.GameObject.HeadingDirection, updated.HeadingDirection, StringComparison.Ordinal)
                          || objectNode.GameObject.ObjectHeightUnits != updated.ObjectHeightUnits
                          || objectNode.GameObject.HeightInRoom != updated.HeightInRoom
@@ -8823,6 +8832,7 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.FootprintWidthCells = updated.FootprintWidthCells;
         objectNode.GameObject.FootprintHeightCells = updated.FootprintHeightCells;
         objectNode.GameObject.FootprintOrientation = updated.FootprintOrientation;
+        objectNode.GameObject.FootprintCornerStyle = updated.FootprintCornerStyle;
         objectNode.GameObject.HeadingDirection = updated.HeadingDirection;
         objectNode.GameObject.ObjectHeightUnits = updated.ObjectHeightUnits;
         objectNode.GameObject.HeightInRoom = updated.HeightInRoom;
@@ -10808,6 +10818,7 @@ public sealed partial class MainWindowViewModel
             FootprintWidthCells = template.FootprintWidthCells,
             FootprintHeightCells = template.FootprintHeightCells,
             FootprintOrientation = template.FootprintOrientation,
+            FootprintCornerStyle = template.FootprintCornerStyle,
             HeadingDirection = template.HeadingDirection,
             ObjectHeightUnits = template.ObjectHeightUnits,
             HeightInRoom = template.HeightInRoom,
@@ -11023,6 +11034,7 @@ public sealed partial class MainWindowViewModel
             FootprintWidthCells: target.FootprintWidthCells,
             FootprintHeightCells: target.FootprintHeightCells,
             FootprintOrientation: target.FootprintOrientation,
+            FootprintCornerStyle: target.FootprintCornerStyle,
             HeadingDirection: target.HeadingDirection,
             ObjectHeightUnits: target.ObjectHeightUnits,
             HeightInRoom: target.HeightInRoom,
@@ -11081,6 +11093,7 @@ public sealed partial class MainWindowViewModel
         target.FootprintWidthCells = updated.FootprintWidthCells;
         target.FootprintHeightCells = updated.FootprintHeightCells;
         target.FootprintOrientation = updated.FootprintOrientation;
+        target.FootprintCornerStyle = updated.FootprintCornerStyle;
         target.HeadingDirection = updated.HeadingDirection;
         target.ObjectHeightUnits = updated.ObjectHeightUnits;
         target.HeightInRoom = updated.HeightInRoom;
@@ -11216,6 +11229,7 @@ public sealed partial class MainWindowViewModel
             FootprintWidthCells: target.FootprintWidthCells,
             FootprintHeightCells: target.FootprintHeightCells,
             FootprintOrientation: target.FootprintOrientation,
+            FootprintCornerStyle: target.FootprintCornerStyle,
             HeadingDirection: target.HeadingDirection,
             ObjectHeightUnits: target.ObjectHeightUnits,
             HeightInRoom: target.HeightInRoom,

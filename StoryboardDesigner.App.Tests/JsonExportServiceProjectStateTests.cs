@@ -2407,6 +2407,7 @@ public class JsonExportServiceProjectStateTests
                 FootprintWidthCells = 2,
                 FootprintHeightCells = 1,
                 FootprintOrientation = "N",
+                FootprintCornerStyle = "rounded",
                 AuthoredRenderOrder = 1205,
                 AuthoredBaseHeightInRoom = 3,
                 IsHeightPinned = true,
@@ -2454,6 +2455,7 @@ public class JsonExportServiceProjectStateTests
 
                 Assert.Equal(1205, savedObject.GetProperty("authoredRenderOrder").GetInt32());
                 var appearance = savedObject.GetProperty("appearance");
+                Assert.Equal("rounded", appearance.GetProperty("footprintCornerStyle").GetString());
                 Assert.Equal(3, appearance.GetProperty("authoredBaseHeightInRoom").GetInt32());
                 Assert.True(appearance.GetProperty("isHeightPinned").GetBoolean());
                 var occupiedCells = appearance.GetProperty("occupiedCellIds").EnumerateArray().Select(item => item.GetString()).ToArray();
@@ -2475,6 +2477,7 @@ public class JsonExportServiceProjectStateTests
             Assert.Equal(42.5, loadedObject.ImageRotationDegrees, 3);
             Assert.Equal(1.25, loadedObject.ResolveImageScale(null), 3);
             Assert.Equal(1205, loadedObject.AuthoredRenderOrder);
+            Assert.Equal("rounded", loadedObject.FootprintCornerStyle);
             Assert.Equal(3, loadedObject.AuthoredBaseHeightInRoom);
             Assert.True(loadedObject.IsHeightPinned);
             Assert.Equal(new[] { "A.A", "B.A" }, loadedObject.OccupiedCellIds);

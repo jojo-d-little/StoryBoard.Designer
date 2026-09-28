@@ -59,6 +59,25 @@ public sealed class RoomObjectPreviewPlacementRuleTests
     }
 
     [Fact]
+    public void Execute_WithImmediateRoomChildThatHasOnlyPointLight_DoesNotReturnWarning()
+    {
+        var roomChild = new GameObject
+        {
+            Name = "Light Only",
+            IncludeInPreview = true,
+            PointLight = new PointLight { RadiusPx = 80 }
+        };
+
+        var project = BuildProjectWithRoomObject(roomChild);
+        var registry = new ValidationRuleRegistry();
+        registry.Register(new RoomObjectPreviewPlacementRule());
+
+        var result = new ValidationEngine(registry).Execute(new ValidationExecutionRequest(project));
+
+        Assert.DoesNotContain(result.Issues, issue => issue.RuleId == "OBJ-005");
+    }
+
+    [Fact]
     public void Execute_WithNestedRoomDescendantPlacementState_ReturnsWarning()
     {
         var nestedChild = new GameObject

@@ -273,7 +273,9 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
         }
     }
 
-    public bool IsRenderable => IncludeInPreview && ThumbnailSource is not null;
+    public bool IsLightOnly => ThumbnailSource is null && _effectiveDefinitionOwnedSource.PointLight is not null;
+
+    public bool IsRenderable => IncludeInPreview && (ThumbnailSource is not null || IsLightOnly);
 
     public BitmapImage? ThumbnailSource => LoadThumbnail(_effectiveDefinitionOwnedSource.ResolveImagePath(SelectedPreviewVariantName));
 
@@ -349,6 +351,10 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
             case nameof(GameObject.ImageVariants):
                 RaiseImageDerivedPropertyChanges();
                 break;
+            case nameof(GameObject.PointLight):
+                OnPropertyChanged(nameof(IsLightOnly));
+                OnPropertyChanged(nameof(IsRenderable));
+                break;
             case nameof(GameObject.FootprintWidthCells):
             case nameof(GameObject.FootprintHeightCells):
             case nameof(GameObject.FootprintOrientation):
@@ -418,7 +424,8 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(e.PropertyName)
             || string.Equals(e.PropertyName, nameof(GameObject.ImageVariants), StringComparison.Ordinal)
-            || string.Equals(e.PropertyName, nameof(GameObject.ImageVariantChooserScript), StringComparison.Ordinal))
+            || string.Equals(e.PropertyName, nameof(GameObject.ImageVariantChooserScript), StringComparison.Ordinal)
+            || string.Equals(e.PropertyName, nameof(GameObject.PointLight), StringComparison.Ordinal))
         {
             RaiseImageDerivedPropertyChanges();
         }
@@ -583,6 +590,7 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
         OnPropertyChanged(nameof(AvailablePreviewVariantNames));
         OnPropertyChanged(nameof(HasMultiplePreviewVariants));
         OnPropertyChanged(nameof(ThumbnailSource));
+        OnPropertyChanged(nameof(IsLightOnly));
         OnPropertyChanged(nameof(PreviewBaseIconWidthPixels));
         OnPropertyChanged(nameof(PreviewBaseIconHeightPixels));
         OnPropertyChanged(nameof(PreviewRenderedIconWidthPixels));

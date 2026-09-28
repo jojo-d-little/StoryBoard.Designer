@@ -16,6 +16,7 @@ namespace StoryboardDesigner.App.Views;
 public partial class ObjectLightingDialog : Window
 {
     private bool _updatingNumericControl;
+    private readonly bool _occlusionEligibleForDefault;
 
     public ObjectLightingDialog(
         PointLight? pointLight,
@@ -23,9 +24,11 @@ public partial class ObjectLightingDialog : Window
         bool isPointLightEnabledDefaultValue,
         int projectRoomGridCellSize,
         int footprintWidthCells,
-        int footprintHeightCells)
+        int footprintHeightCells,
+        bool occlusionEligibleForDefault)
     {
         InitializeComponent();
+        _occlusionEligibleForDefault = occlusionEligibleForDefault;
 
         PointLightMotionModeComboBox.ItemsSource = new[] { "", "static", "sway", "flicker", "sway-flicker" };
         PointLightFlickerStyleComboBox.ItemsSource = new[] { "", "swell", "flame" };
@@ -50,8 +53,12 @@ public partial class ObjectLightingDialog : Window
         SetNumericValue("SwayDirection", pointLight?.SwayDirectionDeg);
         SetNumericValue("FlickerAmount", pointLight?.FlickerAmount);
         SetNumericValue("FlickerHz", pointLight?.FlickerHz);
-        LightOcclusionEnabledCheckBox.IsChecked = lightOcclusion is not null;
-        SetNumericValue("OcclusionStrength", lightOcclusion?.Strength);
+        var hasExplicitlyDisabledOcclusion = lightOcclusion?.Strength is <= 0;
+        var useDefaultOcclusion = lightOcclusion is null && _occlusionEligibleForDefault;
+        LightOcclusionEnabledCheckBox.IsChecked = lightOcclusion is not null
+            ? !hasExplicitlyDisabledOcclusion
+            : useDefaultOcclusion;
+        SetNumericValue("OcclusionStrength", lightOcclusion?.Strength ?? (useDefaultOcclusion ? 1d : null));
         UpdateEditorEnabledState();
     }
 
@@ -82,7 +89,16 @@ public partial class ObjectLightingDialog : Window
     private void Cancel_OnClick(object sender, RoutedEventArgs e) => DialogResult = false;
 
     private void PointLightEnabledCheckBox_OnChanged(object sender, RoutedEventArgs e) => UpdateEditorEnabledState();
-    private void LightOcclusionEnabledCheckBox_OnChanged(object sender, RoutedEventArgs e) => UpdateEditorEnabledState();
+    private void LightOcclusionEnabledCheckBox_OnChanged(object sender, RoutedEventArgs e)
+    {
+        if (LightOcclusionEnabledCheckBox.IsChecked == true
+            && (!TryParseOptionalDouble(LightOcclusionStrengthTextBox.Text, out var currentStrength) || currentStrength <= 0))
+        {
+            SetNumericValue("OcclusionStrength", 1);
+        }
+
+        UpdateEditorEnabledState();
+    }
 
     private void PointLightMotionModeComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -252,6 +268,10 @@ public partial class ObjectLightingDialog : Window
         error = string.Empty;
         if (LightOcclusionEnabledCheckBox.IsChecked != true)
         {
+            if (_occlusionEligibleForDefault)
+            {
+                occlusion = new LightOcclusion { Strength = 0 };
+            }
             return true;
         }
 
@@ -260,8 +280,14 @@ public partial class ObjectLightingDialog : Window
             return false;
         }
 
-        occlusion = new LightOcclusion { Strength = strength };
+        occlusion = new LightOcclusion { Strength = strength ?? 1d };
         return true;
+    }
+
+    private static bool TryParseOptionalDouble(string? value, out double parsed)
+    {
+        return double.TryParse(value, NumberStyles.Float, CultureInfo.CurrentCulture, out parsed)
+            || double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed);
     }
 
     private bool TryReadOptionalRange(string key, string fieldName, double? minimum, double? maximum, out double? value, out string error)

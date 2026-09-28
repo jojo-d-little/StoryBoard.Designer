@@ -46,6 +46,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="150" />
@@ -74,8 +75,14 @@
                         <ComboBoxItem Content="W" />
                     </ComboBox>
 
-                    <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Heading Direction" ToolTip="Facing direction used as the authored object heading." />
-                    <ComboBox x:Name="HeadingDirectionComboBox" Grid.Row="5" Grid.Column="1" Margin="0,8,0,0" ToolTip="Eight-way heading direction." SelectionChanged="HeadingDirectionComboBox_OnSelectionChanged">
+                    <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Corner Style" ToolTip="Choose whether the footprint has sharp or rounded corners." />
+                    <ComboBox x:Name="FootprintCornerStyleComboBox" Grid.Row="5" Grid.Column="1" Margin="0,8,0,0" ToolTip="Sharp corners or rounded corners." SelectionChanged="FootprintCornerStyleComboBox_OnSelectionChanged">
+                        <ComboBoxItem Content="Sharp" Tag="sharp" />
+                        <ComboBoxItem Content="Rounded" Tag="rounded" />
+                    </ComboBox>
+
+                    <TextBlock Grid.Row="6" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Heading Direction" ToolTip="Facing direction used as the authored object heading." />
+                    <ComboBox x:Name="HeadingDirectionComboBox" Grid.Row="6" Grid.Column="1" Margin="0,8,0,0" ToolTip="Eight-way heading direction." SelectionChanged="HeadingDirectionComboBox_OnSelectionChanged">
                         <ComboBoxItem Content="N" />
                         <ComboBoxItem Content="NE" />
                         <ComboBoxItem Content="E" />
@@ -86,28 +93,28 @@
                         <ComboBoxItem Content="NW" />
                     </ComboBox>
 
-                    <TextBlock Grid.Row="6" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Spatial Type" ToolTip="SolidObject participates in collisions/stacking. PassiveObject is floor-integrated and ignored by stacking/collision logic." />
-                    <ComboBox x:Name="SpatialTypeComboBox" Grid.Row="6" Grid.Column="1" Margin="0,8,0,0" ToolTip="Choose SolidObject or PassiveObject runtime behavior." SelectionChanged="SpatialTypeComboBox_OnSelectionChanged">
+                    <TextBlock Grid.Row="7" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Spatial Type" ToolTip="SolidObject participates in collisions/stacking. PassiveObject is floor-integrated and ignored by stacking/collision logic." />
+                    <ComboBox x:Name="SpatialTypeComboBox" Grid.Row="7" Grid.Column="1" Margin="0,8,0,0" ToolTip="Choose SolidObject or PassiveObject runtime behavior." SelectionChanged="SpatialTypeComboBox_OnSelectionChanged">
                         <ComboBoxItem Content="SolidObject" />
                         <ComboBoxItem Content="PassiveObject" />
                     </ComboBox>
 
-                    <TextBlock Grid.Row="7" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Stack Group" ToolTip="Stack compatibility tier. 0 = not stackable. Lower positive values can stack on equal or higher values (example: 1 can stack on 2)." />
-                    <TextBox x:Name="StackOrderTextBox" Grid.Row="7" Grid.Column="1" Margin="0,8,0,0" ToolTip="Non-negative integer. 0 = not stackable. For values > 0, lower numbers can stack on equal or higher numbers." PreviewTextInput="WholeNumberTextBox_OnPreviewTextInput" DataObject.Pasting="WholeNumberTextBox_OnPasting" />
+                    <TextBlock Grid.Row="8" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Stack Group" ToolTip="Stack compatibility tier. 0 = not stackable. Lower positive values can stack on equal or higher values (example: 1 can stack on 2)." />
+                    <TextBox x:Name="StackOrderTextBox" Grid.Row="8" Grid.Column="1" Margin="0,8,0,0" ToolTip="Non-negative integer. 0 = not stackable. For values > 0, lower numbers can stack on equal or higher numbers." PreviewTextInput="WholeNumberTextBox_OnPreviewTextInput" DataObject.Pasting="WholeNumberTextBox_OnPasting" />
 
-                    <TextBlock Grid.Row="8" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Object Height Units" ToolTip="Non-negative integer used for vertical occupancy and stack math. Use 0 for floor-like supports that add no stack height." />
-                    <TextBox x:Name="ObjectHeightUnitsTextBox" Grid.Row="8" Grid.Column="1" Margin="0,8,0,0" ToolTip="Non-negative integer. Minimum 0." PreviewTextInput="WholeNumberTextBox_OnPreviewTextInput" DataObject.Pasting="WholeNumberTextBox_OnPasting" />
+                    <TextBlock Grid.Row="9" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Object Height Units" ToolTip="Non-negative integer used for vertical occupancy and stack math. Use 0 for floor-like supports that add no stack height." />
+                    <TextBox x:Name="ObjectHeightUnitsTextBox" Grid.Row="9" Grid.Column="1" Margin="0,8,0,0" ToolTip="Non-negative integer. Minimum 0." PreviewTextInput="WholeNumberTextBox_OnPreviewTextInput" DataObject.Pasting="WholeNumberTextBox_OnPasting" />
 
-                    <TextBlock Grid.Row="9" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Height In Room" ToolTip="Non-negative vertical offset for this object in room coordinates." />
-                    <TextBox x:Name="HeightInRoomTextBox" Grid.Row="9" Grid.Column="1" Margin="0,8,0,0" ToolTip="Non-negative integer room offset." PreviewTextInput="WholeNumberTextBox_OnPreviewTextInput" DataObject.Pasting="WholeNumberTextBox_OnPasting" />
+                    <TextBlock Grid.Row="10" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Height In Room" ToolTip="Non-negative vertical offset for this object in room coordinates." />
+                    <TextBox x:Name="HeightInRoomTextBox" Grid.Row="10" Grid.Column="1" Margin="0,8,0,0" ToolTip="Non-negative integer room offset." PreviewTextInput="WholeNumberTextBox_OnPreviewTextInput" DataObject.Pasting="WholeNumberTextBox_OnPasting" />
 
-                    <TextBlock Grid.Row="10" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Stack Scale Step" ToolTip="Optional per-object scale step override when stacked." />
-                    <TextBox x:Name="StackScaleStepOverrideTextBox" Grid.Row="10" Grid.Column="1" Margin="0,8,0,0" ToolTip="Optional decimal from 0.01 to 0.20. Leave blank to use project default." PreviewTextInput="OptionalDecimalTextBox_OnPreviewTextInput" DataObject.Pasting="OptionalDecimalTextBox_OnPasting" />
+                    <TextBlock Grid.Row="11" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Stack Scale Step" ToolTip="Optional per-object scale step override when stacked." />
+                    <TextBox x:Name="StackScaleStepOverrideTextBox" Grid.Row="11" Grid.Column="1" Margin="0,8,0,0" ToolTip="Optional decimal from 0.01 to 0.20. Leave blank to use project default." PreviewTextInput="OptionalDecimalTextBox_OnPreviewTextInput" DataObject.Pasting="OptionalDecimalTextBox_OnPasting" />
                     
-                    <TextBlock Grid.Row="11" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Min Stack Scale" ToolTip="Optional per-object minimum scale clamp." />
-                    <TextBox x:Name="MinStackScaleOverrideTextBox" Grid.Row="11" Grid.Column="1" Margin="0,8,0,0" ToolTip="Optional decimal from 0.25 to 1.00. Leave blank to use project default." PreviewTextInput="OptionalDecimalTextBox_OnPreviewTextInput" DataObject.Pasting="OptionalDecimalTextBox_OnPasting" />
+                    <TextBlock Grid.Row="12" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Min Stack Scale" ToolTip="Optional per-object minimum scale clamp." />
+                    <TextBox x:Name="MinStackScaleOverrideTextBox" Grid.Row="12" Grid.Column="1" Margin="0,8,0,0" ToolTip="Optional decimal from 0.25 to 1.00. Leave blank to use project default." PreviewTextInput="OptionalDecimalTextBox_OnPreviewTextInput" DataObject.Pasting="OptionalDecimalTextBox_OnPasting" />
 
-                    <Border Grid.Row="12" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,8,0,0" Padding="6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4" Background="#F9FAFB">
+                    <Border Grid.Row="13" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,8,0,0" Padding="6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4" Background="#F9FAFB">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />

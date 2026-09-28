@@ -180,6 +180,23 @@
                                             <RotateTransform Angle="{Binding ImageRotationDegrees}" />
                                         </Image.RenderTransform>
                                     </Image>
+                                    <Grid Width="{Binding FootprintWidthPixels}"
+                                          Height="{Binding FootprintHeightPixels}"
+                                          IsHitTestVisible="False"
+                                          ToolTip="Light-only object (no sprite)">
+                                        <Grid.Style>
+                                            <Style TargetType="Grid">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsLightOnly}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Grid.Style>
+                                        <Ellipse Width="22" Height="22" Fill="#55FBBF24" Stroke="#D97706" StrokeThickness="1.5" />
+                                        <Ellipse Width="8" Height="8" Fill="#FBBF24" Stroke="#78350F" StrokeThickness="1" />
+                                    </Grid>
                                 </Canvas>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

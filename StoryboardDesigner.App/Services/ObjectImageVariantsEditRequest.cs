@@ -20,6 +20,7 @@ public sealed record ObjectImageVariantsEditRequest(
     int FootprintWidthCells = 1,
     int FootprintHeightCells = 1,
     string FootprintOrientation = "N",
+    string FootprintCornerStyle = "rounded",
     string HeadingDirection = "N",
     int ObjectHeightUnits = 1,
     int HeightInRoom = 0,

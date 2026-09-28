@@ -40,6 +40,7 @@ public partial class ObjectImageVariantsDialog : Window
     private int _footprintWidthCells;
     private int _footprintHeightCells;
     private string _footprintOrientation;
+    private string _footprintCornerStyle;
     private string _headingDirection;
     private int _objectHeightUnits;
     private int _heightInRoom;
@@ -73,6 +74,7 @@ public partial class ObjectImageVariantsDialog : Window
         _footprintWidthCells = initial.FootprintWidthCells < 1 ? 1 : initial.FootprintWidthCells;
         _footprintHeightCells = initial.FootprintHeightCells < 1 ? 1 : initial.FootprintHeightCells;
         _footprintOrientation = NormalizeCardinalDirection(initial.FootprintOrientation);
+        _footprintCornerStyle = NormalizeFootprintCornerStyle(initial.FootprintCornerStyle);
         _headingDirection = NormalizeHeadingDirection(initial.HeadingDirection);
         _objectHeightUnits = initial.ObjectHeightUnits < 0 ? 0 : initial.ObjectHeightUnits;
         _heightInRoom = initial.HeightInRoom < 0 ? 0 : initial.HeightInRoom;
@@ -88,6 +90,7 @@ public partial class ObjectImageVariantsDialog : Window
         FootprintWidthTextBox.Text = _footprintWidthCells.ToString(CultureInfo.InvariantCulture);
         FootprintHeightTextBox.Text = _footprintHeightCells.ToString(CultureInfo.InvariantCulture);
         SetStringComboSelection(FootprintOrientationComboBox, _footprintOrientation, "N");
+        SetFootprintCornerStyleSelection(_footprintCornerStyle);
         SetStringComboSelection(HeadingDirectionComboBox, _headingDirection, "N");
         StackOrderTextBox.Text = _stackOrder.ToString(CultureInfo.InvariantCulture);
         ObjectHeightUnitsTextBox.Text = _objectHeightUnits.ToString(CultureInfo.InvariantCulture);
@@ -121,6 +124,8 @@ public partial class ObjectImageVariantsDialog : Window
     public int FootprintHeightCells => _footprintHeightCells;
 
     public string FootprintOrientation => _footprintOrientation;
+
+    public string FootprintCornerStyle => _footprintCornerStyle;
 
     public string HeadingDirection => _headingDirection;
 
@@ -393,6 +398,21 @@ public partial class ObjectImageVariantsDialog : Window
         _footprintOrientation = NormalizeCardinalDirection(GetSelectedComboString(FootprintOrientationComboBox, "N"));
         RefreshGuidePreview();
     }
+
+    private void FootprintCornerStyleComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        _footprintCornerStyle = NormalizeFootprintCornerStyle((FootprintCornerStyleComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString());
+    }
+
+    private void SetFootprintCornerStyleSelection(string style)
+    {
+        FootprintCornerStyleComboBox.SelectedItem = FootprintCornerStyleComboBox.Items
+            .OfType<ComboBoxItem>()
+            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), style, StringComparison.Ordinal));
+    }
+
+    private static string NormalizeFootprintCornerStyle(string? style) =>
+        string.Equals(style?.Trim(), "sharp", StringComparison.OrdinalIgnoreCase) ? "sharp" : "rounded";
 
     private void HeadingDirectionComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -818,7 +838,11 @@ public partial class ObjectImageVariantsDialog : Window
             _isPointLightEnabledDefaultValue,
             _projectRoomGridCellSize,
             _footprintWidthCells,
-            _footprintHeightCells)
+            _footprintHeightCells,
+            _spatialType == RuntimeObjectSpatialTypes.SolidObject
+                && _objectHeightUnits > 0
+                && _footprintWidthCells > 0
+                && _footprintHeightCells > 0)
         {
             Owner = this
         };

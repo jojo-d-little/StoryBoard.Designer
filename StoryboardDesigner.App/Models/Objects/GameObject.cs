@@ -40,6 +40,7 @@ public sealed class GameObject : ScopeNodeBase, INotifyPropertyChanged
     private int _quantity = 1;
     private int _compositeMinimumRequiredPartCount = 1;
     private string _footprintOrientation = "N";
+    private string _footprintCornerStyle = "rounded";
     private string _headingDirection = "N";
     private string _quantifiablePlacementDistributionMode = "GroupedStack";
     private string _compositePartRequirementMode = "AllRequired";
@@ -302,6 +303,24 @@ public sealed class GameObject : ScopeNodeBase, INotifyPropertyChanged
             }
 
             _footprintOrientation = normalized;
+            OnPropertyChanged();
+        }
+    }
+
+    public string FootprintCornerStyle
+    {
+        get => _footprintCornerStyle;
+        set
+        {
+            var normalized = string.Equals(value?.Trim(), "rounded", StringComparison.OrdinalIgnoreCase)
+                ? "rounded"
+                : string.Equals(value?.Trim(), "sharp", StringComparison.OrdinalIgnoreCase) ? "sharp" : "rounded";
+            if (string.Equals(_footprintCornerStyle, normalized, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _footprintCornerStyle = normalized;
             OnPropertyChanged();
         }
     }
