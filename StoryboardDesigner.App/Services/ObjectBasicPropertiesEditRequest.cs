@@ -66,4 +66,5 @@ public sealed record ObjectBasicPropertiesEditRequest(
     string LinkedBaseObjectName = "",
     PointLight? PointLight = null,
     LightOcclusion? LightOcclusion = null,
-    bool IsPointLightEnabledDefaultValue = true);
+    bool IsPointLightEnabledDefaultValue = true,
+    PointLightDefaults? PointLightDefaults = null);

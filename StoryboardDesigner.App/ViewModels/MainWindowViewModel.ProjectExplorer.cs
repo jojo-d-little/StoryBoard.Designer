@@ -8150,7 +8150,8 @@ public sealed partial class MainWindowViewModel
                 ProjectRoomCanvasHeight: _project.RoomImageCanvasHeight,
                 PointLight: LightingModelCloner.ClonePointLight(gameObject.PointLight),
                 LightOcclusion: LightingModelCloner.CloneLightOcclusion(gameObject.LightOcclusion),
-                IsPointLightEnabledDefaultValue: gameObject.IsPointLightEnabledDefaultValue);
+                IsPointLightEnabledDefaultValue: gameObject.IsPointLightEnabledDefaultValue,
+                PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults));
         }
 
         return new ObjectBasicPropertiesEditRequest(
@@ -8210,7 +8211,8 @@ public sealed partial class MainWindowViewModel
             ProjectRoomCanvasHeight: _project.RoomImageCanvasHeight,
             PointLight: LightingModelCloner.ClonePointLight(gameObject.PointLight),
             LightOcclusion: LightingModelCloner.CloneLightOcclusion(gameObject.LightOcclusion),
-            IsPointLightEnabledDefaultValue: gameObject.IsPointLightEnabledDefaultValue);
+            IsPointLightEnabledDefaultValue: gameObject.IsPointLightEnabledDefaultValue,
+            PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults));
     }
 
     private static bool AreEquivalentImageVariants(IReadOnlyList<ObjectImageVariant>? left, IReadOnlyList<ObjectImageVariant>? right)
@@ -8702,7 +8704,8 @@ public sealed partial class MainWindowViewModel
             ProjectRoomCanvasHeight: _project.RoomImageCanvasHeight,
             PointLight: LightingModelCloner.ClonePointLight(objectNode.GameObject.PointLight),
             LightOcclusion: LightingModelCloner.CloneLightOcclusion(objectNode.GameObject.LightOcclusion),
-            IsPointLightEnabledDefaultValue: objectNode.GameObject.IsPointLightEnabledDefaultValue);
+            IsPointLightEnabledDefaultValue: objectNode.GameObject.IsPointLightEnabledDefaultValue,
+            PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults));
 
         if (linkedDefinition is not null)
         {
@@ -11043,7 +11046,8 @@ public sealed partial class MainWindowViewModel
             MovementRestrictions: CloneMovementRestrictions(target.MovementRestrictions),
             ProjectRoomGridCellSize: _project.RoomDesignerGridCellSize,
             ProjectRoomCanvasWidth: _project.RoomImageCanvasWidth,
-            ProjectRoomCanvasHeight: _project.RoomImageCanvasHeight);
+            ProjectRoomCanvasHeight: _project.RoomImageCanvasHeight,
+            PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults));
 
         if (!_treeContextInteractionService.TryEditObjectBasicProperties(initial, out var updated))
         {
@@ -11238,7 +11242,8 @@ public sealed partial class MainWindowViewModel
             MovementRestrictions: CloneMovementRestrictions(target.MovementRestrictions),
             ProjectRoomGridCellSize: _project.RoomDesignerGridCellSize,
             ProjectRoomCanvasWidth: _project.RoomImageCanvasWidth,
-            ProjectRoomCanvasHeight: _project.RoomImageCanvasHeight);
+            ProjectRoomCanvasHeight: _project.RoomImageCanvasHeight,
+            PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults));
 
         if (linkedDefinition is not null)
         {

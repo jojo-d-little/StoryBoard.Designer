@@ -22,7 +22,10 @@
         </Border>
 
         <StackPanel Grid.Row="1" Margin="0,0,0,12">
-            <CheckBox x:Name="PointLightEnabledCheckBox" Content="Object has a point light" Checked="PointLightEnabledCheckBox_OnChanged" Unchecked="PointLightEnabledCheckBox_OnChanged" ToolTip="When unchecked, the complete object point-light definition is removed. Click the footprint guide to create it again." />
+            <DockPanel LastChildFill="True">
+                <Button x:Name="CopyProjectDefaultsButton" DockPanel.Dock="Right" Margin="8,0,0,0" Padding="8,3" Content="Copy Project Defaults" Click="CopyProjectDefaultsButton_OnClick" ToolTip="Copy configured project defaults into this light once. Later project-default changes will not affect it." />
+                <CheckBox x:Name="PointLightEnabledCheckBox" VerticalAlignment="Center" Content="Object has a point light" Checked="PointLightEnabledCheckBox_OnChanged" Unchecked="PointLightEnabledCheckBox_OnChanged" ToolTip="When unchecked, the complete object point-light definition is removed. Click the footprint guide to create it again." />
+            </DockPanel>
             <CheckBox x:Name="PointLightDefaultEnabledCheckBox" Margin="20,6,0,0" Content="Start disabled" ToolTip="Optional exception: when checked, this object's point light starts disabled at runtime. Leave unchecked for the normal enabled-by-default behavior." />
         </StackPanel>
 

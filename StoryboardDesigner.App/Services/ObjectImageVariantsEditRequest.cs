@@ -31,4 +31,5 @@ public sealed record ObjectImageVariantsEditRequest(
     int ProjectRoomCanvasHeight = 600,
     PointLight? PointLight = null,
     LightOcclusion? LightOcclusion = null,
-    bool IsPointLightEnabledDefaultValue = true);
+    bool IsPointLightEnabledDefaultValue = true,
+    PointLightDefaults? PointLightDefaults = null);

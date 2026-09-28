@@ -17,6 +17,7 @@ public partial class ObjectLightingDialog : Window
 {
     private bool _updatingNumericControl;
     private readonly bool _occlusionEligibleForDefault;
+    private readonly PointLightDefaults? _pointLightDefaults;
 
     public ObjectLightingDialog(
         PointLight? pointLight,
@@ -25,10 +26,13 @@ public partial class ObjectLightingDialog : Window
         int projectRoomGridCellSize,
         int footprintWidthCells,
         int footprintHeightCells,
-        bool occlusionEligibleForDefault)
+        bool occlusionEligibleForDefault,
+        PointLightDefaults? pointLightDefaults)
     {
         InitializeComponent();
         _occlusionEligibleForDefault = occlusionEligibleForDefault;
+        _pointLightDefaults = LightingModelCloner.ClonePointLightDefaults(pointLightDefaults);
+        CopyProjectDefaultsButton.IsEnabled = _pointLightDefaults is not null;
 
         PointLightMotionModeComboBox.ItemsSource = new[] { "", "static", "sway", "flicker", "sway-flicker" };
         PointLightFlickerStyleComboBox.ItemsSource = new[] { "", "swell", "flame" };
@@ -89,6 +93,48 @@ public partial class ObjectLightingDialog : Window
     private void Cancel_OnClick(object sender, RoutedEventArgs e) => DialogResult = false;
 
     private void PointLightEnabledCheckBox_OnChanged(object sender, RoutedEventArgs e) => UpdateEditorEnabledState();
+
+    private void CopyProjectDefaultsButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_pointLightDefaults is not { } defaults)
+        {
+            return;
+        }
+
+        PointLightEnabledCheckBox.IsChecked = true;
+        CopyDefaultNumeric("Radius", defaults.RadiusPx);
+        CopyDefaultNumeric("Intensity", defaults.IntensityScale);
+        CopyDefaultNumeric("GradientExponent", defaults.GradientExponent);
+        CopyDefaultNumeric("Height", defaults.LightHeightCells);
+        CopyDefaultNumeric("SwayAmount", defaults.SwayAmountPx);
+        CopyDefaultNumeric("SwayHz", defaults.SwayHz);
+        CopyDefaultNumeric("SwayDirection", defaults.SwayDirectionDeg);
+        CopyDefaultNumeric("FlickerAmount", defaults.FlickerAmount);
+        CopyDefaultNumeric("FlickerHz", defaults.FlickerHz);
+
+        if (!string.IsNullOrWhiteSpace(defaults.Color))
+        {
+            SetColorValue(PointLightColorHexTextBox, PointLightColorPreview, defaults.Color);
+        }
+
+        if (!string.IsNullOrWhiteSpace(defaults.OuterColor))
+        {
+            SetColorValue(PointLightOuterColorHexTextBox, PointLightOuterColorPreview, defaults.OuterColor);
+        }
+
+        if (!string.IsNullOrWhiteSpace(defaults.FlickerStyle))
+        {
+            PointLightFlickerStyleComboBox.SelectedItem = defaults.FlickerStyle.Trim();
+        }
+    }
+
+    private void CopyDefaultNumeric(string key, double? value)
+    {
+        if (value.HasValue)
+        {
+            SetNumericValue(key, value);
+        }
+    }
     private void LightOcclusionEnabledCheckBox_OnChanged(object sender, RoutedEventArgs e)
     {
         if (LightOcclusionEnabledCheckBox.IsChecked == true

@@ -47,6 +47,7 @@ public partial class ObjectImageVariantsDialog : Window
     private double? _stackScaleStepOverride;
     private double? _minStackScaleOverride;
     private PointLight? _pointLight;
+    private PointLightDefaults? _pointLightDefaults;
     private LightOcclusion? _lightOcclusion;
     private bool _isPointLightEnabledDefaultValue;
     private bool _isUpdatingGuideVariantFitEditors;
@@ -81,6 +82,7 @@ public partial class ObjectImageVariantsDialog : Window
         _stackScaleStepOverride = SanitizeOptionalStackScaleStep(initial.StackScaleStepOverride);
         _minStackScaleOverride = SanitizeOptionalMinStackScale(initial.MinStackScaleOverride);
         _pointLight = LightingModelCloner.ClonePointLight(initial.PointLight);
+        _pointLightDefaults = LightingModelCloner.ClonePointLightDefaults(initial.PointLightDefaults);
         _lightOcclusion = LightingModelCloner.CloneLightOcclusion(initial.LightOcclusion);
         _isPointLightEnabledDefaultValue = initial.IsPointLightEnabledDefaultValue;
 
@@ -842,7 +844,8 @@ public partial class ObjectImageVariantsDialog : Window
             _spatialType == RuntimeObjectSpatialTypes.SolidObject
                 && _objectHeightUnits > 0
                 && _footprintWidthCells > 0
-                && _footprintHeightCells > 0)
+                && _footprintHeightCells > 0,
+            LightingModelCloner.ClonePointLightDefaults(_pointLightDefaults))
         {
             Owner = this
         };

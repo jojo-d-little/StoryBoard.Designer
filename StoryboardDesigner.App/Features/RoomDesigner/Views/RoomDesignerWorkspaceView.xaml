@@ -205,14 +205,20 @@
                                                          Background="Transparent"
                                                          ItemsSource="{Binding FilteredRoomChildObjects}"
                                                          SelectedItem="{Binding SelectedRoomChildObject, Mode=TwoWay}">
+                                                    <ListBox.ItemContainerStyle>
+                                                        <Style TargetType="ListBoxItem">
+                                                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                                            <Setter Property="Padding" Value="0" />
+                                                        </Style>
+                                                    </ListBox.ItemContainerStyle>
                                                     <ListBox.ItemTemplate>
                                                         <DataTemplate>
-                                                            <Grid Margin="0,2,0,2">
+                                                            <Grid Margin="0,2,0,2" HorizontalAlignment="Stretch">
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="Auto" />
                                                                     <ColumnDefinition Width="50" />
                                                                     <ColumnDefinition Width="*" />
-                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="142" />
                                                                 </Grid.ColumnDefinitions>
 
                                                                 <CheckBox Grid.Column="0"
@@ -251,20 +257,20 @@
                                                                            Text="{Binding DisplayName}"
                                                                            TextTrimming="CharacterEllipsis" />
 
-                                                                <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center">
-                                                                    <Button Padding="6,2"
+                                                                <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="4,0,0,0" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                                    <Button Width="28" Height="26" Padding="0"
                                                                         Margin="0,0,4,0"
                                                                         Content="↑"
                                                                         ToolTip="Move up"
                                                                         Command="{Binding DataContext.MoveRoomChildObjectUpCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                                                         CommandParameter="{Binding}" />
-                                                                    <Button Padding="6,2"
+                                                                    <Button Width="28" Height="26" Padding="0"
                                                                         Margin="0,0,4,0"
                                                                         Content="↓"
                                                                         ToolTip="Move down"
                                                                         Command="{Binding DataContext.MoveRoomChildObjectDownCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                                                         CommandParameter="{Binding}" />
-                                                                    <Button Padding="8,2"
+                                                                    <Button Width="54" Height="26" Padding="0"
                                                                         Content="Edit"
                                                                         ToolTip="Edit image properties"
                                                                         Command="{Binding DataContext.EditRoomChildObjectImageCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"

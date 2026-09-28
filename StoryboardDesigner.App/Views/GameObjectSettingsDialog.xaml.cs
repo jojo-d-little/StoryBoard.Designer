@@ -38,6 +38,7 @@ public partial class GameObjectSettingsDialog : Window
     private double? _stackScaleStepOverride;
     private double? _minStackScaleOverride;
     private PointLight? _pointLight;
+    private PointLightDefaults? _pointLightDefaults;
     private LightOcclusion? _lightOcclusion;
     private bool _isPointLightEnabledDefaultValue = true;
     private ObjectMovementRestrictions? _movementRestrictions;
@@ -94,6 +95,7 @@ public partial class GameObjectSettingsDialog : Window
         _stackScaleStepOverride = SanitizeOptionalFinite(initialValues.StackScaleStepOverride);
         _minStackScaleOverride = SanitizeOptionalFinite(initialValues.MinStackScaleOverride);
         _pointLight = LightingModelCloner.ClonePointLight(initialValues.PointLight);
+        _pointLightDefaults = LightingModelCloner.ClonePointLightDefaults(initialValues.PointLightDefaults);
         _lightOcclusion = LightingModelCloner.CloneLightOcclusion(initialValues.LightOcclusion);
         _isPointLightEnabledDefaultValue = initialValues.IsPointLightEnabledDefaultValue;
         _movementRestrictions = CloneMovementRestrictions(initialValues.MovementRestrictions);
@@ -249,7 +251,8 @@ public partial class GameObjectSettingsDialog : Window
                 LinkedBaseObjectName: LinkedBaseObjectNameTextBox.Text.Trim(),
                 PointLight: LightingModelCloner.ClonePointLight(_pointLight),
                 LightOcclusion: LightingModelCloner.CloneLightOcclusion(_lightOcclusion),
-                IsPointLightEnabledDefaultValue: _isPointLightEnabledDefaultValue);
+                IsPointLightEnabledDefaultValue: _isPointLightEnabledDefaultValue,
+                PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_pointLightDefaults));
         }
     }
 
@@ -346,6 +349,7 @@ public partial class GameObjectSettingsDialog : Window
             PointLight: _pointLight,
             LightOcclusion: _lightOcclusion,
             IsPointLightEnabledDefaultValue: _isPointLightEnabledDefaultValue,
+            PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_pointLightDefaults),
             ProjectRoomGridCellSize: _projectRoomGridCellSize,
             ProjectRoomCanvasWidth: _projectRoomCanvasWidth,
             ProjectRoomCanvasHeight: _projectRoomCanvasHeight))
