@@ -38,6 +38,7 @@ public partial class ObjectLightingDialog : Window
         PointLightFlickerStyleComboBox.ItemsSource = new[] { "", "swell", "flame" };
         PointLightEnabledCheckBox.IsChecked = pointLight is not null;
         PointLightDefaultEnabledCheckBox.IsChecked = pointLight is not null && !isPointLightEnabledDefaultValue;
+        UseInstancePhaseShiftingCheckBox.IsChecked = pointLight?.UseInstancePhaseShifting == true;
         PointLightMotionModeComboBox.SelectedItem = pointLight?.MotionMode?.Trim() ?? string.Empty;
         PointLightFlickerStyleComboBox.SelectedItem = pointLight?.FlickerStyle?.Trim() ?? string.Empty;
 
@@ -155,6 +156,7 @@ public partial class ObjectLightingDialog : Window
     {
         PointLightEditorGrid.IsEnabled = PointLightEnabledCheckBox.IsChecked == true;
         PointLightDefaultEnabledCheckBox.IsEnabled = PointLightEnabledCheckBox.IsChecked == true;
+        UseInstancePhaseShiftingCheckBox.IsEnabled = PointLightEnabledCheckBox.IsChecked == true;
         LightOcclusionStrengthTextBox.IsEnabled = LightOcclusionEnabledCheckBox.IsChecked == true;
         LightOcclusionStrengthSlider.IsEnabled = LightOcclusionEnabledCheckBox.IsChecked == true;
         UpdateMotionEditorEnabledState();
@@ -270,6 +272,15 @@ public partial class ObjectLightingDialog : Window
             return false;
         }
 
+        if (UseInstancePhaseShiftingCheckBox.IsChecked == true
+            && (!phase.HasValue || !double.IsFinite(phase.Value) || phase.Value == 0))
+        {
+            error = "Instance phase shifting requires a finite, nonzero Phase offset. Enter a value other than 0, or turn off Use Instance Phase Shifting.";
+            PointLightPhaseTextBox.Focus();
+            PointLightPhaseTextBox.SelectAll();
+            return false;
+        }
+
         var motionMode = NormalizeOptionalText(PointLightMotionModeComboBox.SelectedItem as string);
         if (motionMode is not null && motionMode is not ("static" or "sway" or "flicker" or "sway-flicker"))
         {
@@ -293,6 +304,7 @@ public partial class ObjectLightingDialog : Window
             ConeAngleDeg = coneAngle,
             MotionMode = motionMode,
             Phase = phase,
+            UseInstancePhaseShifting = UseInstancePhaseShiftingCheckBox.IsChecked == true,
             Color = color,
             OuterColor = outerColor,
             GradientExponent = gradient,

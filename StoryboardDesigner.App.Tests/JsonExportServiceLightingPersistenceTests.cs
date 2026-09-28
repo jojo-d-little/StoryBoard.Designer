@@ -86,6 +86,7 @@ public sealed class JsonExportServiceLightingPersistenceTests
                     ConeAngleDeg = 90,
                     MotionMode = "Sway",
                     Phase = 0.25,
+                    UseInstancePhaseShifting = true,
                     Color = "#FFE0A0",
                     OuterColor = "#FF8A3D",
                     GradientExponent = 2.2,
@@ -203,6 +204,7 @@ public sealed class JsonExportServiceLightingPersistenceTests
                 Assert.Equal(12.5, pointLight.GetProperty("offsetXPx").GetDouble());
                 Assert.Equal(24.25, pointLight.GetProperty("offsetYPx").GetDouble());
                 Assert.Equal(180, pointLight.GetProperty("radiusPx").GetDouble());
+                Assert.True(pointLight.GetProperty("useInstancePhaseShifting").GetBoolean());
                 Assert.Equal(0.65, objectDocument.RootElement.GetProperty("lightOcclusion").GetProperty("strength").GetDouble());
                 Assert.False(objectDocument.RootElement.GetProperty("isPointLightEnabledDefaultValue").GetBoolean());
             }
@@ -234,6 +236,7 @@ public sealed class JsonExportServiceLightingPersistenceTests
             Assert.Equal(0.4, loaded.Planets.Single().Countries.Single().Areas.Single().Rooms.Single().AmbientLighting!.Ambient);
             Assert.Equal("#203040", loaded.Planets.Single().Countries.Single().Areas.Single().Rooms.Single().AmbientLighting!.AmbientColor);
             Assert.Equal(12.5, loadedObject.PointLight!.OffsetXPx);
+            Assert.True(loadedObject.PointLight.UseInstancePhaseShifting);
             Assert.Equal(24.25, loadedObject.PointLight.OffsetYPx);
             Assert.Equal(0.65, loadedObject.LightOcclusion!.Strength);
             Assert.False(loadedObject.IsPointLightEnabledDefaultValue);
@@ -382,7 +385,9 @@ public sealed class JsonExportServiceLightingPersistenceTests
                     OffsetXPx = 8,
                     OffsetYPx = 12,
                     RadiusPx = 160,
-                    Color = "#FFD080"
+                    Color = "#FFD080",
+                    Phase = 0.75,
+                    UseInstancePhaseShifting = true
                 },
                 LightOcclusion = new LightOcclusion { Strength = 0.25 },
                 IsPointLightEnabledDefaultValue = false
@@ -443,6 +448,8 @@ public sealed class JsonExportServiceLightingPersistenceTests
             var pointLight = objectDocument.RootElement.GetProperty("pointLight");
             Assert.Equal(8, pointLight.GetProperty("offsetXPx").GetDouble());
             Assert.Equal(12, pointLight.GetProperty("offsetYPx").GetDouble());
+            Assert.Equal(0.75, pointLight.GetProperty("phase").GetDouble());
+            Assert.True(pointLight.GetProperty("useInstancePhaseShifting").GetBoolean());
             Assert.False(pointLight.TryGetProperty("x", out _));
             Assert.False(pointLight.TryGetProperty("y", out _));
             Assert.Equal(0.25, objectDocument.RootElement.GetProperty("lightOcclusion").GetProperty("strength").GetDouble());

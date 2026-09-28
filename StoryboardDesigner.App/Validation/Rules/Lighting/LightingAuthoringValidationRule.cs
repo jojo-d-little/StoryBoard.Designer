@@ -279,6 +279,24 @@ public sealed class LightingAuthoringValidationRule : IValidationRule
             yield return issue;
         }
 
+        if (pointLight.UseInstancePhaseShifting == true)
+        {
+            if (!pointLight.Phase.HasValue)
+            {
+                yield return Issue(
+                    AppendPath(path, "phase"),
+                    "phase is required and must be finite and nonzero when instance phase shifting is enabled.",
+                    "Enter a finite, nonzero phase offset or disable instance phase shifting.");
+            }
+            else if (double.IsFinite(pointLight.Phase.Value) && pointLight.Phase.Value == 0)
+            {
+                yield return Issue(
+                    AppendPath(path, "phase"),
+                    "phase must be nonzero when instance phase shifting is enabled.",
+                    "Enter a finite, nonzero phase offset or disable instance phase shifting.");
+            }
+        }
+
         foreach (var issue in ValidateColor(pointLight.Color, path, "color"))
         {
             yield return issue;

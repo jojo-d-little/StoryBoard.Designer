@@ -13,6 +13,7 @@ public sealed class PointLight
     public double? ConeAngleDeg { get; set; }
     public string? MotionMode { get; set; }
     public double? Phase { get; set; }
+    public bool? UseInstancePhaseShifting { get; set; }
     public string? Color { get; set; }
     public string? OuterColor { get; set; }
     public double? GradientExponent { get; set; }

@@ -186,6 +186,68 @@ public sealed class LightingAuthoringValidationRuleTests
         Assert.Empty(result.Issues);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData(0d)]
+    [InlineData(double.NaN)]
+    public void Evaluate_RequiresNonzeroPhaseWhenInstancePhaseShiftingIsEnabled(double? phase)
+    {
+        var lightObject = new GameObject
+        {
+            Name = "Staggered Light",
+            PointLight = new PointLight
+            {
+                UseInstancePhaseShifting = true,
+                Phase = phase
+            }
+        };
+        var project = BuildProject(new Room { Name = "Room", GameObjects = [lightObject] }, phase: null);
+
+        var issues = Evaluate(project).Issues;
+
+        Assert.Contains(issues, issue => issue.Description.Contains("phase", StringComparison.OrdinalIgnoreCase)
+                                         && (issue.Description.Contains("instance phase shifting", StringComparison.OrdinalIgnoreCase)
+                                             || issue.Description.Contains("finite", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public void Evaluate_AllowsFiniteNonzeroPhaseAndDoesNotRequirePhaseWhenFeatureIsOff()
+    {
+        var room = new Room
+        {
+            Name = "Room",
+            GameObjects =
+            [
+                new GameObject
+                {
+                    Name = "Staggered",
+                    PointLight = new PointLight { UseInstancePhaseShifting = true, Phase = 1.57 }
+                },
+                new GameObject
+                {
+                    Name = "Legacy",
+                    PointLight = new PointLight { UseInstancePhaseShifting = false, Phase = null }
+                }
+            ]
+        };
+
+        Assert.Empty(Evaluate(BuildProject(room, phase: null)).Issues);
+    }
+
+    [Fact]
+    public void ClonePointLight_CopiesInstancePhaseShiftingFlag()
+    {
+        var clone = LightingModelCloner.ClonePointLight(new PointLight
+        {
+            Phase = 1.25,
+            UseInstancePhaseShifting = true
+        });
+
+        Assert.NotNull(clone);
+        Assert.True(clone!.UseInstancePhaseShifting);
+        Assert.Equal(1.25, clone.Phase);
+    }
+
     private static ValidationExecutionResult Evaluate(ProjectModel project)
     {
         var registry = new ValidationRuleRegistry();

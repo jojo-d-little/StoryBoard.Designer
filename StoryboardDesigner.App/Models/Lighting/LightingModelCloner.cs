@@ -15,6 +15,7 @@ internal static class LightingModelCloner
                 ConeAngleDeg = source.ConeAngleDeg,
                 MotionMode = source.MotionMode,
                 Phase = source.Phase,
+                UseInstancePhaseShifting = source.UseInstancePhaseShifting,
                 Color = source.Color,
                 OuterColor = source.OuterColor,
                 GradientExponent = source.GradientExponent,
