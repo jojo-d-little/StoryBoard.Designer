@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Windows;
+using System.Windows.Media;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using Storyboard.Shared.Config;
@@ -14,6 +15,8 @@ public partial class GlobalSettingsDialog : Window
     private string _gameSummary;
     private List<string> _gamePreviewImages;
     private PointLightDefaults? _pointLightDefaults;
+    private RoomAmbientLighting _defaultRoomAmbientLighting = new() { Ambient = 1, AmbientColor = "#FFFFFF" };
+    private bool _updatingAmbientControl;
     private readonly IReadOnlyList<string> _soundEffectCategorySuggestions;
 
     public GlobalSettingsDialog(
@@ -35,6 +38,10 @@ public partial class GlobalSettingsDialog : Window
         StackScaleStepDefaultTextBox.Text = initialValues.StackScaleStepDefault.ToString("0.###", CultureInfo.InvariantCulture);
         MinStackScaleDefaultTextBox.Text = initialValues.MinStackScaleDefault.ToString("0.###", CultureInfo.InvariantCulture);
         _pointLightDefaults = LightingModelCloner.ClonePointLightDefaults(initialValues.PointLightDefaults);
+        _defaultRoomAmbientLighting = LightingModelCloner.CloneRoomAmbientLighting(initialValues.DefaultRoomAmbientLighting)
+            ?? new RoomAmbientLighting { Ambient = 1, AmbientColor = "#FFFFFF" };
+        SetDefaultRoomAmbientIntensity(_defaultRoomAmbientLighting.Ambient ?? 1);
+        SetDefaultRoomAmbientColor(_defaultRoomAmbientLighting.AmbientColor ?? "#FFFFFF");
         RefreshLightingSummary();
         _gameDisplayName = initialValues.GameDisplayName?.Trim() ?? string.Empty;
         _gameSummary = initialValues.GameSummary?.Trim() ?? string.Empty;
@@ -65,7 +72,12 @@ public partial class GlobalSettingsDialog : Window
                 _gameDisplayName,
                 _gameSummary,
                 _gamePreviewImages.ToList(),
-                LightingModelCloner.ClonePointLightDefaults(_pointLightDefaults));
+                LightingModelCloner.ClonePointLightDefaults(_pointLightDefaults),
+                new RoomAmbientLighting
+                {
+                    Ambient = double.TryParse(DefaultRoomAmbientIntensityTextBox.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var ambient) ? ambient : null,
+                    AmbientColor = DefaultRoomAmbientColorHexTextBox.Text.Trim()
+                });
         }
     }
 
@@ -106,6 +118,21 @@ public partial class GlobalSettingsDialog : Window
         if (!TryParseMinStackScale(MinStackScaleDefaultTextBox.Text.Trim(), out _))
         {
             System.Windows.MessageBox.Show(this, $"Please enter a decimal number from {StackScalePolicy.MinMinStackScale:0.##} to {StackScalePolicy.MaxMinStackScale:0.##} for min stack scale.", "Global Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (!double.TryParse(DefaultRoomAmbientIntensityTextBox.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var roomAmbient)
+            || !double.IsFinite(roomAmbient)
+            || roomAmbient < 0
+            || roomAmbient > 1)
+        {
+            System.Windows.MessageBox.Show(this, "Default room ambient intensity must be between 0 and 1.", "Global Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (!IsValidAmbientColor(DefaultRoomAmbientColorHexTextBox.Text))
+        {
+            System.Windows.MessageBox.Show(this, "Default room ambient color must be a six-digit #RRGGBB value.", "Global Settings", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -160,6 +187,70 @@ public partial class GlobalSettingsDialog : Window
 
         _pointLightDefaults = LightingModelCloner.ClonePointLightDefaults(dialog.PointLightDefaults);
         RefreshLightingSummary();
+    }
+
+    private void DefaultRoomAmbientIntensitySlider_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!_updatingAmbientControl)
+        {
+            DefaultRoomAmbientIntensityTextBox.Text = e.NewValue.ToString("0.##", CultureInfo.InvariantCulture);
+        }
+    }
+
+    private void DefaultRoomAmbientIntensityTextBox_OnLostFocus(object sender, RoutedEventArgs e)
+    {
+        if (double.TryParse(DefaultRoomAmbientIntensityTextBox.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            && double.IsFinite(value) && value is >= 0 and <= 1)
+        {
+            SetDefaultRoomAmbientIntensity(value);
+        }
+    }
+
+    private void DefaultRoomAmbientIntensityDecrement_OnClick(object sender, RoutedEventArgs e)
+    {
+        SetDefaultRoomAmbientIntensity(Math.Clamp(ReadDefaultRoomAmbientIntensity() - 0.05, 0, 1));
+    }
+
+    private void DefaultRoomAmbientIntensityIncrement_OnClick(object sender, RoutedEventArgs e)
+    {
+        SetDefaultRoomAmbientIntensity(Math.Clamp(ReadDefaultRoomAmbientIntensity() + 0.05, 0, 1));
+    }
+
+    private double ReadDefaultRoomAmbientIntensity()
+    {
+        return double.TryParse(DefaultRoomAmbientIntensityTextBox.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            && double.IsFinite(value) ? value : 1;
+    }
+
+    private void SetDefaultRoomAmbientIntensity(double value)
+    {
+        _updatingAmbientControl = true;
+        DefaultRoomAmbientIntensityTextBox.Text = Math.Round(value, 2, MidpointRounding.AwayFromZero).ToString("0.##", CultureInfo.InvariantCulture);
+        DefaultRoomAmbientIntensitySlider.Value = Math.Clamp(value, 0, 1);
+        _updatingAmbientControl = false;
+    }
+
+    private void PickDefaultRoomAmbientColor_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ColorPickerDialog(DefaultRoomAmbientColorHexTextBox.Text) { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            SetDefaultRoomAmbientColor(dialog.SelectedColor ?? "#FFFFFF");
+        }
+    }
+
+    private void SetDefaultRoomAmbientColor(string color)
+    {
+        DefaultRoomAmbientColorHexTextBox.Text = color;
+        if (System.Windows.Media.ColorConverter.ConvertFromString(color) is System.Windows.Media.Color parsedColor)
+        {
+            DefaultRoomAmbientColorPreview.Background = new SolidColorBrush(parsedColor);
+        }
+    }
+
+    private static bool IsValidAmbientColor(string value)
+    {
+        return value.Length == 7 && value[0] == '#' && value.Skip(1).All(Uri.IsHexDigit);
     }
 
     private void RefreshLightingSummary()

@@ -361,6 +361,7 @@ public sealed class JsonExportService : IJsonExportService
             RoomImageCanvasHeight = project.RoomImageCanvasHeight,
             RoomDesignerGridCellSize = project.RoomDesignerGridCellSize,
             PointLightDefaults = LightingContractMapper.ToProjectPointLightDefaultsDto(project.PointLightDefaults),
+            DefaultRoomAmbientLighting = LightingContractMapper.ToProjectRoomAmbientLightingDto(project.DefaultRoomAmbientLighting),
             StackScaleStepDefault = project.StackScaleStepDefault,
             MinStackScaleDefault = project.MinStackScaleDefault,
             SimulatorReplayFilePath = project.SimulatorReplayFilePath,
@@ -953,6 +954,7 @@ public sealed class JsonExportService : IJsonExportService
                 RoomImageCanvasHeight = dto.RoomImageCanvasHeight,
                 RoomDesignerGridCellSize = dto.RoomDesignerGridCellSize,
                 PointLightDefaults = LightingContractMapper.ToPointLightDefaultsModel(dto.PointLightDefaults),
+                DefaultRoomAmbientLighting = LightingContractMapper.ToRoomAmbientLightingModel(dto.DefaultRoomAmbientLighting),
                 StackScaleStepDefault = dto.StackScaleStepDefault ?? ProjectModel.DefaultStackScaleStep,
                 MinStackScaleDefault = dto.MinStackScaleDefault ?? ProjectModel.DefaultMinStackScale,
                 SimulatorReplayFilePath = dto.SimulatorReplayFilePath,
@@ -1956,7 +1958,11 @@ public sealed class JsonExportService : IJsonExportService
                 Description = room.Description,
                 RoomImageCanvasWidth = ResolveEffectiveRoomCanvasWidth(project, room),
                 RoomImageCanvasHeight = ResolveEffectiveRoomCanvasHeight(project, room),
-                AmbientLighting = LightingContractMapper.ToRuntimeRoomAmbientLightingDto(room.AmbientLighting),
+                AmbientLighting = new RuntimeRoomAmbientLightingDto
+                {
+                    Ambient = room.AmbientLighting?.Ambient ?? project.DefaultRoomAmbientLighting?.Ambient ?? 1d,
+                    AmbientColor = room.AmbientLighting?.AmbientColor ?? project.DefaultRoomAmbientLighting?.AmbientColor ?? "#FFFFFF"
+                },
                 RoomDisplayMode = ToRuntimeRoomImageDisplayMode(room.RoomDisplayMode),
                 AvailableGameActions = ToCleanCommandActionDtos(room.AvailableActions).OrderBy(action => action.Name, StringComparer.OrdinalIgnoreCase).ThenBy(action => action.Id).ToList(),
                 GameProperties = NullIfEmpty(room.Variables.Select(ToCleanGamePropertyDto).OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase).ToList()),
@@ -8239,6 +8245,8 @@ public sealed class JsonExportService : IJsonExportService
                     continue;
                 }
 
+                RestoreOmittedRoomAmbientOverrides(dto, json);
+
                 if (dto.Id != Guid.Empty && !seenRoomIds.Add(dto.Id))
                 {
                     continue;
@@ -8271,6 +8279,8 @@ public sealed class JsonExportService : IJsonExportService
                 continue;
             }
 
+            RestoreOmittedRoomAmbientOverrides(dto, json);
+
             if (dto.Id != Guid.Empty && !seenTemplateIds.Add(dto.Id))
             {
                 continue;
@@ -8280,6 +8290,31 @@ public sealed class JsonExportService : IJsonExportService
         }
 
         return roomTemplateDtos;
+    }
+
+    private static void RestoreOmittedRoomAmbientOverrides(RoomDto room, string json)
+    {
+        if (room.AmbientLighting is null)
+        {
+            return;
+        }
+
+        using var document = JsonDocument.Parse(json);
+        if (!document.RootElement.TryGetProperty("ambientLighting", out var ambientLighting)
+            || ambientLighting.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        if (!ambientLighting.TryGetProperty("ambient", out _))
+        {
+            room.AmbientLighting.Ambient = null;
+        }
+
+        if (!ambientLighting.TryGetProperty("ambientColor", out _))
+        {
+            room.AmbientLighting.AmbientColor = null;
+        }
     }
 
     private List<ProjectGameObjectDto> LoadAuthoringGameObjectDtos(string projectFilePath)

@@ -2,6 +2,10 @@
   "description": "A minimal single-room fixture.",
   "roomImageCanvasWidth": 800,
   "roomImageCanvasHeight": 600,
+  "ambientLighting": {
+    "ambient": 1,
+    "ambientColor": "#FFFFFF"
+  },
   "roomDisplayMode": "Overlay",
   "Id": "11111111-1111-1111-1111-111111111111",
   "name": "Single Room",

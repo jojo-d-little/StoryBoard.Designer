@@ -14,4 +14,5 @@ public sealed record GlobalSettingsEditRequest(
 	string GameDisplayName,
 	string GameSummary,
 	List<string> GamePreviewImages,
-	PointLightDefaults? PointLightDefaults);
+	PointLightDefaults? PointLightDefaults,
+	RoomAmbientLighting? DefaultRoomAmbientLighting = null);

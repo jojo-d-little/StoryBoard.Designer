@@ -162,6 +162,7 @@ public sealed class JsonExportServiceLightingPersistenceTests
             var project = new ProjectModel
             {
                 Name = "LightingRoundTrip",
+                DefaultRoomAmbientLighting = new RoomAmbientLighting { Ambient = 0.7, AmbientColor = "#F8F8F8" },
                 PointLightDefaults = new PointLightDefaults
                 {
                     RadiusPx = 220,
@@ -189,6 +190,9 @@ public sealed class JsonExportServiceLightingPersistenceTests
                 var defaults = rootDocument.RootElement.GetProperty("pointLightDefaults");
                 Assert.Equal(220, defaults.GetProperty("radiusPx").GetDouble());
                 Assert.Equal(0.9, defaults.GetProperty("intensityScale").GetDouble());
+                var roomAmbientDefaults = rootDocument.RootElement.GetProperty("defaultRoomAmbientLighting");
+                Assert.Equal(0.7, roomAmbientDefaults.GetProperty("ambient").GetDouble());
+                Assert.Equal("#F8F8F8", roomAmbientDefaults.GetProperty("ambientColor").GetString());
             }
 
             using (var roomDocument = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempRoot, "Room", $"{room.Id:N}.room.json"))))
@@ -232,6 +236,8 @@ public sealed class JsonExportServiceLightingPersistenceTests
 
             Assert.Equal(220, loaded.PointLightDefaults!.RadiusPx);
             Assert.Equal(0.9, loaded.PointLightDefaults.IntensityScale);
+            Assert.Equal(0.7, loaded.DefaultRoomAmbientLighting!.Ambient);
+            Assert.Equal("#F8F8F8", loaded.DefaultRoomAmbientLighting.AmbientColor);
             Assert.Equal(0.4, room.AmbientLighting!.Ambient);
             Assert.Equal(0.4, loaded.Planets.Single().Countries.Single().Areas.Single().Rooms.Single().AmbientLighting!.Ambient);
             Assert.Equal("#203040", loaded.Planets.Single().Countries.Single().Areas.Single().Rooms.Single().AmbientLighting!.AmbientColor);
@@ -285,6 +291,7 @@ public sealed class JsonExportServiceLightingPersistenceTests
             using (var rootDocument = JsonDocument.Parse(File.ReadAllText(projectFilePath)))
             {
                 Assert.False(rootDocument.RootElement.TryGetProperty("pointLightDefaults", out _));
+                Assert.False(rootDocument.RootElement.TryGetProperty("defaultRoomAmbientLighting", out _));
             }
 
             using (var roomDocument = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempRoot, "Room", $"{room.Id:N}.room.json"))))
@@ -298,14 +305,99 @@ public sealed class JsonExportServiceLightingPersistenceTests
                 Assert.Equal(1, objectDocument.RootElement.GetProperty("lightOcclusion").GetProperty("strength").GetDouble());
             }
 
+            service.ExportCleanProjectV1(projectFilePath, project);
+            var legacyRuntimeRoot = Path.Combine(tempRoot, "GameRuntimeJson");
+            var legacyRuntimeRoomPath = Path.Combine(legacyRuntimeRoot, "Room", $"{room.Id:D}".ToUpperInvariant() + ".runtime.json");
+            using (var legacyRuntimeRoom = JsonDocument.Parse(File.ReadAllText(legacyRuntimeRoomPath)))
+            {
+                var ambient = legacyRuntimeRoom.RootElement.GetProperty("ambientLighting");
+                Assert.Equal(1, ambient.GetProperty("ambient").GetDouble());
+                Assert.Equal("#FFFFFF", ambient.GetProperty("ambientColor").GetString());
+            }
+
             var loaded = service.TryLoadProjectModel(projectFilePath)!;
             var loadedObject = loaded.Planets.Single().Countries.Single().Areas.Single().Rooms.Single().GameObjects.Single();
 
             Assert.Null(loaded.PointLightDefaults);
+            Assert.Null(loaded.DefaultRoomAmbientLighting);
             Assert.Null(loaded.Planets.Single().Countries.Single().Areas.Single().Rooms.Single().AmbientLighting);
             Assert.Null(loadedObject.PointLight);
             Assert.Equal(1, loadedObject.LightOcclusion?.Strength);
             Assert.True(loadedObject.IsPointLightEnabledDefaultValue);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void ExportCleanProjectV1_ResolvesProjectRoomAmbientDefaultsAndPartialOverrides()
+    {
+        var service = new JsonExportService();
+        var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+
+        try
+        {
+            var inheritedRoom = new Room { Name = "Inherited" };
+            var zeroIntensityRoom = new Room
+            {
+                Name = "Explicit Zero",
+                AmbientLighting = new RoomAmbientLighting { Ambient = 0 }
+            };
+            var fullIntensityRoom = new Room
+            {
+                Name = "Explicit One",
+                AmbientLighting = new RoomAmbientLighting { Ambient = 1 }
+            };
+            var colorOverrideRoom = new Room
+            {
+                Name = "Color Override",
+                AmbientLighting = new RoomAmbientLighting { AmbientColor = "#123456" }
+            };
+            var area = new Area { Name = "Area", Rooms = [inheritedRoom, zeroIntensityRoom, fullIntensityRoom, colorOverrideRoom] };
+            var country = new Country { Name = "Country", Areas = [area] };
+            var planet = new Planet { Name = "Planet", Countries = [country] };
+            var project = new ProjectModel
+            {
+                Name = "RoomAmbientInheritance",
+                DefaultRoomAmbientLighting = new RoomAmbientLighting { Ambient = 0.7, AmbientColor = "#AABBCC" },
+                Planets = [planet]
+            };
+            var projectFilePath = Path.Combine(tempRoot, "RoomAmbientInheritance.sbe.json");
+
+            service.SaveProjectModel(projectFilePath, project);
+            var loaded = service.TryLoadProjectModel(projectFilePath)!;
+            var loadedRooms = loaded.Planets.Single().Countries.Single().Areas.Single().Rooms;
+            Assert.Equal(0.7, loaded.DefaultRoomAmbientLighting!.Ambient);
+            Assert.Equal("#AABBCC", loaded.DefaultRoomAmbientLighting.AmbientColor);
+            Assert.Null(loadedRooms.Single(room => room.Name == "Inherited").AmbientLighting);
+            Assert.Equal(0, loadedRooms.Single(room => room.Name == "Explicit Zero").AmbientLighting!.Ambient);
+            Assert.Null(loadedRooms.Single(room => room.Name == "Explicit Zero").AmbientLighting!.AmbientColor);
+            Assert.Equal(1, loadedRooms.Single(room => room.Name == "Explicit One").AmbientLighting!.Ambient);
+            Assert.Null(loadedRooms.Single(room => room.Name == "Explicit One").AmbientLighting!.AmbientColor);
+            Assert.Null(loadedRooms.Single(room => room.Name == "Color Override").AmbientLighting!.Ambient);
+            Assert.Equal("#123456", loadedRooms.Single(room => room.Name == "Color Override").AmbientLighting!.AmbientColor);
+
+            service.ExportCleanProjectV1(projectFilePath, loaded);
+            var runtimeRoot = Path.Combine(tempRoot, "GameRuntimeJson", "Room");
+            AssertRuntimeAmbient(inheritedRoom, 0.7, "#AABBCC");
+            AssertRuntimeAmbient(zeroIntensityRoom, 0, "#AABBCC");
+            AssertRuntimeAmbient(fullIntensityRoom, 1, "#AABBCC");
+            AssertRuntimeAmbient(colorOverrideRoom, 0.7, "#123456");
+
+            void AssertRuntimeAmbient(Room room, double expectedIntensity, string expectedColor)
+            {
+                var path = Path.Combine(runtimeRoot, $"{room.Id:D}".ToUpperInvariant() + ".runtime.json");
+                using var document = JsonDocument.Parse(File.ReadAllText(path));
+                var ambient = document.RootElement.GetProperty("ambientLighting");
+                Assert.Equal(expectedIntensity, ambient.GetProperty("ambient").GetDouble());
+                Assert.Equal(expectedColor, ambient.GetProperty("ambientColor").GetString());
+            }
         }
         finally
         {
@@ -517,7 +609,9 @@ public sealed class JsonExportServiceLightingPersistenceTests
             }
             using (var roomDocument = JsonDocument.Parse(File.ReadAllText(Path.Combine(runtimeRoot, "Room", $"{room.Id:D}".ToUpperInvariant() + ".runtime.json"))))
             {
-                Assert.False(roomDocument.RootElement.TryGetProperty("ambientLighting", out _));
+                var ambient = roomDocument.RootElement.GetProperty("ambientLighting");
+                Assert.Equal(1, ambient.GetProperty("ambient").GetDouble());
+                Assert.Equal("#FFFFFF", ambient.GetProperty("ambientColor").GetString());
             }
             using (var objectDocument = JsonDocument.Parse(File.ReadAllText(Path.Combine(runtimeRoot, "GameObject", $"{ordinaryObject.ObjectId:D}".ToUpperInvariant() + ".runtime.json"))))
             {

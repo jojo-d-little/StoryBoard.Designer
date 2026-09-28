@@ -1462,6 +1462,7 @@ public sealed partial class MainWindowViewModel
         }
 
         loaded.Name = projectName;
+        loaded.DefaultRoomAmbientLighting ??= new RoomAmbientLighting { Ambient = 0.7, AmbientColor = "#FFFFFF" };
         loaded.GameDisplayName = gameDisplayName;
         loaded.GameSummary = gameSummary;
         loaded.GamePreviewImages = gamePreviewImages;
@@ -1478,6 +1479,7 @@ public sealed partial class MainWindowViewModel
         var project = new ProjectModel
         {
             Name = projectName,
+            DefaultRoomAmbientLighting = new RoomAmbientLighting { Ambient = 0.7, AmbientColor = "#FFFFFF" },
             GameDisplayName = gameDisplayName,
             GameSummary = gameSummary,
             GamePreviewImages = gamePreviewImages,

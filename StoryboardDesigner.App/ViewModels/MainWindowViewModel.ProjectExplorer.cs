@@ -7005,7 +7005,8 @@ public sealed partial class MainWindowViewModel
             _project.GameDisplayName,
             _project.GameSummary,
             _project.GamePreviewImages.ToList(),
-            LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults));
+            LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults),
+            LightingModelCloner.CloneRoomAmbientLighting(_project.DefaultRoomAmbientLighting));
 
         var startingPlanetOptions = _project.Planets
             .Select(planet => planet.Name)
@@ -7055,6 +7056,7 @@ public sealed partial class MainWindowViewModel
                          || !string.Equals(_project.GameSummary, updated.GameSummary?.Trim() ?? string.Empty, StringComparison.Ordinal)
                          || !AreStringListsEquivalent(_project.GamePreviewImages, updated.GamePreviewImages)
                          || !ArePointLightDefaultsEquivalent(_project.PointLightDefaults, updated.PointLightDefaults)
+                         || !AreRoomAmbientLightingEquivalent(_project.DefaultRoomAmbientLighting, updated.DefaultRoomAmbientLighting)
                          || !AreSoundEffectLibraryEntriesEquivalent(_project.GlobalScope.SoundEffectLibraryEntries, updatedSoundEffectLibraryEntries);
 
         if (!hasChanges)
@@ -7074,6 +7076,7 @@ public sealed partial class MainWindowViewModel
         _project.GameSummary = updated.GameSummary?.Trim() ?? string.Empty;
         _project.GamePreviewImages = NormalizePreviewImagePaths(updated.GamePreviewImages);
         _project.PointLightDefaults = LightingModelCloner.ClonePointLightDefaults(updated.PointLightDefaults);
+        _project.DefaultRoomAmbientLighting = LightingModelCloner.CloneRoomAmbientLighting(updated.DefaultRoomAmbientLighting);
         _project.GlobalScope.SoundEffectLibraryEntries = updatedSoundEffectLibraryEntries
             .Select(CloneSoundEffectLibraryEntry)
             .ToList();

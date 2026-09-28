@@ -123,7 +123,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _developmentGameHostWorkflowService = developmentGameHostWorkflowService ?? new DevelopmentGameHostWorkflowService(new ProjectCreationPreferencesService());
         _projectCreationPreferencesService = projectCreationPreferencesService ?? new ProjectCreationPreferencesService();
         _actionScriptEvaluationService = actionScriptEvaluationService;
-        _project = new ProjectModel { Name = "Untitled Project" };
+        _project = new ProjectModel
+        {
+            Name = "Untitled Project",
+            DefaultRoomAmbientLighting = new RoomAmbientLighting { Ambient = 0.7, AmbientColor = "#FFFFFF" }
+        };
 
         HierarchyRoots = new ObservableCollection<HierarchyNodeViewModel>();
         RecentProjects = new ObservableCollection<string>();
@@ -3682,6 +3686,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         var project = new ProjectModel
         {
             Name = projectName,
+            DefaultRoomAmbientLighting = new RoomAmbientLighting { Ambient = 0.7, AmbientColor = "#FFFFFF" },
             CommandVerbs = new List<string>(),
             Directionals = new List<string>(),
             StartingPlanetName = starterPlanet.ScopeName,

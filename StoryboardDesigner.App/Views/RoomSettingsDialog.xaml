@@ -77,12 +77,12 @@
                   Grid.Column="0"
                   Grid.ColumnSpan="2"
                   Margin="0,0,0,10"
-                  Content="Use custom room ambient lighting"
-                  ToolTip="Enable a room-specific ambient baseline. Leave it unchecked to omit the room override and use runtime defaults."
+                  Content="Override project ambient lighting for this room"
+                  ToolTip="Enable room-specific overrides. Each entered value overrides the project default; leave a field blank to inherit that value from project settings. Uncheck to remove the room override."
                   Checked="AmbientLightingEnabledCheckBox_OnChanged"
                   Unchecked="AmbientLightingEnabledCheckBox_OnChanged" />
 
-        <TextBlock Grid.Row="7" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Ambient intensity" ToolTip="Room-wide baseline light level from 0 to 1. Zero is fully dark; 1 is full ambient contribution. Blank uses the runtime default." />
+        <TextBlock Grid.Row="7" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Ambient intensity" ToolTip="Room-wide baseline light level from 0 to 1. Zero is fully dark; 1 is full ambient contribution. Leave blank to inherit the project default." />
         <Grid Grid.Row="7" Grid.Column="1" Margin="0,0,0,12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="84" />
@@ -90,13 +90,13 @@
                 <ColumnDefinition Width="34" />
                 <ColumnDefinition Width="34" />
             </Grid.ColumnDefinitions>
-            <TextBox x:Name="AmbientIntensityTextBox" Grid.Column="0" Margin="0,0,8,0" VerticalContentAlignment="Center" LostFocus="AmbientIntensityTextBox_OnLostFocus" ToolTip="Enter a value from 0 to 1, or leave blank to use the runtime default." />
+            <TextBox x:Name="AmbientIntensityTextBox" Grid.Column="0" Margin="0,0,8,0" VerticalContentAlignment="Center" LostFocus="AmbientIntensityTextBox_OnLostFocus" ToolTip="Enter a value from 0 to 1, or leave blank to inherit the project default." />
             <Slider x:Name="AmbientIntensitySlider" Grid.Column="1" Margin="0,0,8,0" Minimum="0" Maximum="1" TickFrequency="0.1" SmallChange="0.05" LargeChange="0.1" IsSnapToTickEnabled="False" ValueChanged="AmbientIntensitySlider_OnValueChanged" ToolTip="Common range: 0 to 1." />
             <RepeatButton Grid.Column="2" Margin="0,0,4,0" Content="−" Click="AmbientIntensityDecrement_OnClick" ToolTip="Decrease by 0.05" />
             <RepeatButton Grid.Column="3" Content="+" Click="AmbientIntensityIncrement_OnClick" ToolTip="Increase by 0.05" />
         </Grid>
 
-        <TextBlock Grid.Row="8" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Ambient color" ToolTip="Room-wide ambient tint. Leave blank to use the runtime default color." />
+        <TextBlock Grid.Row="8" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Ambient color" ToolTip="Room-wide ambient tint. Leave blank to inherit the project default color." />
         <StackPanel Grid.Row="8" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,12">
             <Border x:Name="AmbientColorPreview" Width="32" Height="24" Margin="0,0,8,0" BorderBrush="#6B7280" BorderThickness="1" />
             <TextBox x:Name="AmbientColorHexTextBox" Width="90" Margin="0,0,8,0" IsReadOnly="True" VerticalContentAlignment="Center" />
