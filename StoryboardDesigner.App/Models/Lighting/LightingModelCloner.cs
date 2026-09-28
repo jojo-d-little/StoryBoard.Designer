@@ -24,6 +24,7 @@ internal static class LightingModelCloner
                 SwayAmountPx = source.SwayAmountPx,
                 SwayHz = source.SwayHz,
                 SwayDirectionDeg = source.SwayDirectionDeg,
+                SwayStyle = source.SwayStyle,
                 FlickerAmount = source.FlickerAmount,
                 FlickerHz = source.FlickerHz,
                 FlickerStyle = source.FlickerStyle
@@ -45,6 +46,7 @@ internal static class LightingModelCloner
                 SwayAmountPx = source.SwayAmountPx,
                 SwayHz = source.SwayHz,
                 SwayDirectionDeg = source.SwayDirectionDeg,
+                SwayStyle = source.SwayStyle,
                 FlickerAmount = source.FlickerAmount,
                 FlickerHz = source.FlickerHz,
                 FlickerStyle = source.FlickerStyle

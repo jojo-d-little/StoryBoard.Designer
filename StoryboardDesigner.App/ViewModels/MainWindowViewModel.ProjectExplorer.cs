@@ -7112,6 +7112,7 @@ public sealed partial class MainWindowViewModel
                && AreNearlyEqualNullable(left.SwayAmountPx, right.SwayAmountPx)
                && AreNearlyEqualNullable(left.SwayHz, right.SwayHz)
                && AreNearlyEqualNullable(left.SwayDirectionDeg, right.SwayDirectionDeg)
+               && string.Equals(left.SwayStyle, right.SwayStyle, StringComparison.Ordinal)
                && AreNearlyEqualNullable(left.FlickerAmount, right.FlickerAmount)
                && AreNearlyEqualNullable(left.FlickerHz, right.FlickerHz)
                && string.Equals(left.FlickerStyle, right.FlickerStyle, StringComparison.Ordinal);
@@ -8269,6 +8270,7 @@ public sealed partial class MainWindowViewModel
                && AreNearlyEqualNullable(left.SwayAmountPx, right.SwayAmountPx)
                && AreNearlyEqualNullable(left.SwayHz, right.SwayHz)
                && AreNearlyEqualNullable(left.SwayDirectionDeg, right.SwayDirectionDeg)
+               && string.Equals(left.SwayStyle, right.SwayStyle, StringComparison.Ordinal)
                && AreNearlyEqualNullable(left.FlickerAmount, right.FlickerAmount)
                && AreNearlyEqualNullable(left.FlickerHz, right.FlickerHz)
                && string.Equals(left.FlickerStyle, right.FlickerStyle, StringComparison.Ordinal);

@@ -35,11 +35,13 @@ public partial class ObjectLightingDialog : Window
         CopyProjectDefaultsButton.IsEnabled = _pointLightDefaults is not null;
 
         PointLightMotionModeComboBox.ItemsSource = new[] { "", "static", "sway", "flicker", "sway-flicker" };
+        PointLightSwayStyleComboBox.ItemsSource = new[] { "", "directional", "breeze" };
         PointLightFlickerStyleComboBox.ItemsSource = new[] { "", "swell", "flame" };
         PointLightEnabledCheckBox.IsChecked = pointLight is not null;
         PointLightDefaultEnabledCheckBox.IsChecked = pointLight is not null && !isPointLightEnabledDefaultValue;
         UseInstancePhaseShiftingCheckBox.IsChecked = pointLight?.UseInstancePhaseShifting == true;
         PointLightMotionModeComboBox.SelectedItem = pointLight?.MotionMode?.Trim() ?? string.Empty;
+        PointLightSwayStyleComboBox.SelectedItem = pointLight?.SwayStyle?.Trim() ?? string.Empty;
         PointLightFlickerStyleComboBox.SelectedItem = pointLight?.FlickerStyle?.Trim() ?? string.Empty;
 
         SetNumericValue("OffsetX", pointLight?.OffsetXPx);
@@ -126,6 +128,11 @@ public partial class ObjectLightingDialog : Window
         if (!string.IsNullOrWhiteSpace(defaults.FlickerStyle))
         {
             PointLightFlickerStyleComboBox.SelectedItem = defaults.FlickerStyle.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(defaults.SwayStyle))
+        {
+            PointLightSwayStyleComboBox.SelectedItem = defaults.SwayStyle.Trim();
         }
     }
 
@@ -295,6 +302,13 @@ public partial class ObjectLightingDialog : Window
             return false;
         }
 
+        var swayStyle = NormalizeOptionalText(PointLightSwayStyleComboBox.SelectedItem as string);
+        if (swayStyle is not null && swayStyle is not ("directional" or "breeze"))
+        {
+            error = "Sway style must be directional or breeze.";
+            return false;
+        }
+
         pointLight = new PointLight
         {
             OffsetXPx = offsetX,
@@ -315,7 +329,8 @@ public partial class ObjectLightingDialog : Window
             SwayDirectionDeg = swayDirection,
             FlickerAmount = flickerAmount,
             FlickerHz = flickerHz,
-            FlickerStyle = flickerStyle
+            FlickerStyle = flickerStyle,
+            SwayStyle = swayStyle
         };
         return true;
     }

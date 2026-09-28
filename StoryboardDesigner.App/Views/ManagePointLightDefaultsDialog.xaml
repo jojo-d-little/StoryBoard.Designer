@@ -44,6 +44,8 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="180" />
@@ -111,20 +113,23 @@
                 <RepeatButton Grid.Row="8" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="SwayDirection" Click="NumericDecrement_OnClick" ToolTip="Decrease by one degree" />
                 <RepeatButton Grid.Row="8" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="SwayDirection" Click="NumericIncrement_OnClick" ToolTip="Increase by one degree" />
 
-                <TextBlock Grid.Row="9" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Flicker amount" ToolTip="Strength of flicker modulation from 0 to 1. Zero means steady output; 1 is the strongest modulation. Leave blank to use the engine default." />
-                <TextBox x:Name="PointLightFlickerAmountTextBox" Grid.Row="9" Grid.Column="1" Margin="0,0,8,10" Tag="FlickerAmount" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
-                <Slider x:Name="PointLightFlickerAmountSlider" Grid.Row="9" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="1" TickFrequency="0.1" SmallChange="0.05" LargeChange="0.1" IsSnapToTickEnabled="False" Tag="FlickerAmount" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Range: 0 to 1." />
-                <RepeatButton Grid.Row="9" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="FlickerAmount" Click="NumericDecrement_OnClick" ToolTip="Decrease by 0.05" />
-                <RepeatButton Grid.Row="9" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="FlickerAmount" Click="NumericIncrement_OnClick" ToolTip="Increase by 0.05" />
+                <TextBlock Grid.Row="9" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Sway style" ToolTip="Directional keeps sway along its authored direction; breeze varies the direction gently over time. Leave blank to use the engine default." />
+                <ComboBox x:Name="PointLightSwayStyleComboBox" Grid.Row="9" Grid.Column="1" Grid.ColumnSpan="4" Margin="0,0,0,10" IsEditable="False" />
 
-                <TextBlock Grid.Row="10" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Flicker frequency (Hz)" ToolTip="Speed of the flicker modulation in cycles per second. Higher values flicker faster. Leave blank to use the engine default." />
-                <TextBox x:Name="PointLightFlickerHzTextBox" Grid.Row="10" Grid.Column="1" Margin="0,0,8,10" Tag="FlickerHz" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
-                <Slider x:Name="PointLightFlickerHzSlider" Grid.Row="10" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="20" TickFrequency="2" SmallChange="0.1" LargeChange="2" IsSnapToTickEnabled="False" Tag="FlickerHz" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Common range: 0 to 20 Hz." />
-                <RepeatButton Grid.Row="10" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="FlickerHz" Click="NumericDecrement_OnClick" ToolTip="Decrease by 0.1" />
-                <RepeatButton Grid.Row="10" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="FlickerHz" Click="NumericIncrement_OnClick" ToolTip="Increase by 0.1" />
+                <TextBlock Grid.Row="10" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Flicker amount" ToolTip="Strength of flicker modulation from 0 to 1. Zero means steady output; 1 is the strongest modulation. Leave blank to use the engine default." />
+                <TextBox x:Name="PointLightFlickerAmountTextBox" Grid.Row="10" Grid.Column="1" Margin="0,0,8,10" Tag="FlickerAmount" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                <Slider x:Name="PointLightFlickerAmountSlider" Grid.Row="10" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="1" TickFrequency="0.1" SmallChange="0.05" LargeChange="0.1" IsSnapToTickEnabled="False" Tag="FlickerAmount" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Range: 0 to 1." />
+                <RepeatButton Grid.Row="10" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="FlickerAmount" Click="NumericDecrement_OnClick" ToolTip="Decrease by 0.05" />
+                <RepeatButton Grid.Row="10" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="FlickerAmount" Click="NumericIncrement_OnClick" ToolTip="Increase by 0.05" />
 
-                <TextBlock Grid.Row="11" Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Flicker style" ToolTip="Chooses the character of the flicker animation. Swell is smoother and more gradual; flame is more irregular. Leave blank to use the engine default." />
-                <ComboBox x:Name="PointLightFlickerStyleComboBox" Grid.Row="11" Grid.Column="1" Grid.ColumnSpan="4" IsEditable="False" />
+                <TextBlock Grid.Row="11" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Flicker frequency (Hz)" ToolTip="Speed of the flicker modulation in cycles per second. Higher values flicker faster. Leave blank to use the engine default." />
+                <TextBox x:Name="PointLightFlickerHzTextBox" Grid.Row="11" Grid.Column="1" Margin="0,0,8,10" Tag="FlickerHz" LostFocus="NumericTextBox_OnLostFocus" PreviewKeyDown="NumericTextBox_OnPreviewKeyDown" />
+                <Slider x:Name="PointLightFlickerHzSlider" Grid.Row="11" Grid.Column="2" Margin="0,0,8,10" Minimum="0" Maximum="20" TickFrequency="2" SmallChange="0.1" LargeChange="2" IsSnapToTickEnabled="False" Tag="FlickerHz" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Common range: 0 to 20 Hz." />
+                <RepeatButton Grid.Row="11" Grid.Column="3" Margin="0,0,4,10" Content="−" Tag="FlickerHz" Click="NumericDecrement_OnClick" ToolTip="Decrease by 0.1" />
+                <RepeatButton Grid.Row="11" Grid.Column="4" Margin="0,0,0,10" Content="+" Tag="FlickerHz" Click="NumericIncrement_OnClick" ToolTip="Increase by 0.1" />
+
+                <TextBlock Grid.Row="12" Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Flicker style" ToolTip="Chooses the character of the flicker animation. Swell is smoother and more gradual; flame is more irregular. Leave blank to use the engine default." />
+                <ComboBox x:Name="PointLightFlickerStyleComboBox" Grid.Row="12" Grid.Column="1" Grid.ColumnSpan="4" IsEditable="False" />
             </Grid>
         </ScrollViewer>
 

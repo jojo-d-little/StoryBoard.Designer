@@ -43,6 +43,13 @@ public sealed class LightingAuthoringValidationRule : IValidationRule
             "flame"
         };
 
+    private static readonly IReadOnlySet<string> SwayStyles =
+        new HashSet<string>(StringComparer.Ordinal)
+        {
+            "directional",
+            "breeze"
+        };
+
     public IReadOnlySet<ScopeNodeKind> SupportedCandidateScopeKinds => SupportedKinds;
 
     public ValidationRuleMetadata Metadata { get; } = new(
@@ -220,6 +227,7 @@ public sealed class LightingAuthoringValidationRule : IValidationRule
             SwayAmountPx = defaults.SwayAmountPx,
             SwayHz = defaults.SwayHz,
             SwayDirectionDeg = defaults.SwayDirectionDeg,
+            SwayStyle = defaults.SwayStyle,
             FlickerAmount = defaults.FlickerAmount,
             FlickerHz = defaults.FlickerHz,
             FlickerStyle = defaults.FlickerStyle
@@ -333,6 +341,11 @@ public sealed class LightingAuthoringValidationRule : IValidationRule
         }
 
         foreach (var issue in ValidateFinite(pointLight.SwayDirectionDeg, path, "swayDirectionDeg"))
+        {
+            yield return issue;
+        }
+
+        foreach (var issue in ValidateEnum(pointLight.SwayStyle, path, "swayStyle", SwayStyles))
         {
             yield return issue;
         }

@@ -31,7 +31,8 @@ public sealed class LightingAuthoringValidationRuleTests
                 SwayHz = 0,
                 FlickerAmount = 1,
                 FlickerHz = 0,
-                FlickerStyle = "flame"
+                FlickerStyle = "flame",
+                SwayStyle = "breeze"
             },
             LightOcclusion = new LightOcclusion { Strength = 0 }
         };
@@ -74,7 +75,8 @@ public sealed class LightingAuthoringValidationRuleTests
             SwayHz = 0,
             FlickerAmount = 1,
             FlickerHz = 0,
-            FlickerStyle = "swell"
+            FlickerStyle = "swell",
+            SwayStyle = "directional"
         };
 
         var result = Evaluate(project);
@@ -96,7 +98,8 @@ public sealed class LightingAuthoringValidationRuleTests
                 MotionMode = "invalid-mode",
                 Color = "white",
                 FlickerAmount = 2,
-                FlickerStyle = "invalid-style"
+                FlickerStyle = "invalid-style",
+                SwayStyle = "invalid-style"
             }
         };
 
@@ -134,6 +137,7 @@ public sealed class LightingAuthoringValidationRuleTests
         Assert.Contains(issues, issue => issue.Description.Contains("radiusPx", StringComparison.Ordinal));
         Assert.Contains(issues, issue => issue.Description.Contains("coneAngleDeg", StringComparison.Ordinal));
         Assert.Contains(issues, issue => issue.Description.Contains("motionMode", StringComparison.Ordinal));
+        Assert.Contains(issues, issue => issue.Description.Contains("swayStyle", StringComparison.Ordinal));
         Assert.Contains(issues, issue => issue.Description.Contains("six-digit", StringComparison.Ordinal));
         Assert.Contains(issues, issue => issue.Description.Contains("ambientScale", StringComparison.Ordinal));
         Assert.Contains(issues, issue => issue.Description.Contains("requires a phase overlay color", StringComparison.Ordinal));

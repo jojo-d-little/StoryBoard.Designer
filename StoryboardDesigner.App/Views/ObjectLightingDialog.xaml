@@ -120,7 +120,7 @@
 
                         <GroupBox x:Name="SwayEditorGroup" Grid.Row="13" Grid.Column="0" Grid.ColumnSpan="5" Margin="0,0,0,10" Header="Sway" Padding="8">
                             <Grid x:Name="SwayEditorGrid">
-                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="180" /><ColumnDefinition Width="84" /><ColumnDefinition Width="*" /><ColumnDefinition Width="34" /><ColumnDefinition Width="34" /></Grid.ColumnDefinitions>
 
                                 <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Amount (px)" ToolTip="Maximum movement distance for a swaying light. Zero means no visible sway." />
@@ -140,6 +140,9 @@
                                 <Slider x:Name="PointLightSwayDirectionSlider" Grid.Row="2" Grid.Column="2" Margin="0,0,8,0" Minimum="-180" Maximum="180" SmallChange="1" LargeChange="45" Tag="SwayDirection" ValueChanged="NumericSlider_OnValueChanged" ToolTip="Direction from -180 to 180 degrees." />
                                 <RepeatButton Grid.Row="2" Grid.Column="3" Margin="0,0,4,0" Content="−" Tag="SwayDirection" Click="NumericDecrement_OnClick" />
                                 <RepeatButton Grid.Row="2" Grid.Column="4" Content="+" Tag="SwayDirection" Click="NumericIncrement_OnClick" />
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,10,8,0" VerticalAlignment="Center" Text="Style" ToolTip="Directional keeps motion along the authored direction; Breeze varies its direction gently over time." />
+                                <ComboBox x:Name="PointLightSwayStyleComboBox" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="4" Margin="0,10,0,0" IsEditable="False" />
                             </Grid>
                         </GroupBox>
 

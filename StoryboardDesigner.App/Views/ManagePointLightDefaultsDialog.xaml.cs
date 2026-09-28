@@ -22,6 +22,7 @@ public partial class ManagePointLightDefaultsDialog : Window
         InitializeComponent();
 
         PointLightFlickerStyleComboBox.ItemsSource = new[] { string.Empty, "swell", "flame" };
+        PointLightSwayStyleComboBox.ItemsSource = new[] { string.Empty, "directional", "breeze" };
         PointLightDefaultsEnabledCheckBox.IsChecked = initialValues is not null;
         SetNumericValue("Radius", initialValues?.RadiusPx);
         SetNumericValue("Intensity", initialValues?.IntensityScale);
@@ -35,6 +36,7 @@ public partial class ManagePointLightDefaultsDialog : Window
         SetNumericValue("FlickerAmount", initialValues?.FlickerAmount);
         SetNumericValue("FlickerHz", initialValues?.FlickerHz);
         PointLightFlickerStyleComboBox.SelectedItem = initialValues?.FlickerStyle?.Trim() ?? string.Empty;
+        PointLightSwayStyleComboBox.SelectedItem = initialValues?.SwayStyle?.Trim() ?? string.Empty;
         UpdateEditorEnabledState();
     }
 
@@ -186,6 +188,13 @@ public partial class ManagePointLightDefaultsDialog : Window
             return false;
         }
 
+        var swayStyle = NormalizeOptionalText(PointLightSwayStyleComboBox.SelectedItem as string);
+        if (swayStyle is not null && swayStyle is not ("directional" or "breeze"))
+        {
+            error = "Sway style must be directional or breeze.";
+            return false;
+        }
+
         defaults = new PointLightDefaults
         {
             RadiusPx = radius,
@@ -199,7 +208,8 @@ public partial class ManagePointLightDefaultsDialog : Window
             SwayDirectionDeg = swayDirection,
             FlickerAmount = flickerAmount,
             FlickerHz = flickerHz,
-            FlickerStyle = flickerStyle
+            FlickerStyle = flickerStyle,
+            SwayStyle = swayStyle
         };
         return true;
     }

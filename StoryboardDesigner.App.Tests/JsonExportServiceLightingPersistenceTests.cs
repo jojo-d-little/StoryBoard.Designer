@@ -97,7 +97,8 @@ public sealed class JsonExportServiceLightingPersistenceTests
                     SwayDirectionDeg = 15,
                     FlickerAmount = 0.2,
                     FlickerHz = 4,
-                    FlickerStyle = "Candle"
+                    FlickerStyle = "Candle",
+                    SwayStyle = "breeze"
                 },
                 LightOcclusion = new LightOcclusion { Strength = 0.65 },
                 IsPointLightEnabledDefaultValue = false
@@ -176,7 +177,8 @@ public sealed class JsonExportServiceLightingPersistenceTests
                     SwayDirectionDeg = 270,
                     FlickerAmount = 0.1,
                     FlickerHz = 3,
-                    FlickerStyle = "Soft"
+                    FlickerStyle = "Soft",
+                    SwayStyle = "directional"
                 },
                 Planets = [planet],
                 PhaseBooks = [book]
@@ -190,6 +192,7 @@ public sealed class JsonExportServiceLightingPersistenceTests
                 var defaults = rootDocument.RootElement.GetProperty("pointLightDefaults");
                 Assert.Equal(220, defaults.GetProperty("radiusPx").GetDouble());
                 Assert.Equal(0.9, defaults.GetProperty("intensityScale").GetDouble());
+                Assert.Equal("directional", defaults.GetProperty("swayStyle").GetString());
                 var roomAmbientDefaults = rootDocument.RootElement.GetProperty("defaultRoomAmbientLighting");
                 Assert.Equal(0.7, roomAmbientDefaults.GetProperty("ambient").GetDouble());
                 Assert.Equal("#F8F8F8", roomAmbientDefaults.GetProperty("ambientColor").GetString());
@@ -209,6 +212,7 @@ public sealed class JsonExportServiceLightingPersistenceTests
                 Assert.Equal(24.25, pointLight.GetProperty("offsetYPx").GetDouble());
                 Assert.Equal(180, pointLight.GetProperty("radiusPx").GetDouble());
                 Assert.True(pointLight.GetProperty("useInstancePhaseShifting").GetBoolean());
+                Assert.Equal("breeze", pointLight.GetProperty("swayStyle").GetString());
                 Assert.Equal(0.65, objectDocument.RootElement.GetProperty("lightOcclusion").GetProperty("strength").GetDouble());
                 Assert.False(objectDocument.RootElement.GetProperty("isPointLightEnabledDefaultValue").GetBoolean());
             }

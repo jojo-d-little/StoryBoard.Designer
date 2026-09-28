@@ -14,6 +14,7 @@ public sealed class PointLightDefaults
     public double? SwayAmountPx { get; set; }
     public double? SwayHz { get; set; }
     public double? SwayDirectionDeg { get; set; }
+    public string? SwayStyle { get; set; }
     public double? FlickerAmount { get; set; }
     public double? FlickerHz { get; set; }
     public string? FlickerStyle { get; set; }
