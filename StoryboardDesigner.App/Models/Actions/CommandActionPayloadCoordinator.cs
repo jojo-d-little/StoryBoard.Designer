@@ -69,6 +69,12 @@ internal static class CommandActionPayloadCoordinator
         nameof(CommandAction.StackVisualTransitionHint)
     ];
 
+    private static readonly string[] ObjectPresentationCueProjectionProperties =
+    [
+        nameof(CommandAction.ObjectPresentationCueObjectId),
+        nameof(CommandAction.ObjectPresentationCueEffectKey)
+    ];
+
     private static readonly string[] SetActiveRoomObjectProjectionProperties =
     [
         nameof(CommandAction.SelectionCueEffectKey)
@@ -157,6 +163,9 @@ internal static class CommandActionPayloadCoordinator
                 TravelVisualizationMode: RuntimeMovementTravelVisualizationMode.LegByLeg),
             CommandActionType.RotateRoomObjectOnGrid => new RotateRoomObjectOnGridPayload(),
             CommandActionType.StackRoomObjectOnAnother => new StackRoomObjectOnAnotherPayload(),
+            CommandActionType.AddObjectPresentationCue => new AddObjectPresentationCuePayload(null, string.Empty),
+            CommandActionType.RemoveObjectPresentationCue => new RemoveObjectPresentationCuePayload(null, string.Empty),
+            CommandActionType.ClearObjectPresentationCues => new ClearObjectPresentationCuesPayload(null),
             CommandActionType.OpenObject => new EchoPayload(),
             CommandActionType.CloseObject => new EchoPayload(),
             CommandActionType.UnlockObject => new EchoPayload(),
@@ -223,6 +232,9 @@ internal static class CommandActionPayloadCoordinator
                 rotate.VisualTransitionHint),
             StackRoomObjectOnAnotherPayload stack => new StackRoomObjectOnAnotherPayload(
                 stack.VisualTransitionHint),
+            AddObjectPresentationCuePayload addCue => new AddObjectPresentationCuePayload(addCue.ObjectId, addCue.EffectKey),
+            RemoveObjectPresentationCuePayload removeCue => new RemoveObjectPresentationCuePayload(removeCue.ObjectId, removeCue.EffectKey),
+            ClearObjectPresentationCuesPayload clearCues => new ClearObjectPresentationCuesPayload(clearCues.ObjectId),
             SetActiveRoomObjectPayload setActive => new SetActiveRoomObjectPayload(
                 setActive.SelectionCueEffectKey),
             SelectRoomObjectByPointPayload selectByPoint => new SelectRoomObjectByPointPayload(
@@ -567,6 +579,9 @@ internal static class CommandActionPayloadCoordinator
             MoveRoomObjectByPointsPayload => MoveByPointsProjectionProperties,
             RotateRoomObjectOnGridPayload => RotateProjectionProperties,
             StackRoomObjectOnAnotherPayload => StackProjectionProperties,
+            AddObjectPresentationCuePayload => ObjectPresentationCueProjectionProperties,
+            RemoveObjectPresentationCuePayload => ObjectPresentationCueProjectionProperties,
+            ClearObjectPresentationCuesPayload => ObjectPresentationCueProjectionProperties,
             SetActiveRoomObjectPayload => SetActiveRoomObjectProjectionProperties,
             SelectRoomObjectByPointPayload => SelectRoomObjectByPointProjectionProperties,
             ClearActiveRoomObjectsPayload => ClearActiveRoomObjectsProjectionProperties,

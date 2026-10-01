@@ -48,6 +48,9 @@ public static class CommandActionSummaryPresenter
             CommandActionType.MoveRoomObjectByPoints => BuildMoveRoomObjectByPointsSummary(action),
             CommandActionType.RotateRoomObjectOnGrid => BuildRotateRoomObjectOnGridSummary(action),
             CommandActionType.StackRoomObjectOnAnother => BuildStackRoomObjectOnAnotherSummary(action),
+            CommandActionType.AddObjectPresentationCue => BuildObjectPresentationCueSummary(action, "Add cue"),
+            CommandActionType.RemoveObjectPresentationCue => BuildObjectPresentationCueSummary(action, "Remove cue"),
+            CommandActionType.ClearObjectPresentationCues => BuildObjectPresentationCueSummary(action, "Clear cues"),
             CommandActionType.SelectRoomObjectByPoint => BuildSelectRoomObjectByPointSummary(action),
             CommandActionType.ClearRoomObjectSelections => BuildClearRoomObjectSelectionsSummary(action),
             CommandActionType.PutObjectInContainer => BuildPutObjectInContainerSummary(action),
@@ -221,6 +224,15 @@ public static class CommandActionSummaryPresenter
     {
         var payload = ActionPayloadAccessors.GetStackRoomObjectOnAnotherPayload(action);
         return $"Stack -> subject: command/object scope; target: command secondary; hint: {payload.VisualTransitionHint}";
+    }
+
+    private static string BuildObjectPresentationCueSummary(CommandAction action, string operation)
+    {
+        var objectName = action.ObjectPresentationCueObjectId?.ToString("D") ?? "command primary target";
+        var effect = action.ActionType == CommandActionType.ClearObjectPresentationCues
+            ? string.Empty
+            : $"; effect: {action.ObjectPresentationCueEffectKey}";
+        return $"{operation} on {objectName}{effect}";
     }
 
     private static string BuildSelectRoomObjectByPointSummary(CommandAction action)

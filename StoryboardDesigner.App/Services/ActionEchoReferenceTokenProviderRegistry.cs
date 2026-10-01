@@ -70,7 +70,10 @@ public sealed class ActionEchoReferenceTokenProviderRegistry
             new MoveRoomObjectByPointsActionEchoReferenceTokenProvider(),
             new RotateRoomObjectOnGridActionEchoReferenceTokenProvider(),
             new SelectRoomObjectByPointActionEchoReferenceTokenProvider(),
-            new StackRoomObjectOnAnotherActionEchoReferenceTokenProvider()
+            new StackRoomObjectOnAnotherActionEchoReferenceTokenProvider(),
+            new ParameterizedEmptyActionEchoReferenceTokenProvider(CommandActionType.AddObjectPresentationCue),
+            new ParameterizedEmptyActionEchoReferenceTokenProvider(CommandActionType.RemoveObjectPresentationCue),
+            new ParameterizedEmptyActionEchoReferenceTokenProvider(CommandActionType.ClearObjectPresentationCues)
         ]);
     }
 }

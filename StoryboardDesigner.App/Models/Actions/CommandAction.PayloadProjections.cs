@@ -412,6 +412,51 @@ public sealed partial class CommandAction
         }
     }
 
+    public Guid? ObjectPresentationCueObjectId
+    {
+        get => _payload switch
+        {
+            AddObjectPresentationCuePayload p => p.ObjectId,
+            RemoveObjectPresentationCuePayload p => p.ObjectId,
+            ClearObjectPresentationCuesPayload p => p.ObjectId,
+            _ => null
+        };
+        set
+        {
+            _payload = ActionType switch
+            {
+                CommandActionType.AddObjectPresentationCue => new AddObjectPresentationCuePayload(value, ObjectPresentationCueEffectKey),
+                CommandActionType.RemoveObjectPresentationCue => new RemoveObjectPresentationCuePayload(value, ObjectPresentationCueEffectKey),
+                CommandActionType.ClearObjectPresentationCues => new ClearObjectPresentationCuesPayload(value),
+                _ => _payload
+            };
+            OnPropertyChanged();
+            RaiseSummaryChanged();
+        }
+    }
+
+    public string ObjectPresentationCueEffectKey
+    {
+        get => _payload switch
+        {
+            AddObjectPresentationCuePayload p => p.EffectKey,
+            RemoveObjectPresentationCuePayload p => p.EffectKey,
+            _ => string.Empty
+        };
+        set
+        {
+            var key = value?.Trim() ?? string.Empty;
+            _payload = ActionType switch
+            {
+                CommandActionType.AddObjectPresentationCue => new AddObjectPresentationCuePayload(ObjectPresentationCueObjectId, key),
+                CommandActionType.RemoveObjectPresentationCue => new RemoveObjectPresentationCuePayload(ObjectPresentationCueObjectId, key),
+                _ => _payload
+            };
+            OnPropertyChanged();
+            RaiseSummaryChanged();
+        }
+    }
+
     public RuntimeClearActiveRoomObjectsScope ClearActiveRoomObjectsScope
     {
         get => _clearActiveRoomObjectsFacet.ClearScope;

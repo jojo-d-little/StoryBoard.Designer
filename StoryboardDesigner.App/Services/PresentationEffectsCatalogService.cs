@@ -1,6 +1,7 @@
 using Storyboard.Shared.GameServices;
 using Storyboard.Shared.GameServices.RuntimeContext;
 using System.IO;
+using System.Text.Json;
 
 namespace StoryboardDesigner.App.Services;
 
@@ -43,6 +44,54 @@ public sealed class PresentationEffectsCatalogService
         return _catalog.Value.Effects
             .Where(static effect => effect.Category == HostCommandPresentationCueCategory.RoomTransition)
             .Select(static effect => effect.EffectKey?.Trim() ?? string.Empty)
+            .Where(static key => !string.IsNullOrWhiteSpace(key))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static key => key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    public IReadOnlyList<string> GetObjectCueEligibleEffectKeys()
+    {
+        var catalogPath = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "Config", "presentation-effects.catalog.json"),
+            Path.Combine(AppContext.BaseDirectory, "Storyboard.GameEngine", "Config", "presentation-effects.catalog.json")
+        }.FirstOrDefault(File.Exists);
+        if (catalogPath is null)
+        {
+            return Array.Empty<string>();
+        }
+
+        using var document = JsonDocument.Parse(File.ReadAllText(catalogPath));
+        var eligibleCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (document.RootElement.TryGetProperty("categories", out var categories)
+            && categories.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var category in categories.EnumerateArray())
+            {
+                if (category.TryGetProperty("objectCueEligible", out var eligible)
+                    && eligible.ValueKind == JsonValueKind.True
+                    && category.TryGetProperty("category", out var name)
+                    && name.ValueKind == JsonValueKind.String)
+                {
+                    eligibleCategories.Add(name.GetString() ?? string.Empty);
+                }
+            }
+        }
+
+        if (!document.RootElement.TryGetProperty("effects", out var effects)
+            || effects.ValueKind != JsonValueKind.Array)
+        {
+            return Array.Empty<string>();
+        }
+
+        return effects.EnumerateArray()
+            .Where(effect => effect.TryGetProperty("category", out var category)
+                && category.ValueKind == JsonValueKind.String
+                && eligibleCategories.Contains(category.GetString() ?? string.Empty))
+            .Select(effect => effect.TryGetProperty("effectKey", out var key) && key.ValueKind == JsonValueKind.String
+                ? key.GetString()?.Trim() ?? string.Empty
+                : string.Empty)
             .Where(static key => !string.IsNullOrWhiteSpace(key))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(static key => key, StringComparer.OrdinalIgnoreCase)

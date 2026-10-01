@@ -2765,6 +2765,9 @@ public sealed class JsonExportService : IJsonExportService
                 CommandActionType.MoveRoomObjectByPoints => BuildMoveRoomObjectByPointsPayloadElement(moveByPointsPayload),
                 CommandActionType.RotateRoomObjectOnGrid => BuildRotateRoomObjectOnGridPayloadElement(rotatePayload),
                 CommandActionType.StackRoomObjectOnAnother => BuildStackRoomObjectOnAnotherPayloadElement(stackPayload),
+                CommandActionType.AddObjectPresentationCue => BuildAddObjectPresentationCuePayloadElement(action),
+                CommandActionType.RemoveObjectPresentationCue => BuildRemoveObjectPresentationCuePayloadElement(action),
+                CommandActionType.ClearObjectPresentationCues => BuildClearObjectPresentationCuesPayloadElement(action),
                 CommandActionType.NavigateDirection => BuildNavigateDirectionPayloadElement(),
                 CommandActionType.NavigateToAdjacent => BuildNavigateToAdjacentPayloadElement(),
                 CommandActionType.OpenObject => BuildOpenObjectPayloadElement(),
@@ -2941,6 +2944,23 @@ public sealed class JsonExportService : IJsonExportService
                 rotateTurnDegrees,
                 rotateFacingDirection,
                 rotateHint);
+        }
+
+        if (actionType == CommandActionType.AddObjectPresentationCue)
+        {
+            model.Payload = new AddObjectPresentationCuePayload(
+                TryGetObjectPresentationCueObjectIdFromPayload(action.Payload),
+                TryGetObjectPresentationCueEffectKeyFromPayload(action.Payload) ?? string.Empty);
+        }
+        else if (actionType == CommandActionType.RemoveObjectPresentationCue)
+        {
+            model.Payload = new RemoveObjectPresentationCuePayload(
+                TryGetObjectPresentationCueObjectIdFromPayload(action.Payload),
+                TryGetObjectPresentationCueEffectKeyFromPayload(action.Payload) ?? string.Empty);
+        }
+        else if (actionType == CommandActionType.ClearObjectPresentationCues)
+        {
+            model.Payload = new ClearObjectPresentationCuesPayload(TryGetObjectPresentationCueObjectIdFromPayload(action.Payload));
         }
 
         if (model.ActionType == CommandActionType.MoveRoomObjectByPoints)
@@ -6657,6 +6677,9 @@ public sealed class JsonExportService : IJsonExportService
                 CommandActionType.BuildCompositeByParts => BuildCleanBuildCompositeByPartsPayloadElement(compositeByPartsPayload),
                 CommandActionType.BreakCompositeItem => BuildCleanBreakCompositeItemPayloadElement(breakCompositePayload),
                 CommandActionType.SetActiveRoomObject => BuildCleanSetActiveRoomObjectPayloadElement(setActivePayload.SelectionCueEffectKey),
+                CommandActionType.AddObjectPresentationCue => BuildCleanAddObjectPresentationCuePayloadElement(action),
+                CommandActionType.RemoveObjectPresentationCue => BuildCleanRemoveObjectPresentationCuePayloadElement(action),
+                CommandActionType.ClearObjectPresentationCues => BuildCleanClearObjectPresentationCuesPayloadElement(action),
                 CommandActionType.SelectRoomObjectByPoint => BuildCleanSelectRoomObjectByPointPayloadElement(selectByPointPayload.SelectionCueEffectKey),
                 CommandActionType.SetGameProperty => BuildCleanSetGamePropertyPayloadElement(ActionPayloadAccessors.GetSetPropertyName(action), ActionPayloadAccessors.GetSetPropertyValue(action)),
                 CommandActionType.SetFlag => BuildCleanSetFlagPayloadElement(ActionPayloadAccessors.GetSetFlagName(action), ActionPayloadAccessors.GetSetFlagValue(action)),
@@ -7208,6 +7231,32 @@ public sealed class JsonExportService : IJsonExportService
         };
     }
 
+    private static ProjectCommandActionPayloadBaseDto BuildAddObjectPresentationCuePayloadElement(CommandAction action)
+    {
+        return new ProjectAddObjectPresentationCueActionPayloadDto
+        {
+            ObjectId = action.ObjectPresentationCueObjectId,
+            EffectKey = action.ObjectPresentationCueEffectKey ?? string.Empty
+        };
+    }
+
+    private static ProjectCommandActionPayloadBaseDto BuildRemoveObjectPresentationCuePayloadElement(CommandAction action)
+    {
+        return new ProjectRemoveObjectPresentationCueActionPayloadDto
+        {
+            ObjectId = action.ObjectPresentationCueObjectId,
+            EffectKey = action.ObjectPresentationCueEffectKey ?? string.Empty
+        };
+    }
+
+    private static ProjectCommandActionPayloadBaseDto BuildClearObjectPresentationCuesPayloadElement(CommandAction action)
+    {
+        return new ProjectClearObjectPresentationCuesActionPayloadDto
+        {
+            ObjectId = action.ObjectPresentationCueObjectId
+        };
+    }
+
     private static ProjectCommandActionPayloadBaseDto BuildSelectRoomObjectByPointPayloadElement(string selectionCueEffectKey)
     {
         return new ProjectSelectRoomObjectByPointActionPayloadDto
@@ -7499,6 +7548,32 @@ public sealed class JsonExportService : IJsonExportService
         return new RuntimeSetActiveRoomObjectActionPayloadDto
         {
             SelectionCueEffectKey = selectionCueEffectKey ?? string.Empty
+        };
+    }
+
+    private static RuntimeCommandActionPayloadBaseDto BuildCleanAddObjectPresentationCuePayloadElement(CommandAction action)
+    {
+        return new RuntimeAddObjectPresentationCueActionPayloadDto
+        {
+            ObjectId = action.ObjectPresentationCueObjectId,
+            EffectKey = action.ObjectPresentationCueEffectKey ?? string.Empty
+        };
+    }
+
+    private static RuntimeCommandActionPayloadBaseDto BuildCleanRemoveObjectPresentationCuePayloadElement(CommandAction action)
+    {
+        return new RuntimeRemoveObjectPresentationCueActionPayloadDto
+        {
+            ObjectId = action.ObjectPresentationCueObjectId,
+            EffectKey = action.ObjectPresentationCueEffectKey ?? string.Empty
+        };
+    }
+
+    private static RuntimeCommandActionPayloadBaseDto BuildCleanClearObjectPresentationCuesPayloadElement(CommandAction action)
+    {
+        return new RuntimeClearObjectPresentationCuesActionPayloadDto
+        {
+            ObjectId = action.ObjectPresentationCueObjectId
         };
     }
 
@@ -7954,6 +8029,27 @@ public sealed class JsonExportService : IJsonExportService
         }
 
         return setActivePayload.SelectionCueEffectKey;
+    }
+
+    private static Guid? TryGetObjectPresentationCueObjectIdFromPayload(ProjectCommandActionPayloadBaseDto? payload)
+    {
+        return payload switch
+        {
+            ProjectAddObjectPresentationCueActionPayloadDto add => add.ObjectId == Guid.Empty ? null : add.ObjectId,
+            ProjectRemoveObjectPresentationCueActionPayloadDto remove => remove.ObjectId == Guid.Empty ? null : remove.ObjectId,
+            ProjectClearObjectPresentationCuesActionPayloadDto clear => clear.ObjectId == Guid.Empty ? null : clear.ObjectId,
+            _ => null
+        };
+    }
+
+    private static string? TryGetObjectPresentationCueEffectKeyFromPayload(ProjectCommandActionPayloadBaseDto? payload)
+    {
+        return payload switch
+        {
+            ProjectAddObjectPresentationCueActionPayloadDto add => add.EffectKey,
+            ProjectRemoveObjectPresentationCueActionPayloadDto remove => remove.EffectKey,
+            _ => null
+        };
     }
 
     private static string? TryGetSelectByPointSelectionCueEffectKeyFromPayload(ProjectCommandActionPayloadBaseDto? payload)

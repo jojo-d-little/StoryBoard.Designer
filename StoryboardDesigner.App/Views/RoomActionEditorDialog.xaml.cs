@@ -44,6 +44,12 @@ public partial class RoomActionEditorDialog : Window
         public required string DisplayName { get; init; }
     }
 
+    private sealed class PresentationCueObjectChoiceItem
+    {
+        public Guid? ObjectId { get; init; }
+        public required string DisplayName { get; init; }
+    }
+
     private sealed class TimerOwnerTypeChoice
     {
         public TimerOwnerType? OwnerType { get; init; }
@@ -386,6 +392,8 @@ public partial class RoomActionEditorDialog : Window
         StackVisualTransitionHintComboBox.ItemsSource = configuredMovementHints;
         SetActiveSelectionCueEffectKeyComboBox.ItemsSource = BuildSelectionCueEffectKeyChoices();
         SelectByPointSelectionCueEffectKeyComboBox.ItemsSource = BuildSelectionCueEffectKeyChoices();
+        ObjectPresentationCueEffectKeyComboBox.ItemsSource = _presentationEffectsCatalogService.GetObjectCueEligibleEffectKeys();
+        ObjectPresentationCueObjectIdComboBox.ItemsSource = BuildPresentationCueObjectChoices();
         ClearActiveScopeComboBox.ItemsSource = Enum.GetValues<RuntimeClearActiveRoomObjectsScope>();
         MoveByPointsVisualTransitionHintComboBox.ItemsSource = configuredMovementHints;
         MoveByPointsTravelVisualizationModeComboBox.ItemsSource = Enum.GetValues<RuntimeMovementTravelVisualizationMode>();
@@ -570,6 +578,7 @@ public partial class RoomActionEditorDialog : Window
         RotateRoomObjectOnGridEditorPanel.Visibility = Visibility.Collapsed;
         StackRoomObjectOnAnotherEditorPanel.Visibility = Visibility.Collapsed;
         SetActiveRoomObjectEditorPanel.Visibility = Visibility.Collapsed;
+        ObjectPresentationCueEditorPanel.Visibility = Visibility.Collapsed;
         SelectRoomObjectByPointEditorPanel.Visibility = Visibility.Collapsed;
         ClearActiveRoomObjectsEditorPanel.Visibility = Visibility.Collapsed;
         ClearRoomObjectSelectionsEditorPanel.Visibility = Visibility.Collapsed;
@@ -616,6 +625,15 @@ public partial class RoomActionEditorDialog : Window
                 break;
             case CommandActionType.SetActiveRoomObject:
                 SetActiveRoomObjectEditorPanel.Visibility = Visibility.Visible;
+                break;
+            case CommandActionType.AddObjectPresentationCue:
+            case CommandActionType.RemoveObjectPresentationCue:
+            case CommandActionType.ClearObjectPresentationCues:
+                ObjectPresentationCueEditorPanel.Visibility = Visibility.Visible;
+                var needsEffect = _workingCopy.ActionType != CommandActionType.ClearObjectPresentationCues;
+                ObjectPresentationCueEffectLabel.Visibility = needsEffect ? Visibility.Visible : Visibility.Collapsed;
+                ObjectPresentationCueEffectKeyComboBox.Visibility = needsEffect ? Visibility.Visible : Visibility.Collapsed;
+                ObjectPresentationCueEffectLabel.Text = _workingCopy.ActionType == CommandActionType.RemoveObjectPresentationCue ? "Effect to remove" : "Effect";
                 break;
             case CommandActionType.SelectRoomObjectByPoint:
                 LoadSelectByPointEditorInputs();
@@ -684,6 +702,7 @@ public partial class RoomActionEditorDialog : Window
             || RotateRoomObjectOnGridEditorPanel.Visibility == Visibility.Visible
             || StackRoomObjectOnAnotherEditorPanel.Visibility == Visibility.Visible
             || SetActiveRoomObjectEditorPanel.Visibility == Visibility.Visible
+            || ObjectPresentationCueEditorPanel.Visibility == Visibility.Visible
             || SelectRoomObjectByPointEditorPanel.Visibility == Visibility.Visible
             || ClearActiveRoomObjectsEditorPanel.Visibility == Visibility.Visible
             || ClearRoomObjectSelectionsEditorPanel.Visibility == Visibility.Visible
@@ -709,6 +728,25 @@ public partial class RoomActionEditorDialog : Window
     private void Save_OnClick(object sender, RoutedEventArgs e)
     {
         PersistOutcomeEchoEntriesToWorkingCopy();
+
+        if (_workingCopy.ActionType is CommandActionType.AddObjectPresentationCue or CommandActionType.RemoveObjectPresentationCue or CommandActionType.ClearObjectPresentationCues)
+        {
+            if (_workingCopy.ObjectPresentationCueObjectId.HasValue
+                && !_materializeSourceObjectChoices.Any(choice => choice.ObjectId == _workingCopy.ObjectPresentationCueObjectId.Value
+                    && string.Equals(choice.SourceCategory, "Current Room", StringComparison.OrdinalIgnoreCase)))
+            {
+                System.Windows.MessageBox.Show(this, "Choose an object from the current room, or leave the target blank to use the command's primary target.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (_workingCopy.ActionType != CommandActionType.ClearObjectPresentationCues
+                && !_presentationEffectsCatalogService.GetObjectCueEligibleEffectKeys().Contains(_workingCopy.ObjectPresentationCueEffectKey, StringComparer.OrdinalIgnoreCase))
+            {
+                System.Windows.MessageBox.Show(this, "Choose an effect from an object-cue-eligible category.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+                ObjectPresentationCueEffectKeyComboBox.Focus();
+                return;
+            }
+        }
 
         _sourceAction.Name = _workingCopy.Name.Trim();
         var isCheckGamePropertyAction = ActionPayloadSchemaHelpers.OwnsAllFields(
@@ -1014,6 +1052,11 @@ public partial class RoomActionEditorDialog : Window
         _sourceAction.SimilarChildDispatchMode = _workingCopy.SimilarChildDispatchMode;
         _sourceAction.OutcomeMessageMap = _workingCopy.OutcomeMessageMap;
         _sourceAction.OutcomeSoundEffectsMap = CommandAction.CloneOutcomeSoundEffectsMap(_workingCopy.OutcomeSoundEffectsMap);
+        _sourceAction.ObjectPresentationCueObjectId = _workingCopy.ObjectPresentationCueObjectId;
+        if (_workingCopy.ActionType is CommandActionType.AddObjectPresentationCue or CommandActionType.RemoveObjectPresentationCue)
+        {
+            _sourceAction.ObjectPresentationCueEffectKey = _workingCopy.ObjectPresentationCueEffectKey;
+        }
         _sourceAction.Payload = _sourceAction.CreatePayloadSnapshot();
 
         DialogResult = true;
@@ -1036,6 +1079,23 @@ public partial class RoomActionEditorDialog : Window
         }
 
         return configuredKeys;
+    }
+
+    private IReadOnlyList<PresentationCueObjectChoiceItem> BuildPresentationCueObjectChoices()
+    {
+        return new[]
+            {
+                new PresentationCueObjectChoiceItem { ObjectId = null, DisplayName = "(Command primary target)" }
+            }
+            .Concat(_materializeSourceObjectChoices
+                .Where(static choice => choice.ObjectId != Guid.Empty
+                    && string.Equals(choice.SourceCategory, "Current Room", StringComparison.OrdinalIgnoreCase))
+                .Select(static choice => new PresentationCueObjectChoiceItem
+                {
+                    ObjectId = choice.ObjectId,
+                    DisplayName = choice.DisplayName
+                }))
+            .ToList();
     }
 
     private static IReadOnlyList<TimerOwnerTypeChoice> BuildTimerOwnerTypeChoices(bool includeBlank)

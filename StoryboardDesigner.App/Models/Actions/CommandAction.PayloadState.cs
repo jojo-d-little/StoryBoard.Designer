@@ -34,6 +34,12 @@ public sealed partial class CommandAction
         set => SetFacet(value);
     }
 
+    private IActionPayload _objectPresentationCueFacet
+    {
+        get => _payload;
+        set => _payload = value;
+    }
+
     private SetActiveRoomObjectPayload _setActiveRoomObjectFacet
     {
         get => GetFacet(static () => new SetActiveRoomObjectPayload(string.Empty));

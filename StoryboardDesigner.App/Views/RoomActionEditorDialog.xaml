@@ -688,6 +688,31 @@
                               ToolTip="Optional presentation effect key. Leave blank to use the runtime default selection cue." />
                 </Grid>
 
+                <Grid x:Name="ObjectPresentationCueEditorPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,10"
+                               Foreground="#4B5563" TextWrapping="Wrap"
+                               Text="Changes the active presentation cue list on a current-room object. Leave Object Id blank to use the command's primary target." />
+                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Object Id" />
+                    <ComboBox x:Name="ObjectPresentationCueObjectIdComboBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10"
+                              DisplayMemberPath="DisplayName" SelectedValuePath="ObjectId"
+                              SelectedValue="{Binding ObjectPresentationCueObjectId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="Choose an object in the current room, or leave blank to use the command's primary target." />
+                    <TextBlock x:Name="ObjectPresentationCueEffectLabel" Grid.Row="2" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Effect" />
+                    <ComboBox x:Name="ObjectPresentationCueEffectKeyComboBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,10"
+                              IsEditable="False" IsTextSearchEnabled="True"
+                              SelectedItem="{Binding ObjectPresentationCueEffectKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="Effects are filtered by category-level objectCueEligible metadata." />
+                </Grid>
+
                 <Grid x:Name="SelectRoomObjectByPointEditorPanel" Visibility="Collapsed">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
