@@ -9,4 +9,5 @@ public sealed record RoomSettingsEditRequest(
 	int RoomCanvasWidth = 800,
 	int RoomCanvasHeight = 600,
 	int ProjectRoomGridCellSize = 40,
-	RoomAmbientLighting? AmbientLighting = null);
+	RoomAmbientLighting? AmbientLighting = null,
+	string NameSynonyms = "");

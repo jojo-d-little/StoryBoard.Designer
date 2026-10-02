@@ -52,6 +52,8 @@ public sealed class Room : ScopeNodeBase, INotifyPropertyChanged
 
     public bool HasNameInGame => !string.IsNullOrWhiteSpace(NameInGame);
 
+    public List<string> NameSynonyms { get; set; } = new();
+
     public string Description
     {
         get => _description;
@@ -154,6 +156,13 @@ public sealed class Room : ScopeNodeBase, INotifyPropertyChanged
             if (!string.IsNullOrWhiteSpace(name))
             {
                 yield return name;
+            }
+
+            foreach (var synonym in NameSynonyms
+                         .Select(static value => value?.Trim() ?? string.Empty)
+                         .Where(static value => !string.IsNullOrWhiteSpace(value)))
+            {
+                yield return synonym;
             }
         }
     }

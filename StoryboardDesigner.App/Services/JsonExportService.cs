@@ -544,6 +544,7 @@ public sealed class JsonExportService : IJsonExportService
                 ScopeKind = ScopeNodeKind.Room,
                 Name = room.Name,
                 NameInGame = room.NameInGame,
+                NameSynonyms = NullIfEmpty(NormalizeNameSynonyms(room.NameSynonyms)),
                 HideEmptyConfiguration = room.HideEmptyConfiguration,
                 Description = room.Description,
                 ProducerNotes = room.ProducerNotes,
@@ -1298,6 +1299,7 @@ public sealed class JsonExportService : IJsonExportService
             ScopeKind = ScopeNodeKind.RoomTemplates,
             Name = room.Name,
             NameInGame = room.NameInGame,
+            NameSynonyms = NullIfEmpty(NormalizeNameSynonyms(room.NameSynonyms)),
             HideEmptyConfiguration = room.HideEmptyConfiguration,
             Description = room.Description,
             ProducerNotes = room.ProducerNotes,
@@ -1959,6 +1961,7 @@ public sealed class JsonExportService : IJsonExportService
                 ScopeNodeId = room.Id,
                 Name = room.Name,
                 NameInGame = room.NameInGame,
+                NameSynonyms = NullIfEmpty(NormalizeNameSynonyms(room.NameSynonyms)),
                 Description = room.Description,
                 RoomImageCanvasWidth = ResolveEffectiveRoomCanvasWidth(project, room),
                 RoomImageCanvasHeight = ResolveEffectiveRoomCanvasHeight(project, room),
@@ -4373,6 +4376,11 @@ public sealed class JsonExportService : IJsonExportService
             DesignerPersistenceScopeKind = room.ScopeKind,
             Name = room.Name,
             NameInGame = room.NameInGame,
+            NameSynonyms = (room.NameSynonyms ?? new List<string>())
+                .Where(static synonym => !string.IsNullOrWhiteSpace(synonym))
+                .Select(static synonym => synonym.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList(),
             HideEmptyConfiguration = room.HideEmptyConfiguration,
             Description = room.Description,
             ProducerNotes = room.ProducerNotes ?? string.Empty,

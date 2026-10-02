@@ -7647,7 +7647,8 @@ public sealed partial class MainWindowViewModel
             ResolveEffectiveRoomCanvasWidth(roomNode.Room),
             ResolveEffectiveRoomCanvasHeight(roomNode.Room),
             _project.RoomDesignerGridCellSize,
-            LightingModelCloner.CloneRoomAmbientLighting(roomNode.Room.AmbientLighting));
+            LightingModelCloner.CloneRoomAmbientLighting(roomNode.Room.AmbientLighting),
+            SerializeObjectNameSynonyms(roomNode.Room.NameSynonyms));
 
         if (!_treeContextInteractionService.TryEditRoomSettings(current, out var updated))
         {
@@ -7662,6 +7663,7 @@ public sealed partial class MainWindowViewModel
         var uniqueName = MakeUniqueScopedEntityName(areaNode.Area.Rooms, static room => room.Name, updated.Name, roomNode.Room);
         var hasChanges = !string.Equals(roomNode.Room.Name, uniqueName, StringComparison.Ordinal)
                          || !string.Equals(roomNode.Room.NameInGame, updated.NameInGame, StringComparison.Ordinal)
+                         || !roomNode.Room.NameSynonyms.SequenceEqual(ParseObjectNameSynonyms(updated.NameSynonyms), StringComparer.OrdinalIgnoreCase)
                          || !string.Equals(roomNode.Room.ProducerNotes, updated.ProducerNotes, StringComparison.Ordinal)
                          || roomNode.Room.RoomImageCanvasWidth != updated.RoomCanvasWidth
                          || roomNode.Room.RoomImageCanvasHeight != updated.RoomCanvasHeight
@@ -7674,6 +7676,7 @@ public sealed partial class MainWindowViewModel
 
         roomNode.EditableName = uniqueName;
         roomNode.Room.NameInGame = updated.NameInGame;
+        roomNode.Room.NameSynonyms = ParseObjectNameSynonyms(updated.NameSynonyms);
         roomNode.Room.ProducerNotes = updated.ProducerNotes;
         roomNode.Room.RoomImageCanvasWidth = updated.RoomCanvasWidth;
         roomNode.Room.RoomImageCanvasHeight = updated.RoomCanvasHeight;
@@ -7702,7 +7705,8 @@ public sealed partial class MainWindowViewModel
             ResolveEffectiveRoomCanvasWidth(templateRoomNode.Room),
             ResolveEffectiveRoomCanvasHeight(templateRoomNode.Room),
             _project.RoomDesignerGridCellSize,
-            LightingModelCloner.CloneRoomAmbientLighting(templateRoomNode.Room.AmbientLighting));
+            LightingModelCloner.CloneRoomAmbientLighting(templateRoomNode.Room.AmbientLighting),
+            SerializeObjectNameSynonyms(templateRoomNode.Room.NameSynonyms));
 
         if (!_treeContextInteractionService.TryEditRoomSettings(current, out var updated))
         {
@@ -7712,6 +7716,7 @@ public sealed partial class MainWindowViewModel
         var uniqueName = MakeUniqueScopedEntityName(_project.RoomTemplates, static room => room.Name, updated.Name, templateRoomNode.Room);
         var hasChanges = !string.Equals(templateRoomNode.Room.Name, uniqueName, StringComparison.Ordinal)
                          || !string.Equals(templateRoomNode.Room.NameInGame, updated.NameInGame, StringComparison.Ordinal)
+                         || !templateRoomNode.Room.NameSynonyms.SequenceEqual(ParseObjectNameSynonyms(updated.NameSynonyms), StringComparer.OrdinalIgnoreCase)
                          || !string.Equals(templateRoomNode.Room.ProducerNotes, updated.ProducerNotes, StringComparison.Ordinal)
                          || templateRoomNode.Room.RoomImageCanvasWidth != updated.RoomCanvasWidth
                          || templateRoomNode.Room.RoomImageCanvasHeight != updated.RoomCanvasHeight
@@ -7724,6 +7729,7 @@ public sealed partial class MainWindowViewModel
 
         templateRoomNode.EditableName = uniqueName;
         templateRoomNode.Room.NameInGame = updated.NameInGame;
+        templateRoomNode.Room.NameSynonyms = ParseObjectNameSynonyms(updated.NameSynonyms);
         templateRoomNode.Room.ProducerNotes = updated.ProducerNotes;
         templateRoomNode.Room.RoomImageCanvasWidth = updated.RoomCanvasWidth;
         templateRoomNode.Room.RoomImageCanvasHeight = updated.RoomCanvasHeight;
@@ -8996,13 +9002,14 @@ public sealed partial class MainWindowViewModel
         }
 
         var defaultRoomName = MakeUniqueScopedEntityName(areaNode.Area.Rooms, static templateRoom => templateRoom.Name, "New Room");
-        if (!TryConfigureNewRoomBeforeInsert(areaNode, defaultRoomName, room.NameInGame, out var roomSettings))
+        if (!TryConfigureNewRoomBeforeInsert(areaNode, defaultRoomName, room.NameInGame, SerializeObjectNameSynonyms(room.NameSynonyms), out var roomSettings))
         {
             return false;
         }
 
         room.Name = roomSettings.Name;
         room.NameInGame = roomSettings.NameInGame;
+        room.NameSynonyms = ParseObjectNameSynonyms(roomSettings.NameSynonyms);
         room.ProducerNotes = roomSettings.ProducerNotes;
         room.RoomImageCanvasWidth = roomSettings.RoomCanvasWidth;
         room.RoomImageCanvasHeight = roomSettings.RoomCanvasHeight;
@@ -10967,6 +10974,7 @@ public sealed partial class MainWindowViewModel
         AreaNodeViewModel areaNode,
         string defaultName,
         string defaultNameInGame,
+        string defaultNameSynonyms,
         out RoomSettingsEditRequest configured)
     {
         var initial = new RoomSettingsEditRequest(
@@ -10975,7 +10983,8 @@ public sealed partial class MainWindowViewModel
             defaultNameInGame,
             RoomCanvasWidth: _project.RoomImageCanvasWidth,
             RoomCanvasHeight: _project.RoomImageCanvasHeight,
-            ProjectRoomGridCellSize: _project.RoomDesignerGridCellSize);
+            ProjectRoomGridCellSize: _project.RoomDesignerGridCellSize,
+            NameSynonyms: defaultNameSynonyms);
         if (!_treeContextInteractionService.TryEditRoomSettings(initial, out var updated))
         {
             configured = initial;

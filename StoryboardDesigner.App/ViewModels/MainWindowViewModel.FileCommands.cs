@@ -1229,6 +1229,7 @@ public sealed partial class MainWindowViewModel
             Id = Guid.NewGuid(),
             Name = source.Name,
             NameInGame = source.NameInGame,
+            NameSynonyms = source.NameSynonyms.ToList(),
             Description = source.Description,
             ProducerNotes = source.ProducerNotes,
             RoomImageCanvasWidth = source.RoomImageCanvasWidth,

@@ -37,6 +37,7 @@ public partial class RoomSettingsDialog : Window
 
         RoomNameTextBox.Text = initialValues.Name;
         RoomNameInGameTextBox.Text = initialValues.NameInGame;
+        RoomNameSynonymsTextBox.Text = NormalizeSynonymsText(initialValues.NameSynonyms);
         ProducerNotesTextBox.Text = initialValues.ProducerNotes;
         RoomCanvasWidthTextBox.Text = _roomCanvasWidth.ToString();
         RoomCanvasHeightTextBox.Text = _roomCanvasHeight.ToString();
@@ -53,7 +54,18 @@ public partial class RoomSettingsDialog : Window
         _roomCanvasWidth,
         _roomCanvasHeight,
         _projectGridCellSize,
-        ReadAmbientLighting());
+        ReadAmbientLighting(),
+        NormalizeSynonymsText(RoomNameSynonymsTextBox.Text));
+
+    private static string NormalizeSynonymsText(string? raw)
+    {
+        return string.Join(", ",
+            (raw ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(static token => token.Trim())
+                .Where(static token => !string.IsNullOrWhiteSpace(token))
+                .Distinct(StringComparer.OrdinalIgnoreCase));
+    }
 
     private void Save_OnClick(object sender, RoutedEventArgs e)
     {
