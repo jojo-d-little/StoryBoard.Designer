@@ -10,7 +10,11 @@ public partial class TraversalEditorDialog : Window
     private readonly PresentationEffectsCatalogService _presentationEffectsCatalogService = new();
     private IReadOnlyDictionary<Guid, Room> _roomsById = new Dictionary<Guid, Room>();
     private IReadOnlyList<Room> _roomList = Array.Empty<Room>();
-    private readonly Dictionary<Guid, Dictionary<Direction10, Guid>> _guidedDestinationsByRoom = new();
+    private IReadOnlyList<TraversalConnection> _areaConnections = Array.Empty<TraversalConnection>();
+    private Guid _editingConnectionId;
+    private Guid? _originalFromDoorId;
+    private Guid? _originalToDoorId;
+    private readonly Dictionary<Guid, Dictionary<Guid, Direction10>> _guidedDirectionsByPair = new();
     private IReadOnlyList<Direction10> _allowedDirections = DirectionValues.DefaultTraversalDirections;
     private bool _suppressSelectionHandlers;
     private bool _isInitializingDialog;
@@ -66,6 +70,10 @@ public partial class TraversalEditorDialog : Window
 
             var stateFromA = connection.TraversalStateFromA ??= new TraversalLegState();
             var stateFromB = connection.TraversalStateFromB ??= new TraversalLegState();
+            _editingConnectionId = connection.TraversalConnectionId;
+            _originalFromDoorId = stateFromA.OpenableObjectId;
+            _originalToDoorId = stateFromB.OpenableObjectId;
+            _areaConnections = area?.TraversalConnections ?? new List<TraversalConnection>();
             IReadOnlyCollection<Room> safeRooms = rooms ?? area?.Rooms ?? new List<Room>();
 
             _roomList = safeRooms
@@ -75,7 +83,7 @@ public partial class TraversalEditorDialog : Window
                 .OrderBy(room => room.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
             _roomsById = _roomList.ToDictionary(room => room.Id);
-            BuildGuidedDestinations(area);
+            BuildGuidedPairs(area);
             var configuredEffects = BuildRoomTransitionEffectOptions(connection.PresentationEffectKey);
 
             RoomAComboBox.ItemsSource = _roomList;
@@ -92,11 +100,16 @@ public partial class TraversalEditorDialog : Window
             PresentationEffectKeyComboBox.SelectedValue = NormalizeOptionalText(connection.PresentationEffectKey);
             _suppressSelectionHandlers = false;
 
-            var supportsGuided = _guidedDestinationsByRoom.Count > 0;
+            var supportsGuided = _guidedDirectionsByPair.Count > 0;
             GuidedModeRadioButton.IsEnabled = supportsGuided;
             UnguidedModeRadioButton.IsEnabled = supportsGuided;
 
-            if (supportsGuided && IsRepresentableInGuidedMode(connection))
+            var isNewConnection = _areaConnections.All(existing => existing.TraversalConnectionId != connection.TraversalConnectionId);
+            var canGuideNewConnection = isNewConnection
+                && _guidedDirectionsByPair.TryGetValue(connection.RoomAId, out var candidates)
+                && candidates.Count > 0
+                && (connection.RoomBId == Guid.Empty || candidates.ContainsKey(connection.RoomBId));
+            if (supportsGuided && (IsRepresentableInGuidedMode(connection) || canGuideNewConnection))
             {
                 GuidedModeRadioButton.IsChecked = true;
             }
@@ -105,7 +118,7 @@ public partial class TraversalEditorDialog : Window
                 UnguidedModeRadioButton.IsChecked = true;
             }
 
-            ApplyModeBehavior(autoSelectToRoom: false, preferredDirection: connection.BaseTraversalDirectionFromA);
+            ApplyModeBehavior(autoSelectToRoom: isNewConnection, preferredDirection: connection.BaseTraversalDirectionFromA);
 
             RefreshDoorOptions(stateFromA.OpenableObjectId, stateFromB.OpenableObjectId);
         }
@@ -208,20 +221,14 @@ public partial class TraversalEditorDialog : Window
             return;
         }
 
-        ApplyModeBehavior(autoSelectToRoom: IsGuidedMode, preferredDirection: DirectionComboBox.SelectedItem as Direction10?);
-        RefreshDoorOptions(FromRoomDoorObjectId, ToRoomDoorObjectId);
-    }
-
-    private void DirectionComboBox_OnSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
-    {
-        _ = sender;
-        _ = e;
-        if (_suppressSelectionHandlers || !IsGuidedMode)
+        if (IsGuidedMode && ReferenceEquals(sender, RoomBComboBox))
         {
-            return;
+            UpdateGuidedDirectionFromSelectedPair();
         }
-
-        AutoSelectDestinationFromDirection();
+        else
+        {
+            ApplyModeBehavior(autoSelectToRoom: IsGuidedMode, preferredDirection: DirectionComboBox.SelectedItem as Direction10?);
+        }
         RefreshDoorOptions(FromRoomDoorObjectId, ToRoomDoorObjectId);
     }
 
@@ -236,19 +243,17 @@ public partial class TraversalEditorDialog : Window
         FromRoomDoorComboBox.ItemsSource = fromOptions;
         ToRoomDoorComboBox.ItemsSource = toOptions;
 
-        FromRoomDoorComboBox.SelectedValue = fromOptions.Any(option => option.ObjectId == selectedFromDoorId)
-            ? selectedFromDoorId
-            : null;
-        ToRoomDoorComboBox.SelectedValue = toOptions.Any(option => option.ObjectId == selectedToDoorId)
-            ? selectedToDoorId
-            : null;
+        FromRoomDoorComboBox.SelectedItem = fromOptions.FirstOrDefault(option =>
+            option.ObjectId.HasValue && option.ObjectId == selectedFromDoorId) ?? fromOptions[0];
+        ToRoomDoorComboBox.SelectedItem = toOptions.FirstOrDefault(option =>
+            option.ObjectId.HasValue && option.ObjectId == selectedToDoorId) ?? toOptions[0];
     }
 
     private List<DoorOption> BuildDoorOptions(Guid? roomId)
     {
         var options = new List<DoorOption>
         {
-            new DoorOption { ObjectId = null, Label = "(None)" }
+            new DoorOption { ObjectId = null, Label = "No door (open passage)" }
         };
 
         if (!roomId.HasValue || !_roomsById.TryGetValue(roomId.Value, out var room))
@@ -263,7 +268,7 @@ public partial class TraversalEditorDialog : Window
             options.Add(new DoorOption
             {
                 ObjectId = obj.ObjectId,
-                Label = obj.Name
+                Label = $"{obj.Name} ({obj.PositionX:0.##}, {obj.PositionY:0.##}) · {obj.ObjectId:N}"
             });
         }
 
@@ -324,40 +329,36 @@ public partial class TraversalEditorDialog : Window
         _suppressSelectionHandlers = true;
         try
         {
+            var selectedToRoomId = RoomBComboBox.SelectedValue as Guid?;
             if (!IsGuidedMode || !GuidedModeRadioButton.IsEnabled)
             {
+                RoomBComboBox.ItemsSource = _roomList;
+                RoomBComboBox.SelectedValue = selectedToRoomId;
                 DirectionComboBox.ItemsSource = _allowedDirections;
                 var selectedDirection = preferredDirection.HasValue && _allowedDirections.Contains(preferredDirection.Value)
                     ? preferredDirection.Value
                     : _allowedDirections.FirstOrDefault();
                 DirectionComboBox.SelectedItem = selectedDirection;
-                RoomBComboBox.ItemsSource = _roomList;
+                DirectionComboBox.IsEnabled = true;
                 return;
             }
 
             var fromRoomId = RoomAComboBox.SelectedValue is Guid fromId ? fromId : Guid.Empty;
-            var destinations = _guidedDestinationsByRoom.TryGetValue(fromRoomId, out var mapped)
+            var destinations = _guidedDirectionsByPair.TryGetValue(fromRoomId, out var mapped)
                 ? mapped
-                : new Dictionary<Direction10, Guid>();
-
-            var availableDirections = destinations.Keys
-                .Where(_allowedDirections.Contains)
-                .OrderBy(DirectionOrder)
+                : new Dictionary<Guid, Direction10>();
+            var availableRooms = destinations
+                .Where(pair => _allowedDirections.Contains(pair.Value) && _roomsById.ContainsKey(pair.Key))
+                .Select(pair => _roomsById[pair.Key])
+                .OrderBy(room => room.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            DirectionComboBox.ItemsSource = availableDirections;
-
-            var desiredDirection = preferredDirection.HasValue && availableDirections.Contains(preferredDirection.Value)
-                ? preferredDirection.Value
-                : availableDirections.FirstOrDefault();
-
-            DirectionComboBox.SelectedItem = availableDirections.Count > 0 ? desiredDirection : null;
-
-            RoomBComboBox.ItemsSource = _roomList;
-
-            if (autoSelectToRoom)
-            {
-                AutoSelectDestinationFromDirection();
-            }
+            RoomBComboBox.ItemsSource = availableRooms;
+            RoomBComboBox.SelectedValue = selectedToRoomId.HasValue && availableRooms.Any(room => room.Id == selectedToRoomId.Value)
+                ? selectedToRoomId
+                : autoSelectToRoom && availableRooms.Count == 1 ? availableRooms[0].Id : null;
+            DirectionComboBox.ItemsSource = _allowedDirections;
+            DirectionComboBox.IsEnabled = false;
+            UpdateGuidedDirectionFromSelectedPair();
         }
         finally
         {
@@ -365,29 +366,31 @@ public partial class TraversalEditorDialog : Window
         }
     }
 
-    private void AutoSelectDestinationFromDirection()
+    private void UpdateGuidedDirectionFromSelectedPair()
     {
         if (RoomAComboBox.SelectedValue is not Guid fromRoomId
-            || DirectionComboBox.SelectedItem is not Direction10 selectedDirection
-            || !_guidedDestinationsByRoom.TryGetValue(fromRoomId, out var byDirection)
-            || !byDirection.TryGetValue(selectedDirection, out var toRoomId))
+            || RoomBComboBox.SelectedValue is not Guid toRoomId
+            || !_guidedDirectionsByPair.TryGetValue(fromRoomId, out var byDestination)
+            || !byDestination.TryGetValue(toRoomId, out var direction))
         {
+            DirectionComboBox.SelectedItem = null;
             return;
         }
 
-        RoomBComboBox.SelectedValue = toRoomId;
+        DirectionComboBox.SelectedItem = direction;
     }
 
     private bool IsRepresentableInGuidedMode(TraversalConnection connection)
     {
-        return _guidedDestinationsByRoom.TryGetValue(connection.RoomAId, out var byDirection)
-               && byDirection.TryGetValue(connection.BaseTraversalDirectionFromA, out var destinationId)
-               && destinationId == connection.RoomBId;
+        return _guidedDirectionsByPair.TryGetValue(connection.RoomAId, out var byDestination)
+               && byDestination.TryGetValue(connection.RoomBId, out var direction)
+               && direction == connection.BaseTraversalDirectionFromA
+               && _allowedDirections.Contains(direction);
     }
 
-    private void BuildGuidedDestinations(Area? area)
+    private void BuildGuidedPairs(Area? area)
     {
-        _guidedDestinationsByRoom.Clear();
+        _guidedDirectionsByPair.Clear();
         if (area is null)
         {
             return;
@@ -414,12 +417,6 @@ public partial class TraversalEditorDialog : Window
             .GroupBy(placement => placement.RoomId)
             .ToDictionary(group => group.Key, group => group.First());
 
-        var roomIdByCell = new Dictionary<(int col, int row), Guid>();
-        foreach (var (roomId, placement) in placementByRoomId)
-        {
-            roomIdByCell[ToGridCell(placement.X, placement.Y)] = roomId;
-        }
-
         foreach (var (roomId, placement) in placementByRoomId)
         {
             if (!roomById.ContainsKey(roomId))
@@ -427,68 +424,39 @@ public partial class TraversalEditorDialog : Window
                 continue;
             }
 
-            var sourceCell = ToGridCell(placement.X, placement.Y);
-            var byDirection = new Dictionary<Direction10, Guid>();
-
-            foreach (var (dx, dy, direction) in DirectionDeltas())
+            var byDestination = new Dictionary<Guid, Direction10>();
+            foreach (var (targetRoomId, targetPlacement) in placementByRoomId)
             {
-                if (area.AdjacencyMode == AreaAdjacencyMode.FourDirectional && dx != 0 && dy != 0)
+                if (targetRoomId == roomId || !roomById.ContainsKey(targetRoomId))
                 {
                     continue;
                 }
-
-                var targetCell = (sourceCell.col + dx, sourceCell.row + dy);
-                if (!roomIdByCell.TryGetValue(targetCell, out var targetRoomId) || targetRoomId == roomId)
+                if (!AreaMapGeometry.FromPlacement(placement).TryGetAdjacentOffset(
+                        AreaMapGeometry.FromPlacement(targetPlacement),
+                        area.AdjacencyMode != AreaAdjacencyMode.FourDirectional, out var dx, out var dy))
                 {
                     continue;
                 }
-
-                byDirection[direction] = targetRoomId;
+                byDestination[targetRoomId] = DirectionFromOffset(dx, dy);
             }
 
-            _guidedDestinationsByRoom[roomId] = byDirection;
+            _guidedDirectionsByPair[roomId] = byDestination;
         }
     }
 
-    private static (int col, int row) ToGridCell(double x, double y)
+    private static Direction10 DirectionFromOffset(int dx, int dy)
     {
-        const double cellWidth = 180;
-        const double cellHeight = 140;
-        const double gridOriginX = 24;
-        const double gridOriginY = 24;
-
-        var col = (int)Math.Round((x - gridOriginX) / cellWidth, MidpointRounding.AwayFromZero);
-        var row = (int)Math.Round((y - gridOriginY) / cellHeight, MidpointRounding.AwayFromZero);
-        return (Math.Max(0, col), Math.Max(0, row));
-    }
-
-    private static IEnumerable<(int dx, int dy, Direction10 direction)> DirectionDeltas()
-    {
-        yield return (0, -1, Direction10.North);
-        yield return (1, -1, Direction10.NorthEast);
-        yield return (1, 0, Direction10.East);
-        yield return (1, 1, Direction10.SouthEast);
-        yield return (0, 1, Direction10.South);
-        yield return (-1, 1, Direction10.SouthWest);
-        yield return (-1, 0, Direction10.West);
-        yield return (-1, -1, Direction10.NorthWest);
-    }
-
-    private static int DirectionOrder(Direction10 direction)
-    {
-        return direction switch
+        return (dx, dy) switch
         {
-            Direction10.North => 0,
-            Direction10.NorthEast => 1,
-            Direction10.East => 2,
-            Direction10.SouthEast => 3,
-            Direction10.South => 4,
-            Direction10.SouthWest => 5,
-            Direction10.West => 6,
-            Direction10.NorthWest => 7,
-            Direction10.Up => 8,
-            Direction10.Down => 9,
-            _ => int.MaxValue
+            (0, -1) => Direction10.North,
+            (1, -1) => Direction10.NorthEast,
+            (1, 0) => Direction10.East,
+            (1, 1) => Direction10.SouthEast,
+            (0, 1) => Direction10.South,
+            (-1, 1) => Direction10.SouthWest,
+            (-1, 0) => Direction10.West,
+            (-1, -1) => Direction10.NorthWest,
+            _ => throw new ArgumentOutOfRangeException(nameof(dx))
         };
     }
 
@@ -511,6 +479,29 @@ public partial class TraversalEditorDialog : Window
                 "Edit Traversal",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
+            return;
+        }
+
+        if (DirectionComboBox.SelectedItem is not Direction10)
+        {
+            System.Windows.MessageBox.Show(this,
+                "Select an adjacent destination or switch to Unguided to choose a direction.",
+                "Edit Traversal", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var selectedDoorIds = new[] { FromRoomDoorObjectId, ToRoomDoorObjectId }
+            .Where(id => id.HasValue && id.Value != Guid.Empty)
+            .Select(id => id!.Value)
+            .Where(id => id != _originalFromDoorId && id != _originalToDoorId)
+            .ToHashSet();
+        if (_areaConnections.Any(connection => connection.TraversalConnectionId != _editingConnectionId
+            && (connection.TraversalStateFromA.OpenableObjectId is Guid fromDoorId && selectedDoorIds.Contains(fromDoorId)
+                || connection.TraversalStateFromB.OpenableObjectId is Guid toDoorId && selectedDoorIds.Contains(toDoorId))))
+        {
+            System.Windows.MessageBox.Show(this,
+                "A selected door is already linked to another traversal. Choose a separate door for each connection.",
+                "Edit Traversal", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 

@@ -53,16 +53,15 @@
                       SelectionChanged="RoomComboBox_OnSelectionChanged"
                       IsEditable="False" />
 
-            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Direction" />
+            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Direction" />
             <ComboBox x:Name="DirectionComboBox"
-                      Grid.Row="2"
-                      Grid.Column="1"
-                      Margin="0,0,0,12"
-                      SelectionChanged="DirectionComboBox_OnSelectionChanged" />
-
-            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="To Room" />
-            <ComboBox x:Name="RoomBComboBox"
                       Grid.Row="3"
+                      Grid.Column="1"
+                      Margin="0,0,0,12" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="To Room" />
+            <ComboBox x:Name="RoomBComboBox"
+                      Grid.Row="2"
                       Grid.Column="1"
                       Margin="0,0,0,12"
                       DisplayMemberPath="Name"
@@ -98,7 +97,7 @@
                       Margin="0,0,0,12"
                       ItemsSource="{Binding Source={x:Static vm:OpenablePolicyValues.All}}" />
 
-            <TextBlock Grid.Row="8" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="From Room Door" />
+            <TextBlock Grid.Row="8" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="From Door (optional)" />
             <ComboBox x:Name="FromRoomDoorComboBox"
                       Grid.Row="8"
                       Grid.Column="1"
@@ -107,7 +106,7 @@
                       SelectedValuePath="ObjectId"
                       IsEditable="False" />
 
-            <TextBlock Grid.Row="9" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="To Room Door" />
+            <TextBlock Grid.Row="9" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="To Door (optional)" />
             <ComboBox x:Name="ToRoomDoorComboBox"
                       Grid.Row="9"
                       Grid.Column="1"
@@ -131,7 +130,7 @@
                        Grid.ColumnSpan="2"
                        Foreground="#6B7280"
                        TextWrapping="Wrap"
-                       Text="Guided mode limits directions to adjacent map rooms and auto-selects destination by direction. Unguided allows any room and direction." />
+                       Text="Guided mode lists adjacent rooms and infers direction from their full map footprints. Choose No door on both sides for an open passage; either side can also have its own door. Multiple exits in one direction require a named destination in play." />
 
             <StackPanel Grid.Row="12" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
                 <Button Width="96" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />

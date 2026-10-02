@@ -264,6 +264,7 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
     public bool PlaceRoom(Room room, double x, double y, out string? validationMessage, bool createAutoTraversals = true)
     {
         validationMessage = null;
+        string? autoTraversalNotice = null;
         var (targetCol, targetRow) = SnapToGridCell(x, y);
         var existing = RoomPlacements.FirstOrDefault(p => p.Room.Id == room.Id);
         var footprint = new AreaMapFootprint(targetCol, targetRow,
@@ -282,11 +283,12 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
                 existing.Y = ToCanvasY(targetRow);
                 if (createAutoTraversals)
                 {
-                    EnsureAutoTraversalsForRoom(existing.Room.Id);
+                    autoTraversalNotice = EnsureAutoTraversalsForRoom(existing.Room.Id);
                 }
             });
             RefreshVisibleRoomPlacements();
             RebuildNavigationArrows();
+            validationMessage = autoTraversalNotice;
             return true;
         }
 
@@ -307,11 +309,12 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
             RoomPlacements.Add(created);
             if (createAutoTraversals)
             {
-                EnsureAutoTraversalsForRoom(created.Room.Id);
+                autoTraversalNotice = EnsureAutoTraversalsForRoom(created.Room.Id);
             }
         });
         RefreshVisibleRoomPlacements();
         RebuildNavigationArrows();
+        validationMessage = autoTraversalNotice;
         return true;
     }
 
@@ -604,19 +607,19 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
         GridRows = Math.Max(GridRows, RoomPlacements.Max(placement => placement.Footprint.Bottom));
     }
 
-    private void EnsureAutoTraversalsForRoom(Guid roomId)
+    private string? EnsureAutoTraversalsForRoom(Guid roomId)
     {
-        var source = VisibleRoomPlacements.FirstOrDefault(p => p.Room.Id == roomId);
+        var source = RoomPlacements.FirstOrDefault(p => p.Room.Id == roomId);
         if (source is null)
         {
-            return;
+            return null;
         }
 
-        // Multi-cell auto authoring needs same-side conflict checks at both endpoints (Phase 03).
-        if (source.ColumnSpan != 1 || source.RowSpan != 1) return;
-        foreach (var target in VisibleRoomPlacements)
+        var floorPlacements = RoomPlacements.Where(placement => placement.FloorElevation == source.FloorElevation).ToList();
+        var skippedAmbiguous = false;
+        foreach (var target in floorPlacements)
         {
-            if (target.Room.Id == roomId || target.ColumnSpan != 1 || target.RowSpan != 1)
+            if (target.Room.Id == roomId)
             {
                 continue;
             }
@@ -628,8 +631,49 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
             }
 
             var forwardDirection = ToDirection(dx, dy);
+            var reverseDirection = InvertDirection(forwardDirection);
+            var (roomAId, roomBId) = ToOrderedPair(source.Room.Id, target.Room.Id);
+            var existingPair = TraversalConnections.FirstOrDefault(connection =>
+                connection.RoomAId == roomAId && connection.RoomBId == roomBId);
+            if (existingPair is not null)
+            {
+                UpdateTraversalDirectionFromPlacement(existingPair);
+                continue;
+            }
+            if (HasAmbiguousAdjacentSide(source, forwardDirection, floorPlacements)
+                || HasAmbiguousAdjacentSide(target, reverseDirection, floorPlacements)
+                || HasOutgoingDirectionConflict(source.Room.Id, target.Room.Id, ToDirection10(forwardDirection))
+                || HasOutgoingDirectionConflict(target.Room.Id, source.Room.Id, ToDirection10(reverseDirection)))
+            {
+                skippedAmbiguous = true;
+                continue;
+            }
             EnsureTraversalExists(source.Room.Id, target.Room.Id, forwardDirection);
         }
+
+        return skippedAmbiguous
+            ? "Some adjacent rooms share an exit side. Use Manage Traversals to select each room pair and its doors."
+            : null;
+    }
+
+    private bool HasAmbiguousAdjacentSide(AreaRoomPlacementViewModel source, Direction direction,
+        IReadOnlyCollection<AreaRoomPlacementViewModel> floorPlacements)
+    {
+        return floorPlacements.Count(target => target.Room.Id != source.Room.Id
+            && source.Footprint.TryGetAdjacentOffset(target.Footprint,
+                Area.AdjacencyMode != AreaAdjacencyMode.FourDirectional, out var dx, out var dy)
+            && ToDirection(dx, dy) == direction) > 1;
+    }
+
+    private bool HasOutgoingDirectionConflict(Guid sourceRoomId, Guid destinationRoomId, Direction10 direction)
+    {
+        return TraversalConnections.Any(connection =>
+            (connection.RoomAId == sourceRoomId && connection.RoomBId != destinationRoomId
+                && connection.TraversalAccessMode is (TraversalAccessMode.TwoWay or TraversalAccessMode.OneWayAtoB)
+                && connection.BaseTraversalDirectionFromA == direction)
+            || (connection.RoomBId == sourceRoomId && connection.RoomAId != destinationRoomId
+                && connection.TraversalAccessMode is (TraversalAccessMode.TwoWay or TraversalAccessMode.OneWayBtoA)
+                && InvertDirection(connection.BaseTraversalDirectionFromA) == direction));
     }
 
     private void EnsureTraversalExists(Guid fromRoomId, Guid toRoomId, Direction directionFromSourceToTarget)
@@ -670,8 +714,8 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
 
         foreach (var connection in TraversalConnections)
         {
-            AddArrowForLeg(connection, connection.RoomAId, connection.RoomBId, connection.BaseTraversalDirectionFromA, connection.TraversalAccessMode is TraversalAccessMode.TwoWay or TraversalAccessMode.OneWayAtoB, offsetSign: 1);
-            AddArrowForLeg(connection, connection.RoomBId, connection.RoomAId, InvertDirection(connection.BaseTraversalDirectionFromA), connection.TraversalAccessMode is TraversalAccessMode.TwoWay or TraversalAccessMode.OneWayBtoA, offsetSign: -1);
+            AddArrowForLeg(connection, connection.RoomAId, connection.RoomBId, connection.BaseTraversalDirectionFromA, connection.TraversalAccessMode is TraversalAccessMode.TwoWay or TraversalAccessMode.OneWayAtoB);
+            AddArrowForLeg(connection, connection.RoomBId, connection.RoomAId, InvertDirection(connection.BaseTraversalDirectionFromA), connection.TraversalAccessMode is TraversalAccessMode.TwoWay or TraversalAccessMode.OneWayBtoA);
         }
 
         RefreshVerticalIndicators();
@@ -742,8 +786,7 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
         Guid sourceRoomId,
         Guid destinationRoomId,
         Direction10 direction,
-        bool isEnabled,
-        int offsetSign)
+        bool isEnabled)
     {
         if (!isEnabled)
         {
@@ -784,17 +827,35 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
             return;
         }
 
-        // Clip the center-to-center line to both card edges. A large room's arrows
-        // then spread along the actual side used by their distinct neighbors.
-        var fromScale = Math.Min(dx == 0 ? double.PositiveInfinity : fromHalfWidth / Math.Abs(dx),
-            dy == 0 ? double.PositiveInfinity : fromHalfHeight / Math.Abs(dy));
-        var toScale = Math.Min(dx == 0 ? double.PositiveInfinity : toHalfWidth / Math.Abs(dx),
-            dy == 0 ? double.PositiveInfinity : toHalfHeight / Math.Abs(dy));
-        var midX = (fromCenterX + dx * fromScale + toCenterX - dx * toScale) / 2;
-        var midY = (fromCenterY + dy * fromScale + toCenterY - dy * toScale) / 2;
+        double midX;
+        double midY;
+        double arrowDx;
+        double arrowDy;
+        if (fromPlacement.Footprint.TryGetAdjacentOffset(toPlacement.Footprint,
+                Area.AdjacencyMode != AreaAdjacencyMode.FourDirectional, out var adjacentDx, out var adjacentDy)
+            && (adjacentDx == 0 || adjacentDy == 0)
+            && ToDirection(adjacentDx, adjacentDy) == planarDirection
+            && TryGetSharedSideMidpoint(fromPlacement, toPlacement, adjacentDx, adjacentDy, out midX, out midY))
+        {
+            arrowDx = adjacentDx;
+            arrowDy = adjacentDy;
+        }
+        else
+        {
+            // Keep the center-to-center projection for explicit nonadjacent links.
+            var fromScale = Math.Min(dx == 0 ? double.PositiveInfinity : fromHalfWidth / Math.Abs(dx),
+                dy == 0 ? double.PositiveInfinity : fromHalfHeight / Math.Abs(dy));
+            var toScale = Math.Min(dx == 0 ? double.PositiveInfinity : toHalfWidth / Math.Abs(dx),
+                dy == 0 ? double.PositiveInfinity : toHalfHeight / Math.Abs(dy));
+            midX = (fromCenterX + dx * fromScale + toCenterX - dx * toScale) / 2;
+            midY = (fromCenterY + dy * fromScale + toCenterY - dy * toScale) / 2;
+            arrowDx = dx / length;
+            arrowDy = dy / length;
+        }
 
-        var offsetX = (-dy / length) * (6 * offsetSign);
-        var offsetY = (dx / length) * (6 * offsetSign);
+        // Opposite legs use opposite normals, keeping their icons visible side by side.
+        var offsetX = -arrowDy * 10;
+        var offsetY = arrowDx * 10;
 
         var arrow = new NavigationArrowViewModel(connection)
         {
@@ -803,11 +864,39 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
             Direction = planarDirection,
             X = midX + offsetX,
             Y = midY + offsetY,
-            Angle = Math.Atan2(dy, dx) * (180 / Math.PI)
+            Angle = Math.Atan2(arrowDy, arrowDx) * (180 / Math.PI)
         };
 
         ApplyTraversalValidationProjection(arrow);
         NavigationArrows.Add(arrow);
+    }
+
+    private static bool TryGetSharedSideMidpoint(
+        AreaRoomPlacementViewModel from,
+        AreaRoomPlacementViewModel to,
+        int adjacentDx,
+        int adjacentDy,
+        out double x,
+        out double y)
+    {
+        if (adjacentDy != 0)
+        {
+            var overlapLeft = Math.Max(from.X, to.X);
+            var overlapRight = Math.Min(from.X + from.CardWidth, to.X + to.CardWidth);
+            x = (overlapLeft + overlapRight) / 2;
+            y = adjacentDy > 0
+                ? (from.Y + from.CardHeight + to.Y) / 2
+                : (to.Y + to.CardHeight + from.Y) / 2;
+            return overlapRight > overlapLeft;
+        }
+
+        var overlapTop = Math.Max(from.Y, to.Y);
+        var overlapBottom = Math.Min(from.Y + from.CardHeight, to.Y + to.CardHeight);
+        x = adjacentDx > 0
+            ? (from.X + from.CardWidth + to.X) / 2
+            : (to.X + to.CardWidth + from.X) / 2;
+        y = (overlapTop + overlapBottom) / 2;
+        return overlapBottom > overlapTop;
     }
 
     private static string BuildValidationPreviewLine(ProjectValidationIssue issue)

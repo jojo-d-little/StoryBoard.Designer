@@ -102,6 +102,118 @@ public sealed class AreaNavigationEditorTabViewModelTests
         Assert.Equal(3, outbound.Length);
         Assert.Equal(3, outbound.Select(a => Math.Round(a.X)).Distinct().Count());
         Assert.All(outbound, arrow => Assert.InRange(arrow.Y, 390, 440));
+        Assert.All(outbound, arrow => Assert.Equal(90, arrow.Angle, 6));
+        Assert.All(editor.NavigationArrows.Where(a => a.DestinationRoomId == large.Id),
+            arrow => Assert.Equal(-90, arrow.Angle, 6));
+    }
+
+    [Fact]
+    public void FoyerAndHallwayArrowsAlignWithTheirSharedNorthSouthEdge()
+    {
+        var foyer = new Room { Name = "Elevator Foyer" };
+        var hallway = new Room { Name = "North Hallway" };
+        var area = new Area
+        {
+            Name = "Area",
+            Rooms = [foyer, hallway],
+            RoomPlacements =
+            [
+                new AreaRoomPlacement { RoomId = foyer.Id, X = 204, Y = 164, ColumnSpan = 2, FloorElevation = 2 },
+                new AreaRoomPlacement { RoomId = hallway.Id, X = 384, Y = 304, FloorElevation = 2 }
+            ],
+            TraversalConnections =
+            [
+                new TraversalConnection
+                {
+                    RoomAId = foyer.Id,
+                    RoomBId = hallway.Id,
+                    BaseTraversalDirectionFromA = Direction10.South,
+                    TraversalAccessMode = TraversalAccessMode.TwoWay
+                }
+            ]
+        };
+
+        var editor = new AreaNavigationEditorTabViewModel(area);
+        editor.SetSelectedFloorElevation(2);
+        var south = Assert.Single(editor.NavigationArrows.Where(arrow => arrow.SourceRoomId == foyer.Id));
+        var north = Assert.Single(editor.NavigationArrows.Where(arrow => arrow.SourceRoomId == hallway.Id));
+
+        Assert.Equal(90, south.Angle, 6);
+        Assert.Equal(-90, north.Angle, 6);
+        Assert.Equal(438, south.X, 6);
+        Assert.Equal(458, north.X, 6);
+        Assert.Equal(282, south.Y, 6);
+        Assert.Equal(282, north.Y, 6);
+    }
+
+    [Fact]
+    public void AutoTraversals_LeaveSharedLargeRoomSideForPairEditing()
+    {
+        var large = new Room { Name = "Large" };
+        var southA = new Room { Name = "South A" };
+        var southB = new Room { Name = "South B" };
+        var southC = new Room { Name = "South C" };
+        var area = new Area
+        {
+            Name = "Area",
+            Rooms = [large, southA, southB, southC],
+            RoomPlacements =
+            [
+                new AreaRoomPlacement { RoomId = large.Id, X = 24, Y = 24, ColumnSpan = 3, RowSpan = 3 },
+                new AreaRoomPlacement { RoomId = southA.Id, X = 24, Y = 444 },
+                new AreaRoomPlacement { RoomId = southB.Id, X = 204, Y = 444 },
+                new AreaRoomPlacement { RoomId = southC.Id, X = 384, Y = 444 }
+            ]
+        };
+
+        var editor = new AreaNavigationEditorTabViewModel(area);
+        Assert.True(editor.PlaceRoom(large, 24, 24, out var notice, createAutoTraversals: true));
+        Assert.Contains("Manage Traversals", notice);
+        Assert.Empty(editor.TraversalConnections);
+
+        var pairA = new TraversalConnection
+        {
+            RoomAId = large.Id, RoomBId = southA.Id,
+            BaseTraversalDirectionFromA = Direction10.South,
+            TraversalAccessMode = TraversalAccessMode.TwoWay
+        };
+        area.TraversalConnections.Add(pairA);
+        editor.TraversalConnections.Add(pairA);
+
+        Assert.True(editor.PlaceRoom(southB, 204, 444, out notice, createAutoTraversals: true));
+        Assert.Contains("Manage Traversals", notice);
+        Assert.Single(editor.TraversalConnections.Where(connection =>
+            connection.RoomAId == large.Id || connection.RoomBId == large.Id));
+    }
+
+    [Fact]
+    public void AutoTraversals_CreateOneUnambiguousLargeRoomPair_ThenStopAtSecondSouthNeighbor()
+    {
+        var large = new Room { Name = "Large" };
+        var southA = new Room { Name = "South A" };
+        var southB = new Room { Name = "South B" };
+        var area = new Area
+        {
+            Name = "Area",
+            Rooms = [large, southA, southB],
+            RoomPlacements =
+            [
+                new AreaRoomPlacement { RoomId = large.Id, X = 24, Y = 24, ColumnSpan = 3, RowSpan = 3 }
+            ]
+        };
+        var editor = new AreaNavigationEditorTabViewModel(area);
+
+        Assert.True(editor.PlaceRoom(southA, 24, 444, out var firstNotice, createAutoTraversals: true));
+        Assert.Null(firstNotice);
+        var first = Assert.Single(editor.TraversalConnections);
+        var forward = first.RoomAId == large.Id ? first.BaseTraversalDirectionFromA
+            : TraversalWizardApplyUtility.OppositeDirection(first.BaseTraversalDirectionFromA);
+        Assert.Equal(Direction10.South, forward);
+
+        Assert.True(editor.PlaceRoom(southB, 204, 444, out var secondNotice, createAutoTraversals: true));
+        Assert.Contains("Manage Traversals", secondNotice);
+        Assert.Single(editor.TraversalConnections.Where(connection =>
+            connection.RoomAId == large.Id || connection.RoomBId == large.Id));
     }
 
     [Fact]

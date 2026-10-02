@@ -416,16 +416,16 @@ public partial class AreaRoomPlacementCard : System.Windows.Controls.UserControl
                 continue;
             }
 
-            if (viewModel.TryLinkTraversalDoors(
-                    dialog.SelectedConnection,
-                    editDialog.FromRoomDoorObjectId,
-                    editDialog.ToRoomDoorObjectId,
-                    out var warningMessage)
-                && !string.IsNullOrWhiteSpace(warningMessage))
+            var doorsLinked = viewModel.TryLinkTraversalDoors(
+                dialog.SelectedConnection,
+                editDialog.FromRoomDoorObjectId,
+                editDialog.ToRoomDoorObjectId,
+                out var warningMessage);
+            if (!doorsLinked || !string.IsNullOrWhiteSpace(warningMessage))
             {
                 System.Windows.MessageBox.Show(
                     owner,
-                    warningMessage,
+                    warningMessage ?? "Could not link the selected doors. Review their room and traversal assignments.",
                     "Traversal Door Link Review",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -499,20 +499,22 @@ public partial class AreaRoomPlacementCard : System.Windows.Controls.UserControl
             return false;
         }
 
-        if (createdConnection is not null
-            && viewModel.TryLinkTraversalDoors(
+        if (createdConnection is not null)
+        {
+            var doorsLinked = viewModel.TryLinkTraversalDoors(
                 createdConnection,
                 addDialog.FromRoomDoorObjectId,
                 addDialog.ToRoomDoorObjectId,
-                out var addWarningMessage)
-            && !string.IsNullOrWhiteSpace(addWarningMessage))
-        {
-            System.Windows.MessageBox.Show(
-                owner,
-                addWarningMessage,
-                "Traversal Door Link Review",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+                out var addWarningMessage);
+            if (!doorsLinked || !string.IsNullOrWhiteSpace(addWarningMessage))
+            {
+                System.Windows.MessageBox.Show(
+                    owner,
+                    addWarningMessage ?? "Could not link the selected doors. Review their room and traversal assignments.",
+                    "Traversal Door Link Review",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
         }
 
         return true;
@@ -670,7 +672,9 @@ public partial class AreaRoomPlacementCard : System.Windows.Controls.UserControl
             : null;
 
         var destinationRoom = ResolveSeedDestinationRoom(area, sourceRoom, sourcePlacement, placementByRoomId, verticalSeedPreference)
-            ?? (area.Rooms ?? new List<Room>()).FirstOrDefault(candidate => candidate.Id != sourceRoom.Id);
+            ?? (verticalSeedPreference == VerticalSeedPreference.None
+                ? null
+                : (area.Rooms ?? new List<Room>()).FirstOrDefault(candidate => candidate.Id != sourceRoom.Id));
 
         var preferredFromSource = verticalSeedPreference switch
         {
@@ -696,12 +700,23 @@ public partial class AreaRoomPlacementCard : System.Windows.Controls.UserControl
         IReadOnlyDictionary<Guid, AreaRoomPlacement> placementByRoomId,
         VerticalSeedPreference verticalSeedPreference)
     {
-        if (sourcePlacement is null || verticalSeedPreference == VerticalSeedPreference.None)
+        if (sourcePlacement is null)
         {
             return null;
         }
 
         var sourceFootprint = AreaMapGeometry.FromPlacement(sourcePlacement);
+        if (verticalSeedPreference == VerticalSeedPreference.None)
+        {
+            var adjacentRooms = (area.Rooms ?? new List<Room>())
+                .Where(candidate => candidate.Id != sourceRoom.Id
+                    && placementByRoomId.TryGetValue(candidate.Id, out var placement)
+                    && sourceFootprint.TryGetAdjacentOffset(AreaMapGeometry.FromPlacement(placement),
+                        area.AdjacencyMode != AreaAdjacencyMode.FourDirectional, out _, out _))
+                .ToList();
+            return adjacentRooms.Count == 1 ? adjacentRooms[0] : null;
+        }
+
         var candidates = (area.Rooms ?? new List<Room>())
             .Where(candidate => candidate.Id != sourceRoom.Id)
             .Select(candidate => new

@@ -42,9 +42,10 @@ public sealed class TraversalDirectionalTargetUniquenessRuleTests
 
         var issue = Assert.Single(issues);
         Assert.Equal("TRV-007", issue.RuleId);
-        Assert.Equal(ValidationSeverity.Error, issue.Severity);
+        Assert.Equal(ValidationSeverity.Warning, issue.Severity);
         Assert.Contains("multiple traversal targets", issue.Description, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("direction Up", issue.Description, StringComparison.Ordinal);
+        Assert.Contains("destination-qualified", issue.Hint, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -81,6 +82,34 @@ public sealed class TraversalDirectionalTargetUniquenessRuleTests
         var issues = ExecuteRule(project);
 
         Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void Evaluate_ThreeSouthDestinations_AdvisesQualificationWithoutBlockingAuthoring()
+    {
+        var large = new Room { Name = "Large" };
+        var neighbors = Enumerable.Range(1, 3).Select(index => new Room { Name = $"South {index}" }).ToArray();
+        var area = new Area
+        {
+            Name = "Area",
+            Rooms = [large, ..neighbors],
+            TraversalConnections = neighbors.Select(room => new TraversalConnection
+            {
+                RoomAId = large.Id,
+                RoomBId = room.Id,
+                BaseTraversalDirectionFromA = Direction10.South,
+                TraversalAccessMode = TraversalAccessMode.TwoWay
+            }).ToList()
+        };
+
+        var issues = ExecuteRule(BuildProject(area));
+
+        var issue = Assert.Single(issues);
+        Assert.Equal(ValidationSeverity.Warning, issue.Severity);
+        Assert.Contains("South 1", issue.Description);
+        Assert.Contains("South 2", issue.Description);
+        Assert.Contains("South 3", issue.Description);
+        Assert.Contains("destination-qualified", issue.Hint);
     }
 
     private static IReadOnlyList<ValidationIssue> ExecuteRule(ProjectModel project)

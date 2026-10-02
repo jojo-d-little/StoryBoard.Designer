@@ -1650,6 +1650,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return false;
         }
 
+        if (editor.TraversalConnections.Any(connection => !ReferenceEquals(connection, link)
+            && ((connection.RoomAId == roomAId && connection.RoomBId == roomBId)
+                || (connection.RoomAId == roomBId && connection.RoomBId == roomAId))))
+        {
+            return false;
+        }
+
         link.RoomAId = roomAId;
         link.RoomBId = roomBId;
         link.BaseTraversalDirectionFromA = baseTraversalDirectionFromA;
@@ -1750,11 +1757,33 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return false;
         }
 
+        var selectedDoorIds = new[] { fromRoomDoorObjectId, toRoomDoorObjectId }
+            .Where(id => id.HasValue && id.Value != Guid.Empty)
+            .Select(id => id!.Value)
+            .Where(id => id != connection.TraversalStateFromA.OpenableObjectId
+                && id != connection.TraversalStateFromB.OpenableObjectId)
+            .ToHashSet();
+        if (area.TraversalConnections.Any(other => !ReferenceEquals(other, connection)
+            && (other.TraversalStateFromA.OpenableObjectId is Guid otherFromDoorId && selectedDoorIds.Contains(otherFromDoorId)
+                || other.TraversalStateFromB.OpenableObjectId is Guid otherToDoorId && selectedDoorIds.Contains(otherToDoorId))))
+        {
+            warningMessage = "A selected door is already linked to another traversal. Choose a separate door for each connection.";
+            return false;
+        }
+
+        var hadDoorLink = connection.TraversalStateFromA.OpenableObjectId.HasValue
+            || connection.TraversalStateFromB.OpenableObjectId.HasValue;
         connection.TraversalStateFromA.OpenableObjectId = fromRoomDoorObjectId;
         connection.TraversalStateFromB.OpenableObjectId = toRoomDoorObjectId;
 
         if (fromDoor is null && toDoor is null)
         {
+            if (hadDoorLink)
+            {
+                RemoveTraversalLevelPassableBindings(connection);
+                RemoveTraversalLegPassableBindings(connection);
+                RemoveEmptySharedVariables();
+            }
             return true;
         }
 

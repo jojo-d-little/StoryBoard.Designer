@@ -9,6 +9,78 @@ namespace StoryboardDesigner.App.Tests;
 public sealed class MainWindowViewModelAreaMapTraversalSyncTests
 {
     [Fact]
+    public void ThreeSouthRoomPairs_KeepIndependentDoorLinksAndRejectDoorOrPairReuse()
+    {
+        var large = new Room { Name = "Large" };
+        var neighbors = Enumerable.Range(1, 3).Select(index => new Room { Name = $"South {index}" }).ToArray();
+        var largeDoors = Enumerable.Range(1, 3).Select(index => new GameObject
+        {
+            Name = $"South Door {index}", IsOpenable = true, IsOpenDefaultValue = true
+        }).ToArray();
+        var neighborDoors = Enumerable.Range(1, 3).Select(index => new GameObject
+        {
+            Name = $"North Door {index}", IsOpenable = true, IsOpenDefaultValue = true
+        }).ToArray();
+        foreach (var door in largeDoors) large.GameObjects.Add(door);
+        for (var index = 0; index < neighbors.Length; index++) neighbors[index].GameObjects.Add(neighborDoors[index]);
+
+        var area = new Area { Name = "Area", Rooms = [large, ..neighbors] };
+        var project = new ProjectModel
+        {
+            Name = "Three South Doors",
+            Planets = [new Planet
+            {
+                Name = "Planet",
+                Countries = [new Country { Name = "Country", Areas = [area] }]
+            }]
+        };
+        var vm = MainWindowViewModelTestHarness.CreateViewModel(
+            project, new TreeContextInteractionServiceStub(), new ProjectUiServiceStub());
+        InvokeLoadProjectIntoHierarchy(vm);
+        vm.OpenAreaEditor(area);
+
+        var connections = new List<TraversalConnection>();
+        for (var index = 0; index < neighbors.Length; index++)
+        {
+            Assert.True(vm.TryCreateSelectedAreaTraversal(large.Id, neighbors[index].Id,
+                Direction10.South, TraversalAccessMode.TwoWay, OpenStateBindingMode.Independent,
+                OpenablePolicy.IgnoreOpenableState, OpenablePolicy.IgnoreOpenableState,
+                null, out var connection));
+            Assert.NotNull(connection);
+            Assert.True(vm.TryLinkTraversalDoors(connection!, largeDoors[index].ObjectId,
+                neighborDoors[index].ObjectId, out var warning), warning);
+            connections.Add(connection!);
+        }
+
+        Assert.Equal(3, connections.Count);
+        Assert.Equal(3, connections.Select(connection => connection.TraversalStateFromA.SharedVariableId).Distinct().Count());
+        Assert.All(connections, connection => Assert.Equal(Direction10.South, connection.BaseTraversalDirectionFromA));
+        Assert.False(vm.TryCreateSelectedAreaTraversal(large.Id, neighbors[0].Id,
+            Direction10.South, TraversalAccessMode.TwoWay, OpenStateBindingMode.Independent,
+            OpenablePolicy.IgnoreOpenableState, OpenablePolicy.IgnoreOpenableState,
+            null, out _));
+
+        Assert.False(vm.TryLinkTraversalDoors(connections[1], largeDoors[0].ObjectId,
+            neighborDoors[1].ObjectId, out var reuseWarning));
+        Assert.Contains("already linked", reuseWarning);
+        Assert.Equal(largeDoors[1].ObjectId, connections[1].TraversalStateFromA.OpenableObjectId);
+
+        Assert.False(vm.TryUpdateSelectedAreaTraversal(connections[1], large.Id, neighbors[0].Id,
+            Direction10.South, TraversalAccessMode.TwoWay, OpenStateBindingMode.Independent,
+            OpenablePolicy.IgnoreOpenableState, OpenablePolicy.IgnoreOpenableState, null));
+        Assert.Equal(neighbors[1].Id, connections[1].RoomBId);
+
+        Assert.True(vm.TryLinkTraversalDoors(connections[2], null, null, out _));
+        Assert.Null(connections[2].TraversalStateFromA.OpenableObjectId);
+        Assert.Null(connections[2].TraversalStateFromB.OpenableObjectId);
+        Assert.Null(connections[2].TraversalStateFromA.SharedVariableId);
+        Assert.Null(connections[2].TraversalStateFromB.SharedVariableId);
+        Assert.DoesNotContain(project.SharedVariables.SelectMany(shared => shared.Participants), participant =>
+            participant.OwnerId == connections[2].TraversalConnectionId
+            && string.Equals(participant.Kind, "traversal-leg", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void TryLinkTraversalDoors_TwoDoors_WiresSharedGroupAndDoesNotWarnAtFourParticipants()
     {
         var area = new Area { Name = "Area" };

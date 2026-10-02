@@ -141,6 +141,12 @@ public partial class AreaMapCanvas : System.Windows.Controls.UserControl
             return;
         }
 
+        if (!string.IsNullOrWhiteSpace(validationMessage))
+        {
+            System.Windows.MessageBox.Show(owner, validationMessage,
+                "Traversal Choices", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
         if (editor.Area.RoomDropBehavior == AreaRoomDropBehavior.PromptForWizard
             && editor.CanUseOrdinaryTraversalWizard(roomNode.Room.Id)
             && editor.HasImmediateAdjacentRoom(roomNode.Room.Id))
@@ -233,15 +239,15 @@ public partial class AreaMapCanvas : System.Windows.Controls.UserControl
             return;
         }
 
-        if (viewModel.TryLinkTraversalDoors(
-                arrow.Connection,
-                dialog.FromRoomDoorObjectId,
-                dialog.ToRoomDoorObjectId,
-                out var warningMessage)
-            && !string.IsNullOrWhiteSpace(warningMessage))
+        var doorsLinked = viewModel.TryLinkTraversalDoors(
+            arrow.Connection,
+            dialog.FromRoomDoorObjectId,
+            dialog.ToRoomDoorObjectId,
+            out var warningMessage);
+        if (!doorsLinked || !string.IsNullOrWhiteSpace(warningMessage))
         {
             System.Windows.MessageBox.Show(owner,
-                warningMessage,
+                warningMessage ?? "Could not link the selected doors. Review their room and traversal assignments.",
                 "Traversal Door Link Review",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);

@@ -11,8 +11,8 @@ public sealed class TraversalDirectionalTargetUniquenessRule : IValidationRule
 
     public ValidationRuleMetadata Metadata { get; } = new(
         RuleId: "TRV-007",
-        Title: "Traversal Directional Target Uniqueness",
-        DefaultSeverity: ValidationSeverity.Error,
+        Title: "Traversal Direction Qualification",
+        DefaultSeverity: ValidationSeverity.Warning,
         Category: "Traversal");
 
     public IEnumerable<ValidationIssue> Evaluate(ValidationRuleContext context)
@@ -68,8 +68,8 @@ public sealed class TraversalDirectionalTargetUniquenessRule : IValidationRule
                 Metadata.RuleId,
                 Metadata.DefaultSeverity,
                 $"{areaPath} / Room/{sourceRoomName}",
-                $"room '{sourceRoomName}' has multiple traversal targets for direction {entry.Key.Direction}: {string.Join(", ", targetNames)}.",
-                "Keep one effective traversal target per room and direction, or use a different direction for alternate routes.");
+                $"room '{sourceRoomName}' has multiple traversal targets for direction {entry.Key.Direction}: {string.Join(", ", targetNames)}. A bare direction needs a destination choice.",
+                "Use destination-qualified navigation to choose among these exits. Give destinations distinct names so players can identify them.");
         }
     }
 
