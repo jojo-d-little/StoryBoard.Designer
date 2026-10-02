@@ -125,7 +125,11 @@ public partial class AreaMapCanvas : System.Windows.Controls.UserControl
         var point = e.GetPosition(canvas);
 
         var createAutoTraversals = editor.Area.RoomDropBehavior == AreaRoomDropBehavior.AutoBasicTraversals;
-        var placed = editor.PlaceRoom(roomNode.Room, point.X - 64, point.Y - 48, out var validationMessage, createAutoTraversals);
+        var existing = editor.RoomPlacements.FirstOrDefault(placement => placement.Room.Id == roomNode.Room.Id);
+        var placed = editor.PlaceRoom(roomNode.Room,
+            point.X - (existing?.CardWidth ?? AreaMapGeometry.RoomCardWidth) / 2,
+            point.Y - (existing?.CardHeight ?? AreaMapGeometry.RoomCardHeight) / 2,
+            out var validationMessage, createAutoTraversals);
         if (!placed && !string.IsNullOrWhiteSpace(validationMessage))
         {
             System.Windows.MessageBox.Show(owner, validationMessage, "Grid Validation", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -138,6 +142,7 @@ public partial class AreaMapCanvas : System.Windows.Controls.UserControl
         }
 
         if (editor.Area.RoomDropBehavior == AreaRoomDropBehavior.PromptForWizard
+            && editor.CanUseOrdinaryTraversalWizard(roomNode.Room.Id)
             && editor.HasImmediateAdjacentRoom(roomNode.Room.Id))
         {
             var choice = System.Windows.MessageBox.Show(

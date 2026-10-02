@@ -8,6 +8,25 @@ namespace StoryboardDesigner.App.Tests;
 public sealed class RoomPlacementReferenceIntegrityRuleTests
 {
     [Fact]
+    public void Evaluate_ReportsInvalidFootprintSpan()
+    {
+        var room = new Room { Name = "Room" };
+        var area = new Area
+        {
+            Name = "Area",
+            Rooms = [room],
+            RoomPlacements = [new AreaRoomPlacement { RoomId = room.Id, ColumnSpan = 4, RowSpan = 0 }]
+        };
+        var registry = new ValidationRuleRegistry();
+        registry.Register(new RoomPlacementReferenceIntegrityRule());
+
+        var result = new ValidationEngine(registry).Execute(new ValidationExecutionRequest(BuildProject(area)));
+
+        Assert.Contains(result.Issues, issue => issue.RuleId == "TRV-006"
+            && issue.Description.Contains("between 1 and 3", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Evaluate_ReportsIssue_WhenPlacementReferencesRoomOutsideArea()
     {
         var existingRoom = new Room { Name = "Room A" };

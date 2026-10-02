@@ -21,8 +21,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Storyboard.GameEngine" Version="1.0.11-local.20261001.t005148296" />
-    <PackageReference Include="Storyboard.Contracts" Version="1.0.12-elevator.3" />
+    <PackageReference Include="Storyboard.GameEngine" Version="1.0.*-*" />
+    <PackageReference Include="Storyboard.Contracts" Version="1.0.*-*" />
     <PackageReference Include="Storyboard.Foundation" Version="0.1.*-*" />
   </ItemGroup>
 

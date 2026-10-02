@@ -19,6 +19,40 @@ public sealed class AreaRoomPlacementViewModel : ViewModelBase
 
     public Room Room { get; }
 
+    public AreaMapFootprint Footprint => AreaMapGeometry.FromPlacement(_placement);
+
+    public double CardWidth => AreaMapGeometry.CardWidth(ColumnSpan);
+    public double CardHeight => AreaMapGeometry.CardHeight(RowSpan);
+    public string SizeLabel => $"Size {ColumnSpan}×{RowSpan} ▾";
+
+    public int ColumnSpan
+    {
+        get => _placement.ColumnSpan;
+        set
+        {
+            if (_placement.ColumnSpan == value) return;
+            _placement.ColumnSpan = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CardWidth));
+            OnPropertyChanged(nameof(Footprint));
+            OnPropertyChanged(nameof(SizeLabel));
+        }
+    }
+
+    public int RowSpan
+    {
+        get => _placement.RowSpan;
+        set
+        {
+            if (_placement.RowSpan == value) return;
+            _placement.RowSpan = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CardHeight));
+            OnPropertyChanged(nameof(Footprint));
+            OnPropertyChanged(nameof(SizeLabel));
+        }
+    }
+
     public bool IsTraversalSourceSelected
     {
         get => _isTraversalSourceSelected;

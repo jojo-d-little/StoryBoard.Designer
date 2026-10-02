@@ -6,12 +6,10 @@ namespace StoryboardDesigner.App.ViewModels;
 
 public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
 {
-    private const double CellWidth = 180;
-    private const double CellHeight = 140;
-    private const double GridOriginX = 24;
-    private const double GridOriginY = 24;
-    private const double RoomThumbWidth = 128;
-    private const double RoomThumbHeight = 96;
+    private const double CellWidth = AreaMapGeometry.CellWidth;
+    private const double CellHeight = AreaMapGeometry.CellHeight;
+    private const double GridOriginX = AreaMapGeometry.OriginX;
+    private const double GridOriginY = AreaMapGeometry.OriginY;
     private readonly Stack<AreaNavigationSnapshot> _undoStack = new();
     private AreaNavigationSnapshot? _activePlacementDragSnapshot;
     private Guid? _activePlacementDragRoomId;
@@ -31,6 +29,7 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
             area.RoomPlacements
                 .Where(placement => area.Rooms.Any(room => room.Id == placement.RoomId))
                 .Select(placement => new AreaRoomPlacementViewModel(ResolveRoom(placement.RoomId), placement)));
+        EnsureGridContainsPlacements();
         VisibleRoomPlacements = new ObservableCollection<AreaRoomPlacementViewModel>();
         _selectedFloorElevation = 0;
         RefreshVisibleRoomPlacements();
@@ -266,15 +265,14 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
     {
         validationMessage = null;
         var (targetCol, targetRow) = SnapToGridCell(x, y);
-
-        var occupied = FindPlacementByCell(targetCol, targetRow);
-        if (occupied is not null && occupied.Room.Id != room.Id)
+        var existing = RoomPlacements.FirstOrDefault(p => p.Room.Id == room.Id);
+        var footprint = new AreaMapFootprint(targetCol, targetRow,
+            existing?.ColumnSpan ?? 1, existing?.RowSpan ?? 1, SelectedFloorElevation);
+        if (!CanPlace(footprint, room.Id, out validationMessage))
         {
-            validationMessage = "That grid square is already occupied by another room.";
             return false;
         }
 
-        var existing = RoomPlacements.FirstOrDefault(p => p.Room.Id == room.Id);
         if (existing is not null)
         {
             ExecuteWithUndo(() =>
@@ -299,7 +297,9 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
                 RoomId = room.Id,
                 X = ToCanvasX(targetCol),
                 Y = ToCanvasY(targetRow),
-                FloorElevation = SelectedFloorElevation
+                FloorElevation = SelectedFloorElevation,
+                ColumnSpan = 1,
+                RowSpan = 1
             };
 
             Area.RoomPlacements.Add(placement);
@@ -323,7 +323,6 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
             return false;
         }
 
-        var sourceCell = ToGridCell(source.X, source.Y);
         foreach (var target in VisibleRoomPlacements)
         {
             if (target.Room.Id == roomId)
@@ -331,23 +330,22 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
                 continue;
             }
 
-            var targetCell = ToGridCell(target.X, target.Y);
-            var dx = targetCell.col - sourceCell.col;
-            var dy = targetCell.row - sourceCell.row;
-            if (Math.Abs(dx) > 1 || Math.Abs(dy) > 1 || (dx == 0 && dy == 0))
-            {
-                continue;
-            }
-
-            if (Area.AdjacencyMode == AreaAdjacencyMode.FourDirectional && dx != 0 && dy != 0)
-            {
-                continue;
-            }
-
-            return true;
+            if (source.Footprint.TryGetAdjacentOffset(target.Footprint,
+                Area.AdjacencyMode != AreaAdjacencyMode.FourDirectional, out _, out _)) return true;
         }
 
         return false;
+    }
+
+    public bool CanUseOrdinaryTraversalWizard(Guid roomId)
+    {
+        var source = VisibleRoomPlacements.FirstOrDefault(placement => placement.Room.Id == roomId);
+        if (source is null || source.ColumnSpan != 1 || source.RowSpan != 1) return false;
+
+        return !VisibleRoomPlacements.Any(target => target.Room.Id != roomId
+            && (target.ColumnSpan != 1 || target.RowSpan != 1)
+            && source.Footprint.TryGetAdjacentOffset(target.Footprint,
+                Area.AdjacencyMode != AreaAdjacencyMode.FourDirectional, out _, out _));
     }
 
     public bool UpdatePlacement(AreaRoomPlacementViewModel placement, double x, double y)
@@ -364,14 +362,38 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
     public bool TryPreviewPlacement(AreaRoomPlacementViewModel placement, double x, double y)
     {
         var (targetCol, targetRow) = SnapToGridCell(x, y);
-        var occupied = FindPlacementByCell(targetCol, targetRow);
-        if (occupied is not null && occupied.Room.Id != placement.Room.Id)
+        var footprint = new AreaMapFootprint(targetCol, targetRow,
+            placement.ColumnSpan, placement.RowSpan, placement.FloorElevation);
+        if (!CanPlace(footprint, placement.Room.Id, out _))
         {
             return false;
         }
 
         placement.X = ToCanvasX(targetCol);
         placement.Y = ToCanvasY(targetRow);
+        RebuildNavigationArrows();
+        return true;
+    }
+
+    public bool TryResizePlacement(AreaRoomPlacementViewModel placement, int columnSpan, int rowSpan, out string? validationMessage)
+    {
+        validationMessage = null;
+        if (!AreaMapGeometry.IsValidSpan(columnSpan) || !AreaMapGeometry.IsValidSpan(rowSpan))
+        {
+            validationMessage = "Room spans must be between 1 and 3 cells.";
+            return false;
+        }
+
+        var current = placement.Footprint;
+        var resized = current with { ColumnSpan = columnSpan, RowSpan = rowSpan };
+        if (!CanPlace(resized, placement.Room.Id, out validationMessage)) return false;
+        if (placement.ColumnSpan == columnSpan && placement.RowSpan == rowSpan) return true;
+
+        ExecuteWithUndo(() =>
+        {
+            placement.ColumnSpan = columnSpan;
+            placement.RowSpan = rowSpan;
+        });
         RebuildNavigationArrows();
         return true;
     }
@@ -557,6 +579,31 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
         return Area.Rooms.First(room => room.Id == roomId);
     }
 
+    private bool CanPlace(AreaMapFootprint footprint, Guid roomId, out string? validationMessage)
+    {
+        if (!footprint.Fits(GridColumns, GridRows))
+        {
+            validationMessage = "The room footprint extends beyond the grid. Grow the grid or choose another cell.";
+            return false;
+        }
+
+        if (RoomPlacements.Any(other => other.Room.Id != roomId && footprint.Overlaps(other.Footprint)))
+        {
+            validationMessage = "The room footprint overlaps another room on this floor.";
+            return false;
+        }
+
+        validationMessage = null;
+        return true;
+    }
+
+    private void EnsureGridContainsPlacements()
+    {
+        if (RoomPlacements.Count == 0) return;
+        GridColumns = Math.Max(GridColumns, RoomPlacements.Max(placement => placement.Footprint.Right));
+        GridRows = Math.Max(GridRows, RoomPlacements.Max(placement => placement.Footprint.Bottom));
+    }
+
     private void EnsureAutoTraversalsForRoom(Guid roomId)
     {
         var source = VisibleRoomPlacements.FirstOrDefault(p => p.Room.Id == roomId);
@@ -565,23 +612,17 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
             return;
         }
 
-        var sourceCell = ToGridCell(source.X, source.Y);
+        // Multi-cell auto authoring needs same-side conflict checks at both endpoints (Phase 03).
+        if (source.ColumnSpan != 1 || source.RowSpan != 1) return;
         foreach (var target in VisibleRoomPlacements)
         {
-            if (target.Room.Id == roomId)
+            if (target.Room.Id == roomId || target.ColumnSpan != 1 || target.RowSpan != 1)
             {
                 continue;
             }
 
-            var targetCell = ToGridCell(target.X, target.Y);
-            var dx = targetCell.col - sourceCell.col;
-            var dy = targetCell.row - sourceCell.row;
-            if (Math.Abs(dx) > 1 || Math.Abs(dy) > 1 || (dx == 0 && dy == 0))
-            {
-                continue;
-            }
-
-            if (Area.AdjacencyMode == AreaAdjacencyMode.FourDirectional && dx != 0 && dy != 0)
+            if (!source.Footprint.TryGetAdjacentOffset(target.Footprint,
+                    Area.AdjacencyMode != AreaAdjacencyMode.FourDirectional, out var dx, out var dy))
             {
                 continue;
             }
@@ -645,16 +686,15 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
 
         foreach (var placement in RoomPlacements)
         {
-            var sourceCell = ToGridCell(placement.X, placement.Y);
             placement.HasRoomAbove = RoomPlacements.Any(other =>
                 other.Room.Id != placement.Room.Id
                 && other.FloorElevation > placement.FloorElevation
-                && ToGridCell(other.X, other.Y) == sourceCell);
+                && placement.Footprint.Intersects(other.Footprint));
 
             placement.HasRoomBelow = RoomPlacements.Any(other =>
                 other.Room.Id != placement.Room.Id
                 && other.FloorElevation < placement.FloorElevation
-                && ToGridCell(other.X, other.Y) == sourceCell);
+                && placement.Footprint.Intersects(other.Footprint));
 
             var hasTraversalUp = false;
             var hasTraversalDown = false;
@@ -728,13 +768,14 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
             return;
         }
 
-        var fromCenterX = fromPlacement.X + (RoomThumbWidth / 2);
-        var fromCenterY = fromPlacement.Y + (RoomThumbHeight / 2);
-        var toCenterX = toPlacement.X + (RoomThumbWidth / 2);
-        var toCenterY = toPlacement.Y + (RoomThumbHeight / 2);
-
-        var midX = (fromCenterX + toCenterX) / 2;
-        var midY = (fromCenterY + toCenterY) / 2;
+        var fromHalfWidth = fromPlacement.CardWidth / 2;
+        var fromHalfHeight = fromPlacement.CardHeight / 2;
+        var toHalfWidth = toPlacement.CardWidth / 2;
+        var toHalfHeight = toPlacement.CardHeight / 2;
+        var fromCenterX = fromPlacement.X + fromHalfWidth;
+        var fromCenterY = fromPlacement.Y + fromHalfHeight;
+        var toCenterX = toPlacement.X + toHalfWidth;
+        var toCenterY = toPlacement.Y + toHalfHeight;
         var dx = toCenterX - fromCenterX;
         var dy = toCenterY - fromCenterY;
         var length = Math.Sqrt((dx * dx) + (dy * dy));
@@ -742,6 +783,15 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
         {
             return;
         }
+
+        // Clip the center-to-center line to both card edges. A large room's arrows
+        // then spread along the actual side used by their distinct neighbors.
+        var fromScale = Math.Min(dx == 0 ? double.PositiveInfinity : fromHalfWidth / Math.Abs(dx),
+            dy == 0 ? double.PositiveInfinity : fromHalfHeight / Math.Abs(dy));
+        var toScale = Math.Min(dx == 0 ? double.PositiveInfinity : toHalfWidth / Math.Abs(dx),
+            dy == 0 ? double.PositiveInfinity : toHalfHeight / Math.Abs(dy));
+        var midX = (fromCenterX + dx * fromScale + toCenterX - dx * toScale) / 2;
+        var midY = (fromCenterY + dy * fromScale + toCenterY - dy * toScale) / 2;
 
         var offsetX = (-dy / length) * (6 * offsetSign);
         var offsetY = (dx / length) * (6 * offsetSign);
@@ -858,19 +908,12 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
                     {
                         Source = source,
                         Target = target,
-                        SourceCell = ToGridCell(source.X, source.Y),
-                        TargetCell = ToGridCell(target.X, target.Y)
+                        IsAdjacent = source.Footprint.TryGetAdjacentOffset(target.Footprint,
+                            Area.AdjacencyMode != AreaAdjacencyMode.FourDirectional, out var dx, out var dy),
+                        Dx = dx,
+                        Dy = dy
                     }))
-                .Select(candidate => new
-                {
-                    candidate.Source,
-                    candidate.Target,
-                    Dx = candidate.TargetCell.col - candidate.SourceCell.col,
-                    Dy = candidate.TargetCell.row - candidate.SourceCell.row
-                })
-                .Where(candidate => !(candidate.Dx == 0 && candidate.Dy == 0))
-                .Where(candidate => Math.Abs(candidate.Dx) <= 1 && Math.Abs(candidate.Dy) <= 1)
-                .Where(candidate => Area.AdjacencyMode != AreaAdjacencyMode.FourDirectional || candidate.Dx == 0 || candidate.Dy == 0)
+                .Where(candidate => candidate.IsAdjacent)
                 .Select(candidate => new
                 {
                     candidate.Source,
@@ -939,14 +982,6 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
         };
     }
 
-    private void UpdateTraversalDirectionsFromPlacement()
-    {
-        foreach (var connection in TraversalConnections)
-        {
-            UpdateTraversalDirectionFromPlacement(connection);
-        }
-    }
-
     private void UpdateTraversalDirectionFromPlacement(TraversalConnection connection)
     {
         var placementA = RoomPlacements.FirstOrDefault(placement => placement.Room.Id == connection.RoomAId);
@@ -961,16 +996,8 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
             return;
         }
 
-        var sourceCell = ToGridCell(placementA.X, placementA.Y);
-        var targetCell = ToGridCell(placementB.X, placementB.Y);
-        var dx = targetCell.col - sourceCell.col;
-        var dy = targetCell.row - sourceCell.row;
-        if (dx == 0 && dy == 0)
-        {
-            return;
-        }
-
-        if (Area.AdjacencyMode == AreaAdjacencyMode.FourDirectional && dx != 0 && dy != 0)
+        if (!placementA.Footprint.TryGetAdjacentOffset(placementB.Footprint,
+                Area.AdjacencyMode != AreaAdjacencyMode.FourDirectional, out var dx, out var dy))
         {
             return;
         }
@@ -1021,25 +1048,7 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
 
     private (int col, int row) SnapToGridCell(double x, double y)
     {
-        var col = (int)Math.Round((x - GridOriginX) / CellWidth, MidpointRounding.AwayFromZero);
-        var row = (int)Math.Round((y - GridOriginY) / CellHeight, MidpointRounding.AwayFromZero);
-        return (Math.Clamp(col, 0, GridColumns - 1), Math.Clamp(row, 0, GridRows - 1));
-    }
-
-    private static (int col, int row) ToGridCell(double x, double y)
-    {
-        var col = (int)Math.Round((x - GridOriginX) / CellWidth, MidpointRounding.AwayFromZero);
-        var row = (int)Math.Round((y - GridOriginY) / CellHeight, MidpointRounding.AwayFromZero);
-        return (Math.Max(0, col), Math.Max(0, row));
-    }
-
-    private AreaRoomPlacementViewModel? FindPlacementByCell(int col, int row)
-    {
-        return VisibleRoomPlacements.FirstOrDefault(placement =>
-        {
-            var p = ToGridCell(placement.X, placement.Y);
-            return p.col == col && p.row == row;
-        });
+        return AreaMapGeometry.ToGridCell(x, y);
     }
 
     private static double ToCanvasX(int col)
@@ -1164,7 +1173,9 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
                 RoomId = placement.Room.Id,
                 X = placement.X,
                 Y = placement.Y,
-                FloorElevation = placement.FloorElevation
+                FloorElevation = placement.FloorElevation,
+                ColumnSpan = placement.ColumnSpan,
+                RowSpan = placement.RowSpan
             }).ToList()
         };
     }
@@ -1230,7 +1241,9 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
             RoomId = placement.RoomId,
             X = placement.X,
             Y = placement.Y,
-            FloorElevation = placement.FloorElevation
+            FloorElevation = placement.FloorElevation,
+            ColumnSpan = placement.ColumnSpan,
+            RowSpan = placement.RowSpan
         }).ToList();
 
         RoomPlacements.Clear();
@@ -1241,6 +1254,8 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
                 RoomPlacements.Add(new AreaRoomPlacementViewModel(room, placement));
             }
         }
+
+        EnsureGridContainsPlacements();
 
         RefreshVisibleRoomPlacements();
 

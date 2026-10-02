@@ -32,6 +32,17 @@ public sealed class RoomPlacementReferenceIntegrityRule : IValidationRule
             var placement = area.RoomPlacements[i];
             var placementPath = $"{areaPath} / RoomPlacement[{i + 1}]";
 
+            if (!AreaMapGeometry.IsValidSpan(placement.ColumnSpan)
+                || !AreaMapGeometry.IsValidSpan(placement.RowSpan))
+            {
+                yield return new ValidationIssue(
+                    Metadata.RuleId,
+                    Metadata.DefaultSeverity,
+                    placementPath,
+                    "room placement column and row spans must each be between 1 and 3 cells.",
+                    "Set both map footprint spans to values from 1 to 3.");
+            }
+
             if (placement.RoomId == Guid.Empty)
             {
                 yield return new ValidationIssue(

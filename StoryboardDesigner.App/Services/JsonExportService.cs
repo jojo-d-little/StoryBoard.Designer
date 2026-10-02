@@ -728,7 +728,9 @@ public sealed class JsonExportService : IJsonExportService
                             RoomId = placement.RoomId,
                             X = placement.X,
                             Y = placement.Y,
-                            FloorElevation = placement.FloorElevation == 0 ? null : placement.FloorElevation
+                            FloorElevation = placement.FloorElevation == 0 ? null : placement.FloorElevation,
+                            ColumnSpan = placement.ColumnSpan == 1 ? null : placement.ColumnSpan,
+                            RowSpan = placement.RowSpan == 1 ? null : placement.RowSpan
                         }).ToList()
                     };
 
@@ -1723,7 +1725,9 @@ public sealed class JsonExportService : IJsonExportService
                                 RoomId = placement.RoomId,
                                 X = placement.X,
                                 Y = placement.Y,
-                                FloorElevation = placement.FloorElevation == 0 ? null : placement.FloorElevation
+                                FloorElevation = placement.FloorElevation == 0 ? null : placement.FloorElevation,
+                                ColumnSpan = placement.ColumnSpan == 1 ? null : placement.ColumnSpan,
+                                RowSpan = placement.RowSpan == 1 ? null : placement.RowSpan
                             })
                             .ToList()
                         })))
@@ -3975,7 +3979,9 @@ public sealed class JsonExportService : IJsonExportService
                 RoomId = placement.RoomId,
                 X = placement.X,
                 Y = placement.Y,
-                FloorElevation = placement.FloorElevation ?? 0
+                FloorElevation = placement.FloorElevation ?? 0,
+                ColumnSpan = placement.ColumnSpan ?? 1,
+                RowSpan = placement.RowSpan ?? 1
             }).ToList()
         };
     }

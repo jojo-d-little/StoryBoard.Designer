@@ -11,8 +11,8 @@
         <conv:RoomDefaultThumbnailConverter x:Key="RoomDefaultThumbnailConverter" />
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     </UserControl.Resources>
-    <Border Width="128"
-            Height="96"
+    <Border Width="{Binding CardWidth}"
+            Height="{Binding CardHeight}"
             BorderBrush="#9CA3AF"
             BorderThickness="1"
             CornerRadius="6"
@@ -39,6 +39,17 @@
                 <MenuItem Header="Traversal Wizard..." Click="NavigationPlacementOpenWizard_OnClick" />
                 <MenuItem Header="Manage Traversals..." Click="NavigationPlacementReviewTraversals_OnClick" />
                 <Separator />
+                <MenuItem Header="Columns">
+                    <MenuItem Header="1 cell" Tag="C1" Click="PlacementSpan_OnClick" />
+                    <MenuItem Header="2 cells" Tag="C2" Click="PlacementSpan_OnClick" />
+                    <MenuItem Header="3 cells" Tag="C3" Click="PlacementSpan_OnClick" />
+                </MenuItem>
+                <MenuItem Header="Rows">
+                    <MenuItem Header="1 cell" Tag="R1" Click="PlacementSpan_OnClick" />
+                    <MenuItem Header="2 cells" Tag="R2" Click="PlacementSpan_OnClick" />
+                    <MenuItem Header="3 cells" Tag="R3" Click="PlacementSpan_OnClick" />
+                </MenuItem>
+                <Separator />
                 <MenuItem Header="Remove From Area Map"
                           Command="{Binding DataContext.RemoveRoomFromSelectedAreaMapCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                           CommandParameter="{Binding Room}" />
@@ -53,6 +64,26 @@
                 <Grid>
                     <Image Source="{Binding Room, Converter={StaticResource RoomDefaultThumbnailConverter}}" Stretch="UniformToFill" />
                     <TextBlock Text="No Image" FontSize="10" Foreground="#6B7280" HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+                    <Button HorizontalAlignment="Left" VerticalAlignment="Top" Margin="4" Padding="3,1"
+                            Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1"
+                            FontSize="9" Content="{Binding SizeLabel}" Click="PlacementSize_OnClick"
+                            ToolTip="Set the area map footprint. Room image dimensions stay independent.">
+                        <Button.ContextMenu>
+                            <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                <MenuItem Header="Columns">
+                                    <MenuItem Header="1 cell" Tag="C1" Click="PlacementSpan_OnClick" />
+                                    <MenuItem Header="2 cells" Tag="C2" Click="PlacementSpan_OnClick" />
+                                    <MenuItem Header="3 cells" Tag="C3" Click="PlacementSpan_OnClick" />
+                                </MenuItem>
+                                <MenuItem Header="Rows">
+                                    <MenuItem Header="1 cell" Tag="R1" Click="PlacementSpan_OnClick" />
+                                    <MenuItem Header="2 cells" Tag="R2" Click="PlacementSpan_OnClick" />
+                                    <MenuItem Header="3 cells" Tag="R3" Click="PlacementSpan_OnClick" />
+                                </MenuItem>
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
 
                     <Border HorizontalAlignment="Right"
                             VerticalAlignment="Top"
@@ -73,7 +104,7 @@
                                         FontWeight="Bold"
                                         Content="RU"
                                         Visibility="{Binding HasRoomAbove, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                        ToolTip="Room exists above this room at the same map cell. Click to manage traversals."
+                                        ToolTip="A room on a higher floor overlaps this footprint. Click to manage traversals."
                                         Click="VerticalIndicator_OnClick" />
                                 <Button Padding="2,0"
                                         BorderThickness="0"
@@ -83,7 +114,7 @@
                                         FontWeight="Bold"
                                         Content="RD"
                                         Visibility="{Binding HasRoomBelow, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                        ToolTip="Room exists below this room at the same map cell. Click to manage traversals."
+                                        ToolTip="A room on a lower floor overlaps this footprint. Click to manage traversals."
                                         Click="VerticalIndicator_OnClick" />
                             </StackPanel>
                             <StackPanel Orientation="Horizontal">

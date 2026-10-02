@@ -6,4 +6,6 @@ public sealed class AreaRoomPlacement
     public double X { get; set; }
     public double Y { get; set; }
     public int FloorElevation { get; set; }
+    public int ColumnSpan { get; set; } = 1;
+    public int RowSpan { get; set; } = 1;
 }

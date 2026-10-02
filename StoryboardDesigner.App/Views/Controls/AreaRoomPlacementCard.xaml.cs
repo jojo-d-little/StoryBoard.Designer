@@ -32,6 +32,38 @@ public partial class AreaRoomPlacementCard : System.Windows.Controls.UserControl
         InitializeComponent();
     }
 
+    private void PlacementSize_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button { ContextMenu: { } menu } button)
+        {
+            menu.PlacementTarget = button;
+            menu.IsOpen = true;
+            e.Handled = true;
+        }
+    }
+
+    private void PlacementSpan_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { DataContext: AreaRoomPlacementViewModel placement, Tag: string tag }
+            || tag.Length != 2 || tag[1] is < '1' or > '3'
+            || GetViewModel() is not { SelectedAreaEditor: { } editor } viewModel)
+        {
+            return;
+        }
+
+        var span = tag[1] - '0';
+        var columns = tag[0] == 'C' ? span : placement.ColumnSpan;
+        var rows = tag[0] == 'R' ? span : placement.RowSpan;
+        if (!editor.TryResizePlacement(placement, columns, rows, out var validationMessage))
+        {
+            System.Windows.MessageBox.Show(Window.GetWindow(this), validationMessage,
+                "Room Footprint", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        viewModel.NotifyProjectEdited();
+    }
+
     private MainWindowViewModel? GetViewModel() => Window.GetWindow(this)?.DataContext as MainWindowViewModel;
 
     private void NavigationPlacement_OnMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -151,6 +183,15 @@ public partial class AreaRoomPlacementCard : System.Windows.Controls.UserControl
         var viewModel = GetViewModel();
         if (viewModel is null || sender is not MenuItem menuItem || menuItem.DataContext is not AreaRoomPlacementViewModel placement)
         {
+            return;
+        }
+
+        if (viewModel.SelectedAreaEditor is { } editor
+            && !editor.CanUseOrdinaryTraversalWizard(placement.Room.Id))
+        {
+            System.Windows.MessageBox.Show(Window.GetWindow(this),
+                "Use Manage Traversals to connect multi-cell rooms. The Traversal Wizard handles ordinary one-cell neighbors.",
+                "Traversal Wizard", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -660,7 +701,7 @@ public partial class AreaRoomPlacementCard : System.Windows.Controls.UserControl
             return null;
         }
 
-        var sourceCell = ToGridCell(sourcePlacement.X, sourcePlacement.Y);
+        var sourceFootprint = AreaMapGeometry.FromPlacement(sourcePlacement);
         var candidates = (area.Rooms ?? new List<Room>())
             .Where(candidate => candidate.Id != sourceRoom.Id)
             .Select(candidate => new
@@ -673,29 +714,17 @@ public partial class AreaRoomPlacementCard : System.Windows.Controls.UserControl
             {
                 item.Room,
                 Placement = item.Placement!,
-                IsSameCell = ToGridCell(item.Placement!.X, item.Placement.Y) == sourceCell,
+                HasOverlappingFootprint = sourceFootprint.Intersects(AreaMapGeometry.FromPlacement(item.Placement!)),
                 FloorDelta = item.Placement.FloorElevation - sourcePlacement.FloorElevation
             })
             .Where(item => verticalSeedPreference == VerticalSeedPreference.Up ? item.FloorDelta > 0 : item.FloorDelta < 0)
-            .OrderByDescending(item => item.IsSameCell)
+            .OrderByDescending(item => item.HasOverlappingFootprint)
             .ThenBy(item => Math.Abs(item.FloorDelta))
             .ThenBy(item => item.Room.Name, StringComparer.OrdinalIgnoreCase)
             .Select(item => item.Room)
             .ToList();
 
         return candidates.FirstOrDefault();
-    }
-
-    private static (int col, int row) ToGridCell(double x, double y)
-    {
-        const double cellWidth = 180;
-        const double cellHeight = 140;
-        const double gridOriginX = 24;
-        const double gridOriginY = 24;
-
-        var col = (int)Math.Round((x - gridOriginX) / cellWidth, MidpointRounding.AwayFromZero);
-        var row = (int)Math.Round((y - gridOriginY) / cellHeight, MidpointRounding.AwayFromZero);
-        return (Math.Max(0, col), Math.Max(0, row));
     }
 
     private static T? FindAncestor<T>(DependencyObject? current) where T : DependencyObject

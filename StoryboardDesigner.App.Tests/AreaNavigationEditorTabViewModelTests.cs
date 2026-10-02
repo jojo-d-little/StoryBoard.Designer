@@ -9,6 +9,128 @@ namespace StoryboardDesigner.App.Tests;
 public sealed class AreaNavigationEditorTabViewModelTests
 {
     [Fact]
+    public void ResizeAndDrag_RejectEntireFootprintOverlapAndGridOverflow_AndUndoRestoresSpan()
+    {
+        var largeRoom = new Room { Name = "Large" };
+        var neighbor = new Room { Name = "Neighbor" };
+        var edgeRoom = new Room { Name = "Edge" };
+        var area = new Area
+        {
+            Name = "Area",
+            Rooms = [largeRoom, neighbor, edgeRoom],
+            RoomPlacements =
+            [
+                new AreaRoomPlacement { RoomId = largeRoom.Id, X = 24, Y = 24 },
+                new AreaRoomPlacement { RoomId = neighbor.Id, X = 24 + 3 * 180, Y = 24 },
+                new AreaRoomPlacement { RoomId = edgeRoom.Id, X = 24 + 6 * 180, Y = 24 + 4 * 140 }
+            ]
+        };
+        var editor = new AreaNavigationEditorTabViewModel(area);
+        var large = editor.RoomPlacements.Single(p => p.Room.Id == largeRoom.Id);
+
+        Assert.True(editor.TryResizePlacement(large, 3, 3, out _));
+        Assert.Equal(488, large.CardWidth);
+        Assert.Equal(376, large.CardHeight);
+        Assert.False(editor.PlaceRoom(neighbor, 24 + 2 * 180, 24 + 2 * 140,
+            out var overlapMessage, createAutoTraversals: false));
+        Assert.Contains("overlaps", overlapMessage);
+
+        editor.BeginPlacementDrag(large);
+        Assert.False(editor.TryPreviewPlacement(large, 24 + 180, 24));
+        editor.CancelPlacementDrag(large);
+        Assert.True(editor.TryUndoLastAction());
+        Assert.Equal(1, editor.RoomPlacements.Single(p => p.Room.Id == largeRoom.Id).ColumnSpan);
+
+        var edge = editor.RoomPlacements.Single(p => p.Room.Id == edgeRoom.Id);
+        Assert.False(editor.TryResizePlacement(edge, 3, 3, out var edgeMessage));
+        Assert.Contains("beyond the grid", edgeMessage);
+    }
+
+    [Fact]
+    public void LoadedFootprintsExpandGridAndOverlappingDifferentFloorsShowVerticalIndicators()
+    {
+        var ground = new Room { Name = "Ground" };
+        var upper = new Room { Name = "Upper" };
+        var area = new Area
+        {
+            Name = "Area",
+            Rooms = [ground, upper],
+            RoomPlacements =
+            [
+                new AreaRoomPlacement { RoomId = ground.Id, X = 24 + 7 * 180, Y = 24 + 5 * 140,
+                    ColumnSpan = 3, RowSpan = 3 },
+                new AreaRoomPlacement { RoomId = upper.Id, X = 24 + 8 * 180, Y = 24 + 6 * 140,
+                    FloorElevation = 1 }
+            ]
+        };
+
+        var editor = new AreaNavigationEditorTabViewModel(area);
+
+        Assert.Equal(10, editor.GridColumns);
+        Assert.Equal(8, editor.GridRows);
+        Assert.True(editor.RoomPlacements.Single(p => p.Room.Id == ground.Id).HasRoomAbove);
+        Assert.True(editor.RoomPlacements.Single(p => p.Room.Id == upper.Id).HasRoomBelow);
+    }
+
+    [Fact]
+    public void ThreeSouthNeighborArrowsOccupyDistinctPositionsAlongLargeRoomBoundary()
+    {
+        var large = new Room { Name = "Large" };
+        var neighbors = Enumerable.Range(0, 3).Select(i => new Room { Name = $"South {i}" }).ToArray();
+        var area = new Area
+        {
+            Name = "Area",
+            Rooms = [large, ..neighbors],
+            RoomPlacements =
+            [
+                new AreaRoomPlacement { RoomId = large.Id, X = 24, Y = 24, ColumnSpan = 3, RowSpan = 3 },
+                ..neighbors.Select((room, i) => new AreaRoomPlacement
+                    { RoomId = room.Id, X = 24 + i * 180, Y = 24 + 3 * 140 })
+            ],
+            TraversalConnections = neighbors.Select(room => new TraversalConnection
+            {
+                RoomAId = large.Id,
+                RoomBId = room.Id,
+                BaseTraversalDirectionFromA = Direction10.South,
+                TraversalAccessMode = TraversalAccessMode.TwoWay
+            }).ToList()
+        };
+
+        var editor = new AreaNavigationEditorTabViewModel(area);
+        var outbound = editor.NavigationArrows.Where(a => a.SourceRoomId == large.Id).ToArray();
+
+        Assert.Equal(3, outbound.Length);
+        Assert.Equal(3, outbound.Select(a => Math.Round(a.X)).Distinct().Count());
+        Assert.All(outbound, arrow => Assert.InRange(arrow.Y, 390, 440));
+    }
+
+    [Fact]
+    public void OrdinaryWizardRemainsAvailableForOneCellNeighborsButNotMultiCellNeighbors()
+    {
+        var first = new Room { Name = "First" };
+        var second = new Room { Name = "Second" };
+        var area = new Area
+        {
+            Name = "Area",
+            Rooms = [first, second],
+            RoomPlacements =
+            [
+                new AreaRoomPlacement { RoomId = first.Id, X = 24, Y = 24 },
+                new AreaRoomPlacement { RoomId = second.Id, X = 204, Y = 24 }
+            ]
+        };
+        var editor = new AreaNavigationEditorTabViewModel(area);
+        Assert.True(editor.CanUseOrdinaryTraversalWizard(first.Id));
+
+        var secondPlacement = editor.RoomPlacements.Single(p => p.Room.Id == second.Id);
+        Assert.True(editor.TryResizePlacement(secondPlacement, 2, 1, out _));
+
+        Assert.True(editor.HasImmediateAdjacentRoom(first.Id));
+        Assert.False(editor.CanUseOrdinaryTraversalWizard(first.Id));
+        Assert.False(editor.CanUseOrdinaryTraversalWizard(second.Id));
+    }
+
+    [Fact]
     public void AddTraversalConnection_UsesSelectedSourceRoom_WhenAvailable()
     {
         var roomA = new Room { Name = "A" };
