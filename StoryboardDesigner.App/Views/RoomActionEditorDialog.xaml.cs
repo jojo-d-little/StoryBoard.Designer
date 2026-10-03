@@ -285,10 +285,12 @@ public partial class RoomActionEditorDialog : Window
             MoveTravelVisualizationMode = sourceAction.ActionType == CommandActionType.MoveRoomObjectByPoints
                 ? sourceMoveByPointsPayload.TravelVisualizationMode
                 : sourceMovePayload.TravelVisualizationMode,
+            MoveTargetObjectId = sourceMovePayload.TargetObjectId,
             RotateMode = sourceRotatePayload.Mode,
             RotateTurnDegrees = sourceRotatePayload.TurnDegrees,
             RotateFacingDirectionToken = sourceRotatePayload.FacingDirectionToken,
             RotateVisualTransitionHint = sourceRotatePayload.VisualTransitionHint,
+            RotateTargetObjectId = sourceRotatePayload.TargetObjectId,
             StackVisualTransitionHint = sourceStackPayload.VisualTransitionHint,
             SelectionCueEffectKey = sourceAction.ActionType == CommandActionType.SelectRoomObjectByPoint
                 ? sourceSelectByPointPayload.SelectionCueEffectKey
@@ -334,7 +336,8 @@ public partial class RoomActionEditorDialog : Window
             sourceMovePayload.AllowPartialMove,
             sourceMovePayload.VisualTransitionHint,
             sourceMovePayload.AllowJumpOver,
-            sourceMovePayload.TravelVisualizationMode);
+            sourceMovePayload.TravelVisualizationMode,
+            sourceMovePayload.TargetObjectId);
         ActionPayloadAccessors.SetMoveRoomObjectByPoints(
             _workingCopy,
             sourceMoveByPointsPayload.TargetResolutionIntent,
@@ -347,7 +350,8 @@ public partial class RoomActionEditorDialog : Window
             sourceRotatePayload.Mode,
             sourceRotatePayload.TurnDegrees,
             sourceRotatePayload.FacingDirectionToken,
-            sourceRotatePayload.VisualTransitionHint);
+            sourceRotatePayload.VisualTransitionHint,
+            sourceRotatePayload.TargetObjectId);
         ActionPayloadAccessors.SetStackRoomObjectOnAnother(
             _workingCopy,
             sourceStackPayload.VisualTransitionHint);
@@ -473,6 +477,8 @@ public partial class RoomActionEditorDialog : Window
         CompositePartsTargetObjectIdTextBox.Text = _workingCopy.CompositeTargetObjectId?.ToString() ?? string.Empty;
         CompositePartsRequiredPartIdsTextBox.Text = string.Join(Environment.NewLine, _workingCopy.CompositeRequiredPartObjectIds.Select(id => id.ToString()));
         RefreshCompositePartsFriendlyDisplay();
+        RefreshMoveTargetObjectDisplay();
+        RefreshRotateTargetObjectDisplay();
         _isInitializingCompositeRecipeSelection = true;
         CompositeRecipeComboBox.ItemsSource = _compositeRecipeChoices;
         CompositeRecipeComboBox.DisplayMemberPath = nameof(CompositeRecipeChoiceItem.DisplayName);
@@ -948,7 +954,8 @@ public partial class RoomActionEditorDialog : Window
             _workingCopy.MoveAllowPartialMove,
             _workingCopy.MoveVisualTransitionHint,
             _workingCopy.MoveAllowJumpOver,
-            _workingCopy.MoveTravelVisualizationMode);
+            _workingCopy.MoveTravelVisualizationMode,
+            _workingCopy.MoveTargetObjectId);
         ActionPayloadAccessors.SetMoveRoomObjectByPoints(
             _sourceAction,
             workingMoveByPointsPayload.TargetResolutionIntent,
@@ -961,7 +968,8 @@ public partial class RoomActionEditorDialog : Window
             _workingCopy.RotateMode,
             _workingCopy.RotateTurnDegrees,
             _workingCopy.RotateFacingDirectionToken,
-            _workingCopy.RotateVisualTransitionHint);
+            _workingCopy.RotateVisualTransitionHint,
+            _workingCopy.RotateTargetObjectId);
         ActionPayloadAccessors.SetStackRoomObjectOnAnother(
             _sourceAction,
             _workingCopy.StackVisualTransitionHint);
@@ -1600,6 +1608,61 @@ public partial class RoomActionEditorDialog : Window
         RefreshMaterializeSourceObjectDisplay();
     }
 
+    private void ChooseMoveTargetObject_OnClick(object sender, RoutedEventArgs e)
+    {
+        var selectedObjectId = ChooseRoomTargetObject(_workingCopy.MoveTargetObjectId);
+        if (selectedObjectId.HasValue)
+        {
+            _workingCopy.MoveTargetObjectId = selectedObjectId;
+            RefreshMoveTargetObjectDisplay();
+        }
+    }
+
+    private void ClearMoveTargetObject_OnClick(object sender, RoutedEventArgs e)
+    {
+        _workingCopy.MoveTargetObjectId = null;
+        RefreshMoveTargetObjectDisplay();
+    }
+
+    private void ChooseRotateTargetObject_OnClick(object sender, RoutedEventArgs e)
+    {
+        var selectedObjectId = ChooseRoomTargetObject(_workingCopy.RotateTargetObjectId);
+        if (selectedObjectId.HasValue)
+        {
+            _workingCopy.RotateTargetObjectId = selectedObjectId;
+            RefreshRotateTargetObjectDisplay();
+        }
+    }
+
+    private void ClearRotateTargetObject_OnClick(object sender, RoutedEventArgs e)
+    {
+        _workingCopy.RotateTargetObjectId = null;
+        RefreshRotateTargetObjectDisplay();
+    }
+
+    private Guid? ChooseRoomTargetObject(Guid? currentObjectId)
+    {
+        if (_materializeSourceObjectChoices.Count == 0)
+        {
+            System.Windows.MessageBox.Show(this, "No room objects are available in this scope.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+            return null;
+        }
+
+        var dialog = new SelectGameObjectDialog(
+            _materializeSourceObjectChoices,
+            currentObjectId,
+            new SelectGameObjectDialog.Options(
+                DefaultScopeSearchType: GameObjectOptionSourceTarget.RealObjects,
+                DefaultScopeSearchDepth: ScopeSearchDepth.Project,
+                DefaultRequiredFeatures: GameObjectFeatureRequirements.None,
+                DefaultExcludeCurrentObject: false))
+        {
+            Owner = this
+        };
+
+        return dialog.ShowDialog() == true ? dialog.SelectedObjectId : null;
+    }
+
     private bool ValidateMaterializeSourceObject()
     {
         var sourceObjectId = ActionPayloadAccessors.GetMaterializeSourceObjectId(_workingCopy);
@@ -2027,6 +2090,31 @@ public partial class RoomActionEditorDialog : Window
         }
 
         MaterializeSourceObjectTextBox.Text = sourceObjectId.Value.ToString("N");
+    }
+
+    private void RefreshMoveTargetObjectDisplay()
+    {
+        MoveTargetObjectTextBox.Text = ResolveRoomTargetObjectDisplay(_workingCopy.MoveTargetObjectId);
+    }
+
+    private void RefreshRotateTargetObjectDisplay()
+    {
+        RotateTargetObjectTextBox.Text = ResolveRoomTargetObjectDisplay(_workingCopy.RotateTargetObjectId);
+    }
+
+    private string ResolveRoomTargetObjectDisplay(Guid? objectId)
+    {
+        if (!objectId.HasValue || objectId.Value == Guid.Empty)
+        {
+            return string.Empty;
+        }
+
+        if (_materializeSourceObjectChoicesById.TryGetValue(objectId.Value, out var choice))
+        {
+            return $"{choice.DisplayName} [{choice.SourceCategory}] - {choice.ScopePath}";
+        }
+
+        return objectId.Value.ToString("N");
     }
 
     private void RefreshInvokeProcedureDisplay()

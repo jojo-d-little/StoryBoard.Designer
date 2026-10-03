@@ -2816,6 +2816,7 @@ public sealed class JsonExportService : IJsonExportService
         var moveAllowJumpOverFromPayload = TryGetMoveAllowJumpOverFromPayload(action.Payload);
         var moveVisualTransitionHintFromPayload = TryGetMoveVisualTransitionHintFromPayload(action.Payload);
         var moveTravelVisualizationModeFromPayload = TryGetMoveTravelVisualizationModeFromPayload(action.Payload);
+        var moveTargetObjectIdFromPayload = TryGetMoveTargetObjectIdFromPayload(action.Payload);
         var moveByPointsTargetResolutionIntentFromPayload = TryGetMoveByPointsTargetResolutionIntentFromPayload(action.Payload);
         var moveByPointsAllowPartialMoveFromPayload = TryGetMoveByPointsAllowPartialMoveFromPayload(action.Payload);
         var moveByPointsAllowJumpOverFromPayload = TryGetMoveByPointsAllowJumpOverFromPayload(action.Payload);
@@ -2825,6 +2826,7 @@ public sealed class JsonExportService : IJsonExportService
         var rotateTurnDegreesFromPayload = TryGetRotateTurnDegreesFromPayload(action.Payload);
         var rotateFacingDirectionTokenFromPayload = TryGetRotateFacingDirectionTokenFromPayload(action.Payload);
         var rotateVisualTransitionHintFromPayload = TryGetRotateVisualTransitionHintFromPayload(action.Payload);
+        var rotateTargetObjectIdFromPayload = TryGetRotateTargetObjectIdFromPayload(action.Payload);
         var stackVisualTransitionHintFromPayload = TryGetStackVisualTransitionHintFromPayload(action.Payload);
         var clearActiveScopeFromPayload = TryGetClearActiveRoomObjectsScopeFromPayload(action.Payload);
         var setActiveSelectionCueEffectKeyFromPayload = TryGetSetActiveSelectionCueEffectKeyFromPayload(action.Payload);
@@ -2929,7 +2931,8 @@ public sealed class JsonExportService : IJsonExportService
                 moveAllowPartialMoveFromPayload.GetValueOrDefault(false),
                 moveHint,
                 moveAllowJumpOverFromPayload.GetValueOrDefault(false),
-                moveTravelMode);
+                moveTravelMode,
+                moveTargetObjectIdFromPayload);
         }
 
         if (model.ActionType == CommandActionType.RotateRoomObjectOnGrid)
@@ -2950,7 +2953,8 @@ public sealed class JsonExportService : IJsonExportService
                 rotateMode,
                 rotateTurnDegrees,
                 rotateFacingDirection,
-                rotateHint);
+                rotateHint,
+                rotateTargetObjectIdFromPayload);
         }
 
         if (actionType == CommandActionType.AddObjectPresentationCue)
@@ -7355,7 +7359,8 @@ public sealed class JsonExportService : IJsonExportService
             AllowPartialMove = movePayload.AllowPartialMove,
             AllowJumpOver = movePayload.AllowJumpOver,
             VisualTransitionHint = movePayload.VisualTransitionHint.ToString(),
-            TravelVisualizationMode = movePayload.TravelVisualizationMode.ToString()
+            TravelVisualizationMode = movePayload.TravelVisualizationMode.ToString(),
+            TargetObjectId = movePayload.TargetObjectId
         };
     }
 
@@ -7378,7 +7383,8 @@ public sealed class JsonExportService : IJsonExportService
             Mode = rotatePayload.Mode.ToString(),
             TurnDegrees = rotatePayload.TurnDegrees ?? 90,
             FacingDirectionToken = rotatePayload.FacingDirectionToken ?? string.Empty,
-            VisualTransitionHint = rotatePayload.VisualTransitionHint.ToString()
+            VisualTransitionHint = rotatePayload.VisualTransitionHint.ToString(),
+            TargetObjectId = rotatePayload.TargetObjectId
         };
     }
 
@@ -7675,7 +7681,8 @@ public sealed class JsonExportService : IJsonExportService
             AllowPartialMove = movePayload.AllowPartialMove,
             AllowJumpOver = movePayload.AllowJumpOver,
             VisualTransitionHint = movePayload.VisualTransitionHint.ToString(),
-            TravelVisualizationMode = movePayload.TravelVisualizationMode.ToString()
+            TravelVisualizationMode = movePayload.TravelVisualizationMode.ToString(),
+            TargetObjectId = movePayload.TargetObjectId
         };
     }
 
@@ -7698,7 +7705,8 @@ public sealed class JsonExportService : IJsonExportService
             Mode = rotatePayload.Mode.ToString(),
             TurnDegrees = rotatePayload.TurnDegrees ?? 90,
             FacingDirectionToken = rotatePayload.FacingDirectionToken ?? string.Empty,
-            VisualTransitionHint = rotatePayload.VisualTransitionHint.ToString()
+            VisualTransitionHint = rotatePayload.VisualTransitionHint.ToString(),
+            TargetObjectId = rotatePayload.TargetObjectId
         };
     }
 
@@ -7765,6 +7773,13 @@ public sealed class JsonExportService : IJsonExportService
         }
 
         return movePayload.DirectionToken;
+    }
+
+    private static Guid? TryGetMoveTargetObjectIdFromPayload(ProjectCommandActionPayloadBaseDto? payload)
+    {
+        return payload is ProjectMoveRoomObjectOnGridActionPayloadDto movePayload
+            ? movePayload.TargetObjectId
+            : null;
     }
 
     private static int? TryGetMoveDistanceInCellsFromPayload(ProjectCommandActionPayloadBaseDto? payload)
@@ -7938,6 +7953,13 @@ public sealed class JsonExportService : IJsonExportService
 
         return Enum.TryParse<RuntimeMovementVisualTransitionHint>(rotatePayload.VisualTransitionHint, true, out var parsedHint)
             ? parsedHint
+            : null;
+    }
+
+    private static Guid? TryGetRotateTargetObjectIdFromPayload(ProjectCommandActionPayloadBaseDto? payload)
+    {
+        return payload is ProjectRotateRoomObjectOnGridActionPayloadDto rotatePayload
+            ? rotatePayload.TargetObjectId
             : null;
     }
 

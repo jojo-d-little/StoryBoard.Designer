@@ -310,6 +310,23 @@ public sealed partial class CommandAction
         }
     }
 
+    public Guid? MoveTargetObjectId
+    {
+        get => _moveFacet.TargetObjectId;
+        set
+        {
+            var normalized = value == Guid.Empty ? null : value;
+            if (_moveFacet.TargetObjectId == normalized)
+            {
+                return;
+            }
+
+            _moveFacet = _moveFacet with { TargetObjectId = normalized };
+            OnPropertyChanged();
+            RaiseSummaryChanged();
+        }
+    }
+
     public RuntimeRotateRoomObjectOnGridAttemptMode RotateMode
     {
         get => _rotateFacet.Mode;
@@ -374,6 +391,23 @@ public sealed partial class CommandAction
             }
 
             _rotateFacet = _rotateFacet with { VisualTransitionHint = value };
+            OnPropertyChanged();
+            RaiseSummaryChanged();
+        }
+    }
+
+    public Guid? RotateTargetObjectId
+    {
+        get => _rotateFacet.TargetObjectId;
+        set
+        {
+            var normalized = value == Guid.Empty ? null : value;
+            if (_rotateFacet.TargetObjectId == normalized)
+            {
+                return;
+            }
+
+            _rotateFacet = _rotateFacet with { TargetObjectId = normalized };
             OnPropertyChanged();
             RaiseSummaryChanged();
         }

@@ -45,7 +45,8 @@ internal static class CommandActionPayloadCoordinator
         nameof(CommandAction.MoveAllowPartialMove),
         nameof(CommandAction.MoveAllowJumpOver),
         nameof(CommandAction.MoveVisualTransitionHint),
-        nameof(CommandAction.MoveTravelVisualizationMode)
+        nameof(CommandAction.MoveTravelVisualizationMode),
+        nameof(CommandAction.MoveTargetObjectId)
     ];
 
     private static readonly string[] MoveByPointsProjectionProperties =
@@ -61,7 +62,8 @@ internal static class CommandActionPayloadCoordinator
         nameof(CommandAction.RotateMode),
         nameof(CommandAction.RotateTurnDegrees),
         nameof(CommandAction.RotateFacingDirectionToken),
-        nameof(CommandAction.RotateVisualTransitionHint)
+        nameof(CommandAction.RotateVisualTransitionHint),
+        nameof(CommandAction.RotateTargetObjectId)
     ];
 
     private static readonly string[] StackProjectionProperties =
@@ -218,7 +220,8 @@ internal static class CommandActionPayloadCoordinator
                 move.AllowPartialMove,
                 move.AllowJumpOver,
                 move.VisualTransitionHint,
-                move.TravelVisualizationMode),
+                move.TravelVisualizationMode,
+                move.TargetObjectId),
             MoveRoomObjectByPointsPayload moveByPoints => new MoveRoomObjectByPointsPayload(
                 moveByPoints.TargetResolutionIntent,
                 moveByPoints.AllowPartialMove,
@@ -229,7 +232,8 @@ internal static class CommandActionPayloadCoordinator
                 rotate.Mode,
                 rotate.TurnDegrees,
                 rotate.FacingDirectionToken,
-                rotate.VisualTransitionHint),
+                rotate.VisualTransitionHint,
+                rotate.TargetObjectId),
             StackRoomObjectOnAnotherPayload stack => new StackRoomObjectOnAnotherPayload(
                 stack.VisualTransitionHint),
             AddObjectPresentationCuePayload addCue => new AddObjectPresentationCuePayload(addCue.ObjectId, addCue.EffectKey),

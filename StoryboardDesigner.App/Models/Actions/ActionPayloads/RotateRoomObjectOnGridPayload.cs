@@ -10,7 +10,8 @@ public sealed record RotateRoomObjectOnGridPayload : IActionPayload
         RuntimeRotateRoomObjectOnGridAttemptMode mode = RuntimeRotateRoomObjectOnGridAttemptMode.Turn,
         int? turnDegrees = null,
         string facingDirectionToken = "",
-        RuntimeMovementVisualTransitionHint visualTransitionHint = RuntimeMovementVisualTransitionHint.Medium)
+        RuntimeMovementVisualTransitionHint visualTransitionHint = RuntimeMovementVisualTransitionHint.Medium,
+        Guid? targetObjectId = null)
     {
         Mode = Enum.IsDefined(mode)
             ? mode
@@ -18,6 +19,7 @@ public sealed record RotateRoomObjectOnGridPayload : IActionPayload
         TurnDegrees = turnDegrees;
         FacingDirectionToken = facingDirectionToken?.Trim() ?? string.Empty;
         VisualTransitionHint = visualTransitionHint;
+        TargetObjectId = targetObjectId is Guid id && id != Guid.Empty ? id : null;
     }
 
     public CommandActionType ActionType => CommandActionType.RotateRoomObjectOnGrid;
@@ -29,6 +31,8 @@ public sealed record RotateRoomObjectOnGridPayload : IActionPayload
     public string FacingDirectionToken { get; init; }
 
     public RuntimeMovementVisualTransitionHint VisualTransitionHint { get; init; }
+
+    public Guid? TargetObjectId { get; init; }
 
     public IReadOnlyList<string> GetReferenceTokens()
     {

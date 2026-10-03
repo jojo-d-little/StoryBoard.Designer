@@ -12,7 +12,8 @@ public sealed record MoveRoomObjectOnGridPayload : IActionPayload
         bool allowPartialMove = false,
         bool allowJumpOver = false,
         RuntimeMovementVisualTransitionHint visualTransitionHint = RuntimeMovementVisualTransitionHint.Medium,
-        RuntimeMovementTravelVisualizationMode travelVisualizationMode = RuntimeMovementTravelVisualizationMode.LegByLeg)
+        RuntimeMovementTravelVisualizationMode travelVisualizationMode = RuntimeMovementTravelVisualizationMode.LegByLeg,
+        Guid? targetObjectId = null)
     {
         DirectionToken = directionToken?.Trim() ?? string.Empty;
         DistanceInCells = distanceInCells < 1 ? 1 : distanceInCells;
@@ -20,6 +21,7 @@ public sealed record MoveRoomObjectOnGridPayload : IActionPayload
         AllowJumpOver = allowJumpOver;
         VisualTransitionHint = visualTransitionHint;
         TravelVisualizationMode = travelVisualizationMode;
+        TargetObjectId = targetObjectId is Guid id && id != Guid.Empty ? id : null;
     }
 
     public CommandActionType ActionType => CommandActionType.MoveRoomObjectOnGrid;
@@ -35,6 +37,8 @@ public sealed record MoveRoomObjectOnGridPayload : IActionPayload
     public RuntimeMovementVisualTransitionHint VisualTransitionHint { get; init; }
 
     public RuntimeMovementTravelVisualizationMode TravelVisualizationMode { get; init; }
+
+    public Guid? TargetObjectId { get; init; }
 
     public IReadOnlyList<string> GetReferenceTokens()
     {

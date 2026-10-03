@@ -153,7 +153,7 @@ public static class ActionPayloadAccessors
             return payload;
         }
 
-        return new MoveRoomObjectOnGridPayload(action.DirectionQualifierText);
+        return new MoveRoomObjectOnGridPayload(action.DirectionQualifierText, targetObjectId: action.MoveTargetObjectId);
     }
 
     public static MoveRoomObjectByPointsPayload GetMoveRoomObjectByPointsPayload(CommandAction action)
@@ -197,7 +197,8 @@ public static class ActionPayloadAccessors
             mode: fallbackMode,
             turnDegrees: 90,
             facingDirectionToken: fallbackFacing,
-            visualTransitionHint: Storyboard.Shared.GameServices.RuntimeContext.RuntimeMovementVisualTransitionHint.Medium);
+            visualTransitionHint: Storyboard.Shared.GameServices.RuntimeContext.RuntimeMovementVisualTransitionHint.Medium,
+            targetObjectId: action.RotateTargetObjectId);
     }
 
     public static StackRoomObjectOnAnotherPayload GetStackRoomObjectOnAnotherPayload(CommandAction action)
@@ -263,7 +264,8 @@ public static class ActionPayloadAccessors
         bool allowPartialMove,
         Storyboard.Shared.GameServices.RuntimeContext.RuntimeMovementVisualTransitionHint visualTransitionHint,
         bool allowJumpOver = false,
-        Storyboard.Shared.GameServices.RuntimeContext.RuntimeMovementTravelVisualizationMode travelVisualizationMode = Storyboard.Shared.GameServices.RuntimeContext.RuntimeMovementTravelVisualizationMode.LegByLeg)
+        Storyboard.Shared.GameServices.RuntimeContext.RuntimeMovementTravelVisualizationMode travelVisualizationMode = Storyboard.Shared.GameServices.RuntimeContext.RuntimeMovementTravelVisualizationMode.LegByLeg,
+        Guid? targetObjectId = null)
     {
         if (action.ActionType != CommandActionType.MoveRoomObjectOnGrid)
         {
@@ -276,7 +278,8 @@ public static class ActionPayloadAccessors
             allowPartialMove,
             allowJumpOver,
             visualTransitionHint,
-            travelVisualizationMode);
+            travelVisualizationMode,
+            targetObjectId);
     }
 
     public static void SetMoveRoomObjectByPoints(
@@ -305,7 +308,8 @@ public static class ActionPayloadAccessors
         RuntimeRotateRoomObjectOnGridAttemptMode mode,
         int? turnDegrees,
         string facingDirectionToken,
-        Storyboard.Shared.GameServices.RuntimeContext.RuntimeMovementVisualTransitionHint visualTransitionHint)
+        Storyboard.Shared.GameServices.RuntimeContext.RuntimeMovementVisualTransitionHint visualTransitionHint,
+        Guid? targetObjectId = null)
     {
         if (action.ActionType != CommandActionType.RotateRoomObjectOnGrid)
         {
@@ -316,7 +320,8 @@ public static class ActionPayloadAccessors
             mode,
             turnDegrees,
             NormalizeRotateFacingDirectionToken(facingDirectionToken),
-            visualTransitionHint);
+            visualTransitionHint,
+            targetObjectId);
     }
 
     public static void SetStackRoomObjectOnAnother(

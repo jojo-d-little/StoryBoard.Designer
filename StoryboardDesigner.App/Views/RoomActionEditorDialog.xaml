@@ -441,6 +441,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="140" />
@@ -504,6 +505,18 @@
                               Grid.Column="1"
                               Margin="0,0,0,10"
                               SelectedItem="{Binding MoveTravelVisualizationMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Grid.Row="7" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Target Object" ToolTip="Optional. Choose the exact room object this action should move." />
+                    <Grid Grid.Row="7" Grid.Column="1" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="MoveTargetObjectTextBox" IsReadOnly="True" VerticalContentAlignment="Center" />
+                        <Button Grid.Column="1" Margin="6,0,0,0" Padding="10,2" Content="Browse..." Click="ChooseMoveTargetObject_OnClick" />
+                        <Button Grid.Column="2" Margin="6,0,0,0" Padding="10,2" Content="Clear" Click="ClearMoveTargetObject_OnClick" />
+                    </Grid>
                 </Grid>
 
                 <Grid x:Name="MoveRoomObjectByPointsEditorPanel" Visibility="Collapsed">
@@ -584,6 +597,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="140" />
@@ -631,6 +645,18 @@
                               Grid.Column="1"
                               Margin="0,0,0,10"
                               SelectedItem="{Binding RotateVisualTransitionHint, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Target Object" ToolTip="Optional. Choose the exact room object this action should rotate." />
+                    <Grid Grid.Row="5" Grid.Column="1" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="RotateTargetObjectTextBox" IsReadOnly="True" VerticalContentAlignment="Center" />
+                        <Button Grid.Column="1" Margin="6,0,0,0" Padding="10,2" Content="Browse..." Click="ChooseRotateTargetObject_OnClick" />
+                        <Button Grid.Column="2" Margin="6,0,0,0" Padding="10,2" Content="Clear" Click="ClearRotateTargetObject_OnClick" />
+                    </Grid>
                 </Grid>
 
                 <Grid x:Name="StackRoomObjectOnAnotherEditorPanel" Visibility="Collapsed">
