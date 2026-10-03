@@ -166,16 +166,16 @@
                                         </Button.Style>
                                     </Button>
 
-                                                                        <!-- Icon draw: local offset is computed in the VM, then image is rotated. -->
+                                    <!-- The VM resolves the full-bitmap origin; the local and room rotations only affect the draw angle here. -->
                                     <Image Source="{Binding ThumbnailSource}"
                                            Width="{Binding PreviewRenderedIconWidthPixels}"
                                            Height="{Binding PreviewRenderedIconHeightPixels}"
                                            Stretch="Uniform"
-                                         Canvas.Left="{Binding ImageLocalAlignmentOffsetX}"
-                                         Canvas.Top="{Binding ImageLocalAlignmentOffsetY}"
+                                           Canvas.Left="{Binding ImageLocalAlignmentOffsetX}"
+                                           Canvas.Top="{Binding ImageLocalAlignmentOffsetY}"
                                            Panel.ZIndex="1"
                                            IsHitTestVisible="False"
-                                                                                     RenderTransformOrigin="0,0">
+                                           RenderTransformOrigin="0,0">
                                         <Image.RenderTransform>
                                             <RotateTransform Angle="{Binding ImageRotationDegrees}" />
                                         </Image.RenderTransform>

@@ -34,16 +34,18 @@
                                 BorderThickness="2"
                                 Background="#334F9DFF"
                                 IsHitTestVisible="False" />
-                        <Image x:Name="GuideImage" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Top" Opacity="0.88" RenderTransformOrigin="0.5,0.5" IsHitTestVisible="False" />
-                        <Rectangle x:Name="BitmapBoundaryOverlay"
-                                   HorizontalAlignment="Left"
-                                   VerticalAlignment="Top"
-                                   Stroke="#7C3AED"
-                                   StrokeThickness="1.5"
-                                   StrokeDashArray="4,3"
-                                   Opacity="0.8"
-                                   IsHitTestVisible="False"
-                                   RenderTransformOrigin="0.5,0.5" />
+                        <Canvas x:Name="BitmapPreviewCanvas" IsHitTestVisible="False" ClipToBounds="False">
+                            <Image x:Name="GuideImage"
+                                   Stretch="Uniform"
+                                   Opacity="0.88"
+                                   RenderTransformOrigin="0,0" />
+                            <Rectangle x:Name="BitmapBoundaryOverlay"
+                                       Stroke="#7C3AED"
+                                       StrokeThickness="1.5"
+                                       StrokeDashArray="4,3"
+                                       Opacity="0.8"
+                                       RenderTransformOrigin="0,0" />
+                        </Canvas>
                         <Path x:Name="HeadingArrow"
                               Data="M 0 -32 L 9 -12 L 3 -12 L 3 20 L -3 20 L -3 -12 L -9 -12 Z"
                               Fill="#DC2626"

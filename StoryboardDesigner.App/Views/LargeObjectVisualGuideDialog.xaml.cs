@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Storyboard.Shared.GameServices.Spatial;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 
@@ -115,15 +116,21 @@ public partial class LargeObjectVisualGuideDialog : Window
         GuideImage.Width = renderedWidth;
         GuideImage.Height = renderedHeight;
         var rotation = double.IsFinite(_variant.ImageLocalAlignmentRotationDegrees) ? _variant.ImageLocalAlignmentRotationDegrees : 0;
-        var offset = RotateOffset(
+        var placement = ComputeImagePlacement(
+            rotation,
             double.IsFinite(_variant.ImageLocalAlignmentOffsetX) ? _variant.ImageLocalAlignmentOffsetX : 0,
             double.IsFinite(_variant.ImageLocalAlignmentOffsetY) ? _variant.ImageLocalAlignmentOffsetY : 0,
-            rotation);
-        GuideImage.Margin = new Thickness(footprintLeft + offset.X, footprintTop + offset.Y, 0, 0);
+            footprintWidthPixels,
+            footprintHeightPixels,
+            renderedWidth,
+            renderedHeight);
+        Canvas.SetLeft(GuideImage, footprintLeft + placement.X);
+        Canvas.SetTop(GuideImage, footprintTop + placement.Y);
         GuideImage.RenderTransform = new RotateTransform(rotation);
         BitmapBoundaryOverlay.Width = GuideImage.Width;
         BitmapBoundaryOverlay.Height = GuideImage.Height;
-        BitmapBoundaryOverlay.Margin = GuideImage.Margin;
+        Canvas.SetLeft(BitmapBoundaryOverlay, footprintLeft + placement.X);
+        Canvas.SetTop(BitmapBoundaryOverlay, footprintTop + placement.Y);
         BitmapBoundaryOverlay.RenderTransform = new RotateTransform(rotation);
         BitmapBoundaryOverlay.Visibility = ShowBitmapBoundaryCheckBox.IsChecked == true
             ? Visibility.Visible
@@ -325,10 +332,24 @@ public partial class LargeObjectVisualGuideDialog : Window
         catch { return null; }
     }
 
-    private static (double X, double Y) RotateOffset(double x, double y, double degrees)
+    internal static (double X, double Y) ComputeImagePlacement(
+        double localRotationDegrees,
+        double localOffsetX,
+        double localOffsetY,
+        double footprintWidthPixels,
+        double footprintHeightPixels,
+        double renderedBitmapWidthPixels,
+        double renderedBitmapHeightPixels)
     {
-        var radians = degrees * Math.PI / 180d;
-        return (x * Math.Cos(radians) - y * Math.Sin(radians), x * Math.Sin(radians) + y * Math.Cos(radians));
+        return RuntimeRenderablePlacementMath.ComputeIconLocalOffset(
+            0d,
+            localRotationDegrees,
+            localOffsetX,
+            localOffsetY,
+            footprintWidthPixels,
+            footprintHeightPixels,
+            renderedBitmapWidthPixels,
+            renderedBitmapHeightPixels);
     }
 
     private static bool TryParse(string value, out double result) => double.TryParse(value.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out result) && double.IsFinite(result);

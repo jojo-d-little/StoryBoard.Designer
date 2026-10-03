@@ -1,12 +1,38 @@
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.ViewModels;
+using StoryboardDesigner.App.Views;
 using Storyboard.Shared.GameServices.Spatial;
 using System.ComponentModel;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace StoryboardDesigner.App.Tests;
 
 public sealed class RoomDesignerPreviewObjectViewModelRotationOffsetTests
 {
+    [Theory]
+    [InlineData(0d, 7d, -3d, 7d, -3d)]
+    [InlineData(180d, -67d, -52d, 593.48d, 388.32d)]
+    public void AlignmentEditorPlacement_NormalizesFullBitmapBoundsThenAppliesOffsets(
+        double localRotationDegrees,
+        double offsetX,
+        double offsetY,
+        double expectedX,
+        double expectedY)
+    {
+        var placement = LargeObjectVisualGuideDialog.ComputeImagePlacement(
+            localRotationDegrees,
+            offsetX,
+            offsetY,
+            footprintWidthPixels: 520d,
+            footprintHeightPixels: 320d,
+            renderedBitmapWidthPixels: 1536d * 0.43d,
+            renderedBitmapHeightPixels: 1024d * 0.43d);
+
+        Assert.Equal(expectedX, placement.X, 6);
+        Assert.Equal(expectedY, placement.Y, 6);
+    }
+
     [Fact]
     public void PlacementComparisonMode_DefaultsToSharedOnly()
     {
@@ -26,10 +52,14 @@ public sealed class RoomDesignerPreviewObjectViewModelRotationOffsetTests
 
     [Theory]
     [InlineData(0d, 0d, 7d, 0d, 7d)]
+    [InlineData(0d, 7d, 0d, 7d, 0d)]
     [InlineData(90d, 0d, 7d, 33d, 0d)]
+    [InlineData(90d, 7d, 0d, 40d, 7d)]
     [InlineData(180d, 0d, 7d, 40d, 33d)]
+    [InlineData(180d, 7d, 0d, 33d, 40d)]
     [InlineData(270d, 0d, 7d, 7d, 40d)]
-    public void ImageLocalAlignmentOffsets_RotateWithImageRotation(
+    [InlineData(270d, 7d, 0d, 0d, 33d)]
+    public void ImageLocalAlignmentOffsets_RoomRotationCarriesOffsetsWithObject(
         double imageRotationDegrees,
         double rawOffsetX,
         double rawOffsetY,
@@ -47,41 +77,126 @@ public sealed class RoomDesignerPreviewObjectViewModelRotationOffsetTests
     {
         var viewModel = CreateViewModel(45d, localRotationDegrees: 0d, 0d, 7d);
 
-        Assert.Equal(-4.949747, viewModel.ImageLocalAlignmentOffsetX, 6);
+        Assert.Equal(23.334524, viewModel.ImageLocalAlignmentOffsetX, 6);
         Assert.Equal(4.949747, viewModel.ImageLocalAlignmentOffsetY, 6);
     }
 
     [Fact]
-    public void ImageLocalAlignmentOffsets_ApplyCenterPivotCompensation_ForLargeLocalRotationAndOffset()
+    public void ImageLocalAlignmentOffsets_LocalHalfTurn_DoesNotTranslateFootprint()
     {
-        // Crowbar-style case: large local offset + non-zero local rotation.
-        var roomRotationDegrees = 0d;
-        var localRotationDegrees = 45d;
-        var rawOffsetX = 0d;
-        var rawOffsetY = 39d;
-        var viewModel = CreateViewModel(roomRotationDegrees, localRotationDegrees, rawOffsetX, rawOffsetY, imageScale: 1d);
+        var viewModel = CreateViewModel(
+            imageRotationDegrees: 0,
+            localRotationDegrees: 180,
+            rawOffsetX: 0,
+            rawOffsetY: 0,
+            footprintWidthCells: 10,
+            footprintHeightCells: 10);
 
-        // Base fallback image size is 40x40 when no thumbnail exists.
-        var center = (X: 20d, Y: 20d);
-        var localRadians = localRotationDegrees * (Math.PI / 180d);
-        var localCos = Math.Cos(localRadians);
-        var localSin = Math.Sin(localRadians);
-        var rotatedCenterX = (center.X * localCos) - (center.Y * localSin);
-        var rotatedCenterY = (center.X * localSin) + (center.Y * localCos);
-        var compensationX = center.X - rotatedCenterX;
-        var compensationY = center.Y - rotatedCenterY;
+        // No thumbnail: the preview uses a 40 x 40 fallback image in a 400 x 400 footprint.
+        Assert.Equal(40d, viewModel.ImageLocalAlignmentOffsetX, 6);
+        Assert.Equal(40d, viewModel.ImageLocalAlignmentOffsetY, 6);
+    }
 
-        var finalRadians = (roomRotationDegrees + localRotationDegrees) * (Math.PI / 180d);
-        var finalCos = Math.Cos(finalRadians);
-        var finalSin = Math.Sin(finalRadians);
-        var rotatedOffsetX = (rawOffsetX * finalCos) - (rawOffsetY * finalSin);
-        var rotatedOffsetY = (rawOffsetX * finalSin) + (rawOffsetY * finalCos);
+    [Fact]
+    public void ImageLocalAlignmentOffsets_ElevatorImage_UsesNativeSize()
+    {
+        var imagePath = Path.Combine(Path.GetTempPath(), "storyboard-elevator-preview-" + Guid.NewGuid().ToString("N") + ".png");
+        try
+        {
+            var bitmap = BitmapSource.Create(400, 400, 96, 96, PixelFormats.Bgra32, null, new byte[400 * 400 * 4], 400 * 4);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using (var stream = File.Create(imagePath)) encoder.Save(stream);
 
-        var expectedX = rotatedOffsetX + compensationX;
-        var expectedY = rotatedOffsetY + compensationY;
+            var gameObject = new GameObject
+            {
+                PositionX = 600,
+                PositionY = 80,
+                FootprintWidthCells = 10,
+                FootprintHeightCells = 10,
+                ImageVariants =
+                [
+                    new ObjectImageVariant
+                    {
+                        VariantName = "default",
+                        IsDefault = true,
+                        FullImagePath = imagePath,
+                        ImageLocalAlignmentRotationDegrees = 180,
+                        ImageScale = 1
+                    }
+                ]
+            };
+            var viewModel = new RoomDesignerPreviewObjectViewModel(gameObject);
+            viewModel.SelectedPreviewVariantName = "default";
 
-        Assert.Equal(expectedX, viewModel.ImageLocalAlignmentOffsetX, 6);
-        Assert.Equal(expectedY, viewModel.ImageLocalAlignmentOffsetY, 6);
+            Assert.Equal(400d, viewModel.PreviewRenderedIconWidthPixels, 6);
+            Assert.Equal(400d, viewModel.PreviewRenderedIconHeightPixels, 6);
+            Assert.Equal(400d, viewModel.ImageLocalAlignmentOffsetX, 6);
+            Assert.Equal(400d, viewModel.ImageLocalAlignmentOffsetY, 6);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public void ImageLocalAlignmentOffsets_NormalizeRotatedBoundsBeforeApplyingLocalOffset()
+    {
+        var viewModel = CreateViewModel(
+            imageRotationDegrees: 0d,
+            localRotationDegrees: 45d,
+            rawOffsetX: 0d,
+            rawOffsetY: 39d);
+
+        // The bitmap origin moves by the inverse of the rotated AABB's negative top-left.
+        // The authored offset remains (0, 39) in footprint-local axes.
+        Assert.Equal(28.284271, viewModel.ImageLocalAlignmentOffsetX, 6);
+        Assert.Equal(39d, viewModel.ImageLocalAlignmentOffsetY, 6);
+    }
+
+    [Fact]
+    public void ImageLocalAlignmentOffsets_RectangularRug_UseFullScaledBitmapBounds()
+    {
+        var imagePath = Path.Combine(Path.GetTempPath(), "storyboard-rug-preview-" + Guid.NewGuid().ToString("N") + ".png");
+        try
+        {
+            var bitmap = BitmapSource.Create(1536, 1024, 96, 96, PixelFormats.Bgra32, null, new byte[1536 * 1024 * 4], 1536 * 4);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using (var stream = File.Create(imagePath)) encoder.Save(stream);
+
+            var gameObject = new GameObject
+            {
+                ImageRotationDegrees = 0,
+                FootprintWidthCells = 13,
+                FootprintHeightCells = 8,
+                ImageVariants =
+                [
+                    new ObjectImageVariant
+                    {
+                        VariantName = "default",
+                        IsDefault = true,
+                        FullImagePath = imagePath,
+                        ImageLocalAlignmentRotationDegrees = -180,
+                        ImageLocalAlignmentOffsetX = -67,
+                        ImageLocalAlignmentOffsetY = -52,
+                        ImageScale = 0.43
+                    }
+                ]
+            };
+            var viewModel = new RoomDesignerPreviewObjectViewModel(gameObject);
+            viewModel.SelectedPreviewVariantName = "default";
+
+            Assert.Equal(1536 * 0.43, viewModel.PreviewRenderedIconWidthPixels, 6);
+            Assert.Equal(1024 * 0.43, viewModel.PreviewRenderedIconHeightPixels, 6);
+            Assert.Equal(593.48, viewModel.ImageLocalAlignmentOffsetX, 6);
+            Assert.Equal(388.32, viewModel.ImageLocalAlignmentOffsetY, 6);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
     }
 
     [Theory]
@@ -117,8 +232,8 @@ public sealed class RoomDesignerPreviewObjectViewModelRotationOffsetTests
             localRotationDegrees,
             rawOffsetX,
             rawOffsetY,
-            viewModel.FootprintWidthPixels,
-            viewModel.FootprintHeightPixels,
+            viewModel.UnrotatedFootprintWidthPixels,
+            viewModel.UnrotatedFootprintHeightPixels,
             viewModel.PreviewRenderedIconWidthPixels,
             viewModel.PreviewRenderedIconHeightPixels);
 

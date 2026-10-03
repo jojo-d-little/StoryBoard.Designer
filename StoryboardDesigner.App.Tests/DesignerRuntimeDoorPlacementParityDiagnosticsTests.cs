@@ -71,6 +71,9 @@ public sealed class DesignerRuntimeDoorPlacementParityDiagnosticsTests
             var deltaX = runtimeDrawX - designerDrawX;
             var deltaY = runtimeDrawY - designerDrawY;
 
+            Assert.Equal(0d, deltaX, 6);
+            Assert.Equal(0d, deltaY, 6);
+
             reportLines.Add(
                 $"{doorName}: variant={variantName}; designerDraw=({designerDrawX:0.###},{designerDrawY:0.###}); "
                 + $"runtimeDraw=({runtimeDrawX:0.###},{runtimeDrawY:0.###}); delta=({deltaX:0.###},{deltaY:0.###}); "
@@ -155,6 +158,13 @@ public sealed class DesignerRuntimeDoorPlacementParityDiagnosticsTests
             var iconDeltaY = runtimeIconOffsetY - designerIconOffsetY;
             var drawDeltaX = runtimeDrawX - designerDrawX;
             var drawDeltaY = runtimeDrawY - designerDrawY;
+
+            Assert.Equal(0d, anchorDeltaX, 6);
+            Assert.Equal(0d, anchorDeltaY, 6);
+            Assert.Equal(0d, iconDeltaX, 6);
+            Assert.Equal(0d, iconDeltaY, 6);
+            Assert.Equal(0d, drawDeltaX, 6);
+            Assert.Equal(0d, drawDeltaY, 6);
 
             var localAnchorDelta = RotateVectorDegrees(anchorDeltaX, anchorDeltaY, -runtimeRotation);
             var localIconDelta = RotateVectorDegrees(iconDeltaX, iconDeltaY, -runtimeRotation);

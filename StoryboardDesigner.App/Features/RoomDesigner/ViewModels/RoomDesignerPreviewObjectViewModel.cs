@@ -237,6 +237,18 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
 
     public double FootprintHeightPixels => OrientedFootprintHeightCells * Math.Max(1, _gridCellSize);
 
+    // Physical footprint dimensions before the room rotation is applied. The shared
+    // placement math rotates this rectangle and rebases its bounds for the image.
+    public double UnrotatedFootprintWidthPixels =>
+        (UsesSwappedFootprintAxes(GameObject.FootprintOrientation, 0d)
+            ? ResolveFootprintCellCount(GameObject.FootprintHeightCells)
+            : ResolveFootprintCellCount(GameObject.FootprintWidthCells)) * Math.Max(1, _gridCellSize);
+
+    public double UnrotatedFootprintHeightPixels =>
+        (UsesSwappedFootprintAxes(GameObject.FootprintOrientation, 0d)
+            ? ResolveFootprintCellCount(GameObject.FootprintWidthCells)
+            : ResolveFootprintCellCount(GameObject.FootprintHeightCells)) * Math.Max(1, _gridCellSize);
+
     public int FootprintLayerZIndex => _drawOrderZIndex * 2;
 
     public int IconLayerZIndex => (_drawOrderZIndex * 2) + 1;
@@ -290,6 +302,8 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
         _gridCellSize = sanitized;
         OnPropertyChanged(nameof(FootprintWidthPixels));
         OnPropertyChanged(nameof(FootprintHeightPixels));
+        OnPropertyChanged(nameof(UnrotatedFootprintWidthPixels));
+        OnPropertyChanged(nameof(UnrotatedFootprintHeightPixels));
         OnPropertyChanged(nameof(ImageLocalAlignmentOffsetX));
         OnPropertyChanged(nameof(ImageLocalAlignmentOffsetY));
         OnPropertyChanged(nameof(PlacementComparisonDeltaX));
@@ -362,6 +376,8 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
                 OnPropertyChanged(nameof(OrientedFootprintHeightCells));
                 OnPropertyChanged(nameof(FootprintWidthPixels));
                 OnPropertyChanged(nameof(FootprintHeightPixels));
+                OnPropertyChanged(nameof(UnrotatedFootprintWidthPixels));
+                OnPropertyChanged(nameof(UnrotatedFootprintHeightPixels));
                 OnPropertyChanged(nameof(ImageLocalAlignmentOffsetX));
                 OnPropertyChanged(nameof(ImageLocalAlignmentOffsetY));
                 OnPropertyChanged(nameof(PlacementComparisonDeltaX));
@@ -387,6 +403,8 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
                 OnPropertyChanged(nameof(OrientedFootprintHeightCells));
                 OnPropertyChanged(nameof(FootprintWidthPixels));
                 OnPropertyChanged(nameof(FootprintHeightPixels));
+                OnPropertyChanged(nameof(UnrotatedFootprintWidthPixels));
+                OnPropertyChanged(nameof(UnrotatedFootprintHeightPixels));
                 OnPropertyChanged(nameof(ImageLocalAlignmentOffsetX));
                 OnPropertyChanged(nameof(ImageLocalAlignmentOffsetY));
                 OnPropertyChanged(nameof(PlacementComparisonDeltaX));
@@ -472,8 +490,8 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
             localRotationDegrees,
             rawOffsetX,
             rawOffsetY,
-            FootprintWidthPixels,
-            FootprintHeightPixels,
+            UnrotatedFootprintWidthPixels,
+            UnrotatedFootprintHeightPixels,
             PreviewRenderedIconWidthPixels,
             PreviewRenderedIconHeightPixels);
     }
