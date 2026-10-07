@@ -20,6 +20,7 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
         IReadOnlyList<ProcedureChoiceItem> procedureChoices,
         IReadOnlyList<CompositeRecipeChoiceItem> compositeRecipeChoices,
         IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
+        IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
         IReadOnlyList<GamePropertyChoiceItem> variableChoices,
         IReadOnlyList<string> echoReferenceTokens,
         IReadOnlyList<string> timerKeySuggestions,
@@ -27,7 +28,7 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
         IReadOnlyList<string> directionalSuggestions,
         Func<IReadOnlyList<CommandAction>, IReadOnlyList<ProjectValidationIssue>>? validateWithPipeline = null)
     {
-        var dialog = new ScopedActionsDialog(scopeLabel, variableScope, scopeEntityName, actions, additionalLinkTargetActions, containerTargetChoices, materializeSourceObjectChoices, procedureChoices, compositeRecipeChoices, soundEffectChoices, variableChoices, echoReferenceTokens, timerKeySuggestions, verbSuggestions, directionalSuggestions, validateWithPipeline)
+        var dialog = new ScopedActionsDialog(scopeLabel, variableScope, scopeEntityName, actions, additionalLinkTargetActions, containerTargetChoices, materializeSourceObjectChoices, procedureChoices, compositeRecipeChoices, soundEffectChoices, sequenceDefinitionChoices, variableChoices, echoReferenceTokens, timerKeySuggestions, verbSuggestions, directionalSuggestions, validateWithPipeline)
         {
             Owner = GetOwnerWindow()
         };
@@ -46,6 +47,7 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
         IReadOnlyList<CompositeRecipeChoiceItem> compositeRecipeChoices,
         IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
         IReadOnlyList<string> timerKeySuggestions,
+        IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
         IReadOnlyList<CommandAction> availableActions)
     {
         var dialog = new RoomActionEditorDialog(
@@ -59,7 +61,8 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
             compositeRecipeChoices,
             soundEffectChoices,
             timerKeySuggestions,
-            availableActions)
+            availableActions,
+            sequenceDefinitionChoices)
         {
             Owner = GetOwnerWindow()
         };

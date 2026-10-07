@@ -1,0 +1,22 @@
+<Window x:Class="StoryboardDesigner.App.Features.SequenceDesigner.Views.RenameSequenceBranchDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Rename branch"
+        SizeToContent="WidthAndHeight"
+        MinWidth="380"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <TextBlock Text="Branch name" FontWeight="SemiBold" Foreground="#374151" />
+        <TextBox x:Name="BranchNameTextBox" Grid.Row="1" Margin="0,8,0,14" MinWidth="340" />
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Cancel" IsCancel="True" MinWidth="84" Margin="0,0,8,0" Padding="8,4" />
+            <Button Content="Rename" IsDefault="True" MinWidth="84" Padding="8,4" Click="Rename_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -6,6 +6,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:conv="clr-namespace:StoryboardDesigner.App.Converters"
         xmlns:controls="clr-namespace:StoryboardDesigner.App.Views.Controls"
+        xmlns:sequence="clr-namespace:StoryboardDesigner.App.Features.SequenceDesigner.Views"
         xmlns:vm="clr-namespace:StoryboardDesigner.App.ViewModels"
         mc:Ignorable="d"
         Title="{Binding WindowTitle}"
@@ -118,6 +119,10 @@
                     <TabItem Header="Area (Map) Designer"
                              AutomationProperties.AutomationId="MainWindow.Tab.AreaDesigner">
                         <controls:AreaMapDesignerWorkspace x:Name="AreaMapDesignerWorkspaceControl" />
+                    </TabItem>
+                    <TabItem Header="Sequence Designer"
+                             AutomationProperties.AutomationId="MainWindow.Tab.SequenceDesigner">
+                        <sequence:SequenceDesignerWorkspaceView />
                     </TabItem>
                 </TabControl>
             </DockPanel>

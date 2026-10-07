@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Data;
 using StoryboardDesigner.App.Models;
 
 namespace StoryboardDesigner.App.Views;
@@ -9,6 +10,7 @@ public partial class SelectLinkedActionDialog : Window
     {
         public CommandAction Action { get; init; } = null!;
         public string Label { get; init; } = string.Empty;
+        public string ScopeName { get; init; } = string.Empty;
     }
 
     public SelectLinkedActionDialog(IEnumerable<CommandAction> candidates)
@@ -25,6 +27,25 @@ public partial class SelectLinkedActionDialog : Window
             .ToList();
 
         ActionsListBox.ItemsSource = options;
+    }
+
+    public SelectLinkedActionDialog(IEnumerable<(CommandAction Action, string ScopeName)> scopedCandidates)
+    {
+        InitializeComponent();
+
+        var options = scopedCandidates
+            .Where(static candidate => candidate.Action is not null)
+            .Select(static candidate => new Option
+            {
+                Action = candidate.Action,
+                ScopeName = candidate.ScopeName,
+                Label = $"{candidate.Action.Name} ({candidate.Action.ActionType})"
+            })
+            .ToList();
+
+        var view = CollectionViewSource.GetDefaultView(options);
+        view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(Option.ScopeName)));
+        ActionsListBox.ItemsSource = view;
     }
 
     public CommandAction? SelectedAction { get; private set; }

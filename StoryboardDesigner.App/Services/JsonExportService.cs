@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using Storyboard.Shared.GameServices;
@@ -279,8 +280,40 @@ public sealed class JsonExportService : IJsonExportService
     private const string ScopeKindGameObjectFolderName = "GameObject";
     private const string ScopeNodeFileSuffix = ".runtime.json";
 
-    private readonly JsonSerializerOptions _jsonOptions = StoryboardJsonSerializerOptions.Create();
-    private readonly JsonSerializerOptions _jsonReadOptions = StoryboardJsonSerializerOptions.Create(propertyNameCaseInsensitive: true);
+    private readonly JsonSerializerOptions _jsonOptions = CreateJsonOptions();
+    private readonly JsonSerializerOptions _jsonReadOptions = CreateJsonOptions(propertyNameCaseInsensitive: true);
+
+    private static JsonSerializerOptions CreateJsonOptions(bool propertyNameCaseInsensitive = false)
+    {
+        var options = StoryboardJsonSerializerOptions.Create(propertyNameCaseInsensitive);
+        var resolver = new DefaultJsonTypeInfoResolver();
+        resolver.Modifiers.Add(static typeInfo =>
+        {
+            if (typeInfo.Type == typeof(ProjectCommandActionPayloadBaseDto))
+            {
+                AddPayloadDerivedType(typeInfo, typeof(ProjectCheckCommandContextActionPayloadDto), "checkCommandContext");
+                AddPayloadDerivedType(typeInfo, typeof(ProjectNavigateDirectionPreFlightCheckActionPayloadDto), "navigateDirectionPreFlightCheck");
+            }
+            else if (typeInfo.Type == typeof(RuntimeCommandActionPayloadBaseDto))
+            {
+                AddPayloadDerivedType(typeInfo, typeof(RuntimeCheckCommandContextActionPayloadDto), "checkCommandContext");
+                AddPayloadDerivedType(typeInfo, typeof(RuntimeNavigateDirectionPreFlightCheckActionPayloadDto), "navigateDirectionPreFlightCheck");
+            }
+        });
+        options.TypeInfoResolver = resolver;
+        return options;
+    }
+
+    private static void AddPayloadDerivedType(JsonTypeInfo typeInfo, Type derivedType, string discriminator)
+    {
+        var derivedTypes = typeInfo.PolymorphismOptions?.DerivedTypes;
+        if (derivedTypes is null || derivedTypes.Any(derived => derived.DerivedType == derivedType))
+        {
+            return;
+        }
+
+        derivedTypes.Add(new JsonDerivedType(derivedType, discriminator));
+    }
 
     public string CreateProjectSkeleton(string baseFolder, string projectName)
     {
@@ -413,6 +446,7 @@ public sealed class JsonExportService : IJsonExportService
             AvailableGameActions = ToCommandActionDtos(project.GlobalScope.AvailableActions),
             EventSubscriptions = project.GlobalScope.EventSubscriptions.Select(ToProjectEventSubscriptionDto).ToList(),
             TimerDefinitions = project.GlobalScope.TimerDefinitions.Select(ToProjectTimerDefinitionDto).ToList(),
+            SequenceDefinitions = project.SequenceDefinitions.ToList(),
             GameProperties = project.GlobalVariables.Select(ToVariableDto).ToList(),
             SoundEffectLibraryEntries = project.GlobalScope.SoundEffectLibraryEntries.Select(ToSoundEffectLibraryEntryDto).ToList(),
             ProcedureIds = (project.ProcedureIds ?? new List<Guid>())
@@ -553,6 +587,7 @@ public sealed class JsonExportService : IJsonExportService
                 AmbientLighting = LightingContractMapper.ToProjectRoomAmbientLightingDto(room.AmbientLighting),
                 RoomDisplayMode = room.RoomDisplayMode,
                 ValidationErrors = room.ValidationErrors.ToList(),
+                SequenceDefinitions = room.SequenceDefinitions.ToList(),
                 TraversalModeOverride = room.TraversalModeOverride?.ToString(),
                 AvailableGameActions = ToCommandActionDtos(room.AvailableActions),
                 GameObjectIds = mappedRoomObjects
@@ -609,6 +644,7 @@ public sealed class JsonExportService : IJsonExportService
                 HideEmptyConfiguration = planet.HideEmptyConfiguration,
                 StartingCountryName = planet.StartingCountryName,
                 ValidationErrors = planet.ValidationErrors.ToList(),
+                SequenceDefinitions = planet.SequenceDefinitions.ToList(),
                 GameProperties = planet.Variables.Select(ToVariableDto).ToList(),
                 AdditionalVerbs = planet.AdditionalVerbs.ToList(),
                 AdditionalDirectionals = planet.AdditionalDirectionals.ToList(),
@@ -652,6 +688,7 @@ public sealed class JsonExportService : IJsonExportService
                     HideEmptyConfiguration = country.HideEmptyConfiguration,
                     StartingAreaName = country.StartingAreaName,
                     ValidationErrors = country.ValidationErrors.ToList(),
+                    SequenceDefinitions = country.SequenceDefinitions.ToList(),
                     GameProperties = country.Variables.Select(ToVariableDto).ToList(),
                     AdditionalVerbs = country.AdditionalVerbs.ToList(),
                     AdditionalDirectionals = country.AdditionalDirectionals.ToList(),
@@ -694,6 +731,7 @@ public sealed class JsonExportService : IJsonExportService
                         Name = area.Name,
                         HideEmptyConfiguration = area.HideEmptyConfiguration,
                         ValidationErrors = area.ValidationErrors.ToList(),
+                        SequenceDefinitions = area.SequenceDefinitions.ToList(),
                         AdjacencyMode = area.AdjacencyMode,
                         RoomDropBehavior = area.RoomDropBehavior,
                         TraversalModeOverride = area.TraversalModeOverride?.ToString(),
@@ -957,6 +995,7 @@ public sealed class JsonExportService : IJsonExportService
                 RoomImageCanvasHeight = dto.RoomImageCanvasHeight,
                 RoomDesignerGridCellSize = dto.RoomDesignerGridCellSize,
                 PointLightDefaults = LightingContractMapper.ToPointLightDefaultsModel(dto.PointLightDefaults),
+                SequenceDefinitions = (globalNode.SequenceDefinitions ?? new List<ProjectSequenceDefinitionDto>()).ToList(),
                 DefaultRoomAmbientLighting = LightingContractMapper.ToRoomAmbientLightingModel(dto.DefaultRoomAmbientLighting),
                 StackScaleStepDefault = dto.StackScaleStepDefault ?? ProjectModel.DefaultStackScaleStep,
                 MinStackScaleDefault = dto.MinStackScaleDefault ?? ProjectModel.DefaultMinStackScale,
@@ -1317,6 +1356,7 @@ public sealed class JsonExportService : IJsonExportService
             SoundEffectLibraryEntries = room.SoundEffectLibraryEntries.Select(ToSoundEffectLibraryEntryDto).ToList(),
             AdditionalDirectionalTraversalMappings = ToDirectionalTraversalMappingDtos(room.AdditionalDirectionalTraversalMappings),
             TimerDefinitions = room.TimerDefinitions.Select(ToProjectTimerDefinitionDto).ToList(),
+            SequenceDefinitions = room.SequenceDefinitions.ToList(),
             GameObjects = roomObjects
                 .Select((obj, index) => ToProjectGameObjectDto(
                     obj,
@@ -1448,6 +1488,7 @@ public sealed class JsonExportService : IJsonExportService
                 .Select(ToRuntimeEventSubscriptionDto)
                 .ToList()),
             TimerDefinitions = NullIfEmpty(project.GlobalScope.TimerDefinitions.Select(ToRuntimeTimerDefinitionDto).ToList()),
+            SequenceDefinitions = ToRuntimeSequenceDefinitions(project.SequenceDefinitions),
             AvailableGameActions = NullIfEmpty(ToCleanCommandActionDtos(project.GlobalScope.AvailableActions)
                 .OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(a => a.Id)
@@ -1484,6 +1525,7 @@ public sealed class JsonExportService : IJsonExportService
                     AdditionalDirectionalTraversalMappings = NullIfEmpty(ToRuntimeDirectionalTraversalMappings(planet.AdditionalDirectionalTraversalMappings)),
                     EventSubscriptions = NullIfEmpty(planet.EventSubscriptions.Select(ToRuntimeEventSubscriptionDto).ToList()),
                     TimerDefinitions = NullIfEmpty(planet.TimerDefinitions.Select(ToRuntimeTimerDefinitionDto).ToList()),
+                    SequenceDefinitions = ToRuntimeSequenceDefinitions(planet.SequenceDefinitions),
                     AvailableGameActions = ToCleanCommandActionDtos(planet.AvailableActions).OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase).ThenBy(a => a.Id).ToList()
                 };
 
@@ -1522,6 +1564,7 @@ public sealed class JsonExportService : IJsonExportService
                                     AdditionalDirectionalTraversalMappings = NullIfEmpty(ToRuntimeDirectionalTraversalMappings(area.AdditionalDirectionalTraversalMappings)),
                                     EventSubscriptions = NullIfEmpty(area.EventSubscriptions.Select(ToRuntimeEventSubscriptionDto).ToList()),
                                     TimerDefinitions = NullIfEmpty(area.TimerDefinitions.Select(ToRuntimeTimerDefinitionDto).ToList()),
+                                    SequenceDefinitions = ToRuntimeSequenceDefinitions(area.SequenceDefinitions),
                                     AvailableGameActions = ToCleanCommandActionDtos(area.AvailableActions).OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase).ThenBy(a => a.Id).ToList(),
                                     RoomIds = area.Rooms.Select(room => room.Id).OrderBy(id => id).ToList()
                                 };
@@ -1556,6 +1599,7 @@ public sealed class JsonExportService : IJsonExportService
                             AdditionalDirectionalTraversalMappings = NullIfEmpty(ToRuntimeDirectionalTraversalMappings(country.AdditionalDirectionalTraversalMappings)),
                             EventSubscriptions = NullIfEmpty(country.EventSubscriptions.Select(ToRuntimeEventSubscriptionDto).ToList()),
                             TimerDefinitions = NullIfEmpty(country.TimerDefinitions.Select(ToRuntimeTimerDefinitionDto).ToList()),
+                            SequenceDefinitions = ToRuntimeSequenceDefinitions(country.SequenceDefinitions),
                             AvailableGameActions = ToCleanCommandActionDtos(country.AvailableActions).OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase).ThenBy(a => a.Id).ToList()
                         };
                         mappedCountry.SetAttachedAreas(mappedCountryAreas);
@@ -1978,6 +2022,7 @@ public sealed class JsonExportService : IJsonExportService
                 AdditionalDirectionalTraversalMappings = NullIfEmpty(ToRuntimeDirectionalTraversalMappings(room.AdditionalDirectionalTraversalMappings)),
                 EventSubscriptions = NullIfEmpty(room.EventSubscriptions.Select(ToRuntimeEventSubscriptionDto).ToList()),
                 TimerDefinitions = NullIfEmpty(room.TimerDefinitions.Select(ToRuntimeTimerDefinitionDto).ToList()),
+                SequenceDefinitions = ToRuntimeSequenceDefinitions(room.SequenceDefinitions),
                 SoundEffectLibraryEntries = NullIfEmpty(room.SoundEffectLibraryEntries
                     .Select(entry => ToCleanSoundEntryForScope(entry, $"room:{room.Id:D}"))
                     .ToList()),
@@ -2734,6 +2779,8 @@ public sealed class JsonExportService : IJsonExportService
         var cancelTimerKey = ActionPayloadAccessors.GetCancelTimerKey(action);
         var cancelTimerScopeQualifierKind = ActionPayloadAccessors.GetCancelTimerScopeQualifierKind(action);
         var cancelTimerScopeQualifierId = ActionPayloadAccessors.GetCancelTimerScopeQualifierId(action);
+        var startSequenceId = ActionPayloadAccessors.GetStartSequenceId(action);
+        var cancelSequenceId = ActionPayloadAccessors.GetCancelSequenceId(action);
         var compositeByTargetPayload = ActionPayloadAccessors.GetCompositeByTargetPayload(action);
         var compositeByPartsPayload = ActionPayloadAccessors.GetCompositeByPartsPayload(action);
         var breakCompositePayload = ActionPayloadAccessors.GetBreakCompositePayload(action);
@@ -2745,6 +2792,7 @@ public sealed class JsonExportService : IJsonExportService
         var selectByPointPayload = ActionPayloadAccessors.GetSelectRoomObjectByPointPayload(action);
         var clearActivePayload = ActionPayloadAccessors.GetClearActiveRoomObjectsPayload(action);
         var clearSelectionsPayload = ActionPayloadAccessors.GetClearRoomObjectSelectionsPayload(action);
+        var checkCommandContextPayload = ActionPayloadAccessors.GetCheckCommandContext(action);
 
         return new CommandActionDto
         {
@@ -2761,12 +2809,15 @@ public sealed class JsonExportService : IJsonExportService
             {
                 CommandActionType.EchoMessage => BuildEchoMessagePayloadElement(),
                 CommandActionType.CheckGameProperty => BuildCheckGamePropertyPayloadElement(ActionPayloadAccessors.GetCheckPropertyName(action), ActionPayloadAccessors.GetCheckExpectedValue(action)),
+                CommandActionType.CheckCommandContext => BuildCheckCommandContextPayloadElement(checkCommandContextPayload),
                 CommandActionType.ClearActiveRoomObjects => BuildClearActiveRoomObjectsPayloadElement(clearActivePayload.ClearScope),
                 CommandActionType.CloseObject => BuildCloseObjectPayloadElement(),
                 CommandActionType.InvokeProcedure => BuildInvokeProcedurePayloadElement(procedureId),
                 CommandActionType.LockObject => BuildLockObjectPayloadElement(),
                 CommandActionType.StartTimer => BuildStartTimerPayloadElement(startTimerKey, startTimerOwnerScopeKindOverride),
                 CommandActionType.CancelTimer => BuildCancelTimerPayloadElement(cancelTimerKey, cancelTimerScopeQualifierKind, cancelTimerScopeQualifierId),
+                CommandActionType.StartSequence => BuildStartSequencePayloadElement(startSequenceId),
+                CommandActionType.CancelSequence => BuildCancelSequencePayloadElement(cancelSequenceId),
                 CommandActionType.MaterializeObjectCopy => BuildMaterializeObjectCopyPayloadElement(materializeSourceObjectId),
                 CommandActionType.MoveRoomObjectOnGrid => BuildMoveRoomObjectOnGridPayloadElement(movePayload),
                 CommandActionType.MoveRoomObjectByPoints => BuildMoveRoomObjectByPointsPayloadElement(moveByPointsPayload),
@@ -2776,6 +2827,7 @@ public sealed class JsonExportService : IJsonExportService
                 CommandActionType.RemoveObjectPresentationCue => BuildRemoveObjectPresentationCuePayloadElement(action),
                 CommandActionType.ClearObjectPresentationCues => BuildClearObjectPresentationCuesPayloadElement(action),
                 CommandActionType.NavigateDirection => BuildNavigateDirectionPayloadElement(),
+                CommandActionType.NavigateDirectionPreFlightCheck => BuildNavigateDirectionPreFlightCheckPayloadElement(),
                 CommandActionType.NavigateToAdjacent => BuildNavigateToAdjacentPayloadElement(),
                 CommandActionType.OpenObject => BuildOpenObjectPayloadElement(),
                 CommandActionType.PutObjectInContainer => BuildPutObjectInContainerPayloadElement(containerTransfer.TargetContainerId),
@@ -2798,7 +2850,7 @@ public sealed class JsonExportService : IJsonExportService
         };
     }
 
-    private static CommandAction ToCommandActionModel(CommandActionDto action)
+    internal static CommandAction ToCommandActionModel(CommandActionDto action)
     {
         var actionType = ParseCommandActionType(action.ActionType);
         var invokeProcedureIdFromPayload = TryGetInvokeProcedureIdFromPayload(action.Payload);
@@ -2808,6 +2860,8 @@ public sealed class JsonExportService : IJsonExportService
         var cancelTimerKeyFromPayload = TryGetCancelTimerKeyFromPayload(action.Payload);
         var cancelTimerScopeQualifierKindFromPayload = TryGetCancelTimerScopeQualifierKindFromPayload(action.Payload);
         var cancelTimerScopeQualifierIdFromPayload = TryGetCancelTimerScopeQualifierIdFromPayload(action.Payload);
+        var startSequenceIdFromPayload = TryGetStartSequenceIdFromPayload(action.Payload);
+        var cancelSequenceIdFromPayload = TryGetCancelSequenceIdFromPayload(action.Payload);
         var putObjectInContainerTargetContainerIdFromPayload = TryGetPutObjectInContainerTargetContainerIdFromPayload(action.Payload);
         var removeObjectFromContainerTargetContainerIdFromPayload = TryGetRemoveObjectFromContainerTargetContainerIdFromPayload(action.Payload);
         var moveDirectionTokenFromPayload = TryGetMoveDirectionTokenFromPayload(action.Payload);
@@ -3044,6 +3098,16 @@ public sealed class JsonExportService : IJsonExportService
                 checkExpectedValueFromPayload.GetValueOrDefault(false));
         }
 
+        if (model.ActionType == CommandActionType.CheckCommandContext
+            && action.Payload is ProjectCheckCommandContextActionPayloadDto commandContextPayload)
+        {
+            ActionPayloadAccessors.SetCheckCommandContext(
+                model,
+                commandContextPayload.Field,
+                commandContextPayload.ExpectedBoolean,
+                commandContextPayload.ExpectedDirection);
+        }
+
         if (model.ActionType == CommandActionType.SetFlag)
         {
             ActionPayloadAccessors.SetSetFlag(
@@ -3087,9 +3151,35 @@ public sealed class JsonExportService : IJsonExportService
                 cancelTimerScopeQualifierIdFromPayload);
         }
 
+        if (model.ActionType == CommandActionType.StartSequence)
+        {
+            ActionPayloadAccessors.SetStartSequenceId(model, startSequenceIdFromPayload);
+        }
+
+        if (model.ActionType == CommandActionType.CancelSequence)
+        {
+            ActionPayloadAccessors.SetCancelSequenceId(model, cancelSequenceIdFromPayload);
+        }
+
         model.Payload = model.CreatePayloadSnapshot();
 
         return model;
+    }
+
+    internal static CommandActionDto ToCommandActionDtoForSequence(
+        CommandAction action,
+        IReadOnlyCollection<CommandAction> availableActions)
+    {
+        var actionLookup = (availableActions ?? Array.Empty<CommandAction>())
+            .Where(static candidate => candidate.Id != Guid.Empty)
+            .GroupBy(static candidate => candidate.Id)
+            .ToDictionary(static group => group.Key, static group => group.First());
+        if (action.Id != Guid.Empty)
+        {
+            actionLookup[action.Id] = action;
+        }
+
+        return ToCommandActionDto(action, actionLookup);
     }
 
     private static List<CommandAction> ToCommandActionModels(IReadOnlyCollection<CommandActionDto>? actionDtos)
@@ -3874,6 +3964,7 @@ public sealed class JsonExportService : IJsonExportService
                 .Where(static value => !string.IsNullOrWhiteSpace(value))
                 .Select(static value => value.Trim())
                 .ToList(),
+            SequenceDefinitions = (dto.SequenceDefinitions ?? new List<ProjectSequenceDefinitionDto>()).ToList(),
             StartingCountryName = dto.StartingCountryName,
             Variables = (dto.GameProperties ?? new List<GamePropertyDefinitionDto>()).Select(ToVariableModel).ToList(),
             AdditionalVerbs = (dto.AdditionalVerbs ?? new List<string>()).ToList(),
@@ -3915,6 +4006,7 @@ public sealed class JsonExportService : IJsonExportService
                 .Where(static value => !string.IsNullOrWhiteSpace(value))
                 .Select(static value => value.Trim())
                 .ToList(),
+            SequenceDefinitions = (dto.SequenceDefinitions ?? new List<ProjectSequenceDefinitionDto>()).ToList(),
             StartingAreaName = dto.StartingAreaName,
             Variables = (dto.GameProperties ?? new List<GamePropertyDefinitionDto>()).Select(ToVariableModel).ToList(),
             AdditionalVerbs = (dto.AdditionalVerbs ?? new List<string>()).ToList(),
@@ -3958,6 +4050,7 @@ public sealed class JsonExportService : IJsonExportService
                 .Where(static value => !string.IsNullOrWhiteSpace(value))
                 .Select(static value => value.Trim())
                 .ToList(),
+            SequenceDefinitions = (dto.SequenceDefinitions ?? new List<ProjectSequenceDefinitionDto>()).ToList(),
             AdjacencyMode = dto.AdjacencyMode,
             RoomDropBehavior = dto.RoomDropBehavior,
             TraversalModeOverride = Enum.TryParse<AreaAdjacencyMode>(dto.TraversalModeOverride, out var traversalModeOverride)
@@ -4435,7 +4528,8 @@ public sealed class JsonExportService : IJsonExportService
                 .ToList(),
             TimerDefinitions = (room.TimerDefinitions ?? new List<ProjectTimerDefinitionDto>())
                 .Select(ToTimerDefinitionModel)
-                .ToList()
+                .ToList(),
+            SequenceDefinitions = (room.SequenceDefinitions ?? new List<ProjectSequenceDefinitionDto>()).ToList()
         };
     }
 
@@ -4524,6 +4618,7 @@ public sealed class JsonExportService : IJsonExportService
             SoundEffectLibraryEntries = obj.SoundEffectLibraryEntries.Select(ToSoundEffectLibraryEntryDto).ToList(),
             EventSubscriptions = obj.EventSubscriptions.Select(ToProjectEventSubscriptionDto).ToList(),
             TimerDefinitions = obj.TimerDefinitions.Select(ToProjectTimerDefinitionDto).ToList(),
+            SequenceDefinitions = obj.SequenceDefinitions.ToList(),
             AvailableGameActions = persistedLinkedBaseObjectId.HasValue
                 ? new List<CommandActionDto>()
                 : ToCommandActionDtos(obj.AvailableActions),
@@ -4680,6 +4775,7 @@ public sealed class JsonExportService : IJsonExportService
             TimerDefinitions = (obj.TimerDefinitions ?? new List<ProjectTimerDefinitionDto>())
                 .Select(ToTimerDefinitionModel)
                 .ToList(),
+            SequenceDefinitions = (obj.SequenceDefinitions ?? new List<ProjectSequenceDefinitionDto>()).ToList(),
             ProcedureIds = (obj.ProcedureIds ?? new List<Guid>())
                 .Where(static id => id != Guid.Empty)
                 .Distinct()
@@ -6143,6 +6239,7 @@ public sealed class JsonExportService : IJsonExportService
             AdditionalDirectionalTraversalMappings = NullIfEmpty(ToRuntimeDirectionalTraversalMappings(obj.AdditionalDirectionalTraversalMappings)),
             EventSubscriptions = NullIfEmpty(obj.EventSubscriptions.Select(ToRuntimeEventSubscriptionDto).ToList()),
             TimerDefinitions = NullIfEmpty(obj.TimerDefinitions.Select(ToRuntimeTimerDefinitionDto).ToList()),
+            SequenceDefinitions = ToRuntimeSequenceDefinitions(obj.SequenceDefinitions),
             SoundEffectLibraryEntries = NullIfEmpty(obj.SoundEffectLibraryEntries
                 .Select(entry => ToCleanSoundEffectLibraryEntryDto(
                     entry,
@@ -6638,6 +6735,53 @@ public sealed class JsonExportService : IJsonExportService
             .ToList();
     }
 
+    private static List<RuntimeSequenceDefinitionDto>? ToRuntimeSequenceDefinitions(
+        IEnumerable<ProjectSequenceDefinitionDto>? definitions)
+    {
+        var runtimeDefinitions = (definitions ?? Array.Empty<ProjectSequenceDefinitionDto>())
+            .Select(definition => new RuntimeSequenceDefinitionDto
+            {
+                SequenceId = definition.SequenceId,
+                DisplayName = definition.DisplayName,
+                LifetimeOwnerType = definition.LifetimeOwnerType,
+                StartConflictBehavior = definition.StartConflictBehavior,
+                Steps = (definition.Steps ?? new List<ProjectSequenceStepDto>())
+                    .Select(step => new RuntimeSequenceStepDto
+                    {
+                        StepId = step.StepId,
+                        BranchId = step.BranchId,
+                        ContinuationMode = step.ContinuationMode,
+                        StepType = step.StepType,
+                        OffsetMs = step.OffsetMs,
+                        Order = step.Order,
+                        ActionId = step.ActionId,
+                        InlineAction = ToRuntimeSequenceInlineAction(step.InlineAction),
+                        SoundEffectId = step.SoundEffectId,
+                        OnSuccessStepId = step.OnSuccessStepId,
+                        OnFailureStepId = step.OnFailureStepId,
+                        MergeTargetStepId = step.MergeTargetStepId
+                    })
+                    .ToList()
+            })
+            .ToList();
+
+        return NullIfEmpty(runtimeDefinitions);
+    }
+
+    private static RuntimeCommandActionDto? ToRuntimeSequenceInlineAction(CommandActionDto? action)
+    {
+        if (action is null)
+        {
+            return null;
+        }
+
+        var model = ToCommandActionModel(action);
+        model.NoVerbLinkage = true;
+        model.VerbListText = string.Empty;
+        model.Verbs.Clear();
+        return ToCleanCommandActionDtos(new[] { model }).Single();
+    }
+
     private static RuntimeCommandActionDto ToCleanCommandActionDto(CommandAction action, IReadOnlyDictionary<Guid, CommandAction> actionLookup)
     {
         var containerTransfer = ActionPayloadAccessors.GetContainerTransfer(action);
@@ -6649,6 +6793,8 @@ public sealed class JsonExportService : IJsonExportService
         var cancelTimerKey = ActionPayloadAccessors.GetCancelTimerKey(action);
         var cancelTimerScopeQualifierKind = ActionPayloadAccessors.GetCancelTimerScopeQualifierKind(action);
         var cancelTimerScopeQualifierId = ActionPayloadAccessors.GetCancelTimerScopeQualifierId(action);
+        var startSequenceId = ActionPayloadAccessors.GetStartSequenceId(action);
+        var cancelSequenceId = ActionPayloadAccessors.GetCancelSequenceId(action);
         var compositeByTargetPayload = ActionPayloadAccessors.GetCompositeByTargetPayload(action);
         var compositeByPartsPayload = ActionPayloadAccessors.GetCompositeByPartsPayload(action);
         var breakCompositePayload = ActionPayloadAccessors.GetBreakCompositePayload(action);
@@ -6659,6 +6805,7 @@ public sealed class JsonExportService : IJsonExportService
         var setActivePayload = ActionPayloadAccessors.GetSetActiveRoomObjectPayload(action);
         var selectByPointPayload = ActionPayloadAccessors.GetSelectRoomObjectByPointPayload(action);
         var clearSelectionsPayload = ActionPayloadAccessors.GetClearRoomObjectSelectionsPayload(action);
+        var checkCommandContextPayload = ActionPayloadAccessors.GetCheckCommandContext(action);
 
         return new RuntimeCommandActionDto
         {
@@ -6675,18 +6822,22 @@ public sealed class JsonExportService : IJsonExportService
             {
                 CommandActionType.EchoMessage => BuildCleanEchoMessagePayloadElement(),
                 CommandActionType.CheckGameProperty => BuildCleanCheckGamePropertyPayloadElement(ActionPayloadAccessors.GetCheckPropertyName(action), ActionPayloadAccessors.GetCheckExpectedValue(action)),
+                CommandActionType.CheckCommandContext => BuildCleanCheckCommandContextPayloadElement(checkCommandContextPayload),
                 CommandActionType.ClearActiveRoomObjects => BuildCleanClearActiveRoomObjectsPayloadElement(ActionPayloadAccessors.GetClearActiveRoomObjectsPayload(action).ClearScope),
                 CommandActionType.CloseObject => BuildCleanCloseObjectPayloadElement(),
                 CommandActionType.InvokeProcedure => BuildCleanInvokeProcedurePayloadElement(procedureId),
                 CommandActionType.LockObject => BuildCleanLockObjectPayloadElement(),
                 CommandActionType.StartTimer => BuildCleanStartTimerPayloadElement(startTimerKey, startTimerOwnerScopeKindOverride),
                 CommandActionType.CancelTimer => BuildCleanCancelTimerPayloadElement(cancelTimerKey, cancelTimerScopeQualifierKind, cancelTimerScopeQualifierId),
+                CommandActionType.StartSequence => BuildCleanStartSequencePayloadElement(startSequenceId),
+                CommandActionType.CancelSequence => BuildCleanCancelSequencePayloadElement(cancelSequenceId),
                 CommandActionType.MaterializeObjectCopy => BuildCleanMaterializeObjectCopyPayloadElement(materializeSourceObjectId),
                 CommandActionType.MoveRoomObjectOnGrid => BuildCleanMoveRoomObjectOnGridPayloadElement(movePayload),
                 CommandActionType.MoveRoomObjectByPoints => BuildCleanMoveRoomObjectByPointsPayloadElement(moveByPointsPayload),
                 CommandActionType.RotateRoomObjectOnGrid => BuildCleanRotateRoomObjectOnGridPayloadElement(rotatePayload),
                 CommandActionType.StackRoomObjectOnAnother => BuildCleanStackRoomObjectOnAnotherPayloadElement(stackPayload),
                 CommandActionType.NavigateDirection => BuildCleanNavigateDirectionPayloadElement(),
+                CommandActionType.NavigateDirectionPreFlightCheck => BuildCleanNavigateDirectionPreFlightCheckPayloadElement(),
                 CommandActionType.NavigateToAdjacent => BuildCleanNavigateToAdjacentPayloadElement(),
                 CommandActionType.OpenObject => BuildCleanOpenObjectPayloadElement(),
                 CommandActionType.PutObjectInContainer => BuildCleanPutObjectInContainerPayloadElement(containerTransfer.TargetContainerId),
@@ -7175,6 +7326,21 @@ public sealed class JsonExportService : IJsonExportService
         };
     }
 
+    private static ProjectCommandActionPayloadBaseDto BuildCheckCommandContextPayloadElement(CheckCommandContextPayload payload)
+    {
+        return new ProjectCheckCommandContextActionPayloadDto
+        {
+            Field = payload.Field,
+            ExpectedBoolean = payload.ExpectedBoolean,
+            ExpectedDirection = payload.ExpectedDirection
+        };
+    }
+
+    private static ProjectCommandActionPayloadBaseDto BuildNavigateDirectionPreFlightCheckPayloadElement()
+    {
+        return new ProjectNavigateDirectionPreFlightCheckActionPayloadDto();
+    }
+
     private static ProjectCommandActionPayloadBaseDto BuildSetGamePropertyPayloadElement(string propertyName, string propertyValue)
     {
         return new ProjectSetGamePropertyActionPayloadDto
@@ -7239,6 +7405,20 @@ public sealed class JsonExportService : IJsonExportService
             ScopeQualifierKind = scopeQualifierKind,
             ScopeQualifierId = scopeQualifierId
         };
+    }
+
+    private static ProjectCommandActionPayloadBaseDto? BuildStartSequencePayloadElement(Guid sequenceId)
+    {
+        return sequenceId == Guid.Empty
+            ? null
+            : new ProjectStartSequenceActionPayloadDto { SequenceId = sequenceId };
+    }
+
+    private static ProjectCommandActionPayloadBaseDto? BuildCancelSequencePayloadElement(Guid sequenceId)
+    {
+        return sequenceId == Guid.Empty
+            ? null
+            : new ProjectCancelSequenceActionPayloadDto { SequenceId = sequenceId };
     }
 
     private static ProjectCommandActionPayloadBaseDto BuildSetActiveRoomObjectPayloadElement(string selectionCueEffectKey)
@@ -7497,6 +7677,21 @@ public sealed class JsonExportService : IJsonExportService
         };
     }
 
+    private static RuntimeCommandActionPayloadBaseDto BuildCleanCheckCommandContextPayloadElement(CheckCommandContextPayload payload)
+    {
+        return new RuntimeCheckCommandContextActionPayloadDto
+        {
+            Field = payload.Field,
+            ExpectedBoolean = payload.ExpectedBoolean,
+            ExpectedDirection = payload.ExpectedDirection
+        };
+    }
+
+    private static RuntimeCommandActionPayloadBaseDto BuildCleanNavigateDirectionPreFlightCheckPayloadElement()
+    {
+        return new RuntimeNavigateDirectionPreFlightCheckActionPayloadDto();
+    }
+
     private static RuntimeCommandActionPayloadBaseDto BuildCleanSetGamePropertyPayloadElement(string propertyName, string propertyValue)
     {
         return new RuntimeSetGamePropertyActionPayloadDto
@@ -7561,6 +7756,20 @@ public sealed class JsonExportService : IJsonExportService
             ScopeQualifierKind = scopeQualifierKind,
             ScopeQualifierId = scopeQualifierId
         };
+    }
+
+    private static RuntimeCommandActionPayloadBaseDto? BuildCleanStartSequencePayloadElement(Guid sequenceId)
+    {
+        return sequenceId == Guid.Empty
+            ? null
+            : new RuntimeStartSequenceActionPayloadDto { SequenceId = sequenceId };
+    }
+
+    private static RuntimeCommandActionPayloadBaseDto? BuildCleanCancelSequencePayloadElement(Guid sequenceId)
+    {
+        return sequenceId == Guid.Empty
+            ? null
+            : new RuntimeCancelSequenceActionPayloadDto { SequenceId = sequenceId };
     }
 
     private static RuntimeCommandActionPayloadBaseDto BuildCleanSetActiveRoomObjectPayloadElement(string selectionCueEffectKey)
@@ -8144,6 +8353,20 @@ public sealed class JsonExportService : IJsonExportService
             : invokeProcedurePayload.ProcedureId;
     }
 
+    private static Guid TryGetStartSequenceIdFromPayload(ProjectCommandActionPayloadBaseDto? payload)
+    {
+        return payload is ProjectStartSequenceActionPayloadDto startSequencePayload
+            ? startSequencePayload.SequenceId
+            : Guid.Empty;
+    }
+
+    private static Guid TryGetCancelSequenceIdFromPayload(ProjectCommandActionPayloadBaseDto? payload)
+    {
+        return payload is ProjectCancelSequenceActionPayloadDto cancelSequencePayload
+            ? cancelSequencePayload.SequenceId
+            : Guid.Empty;
+    }
+
     private static string? TryGetStartTimerKeyFromPayload(ProjectCommandActionPayloadBaseDto? payload)
     {
         if (payload is not ProjectStartTimerActionPayloadDto startTimerPayload)
@@ -8690,6 +8913,7 @@ public sealed class JsonExportService : IJsonExportService
             AvailableGameActions = ToCommandActionDtos(phaseNode.AvailableActions),
             EventSubscriptions = phaseNode.EventSubscriptions.Select(ToProjectEventSubscriptionDto).ToList(),
             TimerDefinitions = phaseNode.TimerDefinitions.Select(ToProjectTimerDefinitionDto).ToList(),
+            SequenceDefinitions = phaseNode.SequenceDefinitions.ToList(),
             SoundEffectLibraryEntries = phaseNode.SoundEffectLibraryEntries.Select(ToSoundEffectLibraryEntryDto).ToList(),
             AdditionalVerbs = phaseNode.AdditionalVerbs.ToList(),
             AdditionalDirectionals = phaseNode.AdditionalDirectionals.ToList(),
@@ -8730,6 +8954,7 @@ public sealed class JsonExportService : IJsonExportService
             TimerDefinitions = (dto.TimerDefinitions ?? new List<ProjectTimerDefinitionDto>())
                 .Select(ToTimerDefinitionModel)
                 .ToList(),
+            SequenceDefinitions = (dto.SequenceDefinitions ?? new List<ProjectSequenceDefinitionDto>()).ToList(),
             SoundEffectLibraryEntries = (dto.SoundEffectLibraryEntries ?? new List<SoundEffectLibraryEntryDto>())
                 .Select(ToSoundEffectLibraryEntryModel)
                 .ToList(),
@@ -8889,6 +9114,7 @@ public sealed class JsonExportService : IJsonExportService
             TimerDefinitions = NullIfEmpty(phaseNode.TimerDefinitions
                 .Select(ToRuntimeTimerDefinitionDto)
                 .ToList()),
+            SequenceDefinitions = ToRuntimeSequenceDefinitions(phaseNode.SequenceDefinitions),
             SoundEffectLibraryEntries = NullIfEmpty(phaseNode.SoundEffectLibraryEntries
                 .Select(entry => ToCleanSoundEffectLibraryEntryDto(entry, null, $"phase:{phaseNode.Id:D}"))
                 .ToList())
@@ -8970,6 +9196,7 @@ public sealed class JsonExportService : IJsonExportService
             AvailableGameActions = source.AvailableGameActions,
             EventSubscriptions = source.EventSubscriptions,
             TimerDefinitions = source.TimerDefinitions,
+            SequenceDefinitions = source.SequenceDefinitions,
             SoundEffectLibraryEntries = source.SoundEffectLibraryEntries,
             Phases = new List<PhaseNodeDto>()
         };

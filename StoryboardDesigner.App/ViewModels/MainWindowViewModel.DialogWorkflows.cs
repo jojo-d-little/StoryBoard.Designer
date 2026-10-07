@@ -24,6 +24,22 @@ public sealed partial class MainWindowViewModel
         _editSelectedNodeScopedActionsCommand = new RelayCommand(EditSelectedNodeScopedActionsExecute, CanEditSelectedNodeScopedActionsExecute);
     }
 
+    private IReadOnlyList<SequenceDefinitionChoiceItem> GetSequenceDefinitionChoices()
+    {
+        return EnumerateHierarchyNodes(HierarchyRoots)
+            .OfType<SequenceDefinitionNodeViewModel>()
+            .Select(static node => new SequenceDefinitionChoiceItem
+            {
+                SequenceId = node.Definition.SequenceId,
+                DisplayName = string.IsNullOrWhiteSpace(node.Definition.DisplayName) ? "(unnamed sequence)" : node.Definition.DisplayName,
+                ScopeName = node.Owner.ScopeName
+            })
+            .Where(static choice => choice.SequenceId != Guid.Empty)
+            .OrderBy(static choice => choice.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static choice => choice.ScopeName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     private void RefreshDialogWorkflowCommandStates()
     {
         _editSelectedNodeScopedActionsCommand.RaiseCanExecuteChanged();
@@ -64,6 +80,7 @@ public sealed partial class MainWindowViewModel
         var compositeRecipeChoices = GetCompositeRecipeChoicesForScopeNode(target.ScopeNode);
         var soundEffectChoices = GetSoundEffectChoicesForScopeNode(target.ScopeNode);
         var timerKeySuggestions = GetTimerKeySuggestionsForScopeNode(target.ScopeNode);
+        var sequenceDefinitionChoices = GetSequenceDefinitionChoices();
 
         if (!_dialogWorkflowService.EditScopedActions(
                 target.ScopeLabel,
@@ -76,6 +93,7 @@ public sealed partial class MainWindowViewModel
                 procedureChoices,
                 compositeRecipeChoices,
                 soundEffectChoices,
+                sequenceDefinitionChoices,
                 variableChoices,
                 echoReferenceTokens,
                 timerKeySuggestions,

@@ -22,6 +22,7 @@ public partial class ScopedActionsDialog : Window
     private readonly IReadOnlyList<ProcedureChoiceItem> _procedureChoices;
     private readonly IReadOnlyList<CompositeRecipeChoiceItem> _compositeRecipeChoices;
     private readonly IReadOnlyList<SoundEffectChoiceItem> _soundEffectChoices;
+    private readonly IReadOnlyList<SequenceDefinitionChoiceItem> _sequenceDefinitionChoices;
     private readonly IReadOnlyList<string> _timerKeySuggestions;
     private readonly PropertyResolutionScope _variableScope;
     private readonly string _scopeEntityName;
@@ -41,6 +42,7 @@ public partial class ScopedActionsDialog : Window
         IReadOnlyList<ProcedureChoiceItem> procedureChoices,
         IReadOnlyList<CompositeRecipeChoiceItem> compositeRecipeChoices,
         IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
+        IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
         IReadOnlyList<GamePropertyChoiceItem> variableChoices,
         IReadOnlyList<string> echoReferenceTokens,
         IReadOnlyList<string> timerKeySuggestions,
@@ -58,6 +60,7 @@ public partial class ScopedActionsDialog : Window
         _procedureChoices = procedureChoices;
         _compositeRecipeChoices = compositeRecipeChoices;
         _soundEffectChoices = soundEffectChoices;
+        _sequenceDefinitionChoices = sequenceDefinitionChoices;
         _timerKeySuggestions = timerKeySuggestions;
         _variableChoices = variableChoices;
         _echoReferenceTokens = echoReferenceTokens;
@@ -105,7 +108,7 @@ public partial class ScopedActionsDialog : Window
             return;
         }
 
-        var dialog = new RoomActionEditorDialog(action, _variableScope, _variableChoices, _echoReferenceTokens, _containerTargetChoices, _materializeSourceObjectChoices, _procedureChoices, _compositeRecipeChoices, _soundEffectChoices, _timerKeySuggestions, _workingActions)
+        var dialog = new RoomActionEditorDialog(action, _variableScope, _variableChoices, _echoReferenceTokens, _containerTargetChoices, _materializeSourceObjectChoices, _procedureChoices, _compositeRecipeChoices, _soundEffectChoices, _timerKeySuggestions, _workingActions, _sequenceDefinitionChoices)
         {
             Owner = this
         };
@@ -548,7 +551,8 @@ public partial class ScopedActionsDialog : Window
             _procedureChoices,
                 _compositeRecipeChoices,
                 _soundEffectChoices,
-                _timerKeySuggestions)
+                _timerKeySuggestions,
+                _sequenceDefinitionChoices)
         {
             Owner = this
         };

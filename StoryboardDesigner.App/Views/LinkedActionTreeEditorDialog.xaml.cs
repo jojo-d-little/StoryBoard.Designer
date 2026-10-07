@@ -39,6 +39,7 @@ public partial class LinkedActionTreeEditorDialog : Window
     private readonly IReadOnlyList<CompositeRecipeChoiceItem> _compositeRecipeChoices;
     private readonly IReadOnlyList<SoundEffectChoiceItem> _soundEffectChoices;
     private readonly IReadOnlyList<string> _timerKeySuggestions;
+    private readonly IReadOnlyList<SequenceDefinitionChoiceItem> _sequenceDefinitionChoices;
     private Dictionary<Guid, CommandAction> _allActionsById = new();
     private readonly HashSet<Guid> _originalActionIds;
     private readonly Dictionary<Guid, List<LinkedActionReference>> _originalLinks;
@@ -60,7 +61,8 @@ public partial class LinkedActionTreeEditorDialog : Window
         IReadOnlyList<ProcedureChoiceItem>? procedureChoices = null,
         IReadOnlyList<CompositeRecipeChoiceItem>? compositeRecipeChoices = null,
         IReadOnlyList<SoundEffectChoiceItem>? soundEffectChoices = null,
-        IReadOnlyList<string>? timerKeySuggestions = null)
+        IReadOnlyList<string>? timerKeySuggestions = null,
+        IReadOnlyList<SequenceDefinitionChoiceItem>? sequenceDefinitionChoices = null)
     {
         InitializeComponent();
 
@@ -77,6 +79,7 @@ public partial class LinkedActionTreeEditorDialog : Window
         _compositeRecipeChoices = compositeRecipeChoices ?? Array.Empty<CompositeRecipeChoiceItem>();
         _soundEffectChoices = soundEffectChoices ?? Array.Empty<SoundEffectChoiceItem>();
         _timerKeySuggestions = timerKeySuggestions ?? Array.Empty<string>();
+        _sequenceDefinitionChoices = sequenceDefinitionChoices ?? Array.Empty<SequenceDefinitionChoiceItem>();
         RefreshActionLookup();
         _originalActionIds = editableActions.Select(action => action.Id).ToHashSet();
         _originalLinks = editableActions.ToDictionary(
@@ -281,7 +284,8 @@ public partial class LinkedActionTreeEditorDialog : Window
                 _procedureChoices,
                 _compositeRecipeChoices,
                 _soundEffectChoices,
-                _timerKeySuggestions)
+                _timerKeySuggestions,
+                _sequenceDefinitionChoices)
             {
                 Owner = this
             };
@@ -302,7 +306,8 @@ public partial class LinkedActionTreeEditorDialog : Window
             _compositeRecipeChoices,
             _soundEffectChoices,
             _timerKeySuggestions,
-            _editableActions.ToList())
+            _editableActions.ToList(),
+            _sequenceDefinitionChoices)
         {
             Owner = this
         };

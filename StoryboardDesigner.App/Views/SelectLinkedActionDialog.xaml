@@ -11,7 +11,17 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <ListBox x:Name="ActionsListBox" DisplayMemberPath="Label" ToolTip="Choose an existing action to link into the current flow." />
+        <ListBox x:Name="ActionsListBox" DisplayMemberPath="Label" ToolTip="Choose an existing action to link into the current flow.">
+            <ListBox.GroupStyle>
+                <GroupStyle>
+                    <GroupStyle.HeaderTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#475569" Margin="2,8,2,3" />
+                        </DataTemplate>
+                    </GroupStyle.HeaderTemplate>
+                </GroupStyle>
+            </ListBox.GroupStyle>
+        </ListBox>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
             <Button Width="92" Margin="0,0,8,0" Content="Select" Click="Select_OnClick" />

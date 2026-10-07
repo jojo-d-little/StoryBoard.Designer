@@ -17,6 +17,14 @@ public sealed class SoundEffectChoiceItem
 
     public string AssetRef { get; init; } = string.Empty;
 
+    public int? DurationMs { get; init; }
+
+    public int? MaxPlayDurationMs { get; init; }
+
+    public int? StartDelayMs { get; init; }
+
+    public string RepeatMode { get; init; } = "None";
+
     public string ScopePath { get; init; } = string.Empty;
 
     public string SourceCategory { get; init; } = string.Empty;

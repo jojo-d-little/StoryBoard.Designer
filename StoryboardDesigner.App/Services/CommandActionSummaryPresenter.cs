@@ -44,6 +44,8 @@ public static class CommandActionSummaryPresenter
             CommandActionType.CheckGameProperty => $"{ActionPayloadAccessors.GetCheckPropertyName(action)} == {ActionPayloadAccessors.GetCheckExpectedValue(action)}",
             CommandActionType.SetGameProperty => $"{ActionPayloadAccessors.GetSetPropertyName(action)} = {ActionPayloadAccessors.GetSetPropertyValue(action)}",
             CommandActionType.NavigateDirection => "Navigate via traversal",
+            CommandActionType.NavigateDirectionPreFlightCheck => "Check requested direction is traversable",
+            CommandActionType.CheckCommandContext => BuildCommandContextSummary(action),
             CommandActionType.MoveRoomObjectOnGrid => BuildMoveRoomObjectOnGridSummary(action),
             CommandActionType.MoveRoomObjectByPoints => BuildMoveRoomObjectByPointsSummary(action),
             CommandActionType.RotateRoomObjectOnGrid => BuildRotateRoomObjectOnGridSummary(action),
@@ -56,6 +58,8 @@ public static class CommandActionSummaryPresenter
             CommandActionType.PutObjectInContainer => BuildPutObjectInContainerSummary(action),
             CommandActionType.RemoveObjectFromContainer => BuildRemoveObjectFromContainerSummary(action),
             CommandActionType.InvokeProcedure => BuildInvokeProcedureSummary(action),
+            CommandActionType.StartSequence => BuildSequenceSummary(action, start: true),
+            CommandActionType.CancelSequence => BuildSequenceSummary(action, start: false),
             CommandActionType.BuildCompositeByTarget => BuildCompositeByTargetSummary(action),
             CommandActionType.BuildCompositeByParts => BuildCompositeByPartsSummary(action),
             CommandActionType.BreakCompositeItem => BuildBreakCompositeSummary(action),
@@ -166,6 +170,21 @@ public static class CommandActionSummaryPresenter
         return synonymTargetId.HasValue
             ? $"Synonym -> {synonymTargetId.Value:N}"
             : "Synonym -> (target not set)";
+    }
+
+    private static string BuildCommandContextSummary(CommandAction action)
+    {
+        var payload = ActionPayloadAccessors.GetCheckCommandContext(action);
+        return payload.Field switch
+        {
+            Storyboard.Shared.RuntimeContracts.Enums.CommandContextField.DirectionSpecified =>
+                $"Direction specified == {payload.ExpectedBoolean?.ToString() ?? "(not set)"}",
+            Storyboard.Shared.RuntimeContracts.Enums.CommandContextField.Direction =>
+                $"Direction == {payload.ExpectedDirection?.ToString() ?? "(not set)"}",
+            Storyboard.Shared.RuntimeContracts.Enums.CommandContextField.DestinationRoomQualifierResolved =>
+                $"Destination room qualifier resolved == {payload.ExpectedBoolean?.ToString() ?? "(not set)"}",
+            _ => "Command context check is not configured"
+        };
     }
 
     private static string BuildPutObjectInContainerSummary(CommandAction action)
@@ -286,6 +305,17 @@ public static class CommandActionSummaryPresenter
         return procedureId.HasValue
             ? $"Invoke procedure -> {procedureId.Value:N}"
             : "Invoke procedure -> (procedure not set)";
+    }
+
+    private static string BuildSequenceSummary(CommandAction action, bool start)
+    {
+        var sequenceId = start
+            ? ActionPayloadAccessors.GetStartSequenceId(action)
+            : ActionPayloadAccessors.GetCancelSequenceId(action);
+        var verb = start ? "Start" : "Cancel";
+        return sequenceId == Guid.Empty
+            ? $"{verb} sequence -> (sequence not set)"
+            : $"{verb} sequence -> {sequenceId:N}";
     }
 
     private static string BuildForwardingSummary(CommandAction action)

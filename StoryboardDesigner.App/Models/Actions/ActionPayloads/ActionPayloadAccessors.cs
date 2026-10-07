@@ -92,6 +92,28 @@ public static class ActionPayloadAccessors
         }
     }
 
+    public static CheckCommandContextPayload GetCheckCommandContext(CommandAction action)
+    {
+        return action.Payload is CheckCommandContextPayload payload
+            ? payload
+            : new CheckCommandContextPayload(
+                Storyboard.Shared.RuntimeContracts.Enums.CommandContextField.DirectionSpecified,
+                null,
+                null);
+    }
+
+    public static void SetCheckCommandContext(
+        CommandAction action,
+        Storyboard.Shared.RuntimeContracts.Enums.CommandContextField field,
+        bool? expectedBoolean,
+        Storyboard.Shared.RuntimeContracts.Enums.Direction10? expectedDirection)
+    {
+        if (action.ActionType == CommandActionType.CheckCommandContext)
+        {
+            action.Payload = new CheckCommandContextPayload(field, expectedBoolean, expectedDirection);
+        }
+    }
+
     public static string GetSetPropertyName(CommandAction action)
     {
         if (action.Payload is SetGamePropertyPayload payload)
@@ -598,5 +620,31 @@ public static class ActionPayloadAccessors
         }
 
         action.Payload = new CancelTimerPayload(timerKey?.Trim() ?? string.Empty, scopeQualifierKind, scopeQualifierId);
+    }
+
+    public static Guid GetStartSequenceId(CommandAction action)
+    {
+        return action.Payload is StartSequencePayload payload ? payload.SequenceId : Guid.Empty;
+    }
+
+    public static void SetStartSequenceId(CommandAction action, Guid sequenceId)
+    {
+        if (action.ActionType == CommandActionType.StartSequence)
+        {
+            action.Payload = new StartSequencePayload(sequenceId);
+        }
+    }
+
+    public static Guid GetCancelSequenceId(CommandAction action)
+    {
+        return action.Payload is CancelSequencePayload payload ? payload.SequenceId : Guid.Empty;
+    }
+
+    public static void SetCancelSequenceId(CommandAction action, Guid sequenceId)
+    {
+        if (action.ActionType == CommandActionType.CancelSequence)
+        {
+            action.Payload = new CancelSequencePayload(sequenceId);
+        }
     }
 }

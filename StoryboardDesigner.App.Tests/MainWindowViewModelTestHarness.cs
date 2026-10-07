@@ -116,6 +116,7 @@ internal sealed class MainWindowDialogWorkflowServiceStub : IMainWindowDialogWor
         IReadOnlyList<ProcedureChoiceItem> procedureChoices,
         IReadOnlyList<CompositeRecipeChoiceItem> compositeRecipeChoices,
         IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
+        IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
         IReadOnlyList<GamePropertyChoiceItem> variableChoices,
         IReadOnlyList<string> echoReferenceTokens,
         IReadOnlyList<string> timerKeySuggestions,
@@ -137,6 +138,7 @@ internal sealed class MainWindowDialogWorkflowServiceStub : IMainWindowDialogWor
         IReadOnlyList<CompositeRecipeChoiceItem> compositeRecipeChoices,
         IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
         IReadOnlyList<string> timerKeySuggestions,
+        IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
         IReadOnlyList<CommandAction> availableActions)
     {
         return false;

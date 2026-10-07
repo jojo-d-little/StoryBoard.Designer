@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Windows.Input;
@@ -155,6 +156,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         InitializeRoomImageCommands();
         InitializeOutputConsoleCommands();
         InitializeHierarchyQuickAccessCommands();
+        InitializeSequenceDesignerCommands();
 
         EnsureProjectCommandCatalogs();
         RebuildProjectSoundEffectCategorySuggestions();
@@ -389,6 +391,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             _selectedNode = value;
             OnPropertyChanged();
             TrackRecentHierarchyNode(value);
+            RefreshSequenceDesignerScope();
             ResolveSelection();
             RefreshProjectExplorerCommandStates();
             RefreshHierarchyQuickAccessCommandStates();
@@ -1049,12 +1052,52 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public void NotifyProjectEdited()
     {
+        NotifyProjectEditedCore(measureSequenceEdit: false);
+    }
+
+    private void NotifySequenceProjectEdited()
+    {
+        NotifyProjectEditedCore(measureSequenceEdit: true);
+    }
+
+    private void NotifyProjectEditedCore(bool measureSequenceEdit)
+    {
+        var total = Stopwatch.StartNew();
+        var phase = Stopwatch.StartNew();
         ScopeHierarchy.AttachParents(_project);
+        var attachParentsMs = phase.Elapsed.TotalMilliseconds;
+
+        phase.Restart();
         NormalizeStartHierarchySelections();
+        var normalizeSelectionsMs = phase.Elapsed.TotalMilliseconds;
+
+        phase.Restart();
         MarkValidationProjectionStale(SelectedNode);
+        var validationProjectionMs = phase.Elapsed.TotalMilliseconds;
+
+        phase.Restart();
         MarkProjectDirty();
+        var markDirtyMs = phase.Elapsed.TotalMilliseconds;
+
+        phase.Restart();
         RefreshHierarchyStartMarkers();
+        var startMarkersMs = phase.Elapsed.TotalMilliseconds;
+
+        phase.Restart();
         RefreshSharedPropertyIndicators();
+        var sharedPropertiesMs = phase.Elapsed.TotalMilliseconds;
+
+        if (measureSequenceEdit)
+        {
+            _lastSequenceProjectEditPerformance = new SequenceProjectEditPerformance(
+                total.Elapsed.TotalMilliseconds,
+                attachParentsMs,
+                normalizeSelectionsMs,
+                validationProjectionMs,
+                markDirtyMs,
+                startMarkersMs,
+                sharedPropertiesMs);
+        }
     }
 
     private void MarkValidationProjectionStale(HierarchyNodeViewModel? editedNode)
@@ -2623,6 +2666,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                         ? key
                         : displayName,
                     AssetRef = (entry.AssetRef ?? string.Empty).Trim(),
+                    DurationMs = entry.DurationMs,
+                    MaxPlayDurationMs = entry.MaxPlayDurationMs,
+                    StartDelayMs = entry.StartDelayMs,
+                    RepeatMode = entry.RepeatMode,
                     SourceCategory = sourceCategory,
                     ScopePath = scopePath,
                     ScopeRelation = relation,
@@ -3168,6 +3215,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             HierarchyRoots.Add(root);
         }
 
+        var addedSequenceBranchMetadata = HierarchyRoots
+            .SelectMany(EnumerateHierarchyNodes)
+            .OfType<SequenceDefinitionNodeViewModel>()
+            .Select(static node => node.Definition)
+            .Aggregate(false, static (changed, definition) => EnsureSequenceBranchDefinitions(definition) || changed);
+        if (addedSequenceBranchMetadata)
+        {
+            MarkProjectDirty();
+        }
+
         RefreshAllScopedProcedureNodes();
 
         RefreshHierarchyValidationProjection();
@@ -3504,7 +3561,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             ObjectTemplatesNodeViewModel => "templates:objects",
             RoomTemplatesNodeViewModel => "templates:rooms",
             PhaseBooksNodeViewModel => "phases:books",
+            SequencesNodeViewModel => "sequences",
             PhaseNodeViewModel phaseNode => $"phase:{phaseNode.PhaseNode.Id:N}",
+            SequenceDefinitionNodeViewModel sequenceNode => $"sequence:{sequenceNode.Definition.SequenceId:N}",
             TemplateRoomNodeViewModel roomTemplateNode => $"template-room:{roomTemplateNode.Room.Id:N}",
             GameObjectNodeViewModel objectNode => $"object:{objectNode.GameObject.ObjectId:N}",
             GlobalObjectNodeViewModel objectNode => $"player-object:{objectNode.GameObject.ObjectId:N}",
@@ -4335,6 +4394,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
 
         ApplyHideEmptyConfiguration(projectRootNode);
+
+        foreach (var hierarchyNode in EnumerateHierarchyNodes(projectRootNode).ToList())
+        {
+            var owner = ResolveSequenceScopeOwner(hierarchyNode);
+            if (owner is null) continue;
+            var sequencesNode = new SequencesNodeViewModel(owner, hierarchyNode);
+            foreach (var definition in owner.SequenceDefinitions)
+            {
+                sequencesNode.Children.Add(new SequenceDefinitionNodeViewModel(owner, definition, sequencesNode));
+            }
+            hierarchyNode.Children.Add(sequencesNode);
+        }
 
         nodes.Add(projectRootNode);
 

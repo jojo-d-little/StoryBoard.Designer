@@ -22,6 +22,8 @@ public sealed partial class MainWindowViewModel
     private const string AddNewPhaseBookActionId = "add-new-phase-book";
     private const string AddNewPhaseChapterActionId = "add-new-phase-chapter";
     private const string AddNewPhasePageActionId = "add-new-phase-page";
+    private const string AddNewSequenceActionId = "add-new-sequence";
+    private const string RemoveSequenceActionId = "remove-sequence";
     private const string MovePhaseNodeUpActionId = "move-phase-node-up";
     private const string MovePhaseNodeDownActionId = "move-phase-node-down";
     private const string ReviewPhaseNarrativeActionId = "review-phase-narrative";
@@ -168,6 +170,22 @@ public sealed partial class MainWindowViewModel
 
     private IReadOnlyList<TreeContextAction> GetNodeSpecificTreeContextActions(HierarchyNodeViewModel node)
     {
+        if (node is SequencesNodeViewModel)
+        {
+            return new List<TreeContextAction>
+            {
+                new(AddNewSequenceActionId, "Add new sequence")
+            };
+        }
+
+        if (node is SequenceDefinitionNodeViewModel)
+        {
+            return new List<TreeContextAction>
+            {
+                new(RemoveSequenceActionId, "Remove sequence")
+            };
+        }
+
         if (node is ProjectRootNodeViewModel)
         {
             return new List<TreeContextAction>
@@ -1402,6 +1420,8 @@ public sealed partial class MainWindowViewModel
             "add-new-room" when node is ChildrenGroupNodeViewModel { OwnerNode: AreaNodeViewModel areaNode } => AddNewRoom(areaNode),
             "delete-room" when node is RoomNodeViewModel roomNode => DeleteRoom(roomNode),
             AddNewPhaseBookActionId when node is PhaseBooksNodeViewModel phaseBooksNode => AddNewPhaseBook(phaseBooksNode),
+            AddNewSequenceActionId when node is SequencesNodeViewModel sequencesNode => AddNewSequence(sequencesNode),
+            RemoveSequenceActionId when node is SequenceDefinitionNodeViewModel sequenceNode => RemoveSequenceDefinitionFromNode(sequenceNode),
             AddNewPhaseChapterActionId when node is PhaseNodeViewModel { PhaseNode.Tier: PhaseTier.Book } phaseBookNode => AddChildPhaseNode(phaseBookNode, PhaseTier.Chapter),
             AddNewPhasePageActionId when node is PhaseNodeViewModel { PhaseNode.Tier: PhaseTier.Chapter } phaseChapterNode => AddChildPhaseNode(phaseChapterNode, PhaseTier.Page),
             MovePhaseNodeUpActionId when node is PhaseNodeViewModel { PhaseNode.Tier: PhaseTier.Chapter or PhaseTier.Page } phaseNode => MovePhaseNode(phaseNode, -1),
@@ -1454,6 +1474,18 @@ public sealed partial class MainWindowViewModel
             ShowNodeValidationIssuesActionId => ShowValidationIssuesForNode(node),
             _ => false
         };
+    }
+
+    private bool AddNewSequence(SequencesNodeViewModel sequencesNode)
+    {
+        SelectedNode = sequencesNode;
+        if (!ReferenceEquals(SelectedSequenceScope, sequencesNode.Owner))
+        {
+            return false;
+        }
+
+        AddSequenceDefinition();
+        return true;
     }
 
     private bool AddNewPhaseBook(PhaseBooksNodeViewModel phaseBooksNode)
@@ -2843,6 +2875,7 @@ public sealed partial class MainWindowViewModel
         var compositeRecipeChoices = GetCompositeRecipeChoicesForScopeNode(target.ScopeNode);
         var soundEffectChoices = GetSoundEffectChoicesForScopeNode(target.ScopeNode);
         var timerKeySuggestions = GetTimerKeySuggestionsForScopeNode(target.ScopeNode);
+        var sequenceDefinitionChoices = GetSequenceDefinitionChoices();
 
         if (!_dialogWorkflowService.EditSingleScopedAction(
                 actionEntryNode.Action,
@@ -2855,6 +2888,7 @@ public sealed partial class MainWindowViewModel
                 compositeRecipeChoices,
                 soundEffectChoices,
                 timerKeySuggestions,
+                sequenceDefinitionChoices,
                 target.Actions.ToList()))
         {
             return false;

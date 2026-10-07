@@ -98,6 +98,12 @@ internal static class CommandActionPayloadCoordinator
     private static readonly string[] CancelTimerProjectionProperties =
     [];
 
+    private static readonly string[] StartSequenceProjectionProperties =
+    [];
+
+    private static readonly string[] CancelSequenceProjectionProperties =
+    [];
+
     private static readonly string[] NavigateProjectionProperties =
     [];
 
@@ -153,6 +159,10 @@ internal static class CommandActionPayloadCoordinator
             CommandActionType.EchoMessage => new EchoPayload(),
             CommandActionType.SetFlag => new SetFlagPayload(string.Empty, false),
             CommandActionType.CheckGameProperty => new CheckGamePropertyPayload(string.Empty, true),
+            CommandActionType.CheckCommandContext => new CheckCommandContextPayload(
+                Storyboard.Shared.RuntimeContracts.Enums.CommandContextField.DirectionSpecified,
+                null,
+                null),
             CommandActionType.SetGameProperty => new SetGamePropertyPayload(string.Empty, string.Empty),
             CommandActionType.PutObjectInContainer => new ContainerTransferPayload(string.Empty),
             CommandActionType.RemoveObjectFromContainer => new ContainerTransferPayload(string.Empty),
@@ -178,7 +188,10 @@ internal static class CommandActionPayloadCoordinator
             CommandActionType.ClearRoomObjectSelections => new ClearRoomObjectSelectionsPayload(ClearRoomObjectSelectionsScope.All),
             CommandActionType.StartTimer => new StartTimerPayload(string.Empty, null),
             CommandActionType.CancelTimer => new CancelTimerPayload(string.Empty, null, null),
+            CommandActionType.StartSequence => new StartSequencePayload(Guid.Empty),
+            CommandActionType.CancelSequence => new CancelSequencePayload(Guid.Empty),
             CommandActionType.NavigateDirection => new NavigatePayload(),
+            CommandActionType.NavigateDirectionPreFlightCheck => new NavigateDirectionPreFlightCheckPayload(),
             CommandActionType.NavigateToAdjacent => new NavigatePayload(),
             CommandActionType.MaterializeObjectCopy => new MaterializeObjectCopyPayload(null),
             CommandActionType.InvokeProcedure => new InvokeProcedurePayload(null),
@@ -212,6 +225,7 @@ internal static class CommandActionPayloadCoordinator
             EchoPayload => new EchoPayload(),
             SetFlagPayload setFlag => new SetFlagPayload(setFlag.FlagName, setFlag.FlagValue),
             CheckGamePropertyPayload check => new CheckGamePropertyPayload(check.PropertyName, check.ExpectedValue),
+            CheckCommandContextPayload check => new CheckCommandContextPayload(check.Field, check.ExpectedBoolean, check.ExpectedDirection),
             SetGamePropertyPayload set => new SetGamePropertyPayload(set.PropertyName, set.PropertyValue),
             ContainerTransferPayload transfer => new ContainerTransferPayload(transfer.TargetContainerId),
             MoveRoomObjectOnGridPayload move => new MoveRoomObjectOnGridPayload(
@@ -254,7 +268,10 @@ internal static class CommandActionPayloadCoordinator
                 cancelTimer.TimerKey,
                 cancelTimer.ScopeQualifierKind,
                 cancelTimer.ScopeQualifierId),
+            StartSequencePayload startSequence => new StartSequencePayload(startSequence.SequenceId),
+            CancelSequencePayload cancelSequence => new CancelSequencePayload(cancelSequence.SequenceId),
             NavigatePayload => new NavigatePayload(),
+            NavigateDirectionPreFlightCheckPayload => new NavigateDirectionPreFlightCheckPayload(),
             MaterializeObjectCopyPayload materialize => new MaterializeObjectCopyPayload(materialize.MaterializeSourceObjectId),
             InvokeProcedurePayload invokeProcedure => new InvokeProcedurePayload(invokeProcedure.ProcedureId),
             CompositeByTargetPayload byTarget => new CompositeByTargetPayload(
@@ -577,6 +594,7 @@ internal static class CommandActionPayloadCoordinator
             SynonymPayload => SynonymProjectionProperties,
             SetFlagPayload => SetFlagProjectionProperties,
             CheckGamePropertyPayload => CheckProjectionProperties,
+            CheckCommandContextPayload => [],
             SetGamePropertyPayload => SetProjectionProperties,
             ContainerTransferPayload => ContainerProjectionProperties,
             MoveRoomObjectOnGridPayload => MoveProjectionProperties,
@@ -592,7 +610,10 @@ internal static class CommandActionPayloadCoordinator
             ClearRoomObjectSelectionsPayload => [],
             StartTimerPayload => StartTimerProjectionProperties,
             CancelTimerPayload => CancelTimerProjectionProperties,
+            StartSequencePayload => StartSequenceProjectionProperties,
+            CancelSequencePayload => CancelSequenceProjectionProperties,
             NavigatePayload => NavigateProjectionProperties,
+            NavigateDirectionPreFlightCheckPayload => NavigateProjectionProperties,
             MaterializeObjectCopyPayload => MaterializeProjectionProperties,
             InvokeProcedurePayload => InvokeProcedureProjectionProperties,
             CompositeByTargetPayload => CompositeByTargetProjectionProperties,

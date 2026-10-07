@@ -17,6 +17,7 @@ public interface IMainWindowDialogWorkflowService
         IReadOnlyList<ProcedureChoiceItem> procedureChoices,
         IReadOnlyList<CompositeRecipeChoiceItem> compositeRecipeChoices,
         IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
+        IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
         IReadOnlyList<GamePropertyChoiceItem> variableChoices,
         IReadOnlyList<string> echoReferenceTokens,
         IReadOnlyList<string> timerKeySuggestions,
@@ -35,5 +36,6 @@ public interface IMainWindowDialogWorkflowService
         IReadOnlyList<CompositeRecipeChoiceItem> compositeRecipeChoices,
         IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
         IReadOnlyList<string> timerKeySuggestions,
+        IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
         IReadOnlyList<CommandAction> availableActions);
 }

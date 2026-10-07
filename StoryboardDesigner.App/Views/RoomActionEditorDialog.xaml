@@ -355,6 +355,34 @@
                     <CheckBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" VerticalAlignment="Center" IsChecked="{Binding FlagValue, Mode=TwoWay}" Content="True" />
                 </Grid>
 
+                <Grid x:Name="CheckCommandContextEditorPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="190" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Command detail" />
+                    <ComboBox x:Name="CommandContextFieldComboBox" Grid.Row="0" Grid.Column="1" Margin="0,0,0,10"
+                              DisplayMemberPath="Label" SelectedValuePath="Field"
+                              SelectionChanged="CommandContextFieldComboBox_OnSelectionChanged" />
+                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Expected value" />
+                    <ComboBox x:Name="CommandContextBooleanValueComboBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10"
+                              DisplayMemberPath="Label" SelectedValuePath="Value" />
+                    <ComboBox x:Name="CommandContextDirectionValueComboBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10"
+                              DisplayMemberPath="Label" SelectedValuePath="Value" Visibility="Collapsed" />
+                    <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Foreground="#6B7280" TextWrapping="Wrap"
+                               Text="Checks normalized fields from the command that started this action. Raw command text and parser details are not exposed." />
+                </Grid>
+
+                <Grid x:Name="NavigateDirectionPreFlightCheckEditorPanel" Visibility="Collapsed">
+                    <TextBlock Foreground="#4B5563" TextWrapping="Wrap"
+                               Text="Checks whether the initiating command’s direction has a passable traversal. This action does not move the player or change traversal state." />
+                </Grid>
+
                 <Grid x:Name="VariableEditorPanel" Visibility="Collapsed">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -887,6 +915,26 @@
                              Margin="0,0,0,10"
                              TextChanged="CancelTimerInputs_OnChanged"
                              ToolTip="Optional GUID for the qualified owner scope." />
+                </Grid>
+
+                <Grid x:Name="SequenceEditorPanel" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="SequenceChoiceLabel"
+                               Grid.Column="0"
+                               Margin="0,0,8,10"
+                               VerticalAlignment="Center"
+                               Text="Sequence"
+                               ToolTip="Sequence definition to start or cancel for the invoking owner and captured primary target." />
+                    <ComboBox x:Name="SequenceChoiceComboBox"
+                              Grid.Column="1"
+                              Margin="0,0,0,10"
+                              DisplayMemberPath="Label"
+                              SelectedValuePath="SequenceId"
+                              SelectionChanged="SequenceChoiceComboBox_OnSelectionChanged"
+                              ToolTip="Choose the sequence definition this action starts or cancels." />
                 </Grid>
 
                 <Grid x:Name="SynonymEditorPanel" Visibility="Collapsed">

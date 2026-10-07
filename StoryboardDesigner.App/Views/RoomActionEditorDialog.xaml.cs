@@ -9,9 +9,11 @@ using System.Windows.Input;
 using Storyboard.Shared.GameServices;
 using Storyboard.Shared.GameServices.Commands;
 using Storyboard.Shared.GameServices.RuntimeContext;
+using Storyboard.Shared.RuntimeContracts.Enums;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
+using StoryboardDesigner.App.Validation.Rules.Actions;
 
 namespace StoryboardDesigner.App.Views;
 
@@ -56,6 +58,10 @@ public partial class RoomActionEditorDialog : Window
         public required string Label { get; init; }
     }
 
+    private sealed record CommandContextFieldOption(CommandContextField Field, string Label);
+    private sealed record CommandContextBooleanOption(bool Value, string Label);
+    private sealed record CommandContextDirectionOption(Direction10 Value, string Label);
+
     private enum OutcomeSoundScopeFilterOption
     {
         CurrentScope,
@@ -89,6 +95,7 @@ public partial class RoomActionEditorDialog : Window
     private readonly IReadOnlyList<SoundEffectChoiceItem> _soundEffectChoices;
     private readonly Dictionary<Guid, SoundEffectChoiceItem> _soundEffectChoicesById;
     private readonly IReadOnlyList<string> _timerKeySuggestions;
+    private readonly IReadOnlyList<SequenceDefinitionChoiceItem> _sequenceDefinitionChoices;
     private readonly IReadOnlyList<string> _variableReferenceTokens;
     private readonly IReadOnlyList<GamePropertyChoiceItem> _variableChoices;
     private readonly Dictionary<string, GamePropertyChoiceItem> _variableChoiceMap;
@@ -141,7 +148,8 @@ public partial class RoomActionEditorDialog : Window
         IReadOnlyList<CompositeRecipeChoiceItem>? compositeRecipeChoices = null,
         IReadOnlyList<SoundEffectChoiceItem>? soundEffectChoices = null,
         IReadOnlyList<string>? timerKeySuggestions = null,
-        IReadOnlyList<CommandAction>? availableActions = null)
+        IReadOnlyList<CommandAction>? availableActions = null,
+        IReadOnlyList<SequenceDefinitionChoiceItem>? sequenceDefinitionChoices = null)
     {
         InitializeComponent();
         _sourceAction = sourceAction;
@@ -187,6 +195,11 @@ public partial class RoomActionEditorDialog : Window
             .Where(static key => !string.IsNullOrWhiteSpace(key))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(static key => key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        _sequenceDefinitionChoices = (sequenceDefinitionChoices ?? Array.Empty<SequenceDefinitionChoiceItem>())
+            .Where(static choice => choice.SequenceId != Guid.Empty)
+            .OrderBy(static choice => choice.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static choice => choice.ScopeName, StringComparer.OrdinalIgnoreCase)
             .ToList();
         _variableReferenceTokens = OrderReferenceTokensPreferSelf(variableChoices.Select(choice => choice.Value));
         _variableChoiceMap = variableChoices
@@ -411,6 +424,26 @@ public partial class RoomActionEditorDialog : Window
         CancelTimerScopeQualifierKindComboBox.ItemsSource = BuildTimerOwnerTypeChoices(includeBlank: true);
         CancelTimerScopeQualifierKindComboBox.DisplayMemberPath = nameof(TimerOwnerTypeChoice.Label);
         CancelTimerKeyComboBox.ItemsSource = _timerKeySuggestions;
+        SequenceChoiceComboBox.ItemsSource = _sequenceDefinitionChoices;
+        SequenceChoiceComboBox.SelectedValue = sourceAction.ActionType == CommandActionType.StartSequence
+            ? ActionPayloadAccessors.GetStartSequenceId(sourceAction)
+            : sourceAction.ActionType == CommandActionType.CancelSequence
+                ? ActionPayloadAccessors.GetCancelSequenceId(sourceAction)
+                : Guid.Empty;
+        CommandContextFieldComboBox.ItemsSource = new[]
+        {
+            new CommandContextFieldOption(CommandContextField.DirectionSpecified, "Direction was specified"),
+            new CommandContextFieldOption(CommandContextField.Direction, "Normalized direction"),
+            new CommandContextFieldOption(CommandContextField.DestinationRoomQualifierResolved, "Destination room qualifier resolved")
+        };
+        CommandContextBooleanValueComboBox.ItemsSource = new[]
+        {
+            new CommandContextBooleanOption(true, "True"),
+            new CommandContextBooleanOption(false, "False")
+        };
+        CommandContextDirectionValueComboBox.ItemsSource = Enum.GetValues<Direction10>()
+            .Select(static direction => new CommandContextDirectionOption(direction, direction.ToString()))
+            .ToList();
         EchoFunctionListBox.ItemsSource = BuiltInFunctions;
         VariableFunctionListBox.ItemsSource = BuiltInFunctions;
         _outcomeEchoEntries = new ObservableCollection<ActionEchoEditorEntry>();
@@ -471,6 +504,7 @@ public partial class RoomActionEditorDialog : Window
 
         _workingCopy.PropertyChanged += WorkingCopy_OnPropertyChanged;
         DataContext = _workingCopy;
+        RefreshCommandContextEditorFromPayload();
         CompositeTargetObjectIdTextBox.Text = _workingCopy.CompositeTargetObjectId?.ToString() ?? string.Empty;
         CompositeRequiredPartIdsTextBox.Text = string.Join(Environment.NewLine, _workingCopy.CompositeRequiredPartObjectIds.Select(id => id.ToString()));
         RefreshCompositeTargetFriendlyDisplay();
@@ -544,6 +578,7 @@ public partial class RoomActionEditorDialog : Window
         {
             // Reinitialize result-code scripts for the newly selected action type.
             _workingCopy.NormalizeOutcomeMapForActionType(_workingCopy.ActionType, preserveUnsupportedTokens: false);
+            RefreshCommandContextEditorFromPayload();
             RefreshVisibleEditorPanel();
             return;
         }
@@ -577,6 +612,8 @@ public partial class RoomActionEditorDialog : Window
     {
         EchoTextEditorPanel.Visibility = Visibility.Collapsed;
         FlagEditorPanel.Visibility = Visibility.Collapsed;
+        CheckCommandContextEditorPanel.Visibility = Visibility.Collapsed;
+        NavigateDirectionPreFlightCheckEditorPanel.Visibility = Visibility.Collapsed;
         VariableEditorPanel.Visibility = Visibility.Collapsed;
         PutObjectInContainerEditorPanel.Visibility = Visibility.Collapsed;
         MoveRoomObjectOnGridEditorPanel.Visibility = Visibility.Collapsed;
@@ -590,6 +627,7 @@ public partial class RoomActionEditorDialog : Window
         ClearRoomObjectSelectionsEditorPanel.Visibility = Visibility.Collapsed;
         StartTimerEditorPanel.Visibility = Visibility.Collapsed;
         CancelTimerEditorPanel.Visibility = Visibility.Collapsed;
+        SequenceEditorPanel.Visibility = Visibility.Collapsed;
         SynonymEditorPanel.Visibility = Visibility.Collapsed;
         MaterializeObjectCopyEditorPanel.Visibility = Visibility.Collapsed;
         InvokeProcedureEditorPanel.Visibility = Visibility.Collapsed;
@@ -606,6 +644,10 @@ public partial class RoomActionEditorDialog : Window
                 break;
             case CommandActionType.CheckGameProperty:
                 FlagEditorPanel.Visibility = Visibility.Visible;
+                break;
+            case CommandActionType.CheckCommandContext:
+                CheckCommandContextEditorPanel.Visibility = Visibility.Visible;
+                RefreshCommandContextValueEditor();
                 break;
             case CommandActionType.SetGameProperty:
                 VariableEditorPanel.Visibility = Visibility.Visible;
@@ -660,6 +702,14 @@ public partial class RoomActionEditorDialog : Window
                 CancelTimerEditorPanel.Visibility = Visibility.Visible;
                 RefreshCancelTimerDisplay();
                 break;
+            case CommandActionType.StartSequence:
+                SequenceEditorPanel.Visibility = Visibility.Visible;
+                SequenceChoiceLabel.Text = "Start Sequence";
+                break;
+            case CommandActionType.CancelSequence:
+                SequenceEditorPanel.Visibility = Visibility.Visible;
+                SequenceChoiceLabel.Text = "Cancel Sequence";
+                break;
             case CommandActionType.OpenObject:
             case CommandActionType.CloseObject:
             case CommandActionType.UnlockObject:
@@ -667,6 +717,9 @@ public partial class RoomActionEditorDialog : Window
             case CommandActionType.NavigateDirection:
             case CommandActionType.NavigateToAdjacent:
             case CommandActionType.ManageNarrativePhaseAmbientSounds:
+                break;
+            case CommandActionType.NavigateDirectionPreFlightCheck:
+                NavigateDirectionPreFlightCheckEditorPanel.Visibility = Visibility.Visible;
                 break;
             case CommandActionType.Synonym:
                 SynonymEditorPanel.Visibility = Visibility.Visible;
@@ -701,6 +754,8 @@ public partial class RoomActionEditorDialog : Window
         var hasVisibleActionSpecificPanel =
             EchoTextEditorPanel.Visibility == Visibility.Visible
             || FlagEditorPanel.Visibility == Visibility.Visible
+            || CheckCommandContextEditorPanel.Visibility == Visibility.Visible
+            || NavigateDirectionPreFlightCheckEditorPanel.Visibility == Visibility.Visible
             || VariableEditorPanel.Visibility == Visibility.Visible
             || PutObjectInContainerEditorPanel.Visibility == Visibility.Visible
             || MoveRoomObjectOnGridEditorPanel.Visibility == Visibility.Visible
@@ -714,6 +769,7 @@ public partial class RoomActionEditorDialog : Window
             || ClearRoomObjectSelectionsEditorPanel.Visibility == Visibility.Visible
             || StartTimerEditorPanel.Visibility == Visibility.Visible
             || CancelTimerEditorPanel.Visibility == Visibility.Visible
+            || SequenceEditorPanel.Visibility == Visibility.Visible
             || SynonymEditorPanel.Visibility == Visibility.Visible
             || MaterializeObjectCopyEditorPanel.Visibility == Visibility.Visible
             || InvokeProcedureEditorPanel.Visibility == Visibility.Visible
@@ -731,9 +787,79 @@ public partial class RoomActionEditorDialog : Window
         RefreshOutcomeEchoEntries();
     }
 
+    private void RefreshCommandContextEditorFromPayload()
+    {
+        var payload = ActionPayloadAccessors.GetCheckCommandContext(_workingCopy);
+        CommandContextFieldComboBox.SelectedValue = payload.Field;
+        CommandContextBooleanValueComboBox.SelectedValue = payload.ExpectedBoolean;
+        CommandContextDirectionValueComboBox.SelectedValue = payload.ExpectedDirection;
+        RefreshCommandContextValueEditor();
+    }
+
+    private void RefreshCommandContextValueEditor()
+    {
+        var isDirection = CommandContextFieldComboBox.SelectedValue is CommandContextField.Direction;
+        CommandContextDirectionValueComboBox.Visibility = isDirection ? Visibility.Visible : Visibility.Collapsed;
+        CommandContextBooleanValueComboBox.Visibility = isDirection ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void CommandContextFieldComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        RefreshCommandContextValueEditor();
+    }
+
+    private bool TryApplyCommandContextEditor()
+    {
+        if (CommandContextFieldComboBox.SelectedValue is not CommandContextField field)
+        {
+            System.Windows.MessageBox.Show(this, "Choose a command detail to check.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+            CommandContextFieldComboBox.Focus();
+            return false;
+        }
+
+        bool? expectedBoolean = null;
+        Direction10? expectedDirection = null;
+        if (field == CommandContextField.Direction)
+        {
+            if (CommandContextDirectionValueComboBox.SelectedValue is not Direction10 direction)
+            {
+                System.Windows.MessageBox.Show(this, "Choose a normalized direction.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+                CommandContextDirectionValueComboBox.Focus();
+                return false;
+            }
+
+            expectedDirection = direction;
+        }
+        else if (CommandContextBooleanValueComboBox.SelectedValue is bool booleanValue)
+        {
+            expectedBoolean = booleanValue;
+        }
+        else
+        {
+            System.Windows.MessageBox.Show(this, "Choose True or False as the expected value.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+            CommandContextBooleanValueComboBox.Focus();
+            return false;
+        }
+
+        if (!CommandContextPayloadValidator.TryValidate(field, expectedBoolean, expectedDirection, out var validationMessage))
+        {
+            System.Windows.MessageBox.Show(this, validationMessage, "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+            return false;
+        }
+
+        ActionPayloadAccessors.SetCheckCommandContext(_workingCopy, field, expectedBoolean, expectedDirection);
+        return true;
+    }
+
     private void Save_OnClick(object sender, RoutedEventArgs e)
     {
         PersistOutcomeEchoEntriesToWorkingCopy();
+
+        if (_workingCopy.ActionType == CommandActionType.CheckCommandContext
+            && !TryApplyCommandContextEditor())
+        {
+            return;
+        }
 
         if (_workingCopy.ActionType is CommandActionType.AddObjectPresentationCue or CommandActionType.RemoveObjectPresentationCue or CommandActionType.ClearObjectPresentationCues)
         {
@@ -915,6 +1041,12 @@ public partial class RoomActionEditorDialog : Window
             return;
         }
 
+        if (_workingCopy.ActionType is CommandActionType.StartSequence or CommandActionType.CancelSequence
+            && !TryApplySequenceSelection())
+        {
+            return;
+        }
+
         if (_workingCopy.ActionType == CommandActionType.BuildCompositeByTarget
             && !TryApplyBuildCompositeByTargetInputs())
         {
@@ -1007,6 +1139,18 @@ public partial class RoomActionEditorDialog : Window
             ActionPayloadAccessors.GetCancelTimerKey(_workingCopy),
             ActionPayloadAccessors.GetCancelTimerScopeQualifierKind(_workingCopy),
             ActionPayloadAccessors.GetCancelTimerScopeQualifierId(_workingCopy));
+        ActionPayloadAccessors.SetStartSequenceId(
+            _sourceAction,
+            ActionPayloadAccessors.GetStartSequenceId(_workingCopy));
+        ActionPayloadAccessors.SetCancelSequenceId(
+            _sourceAction,
+            ActionPayloadAccessors.GetCancelSequenceId(_workingCopy));
+        var commandContextPayload = ActionPayloadAccessors.GetCheckCommandContext(_workingCopy);
+        ActionPayloadAccessors.SetCheckCommandContext(
+            _sourceAction,
+            commandContextPayload.Field,
+            commandContextPayload.ExpectedBoolean,
+            commandContextPayload.ExpectedDirection);
 
         _sourceAction.CompositeTargetObjectId = _workingCopy.CompositeTargetObjectId;
         _sourceAction.CompositeRecipeId = _workingCopy.CompositeRecipeId;
@@ -2237,6 +2381,52 @@ public partial class RoomActionEditorDialog : Window
             CancelTimerKeyComboBox.Text?.Trim() ?? string.Empty,
             GetSelectedTimerOwnerType(CancelTimerScopeQualifierKindComboBox),
             scopeQualifierId);
+    }
+
+    private void SequenceChoiceComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_workingCopy is null || SequenceChoiceComboBox.SelectedValue is not Guid sequenceId || sequenceId == Guid.Empty)
+        {
+            return;
+        }
+
+        if (_workingCopy.ActionType == CommandActionType.StartSequence)
+        {
+            ActionPayloadAccessors.SetStartSequenceId(_workingCopy, sequenceId);
+        }
+        else if (_workingCopy.ActionType == CommandActionType.CancelSequence)
+        {
+            ActionPayloadAccessors.SetCancelSequenceId(_workingCopy, sequenceId);
+        }
+    }
+
+    private bool TryApplySequenceSelection()
+    {
+        if (SequenceChoiceComboBox.SelectedValue is Guid sequenceId
+            && sequenceId != Guid.Empty
+            && _sequenceDefinitionChoices.Any(choice => choice.SequenceId == sequenceId))
+        {
+            if (_workingCopy.ActionType == CommandActionType.StartSequence)
+            {
+                ActionPayloadAccessors.SetStartSequenceId(_workingCopy, sequenceId);
+            }
+            else
+            {
+                ActionPayloadAccessors.SetCancelSequenceId(_workingCopy, sequenceId);
+            }
+
+            return true;
+        }
+
+        System.Windows.MessageBox.Show(this,
+            _sequenceDefinitionChoices.Count == 0
+                ? "Add a sequence definition before configuring a sequence action."
+                : "Choose a sequence definition for this action.",
+            "Action",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+        SequenceChoiceComboBox.Focus();
+        return false;
     }
 
     private void SetWorkingSynonymTargetActionId(Guid? synonymTargetActionId)

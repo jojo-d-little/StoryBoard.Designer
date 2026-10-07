@@ -1715,6 +1715,7 @@ public sealed partial class MainWindowViewModel
         registry.Register(new EventSubscriptionAmbiguousAnchorLikePathRule());
         registry.Register(new EventSubscriptionAnchorDynamicTailReferenceRule());
         registry.Register(new TimerDefinitionOwnerScopeContextRule());
+        registry.Register(new SequenceDefinitionIntegrityRule());
         registry.Register(new PhaseAmbientTimerKeyCrossTierWarningRule());
         registry.Register(new ScopedActionNameUniquenessRule());
         registry.Register(new RuntimeExportIdUniquenessRule());
@@ -1755,6 +1756,7 @@ public sealed partial class MainWindowViewModel
         registry.Register(new InvokeProcedureMissingTargetRule());
         registry.Register(new MaterializeSourceObjectReferenceExistsRule());
         registry.Register(new OutcomeSoundEffectReferenceExistsRule());
+        registry.Register(new CheckCommandContextPayloadRule());
         registry.Register(new ScriptUnknownReferenceRule());
         registry.Register(new ScriptMalformedIndexedReferenceRule());
         registry.Register(new ScriptIfElseBlockIntegrityRule());
@@ -2206,6 +2208,12 @@ public sealed partial class MainWindowViewModel
         }
 
         SelectedNode = targetNode;
+        if (targetNode is SequenceDefinitionNodeViewModel sequenceNode
+            && TryGetSequenceIssueIds(issue.Path, out _, out var stepId)
+            && stepId.HasValue)
+        {
+            SelectedSequenceStep = sequenceNode.Definition.Steps?.FirstOrDefault(step => step.StepId == stepId.Value);
+        }
         ExportStatus = $"Selected validation target: {targetNode.EditableName}";
     }
 
@@ -2213,6 +2221,17 @@ public sealed partial class MainWindowViewModel
         ProjectValidationIssue issue,
         IReadOnlyDictionary<string, ScopeNodeBase> scopeLookup)
     {
+        if (TryGetSequenceIssueIds(issue.Path, out var sequenceId, out _))
+        {
+            var sequenceNode = EnumerateHierarchyNodes(HierarchyRoots)
+                .OfType<SequenceDefinitionNodeViewModel>()
+                .FirstOrDefault(node => node.Definition.SequenceId == sequenceId);
+            if (sequenceNode is not null)
+            {
+                return sequenceNode;
+            }
+        }
+
         if (TryGetActionPathParts(issue.Path, out var actionScopePath, out var actionName))
         {
             var actionNode = ResolveHierarchyNodeForAction(actionScopePath, actionName, scopeLookup);
@@ -2224,6 +2243,39 @@ public sealed partial class MainWindowViewModel
 
         var scopeNode = ResolveScopeNodeForIssuePath(issue.Path, scopeLookup);
         return scopeNode is null ? null : ResolveHierarchyNodeForScope(scopeNode);
+    }
+
+    private static bool TryGetSequenceIssueIds(string path, out Guid sequenceId, out Guid? stepId)
+    {
+        sequenceId = Guid.Empty;
+        stepId = null;
+        const string sequenceMarker = "Sequence[";
+        var sequenceMarkerIndex = path.IndexOf(sequenceMarker, StringComparison.OrdinalIgnoreCase);
+        if (sequenceMarkerIndex < 0)
+        {
+            return false;
+        }
+
+        var sequenceIdStart = sequenceMarkerIndex + sequenceMarker.Length;
+        var sequenceIdEnd = path.IndexOf(']', sequenceIdStart);
+        if (sequenceIdEnd <= sequenceIdStart
+            || !Guid.TryParse(path[sequenceIdStart..sequenceIdEnd], out sequenceId))
+        {
+            return false;
+        }
+
+        const string stepMarker = " / Step ";
+        var stepMarkerIndex = path.IndexOf(stepMarker, sequenceIdEnd, StringComparison.OrdinalIgnoreCase);
+        if (stepMarkerIndex >= 0)
+        {
+            var stepIdText = path[(stepMarkerIndex + stepMarker.Length)..].Trim();
+            if (Guid.TryParse(stepIdText, out var parsedStepId))
+            {
+                stepId = parsedStepId;
+            }
+        }
+
+        return true;
     }
 
     private static bool TryGetActionPathParts(string path, out string scopePath, out string actionName)
