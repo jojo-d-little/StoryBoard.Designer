@@ -112,6 +112,8 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -123,7 +125,7 @@
                 <TextBlock Grid.Row="0" Grid.Column="1" Margin="10,0,0,0" FontWeight="SemiBold" Foreground="#374151" Text="Game Property Name" />
                 <TextBlock Grid.Row="0" Grid.Column="2" Margin="10,0,0,0" FontWeight="SemiBold" Foreground="#374151" Text="Default Value" />
 
-                <CheckBox x:Name="InventoriableCheckBox" Grid.Row="1" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center" Content="Inventoriable" ToolTip="Makes this object carryable by the player." />
+                <CheckBox x:Name="InventoriableCheckBox" Grid.Row="1" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center" Content="Inventoriable" ToolTip="Makes this object carryable by the player." Checked="InventoriableCheckBox_OnChanged" Unchecked="InventoriableCheckBox_OnChanged" />
                 <TextBlock Grid.Row="1" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="inventoryPoints" ToolTip="inventoryPoints is how many inventory points this object uses when carried." />
                 <TextBox x:Name="InventoryPointsTextBox"
                          Grid.Row="1"
@@ -137,7 +139,7 @@
                          ToolTip="Inventory cost of this object. Numeric only, minimum 1." />
 
                 <CheckBox x:Name="ContainerCheckBox"
-                          Grid.Row="2"
+                          Grid.Row="3"
                           Grid.Column="0"
                           Margin="0,8,0,0"
                           VerticalAlignment="Center"
@@ -145,9 +147,9 @@
                           ToolTip="Makes this object a container that can hold other items."
                           Checked="ContainerCheckBox_OnChanged"
                           Unchecked="ContainerCheckBox_OnChanged" />
-                <TextBlock Grid.Row="2" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="containerPoints" ToolTip="containerPoints is the container capacity measured in inventory points." />
+                <TextBlock Grid.Row="3" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="containerPoints" ToolTip="containerPoints is the container capacity measured in inventory points." />
                 <TextBox x:Name="ContainerPointsTextBox"
-                         Grid.Row="2"
+                         Grid.Row="3"
                          Grid.Column="2"
                          Margin="10,8,0,0"
                          VerticalContentAlignment="Center"
@@ -158,7 +160,7 @@
                          ToolTip="Maximum total inventory points this container can hold. Numeric only, minimum 1." />
 
                 <CheckBox x:Name="CapacityPointShareDividerCheckBox"
-                          Grid.Row="3"
+                          Grid.Row="4"
                           Grid.Column="0"
                           Margin="0,8,0,0"
                           VerticalAlignment="Center"
@@ -166,7 +168,7 @@
                           ToolTip="Optional: when enabled, contained load passed up to parent is divided by this value. 1=full load, 2=half, 4=quarter."
                           Checked="CapacityPointShareDividerCheckBox_OnChanged"
                           Unchecked="CapacityPointShareDividerCheckBox_OnChanged" />
-                <TextBlock Grid.Row="3"
+                <TextBlock Grid.Row="4"
                            Grid.Column="1"
                            Margin="10,8,0,0"
                            VerticalAlignment="Center"
@@ -174,7 +176,7 @@
                            Text="capacityPointShareDivider"
                            ToolTip="Divides the contained load this container passes to its parent. 1=full, 2=half, 4=quarter." />
                 <TextBox x:Name="CapacityPointShareDividerTextBox"
-                         Grid.Row="3"
+                         Grid.Row="4"
                          Grid.Column="2"
                          Margin="10,8,0,0"
                          VerticalContentAlignment="Center"
@@ -184,7 +186,45 @@
                          DataObject.Pasting="InventoryPointsTextBox_OnPasting"
                          ToolTip="Divider for contained load passed to parent. Numeric only, minimum 1." />
 
-                <TextBlock Grid.Row="4"
+                <CheckBox x:Name="HideContainedObjectsCheckBox"
+                          Grid.Row="5"
+                          Grid.Column="0"
+                          Margin="0,8,0,0"
+                          VerticalAlignment="Center"
+                          Content="Hide contained objects"
+                          ToolTip="When checked, this container hides its contained children by default." />
+                <TextBlock Grid.Row="5"
+                           Grid.Column="1"
+                           Margin="10,8,0,0"
+                           VerticalAlignment="Center"
+                           Foreground="#111827"
+                           Text="hideContainedObjects"
+                           ToolTip="Controls whether contained objects are hidden by default." />
+
+                <TextBlock Grid.Row="2"
+                           Grid.Column="0"
+                           Margin="0,8,0,0"
+                           VerticalAlignment="Center"
+                           Text="Contained visibility override"
+                           ToolTip="Optional per-inventory-item override. Non-inventoriable children use the container setting." />
+                <TextBlock Grid.Row="2"
+                           Grid.Column="1"
+                           Margin="10,8,0,0"
+                           VerticalAlignment="Center"
+                           Foreground="#111827"
+                           Text="showWhenContained"
+                           ToolTip="Null inherits the container setting; true shows this item; false hides it." />
+                <ComboBox x:Name="ShowWhenContainedComboBox"
+                          Grid.Row="2"
+                          Grid.Column="2"
+                          Margin="10,8,0,0"
+                          ToolTip="Applies only when this object is inventoriable and contained.">
+                    <ComboBoxItem Content="Inherit" Tag="inherit" />
+                    <ComboBoxItem Content="Show" Tag="true" />
+                    <ComboBoxItem Content="Hide" Tag="false" />
+                </ComboBox>
+
+                <TextBlock Grid.Row="6"
                            Grid.Column="0"
                            Grid.ColumnSpan="3"
                            Margin="26,6,0,0"
@@ -209,45 +249,45 @@
                     </TextBlock.Style>
                 </TextBlock>
 
-                <CheckBox x:Name="OpenableCheckBox" Grid.Row="5" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center" Content="Openable" ToolTip="Allows this object to be opened and closed." />
-                <TextBlock Grid.Row="5" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="isOpen" ToolTip="isOpen stores whether the object starts open or closed." />
-                <ComboBox x:Name="OpenDefaultValueComboBox" Grid.Row="5" Grid.Column="2" Margin="10,8,0,0" SelectedIndex="0" IsEnabled="{Binding IsChecked, ElementName=OpenableCheckBox}" ToolTip="Starting open state for this object.">
+                <CheckBox x:Name="OpenableCheckBox" Grid.Row="7" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center" Content="Openable" ToolTip="Allows this object to be opened and closed." />
+                <TextBlock Grid.Row="7" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="isOpen" ToolTip="isOpen stores whether the object starts open or closed." />
+                <ComboBox x:Name="OpenDefaultValueComboBox" Grid.Row="7" Grid.Column="2" Margin="10,8,0,0" SelectedIndex="0" IsEnabled="{Binding IsChecked, ElementName=OpenableCheckBox}" ToolTip="Starting open state for this object.">
                     <ComboBoxItem Content="false" />
                     <ComboBoxItem Content="true" />
                 </ComboBox>
 
-                <CheckBox x:Name="LockableCheckBox" Grid.Row="6" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center" Content="Lockable" ToolTip="Allows this object to be locked and unlocked." Checked="LockableCheckBox_OnChanged" Unchecked="LockableCheckBox_OnChanged" />
-                <TextBlock Grid.Row="6" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="isLocked" ToolTip="isLocked stores whether the object starts locked." />
-                <ComboBox x:Name="LockedDefaultValueComboBox" Grid.Row="6" Grid.Column="2" Margin="10,8,0,0" SelectedIndex="0" IsEnabled="{Binding IsChecked, ElementName=LockableCheckBox}" ToolTip="Starting locked state for this object.">
+                <CheckBox x:Name="LockableCheckBox" Grid.Row="8" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center" Content="Lockable" ToolTip="Allows this object to be locked and unlocked." Checked="LockableCheckBox_OnChanged" Unchecked="LockableCheckBox_OnChanged" />
+                <TextBlock Grid.Row="8" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="isLocked" ToolTip="isLocked stores whether the object starts locked." />
+                <ComboBox x:Name="LockedDefaultValueComboBox" Grid.Row="8" Grid.Column="2" Margin="10,8,0,0" SelectedIndex="0" IsEnabled="{Binding IsChecked, ElementName=LockableCheckBox}" ToolTip="Starting locked state for this object.">
                     <ComboBoxItem Content="false" />
                     <ComboBoxItem Content="true" />
                 </ComboBox>
 
-                <CheckBox x:Name="ActivatableCheckBox" Grid.Row="7" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center" Content="Activatable" ToolTip="Allow this object to be activated and deactivated, meaning it can be removed from the game state or added back to the game state. When inactive, it is treated as if it is not in the game." />
-                <TextBlock Grid.Row="7" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="isActive" ToolTip="isActive stores whether the object starts in the active game state." />
-                <ComboBox x:Name="ActiveDefaultValueComboBox" Grid.Row="7" Grid.Column="2" Margin="10,8,0,0" SelectedIndex="0" IsEnabled="{Binding IsChecked, ElementName=ActivatableCheckBox}" ToolTip="Starting active state for this object. If false, the object starts out of the game state.">
+                <CheckBox x:Name="ActivatableCheckBox" Grid.Row="9" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center" Content="Activatable" ToolTip="Allow this object to be activated and deactivated, meaning it can be removed from the game state or added back to the game state. When inactive, it is treated as if it is not in the game." />
+                <TextBlock Grid.Row="9" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="isActive" ToolTip="isActive stores whether the object starts in the active game state." />
+                <ComboBox x:Name="ActiveDefaultValueComboBox" Grid.Row="9" Grid.Column="2" Margin="10,8,0,0" SelectedIndex="0" IsEnabled="{Binding IsChecked, ElementName=ActivatableCheckBox}" ToolTip="Starting active state for this object. If false, the object starts out of the game state.">
                     <ComboBoxItem Content="false" />
                     <ComboBoxItem Content="true" />
                 </ComboBox>
 
-                <CheckBox x:Name="HidableCheckBox" Grid.Row="8" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center" Content="Hidable" ToolTip="Allows this object to start hidden and later be revealed." />
-                <TextBlock Grid.Row="8" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="isHidden" ToolTip="isHidden stores whether the object starts hidden." />
-                <ComboBox x:Name="HiddenDefaultValueComboBox" Grid.Row="8" Grid.Column="2" Margin="10,8,0,0" SelectedIndex="0" IsEnabled="{Binding IsChecked, ElementName=HidableCheckBox}" ToolTip="Starting hidden state for this object.">
+                <CheckBox x:Name="HidableCheckBox" Grid.Row="10" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center" Content="Hidable" ToolTip="Allows this object to start hidden and later be revealed." />
+                <TextBlock Grid.Row="10" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="isHidden" ToolTip="isHidden stores whether the object starts hidden." />
+                <ComboBox x:Name="HiddenDefaultValueComboBox" Grid.Row="10" Grid.Column="2" Margin="10,8,0,0" SelectedIndex="0" IsEnabled="{Binding IsChecked, ElementName=HidableCheckBox}" ToolTip="Starting hidden state for this object.">
                     <ComboBoxItem Content="false" />
                     <ComboBoxItem Content="true" />
                 </ComboBox>
 
-                <CheckBox x:Name="MovableCheckBox" Grid.Row="9" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center" Content="Movable" ToolTip="Enables movement interactions and movement-related state for this object." Checked="MovableCheckBox_OnChanged" Unchecked="MovableCheckBox_OnChanged" />
-                <TextBlock Grid.Row="9" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="isMovable" ToolTip="isMovable stores whether this object can be moved at runtime." />
-                <ComboBox x:Name="MovableDefaultValueComboBox" Grid.Row="9" Grid.Column="2" Margin="10,8,0,0" SelectedIndex="1" IsEnabled="{Binding IsChecked, ElementName=MovableCheckBox}" ToolTip="Starting movable state for this object." SelectionChanged="MovableDefaultValueComboBox_OnSelectionChanged">
+                <CheckBox x:Name="MovableCheckBox" Grid.Row="11" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center" Content="Movable" ToolTip="Enables movement interactions and movement-related state for this object." Checked="MovableCheckBox_OnChanged" Unchecked="MovableCheckBox_OnChanged" />
+                <TextBlock Grid.Row="11" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="isMovable" ToolTip="isMovable stores whether this object can be moved at runtime." />
+                <ComboBox x:Name="MovableDefaultValueComboBox" Grid.Row="11" Grid.Column="2" Margin="10,8,0,0" SelectedIndex="1" IsEnabled="{Binding IsChecked, ElementName=MovableCheckBox}" ToolTip="Starting movable state for this object." SelectionChanged="MovableDefaultValueComboBox_OnSelectionChanged">
                     <ComboBoxItem Content="false" />
                     <ComboBoxItem Content="true" />
                 </ComboBox>
 
-                <CheckBox x:Name="QuantifiableCheckBox" Grid.Row="10" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center" Content="Quantifiable" ToolTip="Treat this object as a stackable quantity in gameplay." />
-                <TextBlock Grid.Row="10" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="isQuantifiable" ToolTip="isQuantifiable marks this object as quantity-based." />
+                <CheckBox x:Name="QuantifiableCheckBox" Grid.Row="12" Grid.Column="0" Margin="0,8,0,0" VerticalAlignment="Center" Content="Quantifiable" ToolTip="Treat this object as a stackable quantity in gameplay." />
+                <TextBlock Grid.Row="12" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="isQuantifiable" ToolTip="isQuantifiable marks this object as quantity-based." />
                 <TextBox x:Name="QuantityTextBox"
-                         Grid.Row="10"
+                         Grid.Row="12"
                          Grid.Column="2"
                          Margin="10,8,0,0"
                          VerticalContentAlignment="Center"
@@ -257,9 +297,9 @@
                          DataObject.Pasting="InventoryPointsTextBox_OnPasting"
                          ToolTip="Initial quantity for this object. Numeric only, minimum 1." />
 
-                <TextBlock Grid.Row="11" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="quantifiablePlacementDistributionMode" ToolTip="How quantity is represented in room placement." />
+                <TextBlock Grid.Row="13" Grid.Column="1" Margin="10,8,0,0" VerticalAlignment="Center" Foreground="#111827" Text="quantifiablePlacementDistributionMode" ToolTip="How quantity is represented in room placement." />
                 <ComboBox x:Name="QuantifiableDistributionModeComboBox"
-                          Grid.Row="11"
+                          Grid.Row="13"
                           Grid.Column="2"
                           Margin="10,8,0,0"
                           SelectedIndex="0"
@@ -269,8 +309,8 @@
                     <ComboBoxItem Content="IndividualInstances" />
                 </ComboBox>
 
-                <TextBlock Grid.Row="12" Grid.Column="0" Margin="0,10,0,0" VerticalAlignment="Top" Foreground="#111827" Text="Appearance" />
-                <Border Grid.Row="12" Grid.Column="1" Grid.ColumnSpan="2" Margin="10,10,0,0" Padding="8" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4" Background="#FFFFFF">
+                <TextBlock Grid.Row="14" Grid.Column="0" Margin="0,10,0,0" VerticalAlignment="Top" Foreground="#111827" Text="Appearance" />
+                <Border Grid.Row="14" Grid.Column="1" Grid.ColumnSpan="2" Margin="10,10,0,0" Padding="8" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4" Background="#FFFFFF">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />

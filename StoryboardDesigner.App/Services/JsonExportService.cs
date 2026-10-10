@@ -31,6 +31,8 @@ public sealed class JsonExportService : IJsonExportService
         "isInventoriable",
         "inventoryPointsDefaultValue",
         "isContainer",
+        "hideContainedObjects",
+        "showWhenContained",
         "containerPointsDefaultValue",
         "isOpenable",
         "isOpenDefaultValue",
@@ -337,6 +339,7 @@ public sealed class JsonExportService : IJsonExportService
         ValidateTraversalOrThrow(project, "save");
         SharedVariableReconciliationService.ReconcileInPlace(project);
         RefreshRoomDerivedOccupancyCaches(project);
+        var linkedActionLookup = BuildProjectActionLookup(project);
 
         var projectFolder = Path.GetDirectoryName(projectFilePath);
         if (string.IsNullOrWhiteSpace(projectFolder))
@@ -414,11 +417,11 @@ public sealed class JsonExportService : IJsonExportService
         };
         pendingWrites.Add((projectFilePath, JsonSerializer.Serialize(dto, _jsonOptions)));
 
-        var mappedGlobalObjects = project.GlobalScope.GameObjects.Select(obj => ToProjectGameObjectDto(obj, null)).ToList();
-        var mappedObjectTemplates = project.ObjectTemplates.Select(obj => ToProjectGameObjectDto(obj, null, scopeKindOverride: ScopeNodeKind.Templates)).ToList();
-        var mappedBaseObjects = project.BaseObjects.Select(obj => ToProjectGameObjectDto(obj, null, scopeKindOverride: ScopeNodeKind.Templates)).ToList();
-        var mappedRoomTemplates = project.RoomTemplates.Select(ToRoomTemplateDto).ToList();
-        var mappedPhaseBooks = project.PhaseBooks.Select(ToPhaseNodeDto).ToList();
+        var mappedGlobalObjects = project.GlobalScope.GameObjects.Select(obj => ToProjectGameObjectDto(obj, null, linkedActionLookup: linkedActionLookup)).ToList();
+        var mappedObjectTemplates = project.ObjectTemplates.Select(obj => ToProjectGameObjectDto(obj, null, scopeKindOverride: ScopeNodeKind.Templates, linkedActionLookup: linkedActionLookup)).ToList();
+        var mappedBaseObjects = project.BaseObjects.Select(obj => ToProjectGameObjectDto(obj, null, scopeKindOverride: ScopeNodeKind.Templates, linkedActionLookup: linkedActionLookup)).ToList();
+        var mappedRoomTemplates = project.RoomTemplates.Select(room => ToRoomTemplateDto(room, linkedActionLookup)).ToList();
+        var mappedPhaseBooks = project.PhaseBooks.Select(phase => ToPhaseNodeDto(phase, linkedActionLookup)).ToList();
         var mappedPhases = FlattenPhaseDtos(mappedPhaseBooks)
             .Select(ToPhaseSidecarDto)
             .ToList();
@@ -443,7 +446,7 @@ public sealed class JsonExportService : IJsonExportService
             AdditionalVerbs = project.CommandVerbs.ToList(),
             AdditionalDirectionals = project.Directionals.ToList(),
             AdditionalDirectionalTraversalMappings = ToDirectionalTraversalMappingDtos(project.DirectionalTraversalMappings),
-            AvailableGameActions = ToCommandActionDtos(project.GlobalScope.AvailableActions),
+            AvailableGameActions = ToCommandActionDtos(project.GlobalScope.AvailableActions, linkedActionLookup),
             EventSubscriptions = project.GlobalScope.EventSubscriptions.Select(ToProjectEventSubscriptionDto).ToList(),
             TimerDefinitions = project.GlobalScope.TimerDefinitions.Select(ToProjectTimerDefinitionDto).ToList(),
             SequenceDefinitions = project.SequenceDefinitions.ToList(),
@@ -567,7 +570,8 @@ public sealed class JsonExportService : IJsonExportService
                 .Select((obj, index) => ToProjectGameObjectDto(
                     obj,
                     null,
-                    ComputeRoomObjectRenderZOrder(index, room.GameObjects.Count)))
+                    ResolveRoomObjectRenderZOrder(obj, index, room.GameObjects.Count),
+                    linkedActionLookup: linkedActionLookup))
                 .ToList();
 
             RegisterAuthoringObjectDtos(authoringObjectDtos, mappedRoomObjects);
@@ -589,7 +593,7 @@ public sealed class JsonExportService : IJsonExportService
                 ValidationErrors = room.ValidationErrors.ToList(),
                 SequenceDefinitions = room.SequenceDefinitions.ToList(),
                 TraversalModeOverride = room.TraversalModeOverride?.ToString(),
-                AvailableGameActions = ToCommandActionDtos(room.AvailableActions),
+                AvailableGameActions = ToCommandActionDtos(room.AvailableActions, linkedActionLookup),
                 GameObjectIds = mappedRoomObjects
                     .Select(static obj => obj.Id)
                     .Where(static id => id != Guid.Empty)
@@ -631,8 +635,8 @@ public sealed class JsonExportService : IJsonExportService
 
         foreach (var planet in project.Planets)
         {
-            var mappedPlanetBaseObjects = planet.BaseObjects.Select(obj => ToProjectGameObjectDto(obj, null)).ToList();
-            var mappedPlanetObjects = planet.GameObjects.Select(obj => ToProjectGameObjectDto(obj, null)).ToList();
+            var mappedPlanetBaseObjects = planet.BaseObjects.Select(obj => ToProjectGameObjectDto(obj, null, linkedActionLookup: linkedActionLookup)).ToList();
+            var mappedPlanetObjects = planet.GameObjects.Select(obj => ToProjectGameObjectDto(obj, null, linkedActionLookup: linkedActionLookup)).ToList();
             RegisterAuthoringObjectDtos(authoringObjectDtos, mappedPlanetBaseObjects);
             RegisterAuthoringObjectDtos(authoringObjectDtos, mappedPlanetObjects);
 
@@ -652,7 +656,7 @@ public sealed class JsonExportService : IJsonExportService
                 SoundEffectLibraryEntries = planet.SoundEffectLibraryEntries.Select(ToSoundEffectLibraryEntryDto).ToList(),
                 BaseObjectsIgnoredValidationRuleIds = planet.BaseObjectsIgnoredValidationRuleIds.ToList(),
                 AdditionalDirectionalTraversalMappings = ToDirectionalTraversalMappingDtos(planet.AdditionalDirectionalTraversalMappings),
-                AvailableGameActions = ToCommandActionDtos(planet.AvailableActions),
+                AvailableGameActions = ToCommandActionDtos(planet.AvailableActions, linkedActionLookup),
                 EventSubscriptions = planet.EventSubscriptions.Select(ToProjectEventSubscriptionDto).ToList(),
                 TimerDefinitions = planet.TimerDefinitions.Select(ToProjectTimerDefinitionDto).ToList(),
                 BaseObjectIds = mappedPlanetBaseObjects
@@ -674,8 +678,8 @@ public sealed class JsonExportService : IJsonExportService
 
             foreach (var country in planet.Countries)
             {
-                var mappedCountryBaseObjects = country.BaseObjects.Select(obj => ToProjectGameObjectDto(obj, null)).ToList();
-                var mappedCountryObjects = country.GameObjects.Select(obj => ToProjectGameObjectDto(obj, null)).ToList();
+                var mappedCountryBaseObjects = country.BaseObjects.Select(obj => ToProjectGameObjectDto(obj, null, linkedActionLookup: linkedActionLookup)).ToList();
+                var mappedCountryObjects = country.GameObjects.Select(obj => ToProjectGameObjectDto(obj, null, linkedActionLookup: linkedActionLookup)).ToList();
                 RegisterAuthoringObjectDtos(authoringObjectDtos, mappedCountryBaseObjects);
                 RegisterAuthoringObjectDtos(authoringObjectDtos, mappedCountryObjects);
 
@@ -696,7 +700,7 @@ public sealed class JsonExportService : IJsonExportService
                     SoundEffectLibraryEntries = country.SoundEffectLibraryEntries.Select(ToSoundEffectLibraryEntryDto).ToList(),
                     BaseObjectsIgnoredValidationRuleIds = country.BaseObjectsIgnoredValidationRuleIds.ToList(),
                     AdditionalDirectionalTraversalMappings = ToDirectionalTraversalMappingDtos(country.AdditionalDirectionalTraversalMappings),
-                    AvailableGameActions = ToCommandActionDtos(country.AvailableActions),
+                    AvailableGameActions = ToCommandActionDtos(country.AvailableActions, linkedActionLookup),
                     EventSubscriptions = country.EventSubscriptions.Select(ToProjectEventSubscriptionDto).ToList(),
                     TimerDefinitions = country.TimerDefinitions.Select(ToProjectTimerDefinitionDto).ToList(),
                     BaseObjectIds = mappedCountryBaseObjects
@@ -718,8 +722,8 @@ public sealed class JsonExportService : IJsonExportService
 
                 foreach (var area in country.Areas)
                 {
-                    var mappedAreaBaseObjects = area.BaseObjects.Select(obj => ToProjectGameObjectDto(obj, null)).ToList();
-                    var mappedAreaObjects = area.GameObjects.Select(obj => ToProjectGameObjectDto(obj, null)).ToList();
+                    var mappedAreaBaseObjects = area.BaseObjects.Select(obj => ToProjectGameObjectDto(obj, null, linkedActionLookup: linkedActionLookup)).ToList();
+                    var mappedAreaObjects = area.GameObjects.Select(obj => ToProjectGameObjectDto(obj, null, linkedActionLookup: linkedActionLookup)).ToList();
                     RegisterAuthoringObjectDtos(authoringObjectDtos, mappedAreaBaseObjects);
                     RegisterAuthoringObjectDtos(authoringObjectDtos, mappedAreaObjects);
 
@@ -743,7 +747,7 @@ public sealed class JsonExportService : IJsonExportService
                         SoundEffectLibraryEntries = area.SoundEffectLibraryEntries.Select(ToSoundEffectLibraryEntryDto).ToList(),
                         BaseObjectsIgnoredValidationRuleIds = area.BaseObjectsIgnoredValidationRuleIds.ToList(),
                         AdditionalDirectionalTraversalMappings = ToDirectionalTraversalMappingDtos(area.AdditionalDirectionalTraversalMappings),
-                        AvailableGameActions = ToCommandActionDtos(area.AvailableActions),
+                        AvailableGameActions = ToCommandActionDtos(area.AvailableActions, linkedActionLookup),
                         EventSubscriptions = area.EventSubscriptions.Select(ToProjectEventSubscriptionDto).ToList(),
                         TimerDefinitions = area.TimerDefinitions.Select(ToProjectTimerDefinitionDto).ToList(),
                         BaseObjectIds = mappedAreaBaseObjects
@@ -760,7 +764,7 @@ public sealed class JsonExportService : IJsonExportService
                         GameObjects = new List<ProjectGameObjectDto>(),
                         RoomIds = area.Rooms.Select(room => room.Id).ToList(),
                         TraversalConnections = BuildTraversalConnectionsForPersistence(area)
-                            .Select(ToTraversalConnectionDto)
+                            .Select(connection => ToTraversalConnectionDto(connection, linkedActionLookup))
                             .ToList(),
                         RoomPlacements = area.RoomPlacements.Select(placement => new RoomPlacementDto
                         {
@@ -1329,7 +1333,9 @@ public sealed class JsonExportService : IJsonExportService
         diagnostics.Add($"Missing referenced ids for {idFieldName}: {string.Join(", ", missingIds)}");
     }
 
-    private static RoomDto ToRoomTemplateDto(Room room)
+    private static RoomDto ToRoomTemplateDto(
+        Room room,
+        IReadOnlyDictionary<Guid, CommandAction> linkedActionLookup)
     {
         var roomObjects = room.GameObjects;
         return new RoomDto
@@ -1348,7 +1354,7 @@ public sealed class JsonExportService : IJsonExportService
             RoomDisplayMode = room.RoomDisplayMode,
             ValidationErrors = room.ValidationErrors.ToList(),
             TraversalModeOverride = room.TraversalModeOverride?.ToString(),
-            AvailableGameActions = ToCommandActionDtos(room.AvailableActions),
+            AvailableGameActions = ToCommandActionDtos(room.AvailableActions, linkedActionLookup),
             GameProperties = room.Variables.Select(ToVariableDto).ToList(),
             AdditionalVerbs = room.AdditionalVerbs.ToList(),
             AdditionalDirectionals = room.AdditionalDirectionals.ToList(),
@@ -1361,8 +1367,9 @@ public sealed class JsonExportService : IJsonExportService
                 .Select((obj, index) => ToProjectGameObjectDto(
                     obj,
                     null,
-                    ComputeRoomObjectRenderZOrder(index, roomObjects.Count),
-                    ScopeNodeKind.Templates))
+                    ResolveRoomObjectRenderZOrder(obj, index, roomObjects.Count),
+                    ScopeNodeKind.Templates,
+                    linkedActionLookup))
                 .ToList(),
             Images = room.Images.Select(i => new RoomImageDto
             {
@@ -1382,6 +1389,7 @@ public sealed class JsonExportService : IJsonExportService
     {
         ValidateTraversalOrThrow(project, "clean export");
         RefreshRoomDerivedOccupancyCaches(project);
+        var linkedActionLookup = BuildProjectActionLookup(project);
 
         var projectFolder = Path.GetDirectoryName(projectFilePath);
         if (string.IsNullOrWhiteSpace(projectFolder))
@@ -1489,7 +1497,7 @@ public sealed class JsonExportService : IJsonExportService
                 .ToList()),
             TimerDefinitions = NullIfEmpty(project.GlobalScope.TimerDefinitions.Select(ToRuntimeTimerDefinitionDto).ToList()),
             SequenceDefinitions = ToRuntimeSequenceDefinitions(project.SequenceDefinitions),
-            AvailableGameActions = NullIfEmpty(ToCleanCommandActionDtos(project.GlobalScope.AvailableActions)
+            AvailableGameActions = NullIfEmpty(ToCleanCommandActionDtos(project.GlobalScope.AvailableActions, linkedActionLookup)
                 .OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(a => a.Id)
                 .ToList())
@@ -1497,13 +1505,13 @@ public sealed class JsonExportService : IJsonExportService
 
         var mappedProjectObjects = project.GlobalScope.GameObjects
             .OrderBy(obj => obj.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(obj => ToCleanGameObjectDto(obj, null, imageAssetStager.ResolveAndStage, soundAssetStager.ResolveAndStage, null, ResolveCleanExportDefinition))
+            .Select(obj => ToCleanGameObjectDto(obj, null, imageAssetStager.ResolveAndStage, soundAssetStager.ResolveAndStage, null, ResolveCleanExportDefinition, linkedActionLookup))
             .ToList();
         projectDto.SetAttachedGlobalObjects(mappedProjectObjects);
 
         var mappedProjectBaseObjects = NullIfEmpty(project.BaseObjects
             .OrderBy(obj => obj.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(obj => ToCleanGameObjectDto(obj, null, imageAssetStager.ResolveAndStage, soundAssetStager.ResolveAndStage, null, ResolveCleanExportDefinition))
+            .Select(obj => ToCleanGameObjectDto(obj, null, imageAssetStager.ResolveAndStage, soundAssetStager.ResolveAndStage, null, ResolveCleanExportDefinition, linkedActionLookup))
             .ToList()) ?? new List<RuntimeGameObjectDto>();
         projectDto.BaseObjects = mappedProjectBaseObjects;
 
@@ -1526,18 +1534,18 @@ public sealed class JsonExportService : IJsonExportService
                     EventSubscriptions = NullIfEmpty(planet.EventSubscriptions.Select(ToRuntimeEventSubscriptionDto).ToList()),
                     TimerDefinitions = NullIfEmpty(planet.TimerDefinitions.Select(ToRuntimeTimerDefinitionDto).ToList()),
                     SequenceDefinitions = ToRuntimeSequenceDefinitions(planet.SequenceDefinitions),
-                    AvailableGameActions = ToCleanCommandActionDtos(planet.AvailableActions).OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase).ThenBy(a => a.Id).ToList()
+                    AvailableGameActions = ToCleanCommandActionDtos(planet.AvailableActions, linkedActionLookup).OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase).ThenBy(a => a.Id).ToList()
                 };
 
                 var mappedPlanetBaseObjects = NullIfEmpty(planet.BaseObjects
                     .OrderBy(obj => obj.Name, StringComparer.OrdinalIgnoreCase)
-                    .Select(obj => ToCleanGameObjectDto(obj, null, imageAssetStager.ResolveAndStage, soundAssetStager.ResolveAndStage, null, ResolveCleanExportDefinition))
+                    .Select(obj => ToCleanGameObjectDto(obj, null, imageAssetStager.ResolveAndStage, soundAssetStager.ResolveAndStage, null, ResolveCleanExportDefinition, linkedActionLookup))
                     .ToList()) ?? new List<RuntimeGameObjectDto>();
                 mappedPlanet.BaseObjects = mappedPlanetBaseObjects;
 
                 var mappedPlanetObjects = NullIfEmpty(planet.GameObjects
                     .OrderBy(obj => obj.Name, StringComparer.OrdinalIgnoreCase)
-                    .Select(obj => ToCleanGameObjectDto(obj, null, imageAssetStager.ResolveAndStage, soundAssetStager.ResolveAndStage, null, ResolveCleanExportDefinition))
+                    .Select(obj => ToCleanGameObjectDto(obj, null, imageAssetStager.ResolveAndStage, soundAssetStager.ResolveAndStage, null, ResolveCleanExportDefinition, linkedActionLookup))
                     .ToList()) ?? new List<RuntimeGameObjectDto>();
                 mappedPlanet.SetAttachedGameObjects(mappedPlanetObjects);
 
@@ -1565,19 +1573,19 @@ public sealed class JsonExportService : IJsonExportService
                                     EventSubscriptions = NullIfEmpty(area.EventSubscriptions.Select(ToRuntimeEventSubscriptionDto).ToList()),
                                     TimerDefinitions = NullIfEmpty(area.TimerDefinitions.Select(ToRuntimeTimerDefinitionDto).ToList()),
                                     SequenceDefinitions = ToRuntimeSequenceDefinitions(area.SequenceDefinitions),
-                                    AvailableGameActions = ToCleanCommandActionDtos(area.AvailableActions).OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase).ThenBy(a => a.Id).ToList(),
+                                    AvailableGameActions = ToCleanCommandActionDtos(area.AvailableActions, linkedActionLookup).OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase).ThenBy(a => a.Id).ToList(),
                                     RoomIds = area.Rooms.Select(room => room.Id).OrderBy(id => id).ToList()
                                 };
 
                                 var mappedAreaBaseObjects = NullIfEmpty(area.BaseObjects
                                     .OrderBy(obj => obj.Name, StringComparer.OrdinalIgnoreCase)
-                                    .Select(obj => ToCleanGameObjectDto(obj, null, imageAssetStager.ResolveAndStage, soundAssetStager.ResolveAndStage, null, ResolveCleanExportDefinition))
+                                    .Select(obj => ToCleanGameObjectDto(obj, null, imageAssetStager.ResolveAndStage, soundAssetStager.ResolveAndStage, null, ResolveCleanExportDefinition, linkedActionLookup))
                                     .ToList()) ?? new List<RuntimeGameObjectDto>();
                                 mappedArea.BaseObjects = mappedAreaBaseObjects;
 
                                 var mappedAreaObjects = NullIfEmpty(area.GameObjects
                                     .OrderBy(obj => obj.Name, StringComparer.OrdinalIgnoreCase)
-                                    .Select(obj => ToCleanGameObjectDto(obj, null, imageAssetStager.ResolveAndStage, soundAssetStager.ResolveAndStage, null, ResolveCleanExportDefinition))
+                                    .Select(obj => ToCleanGameObjectDto(obj, null, imageAssetStager.ResolveAndStage, soundAssetStager.ResolveAndStage, null, ResolveCleanExportDefinition, linkedActionLookup))
                                     .ToList()) ?? new List<RuntimeGameObjectDto>();
                                 mappedArea.SetAttachedGameObjects(mappedAreaObjects);
 
@@ -1600,19 +1608,19 @@ public sealed class JsonExportService : IJsonExportService
                             EventSubscriptions = NullIfEmpty(country.EventSubscriptions.Select(ToRuntimeEventSubscriptionDto).ToList()),
                             TimerDefinitions = NullIfEmpty(country.TimerDefinitions.Select(ToRuntimeTimerDefinitionDto).ToList()),
                             SequenceDefinitions = ToRuntimeSequenceDefinitions(country.SequenceDefinitions),
-                            AvailableGameActions = ToCleanCommandActionDtos(country.AvailableActions).OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase).ThenBy(a => a.Id).ToList()
+                            AvailableGameActions = ToCleanCommandActionDtos(country.AvailableActions, linkedActionLookup).OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase).ThenBy(a => a.Id).ToList()
                         };
                         mappedCountry.SetAttachedAreas(mappedCountryAreas);
 
                         var mappedCountryBaseObjects = NullIfEmpty(country.BaseObjects
                             .OrderBy(obj => obj.Name, StringComparer.OrdinalIgnoreCase)
-                            .Select(obj => ToCleanGameObjectDto(obj, null, imageAssetStager.ResolveAndStage, soundAssetStager.ResolveAndStage, null, ResolveCleanExportDefinition))
+                            .Select(obj => ToCleanGameObjectDto(obj, null, imageAssetStager.ResolveAndStage, soundAssetStager.ResolveAndStage, null, ResolveCleanExportDefinition, linkedActionLookup))
                             .ToList()) ?? new List<RuntimeGameObjectDto>();
                         mappedCountry.BaseObjects = mappedCountryBaseObjects;
 
                         var mappedCountryObjects = NullIfEmpty(country.GameObjects
                             .OrderBy(obj => obj.Name, StringComparer.OrdinalIgnoreCase)
-                            .Select(obj => ToCleanGameObjectDto(obj, null, imageAssetStager.ResolveAndStage, soundAssetStager.ResolveAndStage, null, ResolveCleanExportDefinition))
+                            .Select(obj => ToCleanGameObjectDto(obj, null, imageAssetStager.ResolveAndStage, soundAssetStager.ResolveAndStage, null, ResolveCleanExportDefinition, linkedActionLookup))
                             .ToList()) ?? new List<RuntimeGameObjectDto>();
                         mappedCountry.SetAttachedGameObjects(mappedCountryObjects);
 
@@ -1654,7 +1662,7 @@ public sealed class JsonExportService : IJsonExportService
             .OrderBy(static id => id)
             .ToList());
         var mappedRuntimePhases = FlattenPhaseNodes(project.PhaseBooks)
-            .Select(ToCleanRuntimePhaseNodeDto)
+            .Select(phase => ToCleanRuntimePhaseNodeDto(phase, linkedActionLookup))
             .Where(static node => node.ScopeNodeId.HasValue && node.ScopeNodeId.Value != Guid.Empty)
             .OrderBy(static node => node.ScopeNodeId!.Value)
             .ToList();
@@ -1996,8 +2004,9 @@ public sealed class JsonExportService : IJsonExportService
                     null,
                     imageAssetStager.ResolveAndStage,
                     soundAssetStager.ResolveAndStage,
-                    ComputeRoomObjectRenderZOrder(index, roomObjects.Count),
-                    ResolveCleanExportDefinition))
+                    ResolveRoomObjectRenderZOrder(obj, index, roomObjects.Count),
+                    ResolveCleanExportDefinition,
+                    linkedActionLookup))
                 .ToList();
 
             var roomDto = new RuntimeRoomDto
@@ -2015,7 +2024,7 @@ public sealed class JsonExportService : IJsonExportService
                     AmbientColor = room.AmbientLighting?.AmbientColor ?? project.DefaultRoomAmbientLighting?.AmbientColor ?? "#FFFFFF"
                 },
                 RoomDisplayMode = ToRuntimeRoomImageDisplayMode(room.RoomDisplayMode),
-                AvailableGameActions = ToCleanCommandActionDtos(room.AvailableActions).OrderBy(action => action.Name, StringComparer.OrdinalIgnoreCase).ThenBy(action => action.Id).ToList(),
+                AvailableGameActions = ToCleanCommandActionDtos(room.AvailableActions, linkedActionLookup).OrderBy(action => action.Name, StringComparer.OrdinalIgnoreCase).ThenBy(action => action.Id).ToList(),
                 GameProperties = NullIfEmpty(room.Variables.Select(ToCleanGamePropertyDto).OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase).ToList()),
                 AdditionalVerbs = NullIfEmpty(room.AdditionalVerbs.OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToList()),
                 AdditionalDirectionals = NullIfEmpty(room.AdditionalDirectionals.OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToList()),
@@ -2755,10 +2764,12 @@ public sealed class JsonExportService : IJsonExportService
         return ToCommandActionModels(room.AvailableGameActions);
     }
 
-    private static List<CommandActionDto> ToCommandActionDtos(IReadOnlyCollection<CommandAction>? actions)
+    private static List<CommandActionDto> ToCommandActionDtos(
+        IReadOnlyCollection<CommandAction>? actions,
+        IReadOnlyDictionary<Guid, CommandAction>? linkedActionLookup = null)
     {
         var safeActions = (actions ?? Array.Empty<CommandAction>()).ToList();
-        var actionLookup = safeActions
+        var actionLookup = linkedActionLookup ?? safeActions
             .Where(static action => action.Id != Guid.Empty)
             .GroupBy(static action => action.Id)
             .ToDictionary(static group => group.Key, static group => group.First());
@@ -2766,6 +2777,54 @@ public sealed class JsonExportService : IJsonExportService
         return safeActions
             .Select(action => ToCommandActionDto(action, actionLookup))
             .ToList();
+    }
+
+    private static IReadOnlyDictionary<Guid, CommandAction> BuildProjectActionLookup(ProjectModel project)
+    {
+        var actions = new List<CommandAction>(project.GlobalScope.AvailableActions);
+        var pendingScopes = new Stack<IScopedAwareNode>();
+        pendingScopes.Push(project);
+
+        while (pendingScopes.Count > 0)
+        {
+            var scope = pendingScopes.Pop();
+            switch (scope)
+            {
+                case Planet planet:
+                    actions.AddRange(planet.AvailableActions);
+                    break;
+                case Country country:
+                    actions.AddRange(country.AvailableActions);
+                    break;
+                case Area area:
+                    actions.AddRange(area.AvailableActions);
+                    foreach (var connection in area.TraversalConnections)
+                    {
+                        actions.AddRange(connection.TraversalStateFromA.AvailableActions);
+                        actions.AddRange(connection.TraversalStateFromB.AvailableActions);
+                    }
+                    break;
+                case Room room:
+                    actions.AddRange(room.AvailableActions);
+                    break;
+                case GameObject gameObject:
+                    actions.AddRange(gameObject.AvailableActions);
+                    break;
+                case PhaseNode phaseNode:
+                    actions.AddRange(phaseNode.AvailableActions);
+                    break;
+            }
+
+            foreach (var child in scope.ChildScopes)
+            {
+                pendingScopes.Push(child);
+            }
+        }
+
+        return actions
+            .Where(static action => action.Id != Guid.Empty)
+            .GroupBy(static action => action.Id)
+            .ToDictionary(static group => group.Key, static group => group.First());
     }
 
     private static CommandActionDto ToCommandActionDto(CommandAction action, IReadOnlyDictionary<Guid, CommandAction> actionLookup)
@@ -2901,7 +2960,6 @@ public sealed class JsonExportService : IJsonExportService
         var compositeAmbiguityPolicyFromPayload = TryGetCompositeAmbiguityPolicyFromPayload(action.Payload);
         var compositePartConsumptionModeFromPayload = TryGetCompositePartConsumptionModeFromPayload(action.Payload);
         var synonymTargetActionIdFromPayload = TryGetSynonymTargetActionIdFromPayload(action.Payload);
-        var linkedActionReferences = ResolveLinkedActionReferences(action);
         var outcomeMessageMap = NormalizeOutcomeMessageMap(actionType, action.OutcomeMessageMap);
         var outcomeSoundEffectsMap = NormalizeOutcomeSoundEffectsMap(actionType, action.OutcomeSoundEffectsMap);
         string ResolveOutcomeScript(string token)
@@ -2962,7 +3020,6 @@ public sealed class JsonExportService : IJsonExportService
             CompositeResolvedTargetOutputTemplate = string.Empty,
             ChildCommandForwardingMode = ParseChildCommandForwardingMode(action.ChildCommandForwardingMode),
             SimilarChildDispatchMode = ParseSimilarChildDispatchMode(action.SimilarChildDispatchMode),
-            LinkedActions = linkedActionReferences,
             OutcomeMessageMap = outcomeMessageMap,
             OutcomeSoundEffectsMap = outcomeSoundEffectsMap,
             SelectionCueEffectKey = actionType == CommandActionType.SetActiveRoomObject
@@ -3163,6 +3220,11 @@ public sealed class JsonExportService : IJsonExportService
 
         model.Payload = model.CreatePayloadSnapshot();
 
+        if (model.ActionType == CommandActionType.LinkedActions)
+        {
+            model.LinkedFlowDefinition = CreateLinkedFlowDefinition(TryGetLinkedActionsFromPayload(action.Payload));
+        }
+
         return model;
     }
 
@@ -3189,136 +3251,7 @@ public sealed class JsonExportService : IJsonExportService
             .Select(ToCommandActionModel)
             .ToList();
 
-        HydrateLinkedFlowGraphs(safeDtos, models);
         return models;
-    }
-
-    private static void HydrateLinkedFlowGraphs(IReadOnlyList<CommandActionDto> sourceDtos, IReadOnlyList<CommandAction> models)
-    {
-        if (sourceDtos.Count == 0 || models.Count == 0)
-        {
-            return;
-        }
-
-        var modelsById = models
-            .Where(static model => model.Id != Guid.Empty)
-            .GroupBy(static model => model.Id)
-            .ToDictionary(static group => group.Key, static group => group.First());
-
-        foreach (var model in models)
-        {
-            model.LinkedActions = new List<LinkedActionReference>();
-        }
-
-        foreach (var sourceDto in sourceDtos)
-        {
-            if (ParseCommandActionType(sourceDto.ActionType) != CommandActionType.LinkedActions)
-            {
-                continue;
-            }
-
-            if (!modelsById.TryGetValue(sourceDto.Id, out var rootAction))
-            {
-                continue;
-            }
-
-            var nodeDtos = TryGetLinkedActionsFromPayload(sourceDto.Payload);
-            if (nodeDtos is not { Count: > 0 })
-            {
-                continue;
-            }
-
-            ApplyLinkedFlowNodesToActionGraph(rootAction, nodeDtos, modelsById);
-        }
-    }
-
-    private static void ApplyLinkedFlowNodesToActionGraph(
-        CommandAction rootAction,
-        IReadOnlyList<ProjectCommandActionReferenceDto> nodeDtos,
-        IReadOnlyDictionary<Guid, CommandAction> modelsById)
-    {
-        var orderedNodes = new List<ProjectCommandActionReferenceDto>();
-        var seenNodeIds = new HashSet<int>();
-        foreach (var nodeDto in nodeDtos)
-        {
-            if (nodeDto.NodeId < 1 || nodeDto.ActionId == Guid.Empty)
-            {
-                continue;
-            }
-
-            if (!modelsById.ContainsKey(nodeDto.ActionId) || !seenNodeIds.Add(nodeDto.NodeId))
-            {
-                continue;
-            }
-
-            orderedNodes.Add(nodeDto);
-        }
-
-        if (orderedNodes.Count == 0)
-        {
-            return;
-        }
-
-        var nodesById = orderedNodes.ToDictionary(static node => node.NodeId, static node => node);
-
-        foreach (var node in orderedNodes)
-        {
-            if (!modelsById.TryGetValue(node.ActionId, out var parentAction))
-            {
-                continue;
-            }
-
-            var links = new List<LinkedActionReference>();
-            AddBranchLinks(links, node.OnAlwaysNodeIds, LinkedActionRunWhen.Always, nodesById, modelsById);
-            AddBranchLinks(links, node.OnSuccessNodeIds, LinkedActionRunWhen.OnSuccess, nodesById, modelsById);
-            AddBranchLinks(links, node.OnFailureNodeIds, LinkedActionRunWhen.OnFailure, nodesById, modelsById);
-            parentAction.LinkedActions = links;
-        }
-
-        var entryNode = orderedNodes[0];
-        if (modelsById.ContainsKey(entryNode.ActionId))
-        {
-            rootAction.LinkedActions = new List<LinkedActionReference>
-            {
-                new()
-                {
-                    ActionId = entryNode.ActionId,
-                    RunWhen = LinkedActionRunWhen.Always,
-                    Order = 0
-                }
-            };
-        }
-    }
-
-    private static void AddBranchLinks(
-        List<LinkedActionReference> targetLinks,
-        IReadOnlyList<int>? childNodeIds,
-        LinkedActionRunWhen runWhen,
-        IReadOnlyDictionary<int, ProjectCommandActionReferenceDto> nodesById,
-        IReadOnlyDictionary<Guid, CommandAction> modelsById)
-    {
-        if (childNodeIds is null || childNodeIds.Count == 0)
-        {
-            return;
-        }
-
-        var order = 0;
-        foreach (var childNodeId in childNodeIds)
-        {
-            if (!nodesById.TryGetValue(childNodeId, out var childNode)
-                || childNode.ActionId == Guid.Empty
-                || !modelsById.ContainsKey(childNode.ActionId))
-            {
-                continue;
-            }
-
-            targetLinks.Add(new LinkedActionReference
-            {
-                ActionId = childNode.ActionId,
-                RunWhen = runWhen,
-                Order = order++
-            });
-        }
     }
 
     private static ChildCommandForwardingMode ParseChildCommandForwardingMode(ChildCommandForwardingMode value)
@@ -4204,7 +4137,9 @@ public sealed class JsonExportService : IJsonExportService
         return area.TraversalConnections;
     }
 
-    private static TraversalConnectionDto ToTraversalConnectionDto(TraversalConnection connection)
+    private static TraversalConnectionDto ToTraversalConnectionDto(
+        TraversalConnection connection,
+        IReadOnlyDictionary<Guid, CommandAction> linkedActionLookup)
     {
         return new TraversalConnectionDto
         {
@@ -4215,8 +4150,8 @@ public sealed class JsonExportService : IJsonExportService
             TraversalModeOverride = connection.TraversalModeOverride,
             TraversalAccessMode = connection.TraversalAccessMode,
             PresentationEffectKey = connection.PresentationEffectKey,
-            TraversalStateFromA = ToTraversalLegStateDto(connection.TraversalStateFromA),
-            TraversalStateFromB = ToTraversalLegStateDto(connection.TraversalStateFromB),
+            TraversalStateFromA = ToTraversalLegStateDto(connection.TraversalStateFromA, linkedActionLookup),
+            TraversalStateFromB = ToTraversalLegStateDto(connection.TraversalStateFromB, linkedActionLookup),
             OpenStateBindingMode = connection.OpenStateBindingMode,
             GameProperties = NormalizeTraversalConnectionVariables(connection.Variables)
                 .Select(ToVariableDto)
@@ -4325,7 +4260,9 @@ public sealed class JsonExportService : IJsonExportService
         }
     }
 
-    private static TraversalLegStateDto ToTraversalLegStateDto(TraversalLegState state)
+    private static TraversalLegStateDto ToTraversalLegStateDto(
+        TraversalLegState state,
+        IReadOnlyDictionary<Guid, CommandAction> linkedActionLookup)
     {
         var normalizedVariables = NormalizeTraversalLegVariables(state.Variables);
         var passableVariable = normalizedVariables.FirstOrDefault(variable =>
@@ -4340,7 +4277,7 @@ public sealed class JsonExportService : IJsonExportService
             OpenableObjectId = state.OpenableObjectId,
             OpenStatePolicy = state.OpenStatePolicy,
             SharedVariableId = state.SharedVariableId,
-            AvailableGameActions = ToCommandActionDtos(state.AvailableActions),
+            AvailableGameActions = ToCommandActionDtos(state.AvailableActions, linkedActionLookup),
             GameProperties = normalizedVariables
                 .Select(ToVariableDto)
                 .ToList()
@@ -4546,7 +4483,8 @@ public sealed class JsonExportService : IJsonExportService
         GameObject obj,
         Guid? designTimeParentObjectId,
         int? renderZOrderOverride = null,
-        ScopeNodeKind? scopeKindOverride = null)
+        ScopeNodeKind? scopeKindOverride = null,
+        IReadOnlyDictionary<Guid, CommandAction>? linkedActionLookup = null)
     {
         var persistedLinkedBaseObjectId = NormalizePersistedLinkedBaseObjectId(obj);
         var normalizedVariants = NormalizeObjectImageVariants(obj.ImageVariants);
@@ -4565,6 +4503,8 @@ public sealed class JsonExportService : IJsonExportService
             IsInventoriable = obj.IsInventoriable,
             InventoryPointsDefaultValue = obj.InventoryPointsDefaultValue,
             IsContainer = obj.IsContainer,
+            HideContainedObjects = obj.HideContainedObjects,
+            ShowWhenContained = obj.ShowWhenContained,
             ContainerPointsDefaultValue = obj.ContainerPointsDefaultValue,
             IsOpenable = obj.IsOpenable,
             IsOpenDefaultValue = obj.IsOpenDefaultValue,
@@ -4621,14 +4561,19 @@ public sealed class JsonExportService : IJsonExportService
             SequenceDefinitions = obj.SequenceDefinitions.ToList(),
             AvailableGameActions = persistedLinkedBaseObjectId.HasValue
                 ? new List<CommandActionDto>()
-                : ToCommandActionDtos(obj.AvailableActions),
+                : ToCommandActionDtos(obj.AvailableActions, linkedActionLookup),
             GameProperties = obj.Variables.Select(ToVariableDto).ToList(),
             InstanceOverrides = obj.InstanceOverrides.Count == 0
                 ? null
                 : obj.InstanceOverrides
                     .Where(static pair => !string.IsNullOrWhiteSpace(pair.Key))
                     .ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.OrdinalIgnoreCase),
-            ContainedObjects = obj.ContainedObjects.Select(child => ToProjectGameObjectDto(child, obj.ObjectId, null, scopeKindOverride)).ToList()
+            ContainedObjects = obj.ContainedObjects.Select(child => ToProjectGameObjectDto(
+                child,
+                obj.ObjectId,
+                null,
+                scopeKindOverride,
+                linkedActionLookup)).ToList()
         };
     }
 
@@ -4712,6 +4657,8 @@ public sealed class JsonExportService : IJsonExportService
             IsInventoriable = obj.IsInventoriable,
             InventoryPointsDefaultValue = obj.InventoryPointsDefaultValue,
             IsContainer = obj.IsContainer,
+            HideContainedObjects = obj.HideContainedObjects,
+            ShowWhenContained = obj.ShowWhenContained,
             ContainerPointsDefaultValue = obj.ContainerPointsDefaultValue,
             IsOpenable = obj.IsOpenable,
             IsOpenDefaultValue = obj.IsOpenDefaultValue,
@@ -6132,7 +6079,8 @@ public sealed class JsonExportService : IJsonExportService
         Func<string?, string, string>? resolveImagePath = null,
         Func<string?, string, string>? resolveSoundAssetRef = null,
         int? renderZOrderOverride = null,
-        Func<Guid, GameObject?>? resolveDefinition = null)
+        Func<Guid, GameObject?>? resolveDefinition = null,
+        IReadOnlyDictionary<Guid, CommandAction>? linkedActionLookup = null)
     {
         var persistedLinkedBaseObjectId = NormalizePersistedLinkedBaseObjectId(obj);
         var objectIdentity = obj.ObjectId == Guid.Empty ? "unknown" : obj.ObjectId.ToString("N");
@@ -6157,6 +6105,8 @@ public sealed class JsonExportService : IJsonExportService
             IsInventoriable = obj.IsInventoriable,
             InventoryPointsDefaultValue = obj.InventoryPointsDefaultValue,
             IsContainer = obj.IsContainer,
+            HideContainedObjects = obj.HideContainedObjects,
+            ShowWhenContained = obj.ShowWhenContained,
             ContainerPointsDefaultValue = obj.ContainerPointsDefaultValue,
             IsOpenable = obj.IsOpenable,
             IsOpenDefaultValue = obj.IsOpenDefaultValue,
@@ -6248,14 +6198,14 @@ public sealed class JsonExportService : IJsonExportService
                 .ToList()),
             AvailableGameActions = NullIfEmpty((obj.LinkActionsToBaseObject || obj.LinkedBaseObjectId.HasValue)
                 ? new List<RuntimeCommandActionDto>()
-                : ToCleanCommandActionDtos(obj.AvailableActions)
+                : ToCleanCommandActionDtos(obj.AvailableActions, linkedActionLookup)
                     .OrderBy(action => action.Name, StringComparer.OrdinalIgnoreCase)
                     .ThenBy(action => action.Id)
                     .ToList()),
             GameProperties = NullIfEmpty(BuildCleanObjectGameProperties(obj, effectiveDefinitionOwnedSource)),
             ContainedObjects = NullIfEmpty(obj.ContainedObjects
                 .OrderBy(child => child.Name, StringComparer.OrdinalIgnoreCase)
-                .Select(child => ToCleanGameObjectDto(child, obj.ObjectId, resolveImagePath, resolveSoundAssetRef, null, resolveDefinition))
+                .Select(child => ToCleanGameObjectDto(child, obj.ObjectId, resolveImagePath, resolveSoundAssetRef, null, resolveDefinition, linkedActionLookup))
                 .ToList())
         };
     }
@@ -6298,6 +6248,13 @@ public sealed class JsonExportService : IJsonExportService
         }
 
         return RoomObjectRenderZBase + (normalizedCount - normalizedIndex);
+    }
+
+    private static int ResolveRoomObjectRenderZOrder(GameObject gameObject, int siblingIndex, int siblingCount)
+    {
+        return gameObject.RenderZOrder != 0
+            ? gameObject.RenderZOrder
+            : ComputeRoomObjectRenderZOrder(siblingIndex, siblingCount);
     }
 
     private static void ApplyDerivedRoomRenderZOrders(IList<GameObject> roomObjects)
@@ -6722,10 +6679,12 @@ public sealed class JsonExportService : IJsonExportService
         };
     }
 
-    private static List<RuntimeCommandActionDto> ToCleanCommandActionDtos(IReadOnlyCollection<CommandAction>? actions)
+    private static List<RuntimeCommandActionDto> ToCleanCommandActionDtos(
+        IReadOnlyCollection<CommandAction>? actions,
+        IReadOnlyDictionary<Guid, CommandAction>? linkedActionLookup = null)
     {
         var safeActions = (actions ?? Array.Empty<CommandAction>()).ToList();
-        var actionLookup = safeActions
+        var actionLookup = linkedActionLookup ?? safeActions
             .Where(static action => action.Id != Guid.Empty)
             .GroupBy(static action => action.Id)
             .ToDictionary(static group => group.Key, static group => group.First());
@@ -7171,119 +7130,88 @@ public sealed class JsonExportService : IJsonExportService
         }
     }
 
-    private static List<ProjectCommandActionReferenceDto> BuildProjectLinkedFlowNodes(
-        CommandAction rootAction,
-        IReadOnlyDictionary<Guid, CommandAction> actionLookup)
+    private static List<ProjectCommandActionReferenceDto> BuildProjectLinkedFlowNodes(CommandAction rootAction)
     {
-        var rootLinks = NormalizeLinkedActionReferences(rootAction.LinkedActions);
-        if (rootLinks.Count == 0)
+        var definition = rootAction.LinkedFlowDefinition;
+        var nodesById = definition.Nodes
+            .Where(static node => node.NodeId > 0)
+            .GroupBy(static node => node.NodeId)
+            .ToDictionary(static group => group.Key, static group => group.First());
+        if (!definition.EntryNodeId.HasValue || !nodesById.ContainsKey(definition.EntryNodeId.Value))
         {
             return new List<ProjectCommandActionReferenceDto>();
         }
 
-        var orderedActionIds = new List<Guid>();
-        var nodeIdsByActionId = new Dictionary<Guid, int>();
-        var queuedActionIds = new HashSet<Guid>();
-        var pending = new Queue<Guid>();
-
-        foreach (var rootLink in rootLinks)
-        {
-            if (!actionLookup.ContainsKey(rootLink.ActionId) || !queuedActionIds.Add(rootLink.ActionId))
-            {
-                continue;
-            }
-
-            pending.Enqueue(rootLink.ActionId);
-        }
-
+        var orderedNodeIds = new List<int>();
+        var visitedNodeIds = new HashSet<int>();
+        var pending = new Queue<int>();
+        pending.Enqueue(definition.EntryNodeId.Value);
         while (pending.Count > 0)
         {
-            var actionId = pending.Dequeue();
-            if (nodeIdsByActionId.ContainsKey(actionId) || !actionLookup.TryGetValue(actionId, out var action))
+            var nodeId = pending.Dequeue();
+            if (!visitedNodeIds.Add(nodeId) || !nodesById.TryGetValue(nodeId, out var node))
             {
                 continue;
             }
 
-            var nextNodeId = nodeIdsByActionId.Count + 1;
-            nodeIdsByActionId[actionId] = nextNodeId;
-            orderedActionIds.Add(actionId);
-
-            foreach (var link in NormalizeLinkedActionReferences(action.LinkedActions))
+            orderedNodeIds.Add(nodeId);
+            foreach (var link in node.Links.OrderBy(static link => link.Order))
             {
-                if (!actionLookup.ContainsKey(link.ActionId) || queuedActionIds.Contains(link.ActionId))
-                {
-                    continue;
-                }
-
-                queuedActionIds.Add(link.ActionId);
-                pending.Enqueue(link.ActionId);
+                pending.Enqueue(link.TargetNodeId);
             }
         }
 
-        if (orderedActionIds.Count == 0)
+        foreach (var nodeId in nodesById.Keys.OrderBy(static id => id))
         {
-            return new List<ProjectCommandActionReferenceDto>();
+            if (visitedNodeIds.Add(nodeId))
+            {
+                orderedNodeIds.Add(nodeId);
+            }
         }
 
-        var nodesByActionId = new Dictionary<Guid, ProjectCommandActionReferenceDto>();
-        foreach (var actionId in orderedActionIds)
+        var result = new List<ProjectCommandActionReferenceDto>(orderedNodeIds.Count);
+        foreach (var nodeId in orderedNodeIds)
         {
-            if (!actionLookup.TryGetValue(actionId, out var action))
-            {
-                continue;
-            }
-
-            var actionLinks = NormalizeLinkedActionReferences(action.LinkedActions);
+            var source = nodesById[nodeId];
             var node = new ProjectCommandActionReferenceDto
             {
-                NodeId = nodeIdsByActionId[actionId],
-                ActionId = actionId,
+                NodeId = source.NodeId,
+                ActionId = source.ActionId,
+                OnAlwaysExitResult = source.OnAlwaysExitResult,
+                OnSuccessExitResult = source.OnSuccessExitResult,
+                OnFailureExitResult = source.OnFailureExitResult,
                 OnAlwaysNodeIds = new List<int>(),
                 OnSuccessNodeIds = new List<int>(),
                 OnFailureNodeIds = new List<int>()
             };
 
-            AddNodeIdsForBranch(node.OnAlwaysNodeIds, actionLinks, LinkedActionRunWhen.Always, nodeIdsByActionId);
-            AddNodeIdsForBranch(node.OnSuccessNodeIds, actionLinks, LinkedActionRunWhen.OnSuccess, nodeIdsByActionId);
-            AddNodeIdsForBranch(node.OnFailureNodeIds, actionLinks, LinkedActionRunWhen.OnFailure, nodeIdsByActionId);
-            nodesByActionId[actionId] = node;
-        }
-
-        var entryLink = rootLinks.FirstOrDefault(link => nodesByActionId.ContainsKey(link.ActionId));
-        if (entryLink is not null && nodesByActionId.TryGetValue(entryLink.ActionId, out var entryNode))
-        {
-            foreach (var extraRootLink in rootLinks.Skip(1))
+            foreach (var link in source.Links.OrderBy(static link => link.Order))
             {
-                if (!nodeIdsByActionId.TryGetValue(extraRootLink.ActionId, out var extraNodeId))
+                if (!nodesById.ContainsKey(link.TargetNodeId))
                 {
                     continue;
                 }
 
-                var targetList = extraRootLink.RunWhen switch
+                var targets = link.RunWhen switch
                 {
-                    LinkedActionRunWhen.OnSuccess => entryNode.OnSuccessNodeIds,
-                    LinkedActionRunWhen.OnFailure => entryNode.OnFailureNodeIds,
-                    _ => entryNode.OnAlwaysNodeIds
+                    LinkedActionRunWhen.OnSuccess => node.OnSuccessNodeIds,
+                    LinkedActionRunWhen.OnFailure => node.OnFailureNodeIds,
+                    _ => node.OnAlwaysNodeIds
                 };
-
-                if (!targetList.Contains(extraNodeId))
-                {
-                    targetList.Add(extraNodeId);
-                }
+                targets.Add(link.TargetNodeId);
             }
+
+            result.Add(node);
         }
 
-        return orderedActionIds
-            .Where(nodesByActionId.ContainsKey)
-            .Select(actionId => nodesByActionId[actionId])
-            .ToList();
+        return result;
     }
 
     private static ProjectCommandActionPayloadBaseDto? BuildLinkedActionsPayloadElement(
         CommandAction rootAction,
         IReadOnlyDictionary<Guid, CommandAction> actionLookup)
     {
-        var nodeDtos = BuildProjectLinkedFlowNodes(rootAction, actionLookup);
+        var nodeDtos = BuildProjectLinkedFlowNodes(rootAction);
         if (nodeDtos.Count == 0)
         {
             return null;
@@ -7627,7 +7555,7 @@ public sealed class JsonExportService : IJsonExportService
         CommandAction rootAction,
         IReadOnlyDictionary<Guid, CommandAction> actionLookup)
     {
-        var nodeDtos = BuildProjectLinkedFlowNodes(rootAction, actionLookup);
+        var nodeDtos = BuildProjectLinkedFlowNodes(rootAction);
         if (nodeDtos.Count == 0)
         {
             return null;
@@ -7639,6 +7567,9 @@ public sealed class JsonExportService : IJsonExportService
             {
                 NodeId = link.NodeId,
                 ActionId = link.ActionId,
+                OnAlwaysExitResult = link.OnAlwaysExitResult,
+                OnSuccessExitResult = link.OnSuccessExitResult,
+                OnFailureExitResult = link.OnFailureExitResult,
                 OnAlwaysNodeIds = link.OnAlwaysNodeIds.ToList(),
                 OnSuccessNodeIds = link.OnSuccessNodeIds.ToList(),
                 OnFailureNodeIds = link.OnFailureNodeIds.ToList()
@@ -8496,11 +8427,14 @@ public sealed class JsonExportService : IJsonExportService
         }
 
         return linkedFlowPayload.LinkedActions
-            .Where(static link => link.ActionId != Guid.Empty && link.NodeId > 0)
+            .Where(static link => link.NodeId > 0)
             .Select(static link => new ProjectCommandActionReferenceDto
             {
                 NodeId = link.NodeId,
                 ActionId = link.ActionId,
+                OnAlwaysExitResult = link.OnAlwaysExitResult,
+                OnSuccessExitResult = link.OnSuccessExitResult,
+                OnFailureExitResult = link.OnFailureExitResult,
                 OnAlwaysNodeIds = (link.OnAlwaysNodeIds ?? new List<int>())
                     .Where(static id => id > 0)
                     .Distinct()
@@ -8517,29 +8451,61 @@ public sealed class JsonExportService : IJsonExportService
             .ToList();
     }
 
-    private static List<LinkedActionReference> ResolveLinkedActionReferences(CommandActionDto action)
+    private static LinkedActionFlowDefinition CreateLinkedFlowDefinition(
+        IReadOnlyList<ProjectCommandActionReferenceDto>? nodes)
     {
-        var nodeDtos = TryGetLinkedActionsFromPayload(action.Payload);
-        if (nodeDtos is not { Count: > 0 })
+        var definition = new LinkedActionFlowDefinition();
+        if (nodes is not { Count: > 0 })
         {
-            return new List<LinkedActionReference>();
+            return definition;
         }
 
-        var entryNode = nodeDtos[0];
-        if (entryNode.ActionId == Guid.Empty)
+        var validNodes = nodes
+            .Where(static node => node.NodeId > 0)
+            .GroupBy(static node => node.NodeId)
+            .Select(static group => group.First())
+            .ToList();
+        if (validNodes.Count == 0)
         {
-            return new List<LinkedActionReference>();
+            return definition;
         }
 
-        return new List<LinkedActionReference>
+        definition.EntryNodeId = validNodes[0].NodeId;
+        foreach (var dto in validNodes)
         {
-            new()
+            var node = new LinkedActionFlowNode
             {
-                ActionId = entryNode.ActionId,
-                RunWhen = LinkedActionRunWhen.Always,
-                Order = 0
+                NodeId = dto.NodeId,
+                ActionId = dto.ActionId,
+                OnAlwaysExitResult = dto.OnAlwaysExitResult,
+                OnSuccessExitResult = dto.OnSuccessExitResult,
+                OnFailureExitResult = dto.OnFailureExitResult
+            };
+
+            AddFlowLinks(node.Links, dto.OnAlwaysNodeIds, LinkedActionRunWhen.Always);
+            AddFlowLinks(node.Links, dto.OnSuccessNodeIds, LinkedActionRunWhen.OnSuccess);
+            AddFlowLinks(node.Links, dto.OnFailureNodeIds, LinkedActionRunWhen.OnFailure);
+            definition.Nodes.Add(node);
+        }
+
+        return definition;
+
+        static void AddFlowLinks(
+            List<LinkedActionFlowLink> target,
+            IReadOnlyList<int>? targetNodeIds,
+            LinkedActionRunWhen runWhen)
+        {
+            var order = 0;
+            foreach (var targetNodeId in targetNodeIds ?? Array.Empty<int>())
+            {
+                target.Add(new LinkedActionFlowLink
+                {
+                    TargetNodeId = targetNodeId,
+                    RunWhen = runWhen,
+                    Order = order++
+                });
             }
-        };
+        }
     }
 
     private static SharedVariableDefinition ToSharedVariableModel(SharedVariableDefinitionDto dto)
@@ -8884,7 +8850,9 @@ public sealed class JsonExportService : IJsonExportService
         return resolved;
     }
 
-    private static PhaseNodeDto ToPhaseNodeDto(PhaseNode phaseNode)
+    private static PhaseNodeDto ToPhaseNodeDto(
+        PhaseNode phaseNode,
+        IReadOnlyDictionary<Guid, CommandAction> linkedActionLookup)
     {
         var dto = new PhaseNodeDto
         {
@@ -8910,7 +8878,7 @@ public sealed class JsonExportService : IJsonExportService
                 .Distinct()
                 .ToList(),
             GameProperties = phaseNode.Variables.Select(ToVariableDto).ToList(),
-            AvailableGameActions = ToCommandActionDtos(phaseNode.AvailableActions),
+            AvailableGameActions = ToCommandActionDtos(phaseNode.AvailableActions, linkedActionLookup),
             EventSubscriptions = phaseNode.EventSubscriptions.Select(ToProjectEventSubscriptionDto).ToList(),
             TimerDefinitions = phaseNode.TimerDefinitions.Select(ToProjectTimerDefinitionDto).ToList(),
             SequenceDefinitions = phaseNode.SequenceDefinitions.ToList(),
@@ -8920,7 +8888,7 @@ public sealed class JsonExportService : IJsonExportService
             AdditionalDirectionalTraversalMappings = ToDirectionalTraversalMappingDtos(phaseNode.DirectionalTraversalMappings)
         };
 
-        dto.Phases = phaseNode.Children.Select(ToPhaseNodeDto).ToList();
+        dto.Phases = phaseNode.Children.Select(child => ToPhaseNodeDto(child, linkedActionLookup)).ToList();
         return dto;
     }
 
@@ -9062,7 +9030,9 @@ public sealed class JsonExportService : IJsonExportService
         }
     }
 
-    private static RuntimePhaseNodeDto ToCleanRuntimePhaseNodeDto(PhaseNode phaseNode)
+    private static RuntimePhaseNodeDto ToCleanRuntimePhaseNodeDto(
+        PhaseNode phaseNode,
+        IReadOnlyDictionary<Guid, CommandAction> linkedActionLookup)
     {
         return new RuntimePhaseNodeDto
         {
@@ -9104,7 +9074,7 @@ public sealed class JsonExportService : IJsonExportService
                 .OrderBy(static mapping => mapping.Token, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static mapping => mapping.TraversalDirection)
                 .ToList()),
-            AvailableGameActions = NullIfEmpty(ToCleanCommandActionDtos(phaseNode.AvailableActions)
+            AvailableGameActions = NullIfEmpty(ToCleanCommandActionDtos(phaseNode.AvailableActions, linkedActionLookup)
                 .OrderBy(static action => action.Name, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(static action => action.Id)
                 .ToList()),

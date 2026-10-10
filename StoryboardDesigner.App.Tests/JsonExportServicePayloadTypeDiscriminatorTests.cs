@@ -260,13 +260,16 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
                 Payload = new SynonymPayload(synonymTargetId)
             };
 
-            var linkedReferences = new List<LinkedActionReference>
+            var linkedDefinition = new LinkedActionFlowDefinition
             {
-                new()
+                EntryNodeId = 1,
+                Nodes =
                 {
-                    ActionId = targetAction.Id,
-                    RunWhen = LinkedActionRunWhen.Always,
-                    Order = 2
+                    new LinkedActionFlowNode
+                    {
+                        NodeId = 1,
+                        ActionId = targetAction.Id
+                    }
                 }
             };
 
@@ -274,8 +277,7 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
             {
                 Name = "LinkedFlow",
                 ActionType = CommandActionType.LinkedActions,
-                LinkedActions = linkedReferences,
-                Payload = new LinkedFlowPayload(linkedReferences)
+                LinkedFlowDefinition = linkedDefinition
             };
 
             var room = new Room
@@ -595,11 +597,12 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
             Assert.IsType<SynonymPayload>(loadedSynonym.Payload);
 
             var linkedPayload = Assert.IsType<LinkedFlowPayload>(loadedLinked.Payload);
-            var linkedAction = Assert.Single(loadedLinked.LinkedActions);
+            var linkedAction = Assert.Single(loadedLinked.GetLinkedActions());
             Assert.Equal(targetAction.Id, linkedAction.ActionId);
             Assert.Equal(LinkedActionRunWhen.Always, linkedAction.RunWhen);
-            Assert.Single(linkedPayload.LinkedActions);
-            Assert.Equal(targetAction.Id, linkedPayload.LinkedActions[0].ActionId);
+            var loadedEntry = Assert.Single(linkedPayload.Definition.Nodes);
+            Assert.Equal(1, linkedPayload.Definition.EntryNodeId);
+            Assert.Equal(targetAction.Id, loadedEntry.ActionId);
         }
         finally
         {
@@ -684,16 +687,7 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
             {
                 Name = "First",
                 ActionType = CommandActionType.OpenObject,
-                Payload = new EchoPayload(),
-                LinkedActions =
-                [
-                    new LinkedActionReference
-                    {
-                        ActionId = followUp.Id,
-                        RunWhen = LinkedActionRunWhen.OnFailure,
-                        Order = 1
-                    }
-                ]
+                Payload = new EchoPayload()
             };
             ActionPayloadAccessors.SetEchoMessage(first, "opened");
 
@@ -728,7 +722,7 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
             var loadedRoom = Assert.Single(Assert.Single(Assert.Single(Assert.Single(loaded!.Planets).Countries).Areas).Rooms);
             var loadedFirst = loadedRoom.AvailableActions.Single(action => action.Name == "First");
 
-            Assert.Empty(loadedFirst.LinkedActions);
+            Assert.Empty(loadedFirst.GetLinkedActions());
         }
         finally
         {
@@ -761,15 +755,6 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
                 Name = "First",
                 ActionType = CommandActionType.OpenObject,
                 Payload = new EchoPayload(),
-                LinkedActions =
-                [
-                    new LinkedActionReference
-                    {
-                        ActionId = second.Id,
-                        RunWhen = LinkedActionRunWhen.OnFailure,
-                        Order = 0
-                    }
-                ]
             };
             ActionPayloadAccessors.SetEchoMessage(first, "first");
 
@@ -777,16 +762,28 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
             {
                 Name = "Root",
                 ActionType = CommandActionType.LinkedActions,
-                Payload = new LinkedFlowPayload(new List<LinkedActionReference>()),
-                LinkedActions =
-                [
-                    new LinkedActionReference
+                LinkedFlowDefinition = new LinkedActionFlowDefinition
+                {
+                    EntryNodeId = 1,
+                    Nodes =
                     {
-                        ActionId = first.Id,
-                        RunWhen = LinkedActionRunWhen.Always,
-                        Order = 0
+                        new LinkedActionFlowNode
+                        {
+                            NodeId = 1,
+                            ActionId = first.Id,
+                            Links =
+                            [
+                                new LinkedActionFlowLink
+                                {
+                                    TargetNodeId = 2,
+                                    RunWhen = LinkedActionRunWhen.OnFailure,
+                                    Order = 0
+                                }
+                            ]
+                        },
+                        new LinkedActionFlowNode { NodeId = 2, ActionId = second.Id }
                     }
-                ]
+                }
             };
 
             var room = new Room
@@ -815,13 +812,16 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
             var loadedFirst = loadedRoom.AvailableActions.Single(action => action.Name == "First");
             var loadedSecond = loadedRoom.AvailableActions.Single(action => action.Name == "Second");
 
-            var rootLink = Assert.Single(loadedRoot.LinkedActions);
+            var rootLink = Assert.Single(loadedRoot.GetLinkedActions());
             Assert.Equal(loadedFirst.Id, rootLink.ActionId);
             Assert.Equal(LinkedActionRunWhen.Always, rootLink.RunWhen);
 
-            var secondStepLink = Assert.Single(loadedFirst.LinkedActions);
-            Assert.Equal(loadedSecond.Id, secondStepLink.ActionId);
+            var rootFlow = loadedRoot.LinkedFlowDefinition;
+            var firstStep = Assert.Single(rootFlow.Nodes, node => node.ActionId == loadedFirst.Id);
+            var secondStepLink = Assert.Single(firstStep.Links);
+            Assert.Equal(2, secondStepLink.TargetNodeId);
             Assert.Equal(LinkedActionRunWhen.OnFailure, secondStepLink.RunWhen);
+            Assert.Equal(loadedSecond.Id, Assert.Single(rootFlow.Nodes, node => node.NodeId == secondStepLink.TargetNodeId).ActionId);
         }
         finally
         {

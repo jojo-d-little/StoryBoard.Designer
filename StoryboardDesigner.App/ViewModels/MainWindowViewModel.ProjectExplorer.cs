@@ -2877,6 +2877,33 @@ public sealed partial class MainWindowViewModel
         var timerKeySuggestions = GetTimerKeySuggestionsForScopeNode(target.ScopeNode);
         var sequenceDefinitionChoices = GetSequenceDefinitionChoices();
 
+        if (actionEntryNode.Action.ActionType == CommandActionType.LinkedActions)
+        {
+            var externalActionChoices = ResolveAdditionalLinkTargetActions(target.Actions, target.ScopeNode);
+            if (!_dialogWorkflowService.EditLinkedActionFlow(
+                    target.ScopeLabel,
+                    actionEntryNode.Action,
+                    target.Actions,
+                    externalActionChoices,
+                    target.VariableScope,
+                    variableChoices,
+                    echoReferenceTokens,
+                    containerTargetChoices,
+                    materializeSourceObjectChoices,
+                    procedureChoices,
+                    compositeRecipeChoices,
+                    soundEffectChoices,
+                    timerKeySuggestions,
+                    sequenceDefinitionChoices))
+            {
+                return false;
+            }
+
+            RefreshScopedActionNodesForSelection();
+            NotifyProjectEdited();
+            return true;
+        }
+
         if (!_dialogWorkflowService.EditSingleScopedAction(
                 actionEntryNode.Action,
                 target.VariableScope,
@@ -7853,6 +7880,8 @@ public sealed partial class MainWindowViewModel
                          || objectNode.GameObject.IsInventoriable != updated.IsInventoriable
                          || objectNode.GameObject.InventoryPointsDefaultValue != updated.InventoryPointsDefaultValue
                          || objectNode.GameObject.IsContainer != updated.IsContainer
+                         || objectNode.GameObject.HideContainedObjects != updated.HideContainedObjects
+                         || objectNode.GameObject.ShowWhenContained != (updated.IsInventoriable ? updated.ShowWhenContained : null)
                          || objectNode.GameObject.ContainerPointsDefaultValue != updated.ContainerPointsDefaultValue
                          || objectNode.GameObject.IsCapacityPointShareDividerEnabled != updated.IsCapacityPointShareDividerEnabled
                          || objectNode.GameObject.CapacityPointShareDividerDefaultValue != updated.CapacityPointShareDividerDefaultValue
@@ -7922,6 +7951,8 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.IsInventoriable = updated.IsInventoriable;
         objectNode.GameObject.InventoryPointsDefaultValue = updated.InventoryPointsDefaultValue;
         objectNode.GameObject.IsContainer = updated.IsContainer;
+        objectNode.GameObject.HideContainedObjects = updated.HideContainedObjects;
+        objectNode.GameObject.ShowWhenContained = updated.IsInventoriable ? updated.ShowWhenContained : null;
         objectNode.GameObject.ContainerPointsDefaultValue = updated.ContainerPointsDefaultValue;
         objectNode.GameObject.IsCapacityPointShareDividerEnabled = updated.IsCapacityPointShareDividerEnabled;
         objectNode.GameObject.CapacityPointShareDividerDefaultValue = updated.CapacityPointShareDividerDefaultValue;
@@ -8007,6 +8038,12 @@ public sealed partial class MainWindowViewModel
 
         RefreshScopedNameIndex(scopedObjects, static obj => obj.Name);
 
+        var owningRoomNode = GetAncestry(objectNode).OfType<RoomNodeViewModel>().FirstOrDefault();
+        if (owningRoomNode is not null)
+        {
+            RefreshOpenRoomEditorObjectLists(owningRoomNode.Room);
+        }
+
         NotifyProjectEdited();
         SelectedNode = objectNode;
         ExportStatus = shouldExpandIndividualInstances
@@ -8067,6 +8104,8 @@ public sealed partial class MainWindowViewModel
             IsInventoriable = instance.IsInventoriable,
             InventoryPointsDefaultValue = instance.InventoryPointsDefaultValue,
             IsContainer = instance.IsContainer,
+            HideContainedObjects = instance.HideContainedObjects,
+            ShowWhenContained = instance.ShowWhenContained,
             ContainerPointsDefaultValue = instance.ContainerPointsDefaultValue,
             IsCapacityPointShareDividerEnabled = instance.IsCapacityPointShareDividerEnabled,
             CapacityPointShareDividerDefaultValue = instance.CapacityPointShareDividerDefaultValue,
@@ -8195,7 +8234,9 @@ public sealed partial class MainWindowViewModel
                 PointLight: LightingModelCloner.ClonePointLight(gameObject.PointLight),
                 LightOcclusion: LightingModelCloner.CloneLightOcclusion(gameObject.LightOcclusion),
                 IsPointLightEnabledDefaultValue: gameObject.IsPointLightEnabledDefaultValue,
-                PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults));
+                PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults),
+                HideContainedObjects: gameObject.HideContainedObjects,
+                ShowWhenContained: gameObject.ShowWhenContained);
         }
 
         return new ObjectBasicPropertiesEditRequest(
@@ -8256,7 +8297,9 @@ public sealed partial class MainWindowViewModel
             PointLight: LightingModelCloner.ClonePointLight(gameObject.PointLight),
             LightOcclusion: LightingModelCloner.CloneLightOcclusion(gameObject.LightOcclusion),
             IsPointLightEnabledDefaultValue: gameObject.IsPointLightEnabledDefaultValue,
-            PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults));
+            PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults),
+            HideContainedObjects: gameObject.HideContainedObjects,
+            ShowWhenContained: gameObject.ShowWhenContained);
     }
 
     private static bool AreEquivalentImageVariants(IReadOnlyList<ObjectImageVariant>? left, IReadOnlyList<ObjectImageVariant>? right)
@@ -8564,6 +8607,8 @@ public sealed partial class MainWindowViewModel
                          || objectNode.GameObject.IsInventoriable != updated.IsInventoriable
                          || objectNode.GameObject.InventoryPointsDefaultValue != updated.InventoryPointsDefaultValue
                          || objectNode.GameObject.IsContainer != updated.IsContainer
+                         || objectNode.GameObject.HideContainedObjects != updated.HideContainedObjects
+                         || objectNode.GameObject.ShowWhenContained != (updated.IsInventoriable ? updated.ShowWhenContained : null)
                          || objectNode.GameObject.ContainerPointsDefaultValue != updated.ContainerPointsDefaultValue
                          || objectNode.GameObject.IsCapacityPointShareDividerEnabled != updated.IsCapacityPointShareDividerEnabled
                          || objectNode.GameObject.CapacityPointShareDividerDefaultValue != updated.CapacityPointShareDividerDefaultValue
@@ -8621,6 +8666,8 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.IsInventoriable = updated.IsInventoriable;
         objectNode.GameObject.InventoryPointsDefaultValue = updated.InventoryPointsDefaultValue;
         objectNode.GameObject.IsContainer = updated.IsContainer;
+        objectNode.GameObject.HideContainedObjects = updated.HideContainedObjects;
+        objectNode.GameObject.ShowWhenContained = updated.IsInventoriable ? updated.ShowWhenContained : null;
         objectNode.GameObject.ContainerPointsDefaultValue = updated.ContainerPointsDefaultValue;
         objectNode.GameObject.IsCapacityPointShareDividerEnabled = updated.IsCapacityPointShareDividerEnabled;
         objectNode.GameObject.CapacityPointShareDividerDefaultValue = updated.CapacityPointShareDividerDefaultValue;
@@ -8750,7 +8797,9 @@ public sealed partial class MainWindowViewModel
             PointLight: LightingModelCloner.ClonePointLight(objectNode.GameObject.PointLight),
             LightOcclusion: LightingModelCloner.CloneLightOcclusion(objectNode.GameObject.LightOcclusion),
             IsPointLightEnabledDefaultValue: objectNode.GameObject.IsPointLightEnabledDefaultValue,
-            PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults));
+            PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults),
+            HideContainedObjects: objectNode.GameObject.HideContainedObjects,
+            ShowWhenContained: objectNode.GameObject.ShowWhenContained);
 
         if (linkedDefinition is not null)
         {
@@ -8798,6 +8847,8 @@ public sealed partial class MainWindowViewModel
                          || objectNode.GameObject.IsInventoriable != updated.IsInventoriable
                          || objectNode.GameObject.InventoryPointsDefaultValue != updated.InventoryPointsDefaultValue
                          || objectNode.GameObject.IsContainer != updated.IsContainer
+                         || objectNode.GameObject.HideContainedObjects != updated.HideContainedObjects
+                         || objectNode.GameObject.ShowWhenContained != (updated.IsInventoriable ? updated.ShowWhenContained : null)
                          || objectNode.GameObject.ContainerPointsDefaultValue != updated.ContainerPointsDefaultValue
                          || objectNode.GameObject.IsCapacityPointShareDividerEnabled != updated.IsCapacityPointShareDividerEnabled
                          || objectNode.GameObject.CapacityPointShareDividerDefaultValue != updated.CapacityPointShareDividerDefaultValue
@@ -8859,6 +8910,8 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.IsInventoriable = updated.IsInventoriable;
         objectNode.GameObject.InventoryPointsDefaultValue = updated.InventoryPointsDefaultValue;
         objectNode.GameObject.IsContainer = updated.IsContainer;
+        objectNode.GameObject.HideContainedObjects = updated.HideContainedObjects;
+        objectNode.GameObject.ShowWhenContained = updated.IsInventoriable ? updated.ShowWhenContained : null;
         objectNode.GameObject.ContainerPointsDefaultValue = updated.ContainerPointsDefaultValue;
         objectNode.GameObject.IsCapacityPointShareDividerEnabled = updated.IsCapacityPointShareDividerEnabled;
         objectNode.GameObject.CapacityPointShareDividerDefaultValue = updated.CapacityPointShareDividerDefaultValue;
@@ -10832,6 +10885,8 @@ public sealed partial class MainWindowViewModel
             IsInventoriable = template.IsInventoriable,
             InventoryPointsDefaultValue = template.InventoryPointsDefaultValue,
             IsContainer = template.IsContainer,
+            HideContainedObjects = template.HideContainedObjects,
+            ShowWhenContained = template.ShowWhenContained,
             ContainerPointsDefaultValue = template.ContainerPointsDefaultValue,
             IsCapacityPointShareDividerEnabled = template.IsCapacityPointShareDividerEnabled,
             CapacityPointShareDividerDefaultValue = template.CapacityPointShareDividerDefaultValue,
@@ -11095,7 +11150,9 @@ public sealed partial class MainWindowViewModel
             ProjectRoomGridCellSize: _project.RoomDesignerGridCellSize,
             ProjectRoomCanvasWidth: _project.RoomImageCanvasWidth,
             ProjectRoomCanvasHeight: _project.RoomImageCanvasHeight,
-            PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults));
+            PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults),
+            HideContainedObjects: target.HideContainedObjects,
+            ShowWhenContained: target.ShowWhenContained);
 
         if (!_treeContextInteractionService.TryEditObjectBasicProperties(initial, out var updated))
         {
@@ -11124,6 +11181,8 @@ public sealed partial class MainWindowViewModel
         target.IsInventoriable = updated.IsInventoriable;
         target.InventoryPointsDefaultValue = updated.InventoryPointsDefaultValue;
         target.IsContainer = updated.IsContainer;
+        target.HideContainedObjects = updated.HideContainedObjects;
+        target.ShowWhenContained = updated.IsInventoriable ? updated.ShowWhenContained : null;
         target.ContainerPointsDefaultValue = updated.ContainerPointsDefaultValue;
         target.IsCapacityPointShareDividerEnabled = updated.IsCapacityPointShareDividerEnabled;
         target.CapacityPointShareDividerDefaultValue = updated.CapacityPointShareDividerDefaultValue;
@@ -11291,7 +11350,9 @@ public sealed partial class MainWindowViewModel
             ProjectRoomGridCellSize: _project.RoomDesignerGridCellSize,
             ProjectRoomCanvasWidth: _project.RoomImageCanvasWidth,
             ProjectRoomCanvasHeight: _project.RoomImageCanvasHeight,
-            PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults));
+            PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults),
+            HideContainedObjects: target.HideContainedObjects,
+            ShowWhenContained: target.ShowWhenContained);
 
         if (linkedDefinition is not null)
         {
@@ -11432,12 +11493,7 @@ public sealed partial class MainWindowViewModel
                 ChildCommandForwardingMode = action.ChildCommandForwardingMode,
                 OutcomeMessageMap = action.OutcomeMessageMap,
                 OutcomeSoundEffectsMap = CommandAction.CloneOutcomeSoundEffectsMap(action.OutcomeSoundEffectsMap),
-                LinkedActions = action.LinkedActions.Select(reference => new LinkedActionReference
-                {
-                    ActionId = reference.ActionId,
-                    Order = reference.Order,
-                    RunWhen = reference.RunWhen
-                }).ToList()
+                LinkedFlowDefinition = action.LinkedFlowDefinition.Clone()
             };
 
             ActionPayloadAccessors.SetEchoMessage(cloned, ActionPayloadAccessors.GetEchoMessage(action));
@@ -11453,11 +11509,11 @@ public sealed partial class MainWindowViewModel
                 cloned.SynonymTargetActionId = synonymMappedId;
             }
 
-            foreach (var linked in cloned.LinkedActions)
+            foreach (var flowNode in cloned.LinkedFlowDefinition.Nodes)
             {
-                if (map.TryGetValue(linked.ActionId, out var mappedId))
+                if (map.TryGetValue(flowNode.ActionId, out var mappedId))
                 {
-                    linked.ActionId = mappedId;
+                    flowNode.ActionId = mappedId;
                 }
             }
 

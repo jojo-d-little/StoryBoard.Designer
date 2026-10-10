@@ -17,9 +17,12 @@ public sealed class LinkedFlowTargetsSynonymRule : IValidationRule
         }
 
         var action = context.Action;
-        foreach (var link in action.GetLinkedActions())
+        var targetIds = action.ActionType == CommandActionType.LinkedActions
+            ? action.LinkedFlowDefinition.Nodes.Select(static node => node.ActionId)
+            : action.GetLinkedActions().Select(static link => link.ActionId);
+        foreach (var targetId in targetIds)
         {
-            if (!context.LinkTargetById.TryGetValue(link.ActionId, out var target)
+            if (!context.LinkTargetById.TryGetValue(targetId, out var target)
                 || target.ActionType != CommandActionType.Synonym)
             {
                 continue;

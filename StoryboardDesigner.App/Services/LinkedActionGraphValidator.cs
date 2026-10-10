@@ -10,32 +10,25 @@ public static class LinkedActionGraphValidator
         IReadOnlyCollection<CommandAction>? additionalLinkTargetActions = null)
     {
         var errors = new List<string>();
-        if (actions.Count == 0)
+        var actionById = actions
+            .Where(static action => action.Id != Guid.Empty)
+            .GroupBy(static action => action.Id)
+            .ToDictionary(static group => group.Key, static group => group.First());
+        var linkTargetById = new Dictionary<Guid, CommandAction>(actionById);
+        foreach (var externalAction in additionalLinkTargetActions ?? Array.Empty<CommandAction>())
         {
-            return errors;
-        }
-
-        var actionById = actions.ToDictionary(action => action.Id, action => action);
-        var linkTargetById = actions.ToDictionary(action => action.Id, action => action);
-        if (additionalLinkTargetActions is not null)
-        {
-            foreach (var externalAction in additionalLinkTargetActions)
+            if (externalAction.Id != Guid.Empty)
             {
-                if (!linkTargetById.ContainsKey(externalAction.Id))
-                {
-                    linkTargetById[externalAction.Id] = externalAction;
-                }
+                linkTargetById.TryAdd(externalAction.Id, externalAction);
             }
         }
 
         var linkedTargets = new HashSet<Guid>();
-
         foreach (var action in actions)
         {
             if (action.ActionType == CommandActionType.Synonym)
             {
                 var synonymTargetActionId = ActionPayloadAccessors.GetSynonymTargetActionId(action);
-
                 if (!synonymTargetActionId.HasValue)
                 {
                     errors.Add($"- {scopeLabel}: synonym action '{action.Name}' requires a target action.");
@@ -44,34 +37,71 @@ public static class LinkedActionGraphValidator
                 {
                     errors.Add($"- {scopeLabel}: synonym action '{action.Name}' cannot target itself.");
                 }
-                else if (!actionById.ContainsKey(synonymTargetActionId.Value))
+                else if (!linkTargetById.ContainsKey(synonymTargetActionId.Value))
                 {
                     errors.Add($"- {scopeLabel}: synonym action '{action.Name}' targets missing action id '{synonymTargetActionId.Value}'.");
                 }
             }
 
-            foreach (var link in action.LinkedActions)
+            if (action.ActionType != CommandActionType.LinkedActions)
             {
-                linkedTargets.Add(link.ActionId);
-                if (link.ActionId == action.Id)
+                continue;
+            }
+
+            var definition = action.LinkedFlowDefinition;
+            var nodesById = definition.Nodes
+                .Where(static node => node.NodeId > 0)
+                .GroupBy(static node => node.NodeId)
+                .ToDictionary(static group => group.Key, static group => group.First());
+
+            if (definition.Nodes.Count > nodesById.Count)
+            {
+                errors.Add($"- {scopeLabel}: linked action '{action.Name}' has duplicate or invalid flow node IDs.");
+            }
+
+            if (definition.Nodes.Count > 0 && !definition.EntryNodeId.HasValue)
+            {
+                errors.Add($"- {scopeLabel}: linked action '{action.Name}' has flow nodes but no entry step.");
+            }
+
+            if (definition.EntryNodeId.HasValue && !nodesById.ContainsKey(definition.EntryNodeId.Value))
+            {
+                errors.Add($"- {scopeLabel}: linked action '{action.Name}' has missing entry node {definition.EntryNodeId.Value}.");
+            }
+
+            foreach (var node in definition.Nodes)
+            {
+                linkedTargets.Add(node.ActionId);
+                if (node.ActionId == Guid.Empty || !linkTargetById.TryGetValue(node.ActionId, out var target))
                 {
-                    errors.Add($"- {scopeLabel}: action '{action.Name}' cannot link to itself.");
+                    errors.Add($"- {scopeLabel}: linked action '{action.Name}' references missing action id '{node.ActionId}'.");
+                }
+                else
+                {
+                    if (node.ActionId == action.Id)
+                    {
+                        errors.Add($"- {scopeLabel}: linked action '{action.Name}' cannot include itself.");
+                    }
+
+                    if (target.ActionType == CommandActionType.Synonym)
+                    {
+                        errors.Add($"- {scopeLabel}: linked flow cannot target synonym action '{target.Name}'.");
+                    }
                 }
 
-                if (!linkTargetById.ContainsKey(link.ActionId))
+                foreach (var link in node.Links)
                 {
-                    errors.Add($"- {scopeLabel}: action '{action.Name}' links to missing action id '{link.ActionId}'.");
-                    continue;
-                }
-
-                if (linkTargetById[link.ActionId].ActionType == CommandActionType.Synonym)
-                {
-                    errors.Add($"- {scopeLabel}: linked flow cannot target synonym action '{linkTargetById[link.ActionId].Name}'.");
+                    if (!nodesById.ContainsKey(link.TargetNodeId))
+                    {
+                        errors.Add($"- {scopeLabel}: linked action '{action.Name}' node {node.NodeId} targets missing flow node {link.TargetNodeId}.");
+                    }
                 }
             }
+
+            ValidateCycles(nodesById, linkTargetById, scopeLabel, errors);
         }
 
-        foreach (var synonymAction in actions.Where(action => action.ActionType == CommandActionType.Synonym))
+        foreach (var synonymAction in actions.Where(static action => action.ActionType == CommandActionType.Synonym))
         {
             if (linkedTargets.Contains(synonymAction.Id))
             {
@@ -79,63 +109,62 @@ public static class LinkedActionGraphValidator
             }
         }
 
-        var visited = new HashSet<Guid>();
-        var visiting = new HashSet<Guid>();
-        var stack = new Stack<Guid>();
-
-        foreach (var action in actions)
-        {
-            if (!visited.Contains(action.Id))
-            {
-                Visit(action.Id);
-            }
-        }
-
         return errors;
+    }
 
-        void Visit(Guid actionId)
+    private static void ValidateCycles(
+        IReadOnlyDictionary<int, LinkedActionFlowNode> nodesById,
+        IReadOnlyDictionary<Guid, CommandAction> actionLookup,
+        string scopeLabel,
+        List<string> errors)
+    {
+        var visiting = new HashSet<int>();
+        var visited = new HashSet<int>();
+        var path = new List<int>();
+
+        foreach (var nodeId in nodesById.Keys)
         {
-            if (visiting.Contains(actionId))
-            {
-                var path = stack.Reverse().Concat(new[] { actionId }).ToList();
-                errors.Add($"- {scopeLabel}: linked-action cycle detected ({FormatPath(path)}).");
-                return;
-            }
-
-            if (visited.Contains(actionId))
-            {
-                return;
-            }
-
-            if (!actionById.TryGetValue(actionId, out var action))
-            {
-                return;
-            }
-
-            visiting.Add(actionId);
-            stack.Push(actionId);
-
-            foreach (var targetId in action.LinkedActions
-                         .Select(link => link.ActionId)
-                         .Where(actionById.ContainsKey)
-                         .Distinct())
-            {
-                Visit(targetId);
-            }
-
-            stack.Pop();
-            visiting.Remove(actionId);
-            visited.Add(actionId);
+            Visit(nodeId);
         }
 
-        string FormatPath(List<Guid> ids)
+        void Visit(int nodeId)
         {
-            var names = ids
-                .Select(id => actionById.TryGetValue(id, out var node)
-                    ? $"{node.Name} ({id:N})"
-                    : id.ToString("N"))
-                .ToList();
-            return string.Join(" -> ", names);
+            if (visiting.Contains(nodeId))
+            {
+                var cycle = path.SkipWhile(id => id != nodeId).Append(nodeId).ToList();
+                errors.Add($"- {scopeLabel}: linked-action cycle detected ({FormatPath(cycle)}).");
+                return;
+            }
+
+            if (visited.Contains(nodeId) || !nodesById.TryGetValue(nodeId, out var node))
+            {
+                return;
+            }
+
+            visiting.Add(nodeId);
+            path.Add(nodeId);
+            foreach (var link in node.Links)
+            {
+                Visit(link.TargetNodeId);
+            }
+            path.RemoveAt(path.Count - 1);
+            visiting.Remove(nodeId);
+            visited.Add(nodeId);
+        }
+
+        string FormatPath(IEnumerable<int> nodeIds)
+        {
+            return string.Join(" -> ", nodeIds.Select(nodeId =>
+            {
+                if (!nodesById.TryGetValue(nodeId, out var node))
+                {
+                    return $"node {nodeId}";
+                }
+
+                return actionLookup.TryGetValue(node.ActionId, out var action)
+                    ? $"{action.Name} ({node.ActionId:N})"
+                    : $"{node.ActionId:N}";
+            }));
         }
     }
 }

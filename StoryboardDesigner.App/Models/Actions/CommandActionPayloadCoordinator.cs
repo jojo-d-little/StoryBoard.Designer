@@ -7,7 +7,7 @@ internal static class CommandActionPayloadCoordinator
 
     private static readonly string[] LinkedProjectionProperties =
     [
-        nameof(CommandAction.LinkedActions)
+        nameof(CommandAction.LinkedFlowDefinition)
     ];
 
     private static readonly string[] SynonymProjectionProperties =
@@ -154,7 +154,7 @@ internal static class CommandActionPayloadCoordinator
     {
         return actionType switch
         {
-            CommandActionType.LinkedActions => new LinkedFlowPayload(new List<LinkedActionReference>()),
+            CommandActionType.LinkedActions => new LinkedFlowPayload(new LinkedActionFlowDefinition()),
             CommandActionType.Synonym => new SynonymPayload(null),
             CommandActionType.EchoMessage => new EchoPayload(),
             CommandActionType.SetFlag => new SetFlagPayload(string.Empty, false),
@@ -203,16 +203,8 @@ internal static class CommandActionPayloadCoordinator
         };
     }
 
-    public static IActionPayload? CreateSnapshot(
-        CommandActionType actionType,
-        IActionPayload payload,
-        IReadOnlyList<LinkedActionReference> linkedActions)
+    public static IActionPayload? CreateSnapshot(IActionPayload payload)
     {
-        if (actionType == CommandActionType.LinkedActions)
-        {
-            return new LinkedFlowPayload(CloneLinkedActions(linkedActions));
-        }
-
         return ClonePayload(payload);
     }
 
@@ -220,7 +212,7 @@ internal static class CommandActionPayloadCoordinator
     {
         return payload switch
         {
-            LinkedFlowPayload linkedFlow => new LinkedFlowPayload(CloneLinkedActions(linkedFlow.LinkedActions)),
+            LinkedFlowPayload linkedFlow => new LinkedFlowPayload(linkedFlow.Definition.Clone()),
             SynonymPayload synonym => new SynonymPayload(synonym.SynonymTargetActionId),
             EchoPayload => new EchoPayload(),
             SetFlagPayload setFlag => new SetFlagPayload(setFlag.FlagName, setFlag.FlagValue),
@@ -300,19 +292,6 @@ internal static class CommandActionPayloadCoordinator
                 breakComposite.CompositePartConsumptionMode),
             _ => payload
         };
-    }
-
-    public static bool TryReadCompatibilityState(IActionPayload payload, out List<LinkedActionReference>? linkedActions)
-    {
-        linkedActions = null;
-
-        if (payload is LinkedFlowPayload linkedFlow)
-        {
-            linkedActions = CloneLinkedActions(linkedFlow.LinkedActions);
-            return true;
-        }
-
-        return false;
     }
 
     public static string GetCheckPropertyName(IActionPayload payload)
@@ -623,13 +602,4 @@ internal static class CommandActionPayloadCoordinator
         };
     }
 
-    private static List<LinkedActionReference> CloneLinkedActions(IEnumerable<LinkedActionReference> links)
-    {
-        return links.Select(static link => new LinkedActionReference
-        {
-            ActionId = link.ActionId,
-            RunWhen = link.RunWhen,
-            Order = link.Order
-        }).ToList();
-    }
 }

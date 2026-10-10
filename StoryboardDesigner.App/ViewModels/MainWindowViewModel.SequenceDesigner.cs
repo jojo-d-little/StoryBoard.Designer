@@ -16,7 +16,8 @@ public enum SequenceTimelineToolMode
 {
     Select,
     Move,
-    Ripple
+    Ripple,
+    Relocate
 }
 
 public sealed partial class MainWindowViewModel
@@ -30,6 +31,7 @@ public sealed partial class MainWindowViewModel
         public string RulerLabel { get; init; } = string.Empty;
         public bool ShowRulerLabel { get; init; }
         public bool HasSteps { get; init; }
+        public bool IsDisplayGap { get; init; }
         public double Width { get; init; }
         public ObservableCollection<SequenceTimelineBranchLaneViewModel> Lanes { get; } = new();
     }
@@ -66,6 +68,7 @@ public sealed partial class MainWindowViewModel
         public string RoutingLabel => $"{BranchDisplayName} · {Step.ContinuationMode ?? ContinuationMode.Continue}";
         public string DisplayTitle => Step.StepType == SequenceStepType.Sound ? "Sound effect" : "Action";
         public string ActionDisplayName { get; init; } = string.Empty;
+        public string ActionSourceLabel { get; init; } = string.Empty;
         public string SoundEffectLabel { get; init; } = string.Empty;
         public string SoundDurationLabel { get; init; } = string.Empty;
         public int? PlaybackStartOffsetMs { get; init; }
@@ -83,6 +86,7 @@ public sealed partial class MainWindowViewModel
         private string _displayName = string.Empty;
 
         public Guid? StepId { get; init; }
+        public bool IsPreservedCurrentTarget { get; init; }
         public string DisplayName
         {
             get => _displayName;
@@ -111,6 +115,7 @@ public sealed partial class MainWindowViewModel
     private readonly ObservableCollection<ProjectSequenceDefinitionDto> _sequenceDefinitions = new();
     private readonly ObservableCollection<ProjectSequenceStepDto> _sequenceSteps = new();
     private readonly ObservableCollection<SequenceTimelineTimeSliceViewModel> _sequenceTimeSlices = new();
+    private readonly ObservableCollection<SequenceTimelineTimeSliceViewModel> _sequenceFlowTimeSlices = new();
     private readonly ObservableCollection<SequenceStepTargetChoice> _sequenceStepTargetChoices = new();
     private readonly Dictionary<Guid, IReadOnlyList<SequenceDefinitionIssue>> _sequenceValidationResults = new();
     private IReadOnlyList<SoundEffectChoiceItem> _sequenceSoundEffectChoices = Array.Empty<SoundEffectChoiceItem>();
@@ -209,8 +214,56 @@ public sealed partial class MainWindowViewModel
     public string SelectedSequenceScopeName => _selectedSequenceScope?.ScopeName ?? string.Empty;
     public bool HasSelectedSequenceScope => _selectedSequenceScope is not null;
     public bool HasSelectedSequenceSteps => _selectedSequenceDefinition?.Steps?.Count > 0;
+    public Guid? SelectedSequenceSoundEffectId
+    {
+        get => SelectedSequenceStep?.SoundEffectId;
+        set
+        {
+            if (SelectedSequenceStep is not { StepType: SequenceStepType.Sound } step
+                || step.SoundEffectId == value)
+            {
+                return;
+            }
+
+            step.SoundEffectId = value;
+            OnPropertyChanged();
+            RefreshSequenceTimeline();
+            NotifySequenceProjectEdited();
+        }
+    }
     public bool IsSelectedSequenceSoundStep => SelectedSequenceStep?.StepType == SequenceStepType.Sound;
     public bool IsSelectedSequenceActionStep => SelectedSequenceStep?.StepType == SequenceStepType.Action;
+    public bool IsSelectedSequenceInlineAction => IsSelectedSequenceActionStep && SelectedSequenceStep?.InlineAction is not null;
+    public Guid? SelectedSequenceActionId
+    {
+        get => SelectedSequenceStep is { StepType: SequenceStepType.Action, InlineAction: null } step ? step.ActionId : null;
+        set
+        {
+            if (SelectedSequenceStep is not { StepType: SequenceStepType.Action } step
+                || value is not Guid actionId
+                || step.InlineAction is null && step.ActionId == actionId
+                || !GetSequenceActionPickerChoices().Any(choice => choice.Action.Id == actionId))
+            {
+                return;
+            }
+
+            // Replace only the action reference. Keep this step's identity, timing,
+            // branch, and outcome targets intact.
+            step.ActionId = actionId;
+            step.InlineAction = null;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsSelectedSequenceInlineAction));
+            OnPropertyChanged(nameof(SelectedSequenceActionDisplayName));
+            OnPropertyChanged(nameof(SelectedSequenceActionSourceDescription));
+            OnPropertyChanged(nameof(SequenceActionPickerButtonText));
+            _editSequenceActionCommand?.RaiseCanExecuteChanged();
+            RefreshSequenceTimeline();
+            NotifySequenceProjectEdited();
+        }
+    }
+    public string SequenceActionPickerButtonText => IsSelectedSequenceInlineAction
+        ? "Replace with shared action…"
+        : "Choose shared action…";
     public string SelectedSequenceActionDisplayName => SelectedSequenceStep is null
         ? string.Empty
         : GetSequenceActionDisplayName(SelectedSequenceStep);
@@ -246,6 +299,7 @@ public sealed partial class MainWindowViewModel
     public ObservableCollection<ProjectSequenceDefinitionDto> SequenceDefinitions => _sequenceDefinitions;
     public ObservableCollection<ProjectSequenceStepDto> SequenceSteps => _sequenceSteps;
     public ObservableCollection<SequenceTimelineTimeSliceViewModel> SequenceTimeSlices => _sequenceTimeSlices;
+    public ObservableCollection<SequenceTimelineTimeSliceViewModel> SequenceFlowTimeSlices => _sequenceFlowTimeSlices;
     public ObservableCollection<SequenceStepTargetChoice> SequenceStepTargetChoices => _sequenceStepTargetChoices;
     public IReadOnlyList<ProjectSequenceBranchDto> SequenceBranchDefinitions => SelectedSequenceDefinition is { } definition
         ? definition.Branches
@@ -460,29 +514,45 @@ public sealed partial class MainWindowViewModel
     }
 
     public bool CanAddSequenceStepAtOffset(int offset, string branchId)
+        => GetSequenceStepAddDisabledReason(offset, branchId) is null;
+
+    public string? GetSequenceStepAddDisabledReason(int offset, string branchId)
     {
-        if (SelectedSequenceDefinition?.Steps is not { } steps
-            || offset < 0 || offset % 50 != 0
-            || !SequenceBranchChoices.Contains(branchId, StringComparer.Ordinal))
+        if (SelectedSequenceDefinition?.Steps is not { } steps)
         {
-            return false;
+            return "Open a sequence before adding a step.";
         }
 
-        var firstBranchOffset = steps
-            .Where(step => string.Equals(step.BranchId ?? MainSequenceBranchId, branchId, StringComparison.Ordinal))
-            .Select(static step => (int?)step.OffsetMs)
-            .Min();
-        if (firstBranchOffset.HasValue && offset < firstBranchOffset.Value)
+        if (offset < 0 || offset % 50 != 0)
         {
-            return false;
+            return "Choose a timeline position aligned to a 50 ms time slot.";
         }
 
-        var insertionOrder = NextSequenceOrderAtOffset(steps, offset);
-        var branchAlreadyTransfersOrEnds = steps.Any(step =>
-            string.Equals(step.BranchId ?? MainSequenceBranchId, branchId, StringComparison.Ordinal)
-            && (step.ContinuationMode ?? ContinuationMode.Continue) != ContinuationMode.Continue
-            && (step.OffsetMs < offset || step.OffsetMs == offset && step.Order < insertionOrder));
-        return !branchAlreadyTransfersOrEnds;
+        if (!SequenceBranchChoices.Contains(branchId, StringComparer.Ordinal))
+        {
+            return "This branch is no longer available in the open sequence.";
+        }
+
+        // A branch lane is an authoring surface, not a closed time range. Allow
+        // temporary insertions before its current first step or after its current
+        // terminal step so authors can add and then rewire/refactor the flow.
+        return null;
+    }
+
+    public string? GetForkOutcomeAddDisabledReason(int offset)
+    {
+        if (SelectedSequenceStep is not { StepType: SequenceStepType.Action } source
+            || (source.ContinuationMode ?? ContinuationMode.Continue) != ContinuationMode.Branch)
+        {
+            return "Select an action step in Branch mode before adding an outcome step.";
+        }
+
+        if (offset < source.OffsetMs)
+        {
+            return $"An outcome branch cannot start before its source step ({source.OffsetMs:N0} ms). Choose that time or later.";
+        }
+
+        return null;
     }
     public string SelectedSequenceBranchId
     {
@@ -576,6 +646,11 @@ public sealed partial class MainWindowViewModel
         get => _sequenceTimelineToolMode == SequenceTimelineToolMode.Ripple;
         set { if (value) SetSequenceTimelineTool(SequenceTimelineToolMode.Ripple); }
     }
+    public bool IsSequenceRelocateToolActive
+    {
+        get => _sequenceTimelineToolMode == SequenceTimelineToolMode.Relocate;
+        set { if (value) SetSequenceTimelineTool(SequenceTimelineToolMode.Relocate); }
+    }
     public SequenceTimelineToolMode SequenceTimelineTool => _sequenceTimelineToolMode;
 
     public void SetSequenceZoom(double value) => SequenceZoom = value;
@@ -592,6 +667,92 @@ public sealed partial class MainWindowViewModel
         OnPropertyChanged(nameof(IsSequenceSelectToolActive));
         OnPropertyChanged(nameof(IsSequenceMoveToolActive));
         OnPropertyChanged(nameof(IsSequenceRippleToolActive));
+        OnPropertyChanged(nameof(IsSequenceRelocateToolActive));
+    }
+
+    public string GetSequenceRelocationPreviewDescription(
+        ProjectSequenceStepDto step,
+        int targetOffsetMs,
+        string targetBranchId)
+    {
+        var stepNumber = _sequenceSteps.IndexOf(step) + 1;
+        var sourceBranchName = GetSequenceBranchDisplayName(step.BranchId ?? MainSequenceBranchId);
+        var targetBranchName = GetSequenceBranchDisplayName(targetBranchId);
+        var insertionNote = SelectedSequenceDefinition?.Steps?.Any(candidate =>
+                !ReferenceEquals(candidate, step)
+                && candidate.OffsetMs == targetOffsetMs
+                && string.Equals(candidate.BranchId, targetBranchId, StringComparison.Ordinal)) == true
+            ? "at the end of that branch's steps in this time slot"
+            : "at this time on the destination branch";
+
+        return $"Relocate Step {stepNumber} from {sourceBranchName} to {targetBranchName} at {targetOffsetMs:N0} ms, {insertionNote}. Explicit outcome links stay attached; Continue flow follows the new branch order.";
+    }
+
+    public bool RelocateSequenceStepTo(
+        ProjectSequenceStepDto step,
+        int targetOffsetMs,
+        string targetBranchId)
+    {
+        if (step is null
+            || SelectedSequenceDefinition?.Steps is not { } steps
+            || !steps.Contains(step)
+            || targetOffsetMs < 0
+            || targetOffsetMs % 50 != 0
+            || !SequenceBranchChoices.Contains(targetBranchId, StringComparer.Ordinal)
+            || _sequenceTimelineToolMode != SequenceTimelineToolMode.Relocate
+            || (step.OffsetMs == targetOffsetMs
+                && string.Equals(step.BranchId, targetBranchId, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        ResetSequencePerformanceMeasurements();
+        var elapsed = Stopwatch.StartNew();
+        var sourceOffsetMs = step.OffsetMs;
+        var sourceBranchId = step.BranchId ?? MainSequenceBranchId;
+        var destinationTimeGroup = steps
+            .Where(candidate => !ReferenceEquals(candidate, step) && candidate.OffsetMs == targetOffsetMs)
+            .OrderBy(static candidate => candidate.Order)
+            .ThenBy(static candidate => candidate.StepId)
+            .ToList();
+        var destinationBranchSteps = destinationTimeGroup
+            .Where(candidate => string.Equals(candidate.BranchId ?? MainSequenceBranchId, targetBranchId, StringComparison.Ordinal))
+            .ToList();
+        var terminalDestinationStep = destinationBranchSteps.FirstOrDefault(candidate =>
+            (candidate.ContinuationMode ?? ContinuationMode.Continue) != ContinuationMode.Continue);
+        var insertionIndex = terminalDestinationStep is not null
+            ? destinationTimeGroup.IndexOf(terminalDestinationStep)
+            : destinationBranchSteps.Count > 0
+                ? destinationTimeGroup.IndexOf(destinationBranchSteps[^1]) + 1
+                : destinationTimeGroup.Count;
+
+        step.OffsetMs = targetOffsetMs;
+        step.BranchId = targetBranchId;
+        destinationTimeGroup.Insert(Math.Clamp(insertionIndex, 0, destinationTimeGroup.Count), step);
+        for (var index = 0; index < destinationTimeGroup.Count; index++)
+        {
+            destinationTimeGroup[index].Order = index;
+        }
+
+        foreach (var timeGroup in steps.GroupBy(static candidate => candidate.OffsetMs))
+        {
+            var orderedGroup = timeGroup.OrderBy(static candidate => candidate.Order).ThenBy(static candidate => candidate.StepId).ToList();
+            for (var index = 0; index < orderedGroup.Count; index++)
+            {
+                orderedGroup[index].Order = index;
+            }
+        }
+
+        SelectedSequenceStep = step;
+        RefreshSequenceSteps();
+        OnPropertyChanged(nameof(SelectedSequenceStep));
+        OnPropertyChanged(nameof(SelectedSequenceBranchId));
+        NotifySequenceProjectEdited();
+        QueueSequenceEditPerformance(
+            $"relocate branch={GetSequenceBranchDisplayName(sourceBranchId)}->{GetSequenceBranchDisplayName(targetBranchId)}, "
+            + $"from={sourceOffsetMs}ms to={targetOffsetMs}ms",
+            elapsed);
+        return true;
     }
 
     public bool MoveSequenceStepToOffset(ProjectSequenceStepDto step, int targetOffsetMs)
@@ -825,7 +986,8 @@ public sealed partial class MainWindowViewModel
         {
             var target = orderedSteps.FirstOrDefault(step => step.StepId == choice.StepId);
             if (target is null) continue;
-            choice.DisplayName = $"{labelsByStepId[target.StepId]} · {GetSequenceActionDisplayName(target)} · {target.OffsetMs} ms · {GetSequenceBranchDisplayName(target.BranchId)}";
+            var currentLinkNote = choice.IsPreservedCurrentTarget ? " · current link outside eligible range" : string.Empty;
+            choice.DisplayName = $"{labelsByStepId[target.StepId]} · {GetSequenceActionDisplayName(target)} · {target.OffsetMs} ms · {GetSequenceBranchDisplayName(target.BranchId)}{currentLinkNote}";
         }
 
         _lastSequenceRouteLabelsMs = elapsed.Elapsed.TotalMilliseconds;
@@ -929,8 +1091,13 @@ public sealed partial class MainWindowViewModel
             _sequenceContinuationEditMessage = string.Empty;
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsSelectedSequenceSoundStep));
+            OnPropertyChanged(nameof(SelectedSequenceSoundEffectId));
             OnPropertyChanged(nameof(IsSelectedSequenceActionStep));
+            OnPropertyChanged(nameof(IsSelectedSequenceInlineAction));
             OnPropertyChanged(nameof(SelectedSequenceActionDisplayName));
+            OnPropertyChanged(nameof(SelectedSequenceActionSourceDescription));
+            OnPropertyChanged(nameof(SelectedSequenceActionId));
+            OnPropertyChanged(nameof(SequenceActionPickerButtonText));
             OnPropertyChanged(nameof(IsSelectedSequenceActionRouteMode));
             OnPropertyChanged(nameof(IsSelectedSequenceSoundMergeMode));
             OnPropertyChanged(nameof(SelectedSequenceContinuationDescription));
@@ -1083,26 +1250,76 @@ public sealed partial class MainWindowViewModel
             .ThenBy(static step => step.Order)
             .ToList() ?? new List<ProjectSequenceStepDto>();
         var selected = SelectedSequenceStep;
+        var isBranch = SelectedSequenceContinuationMode == ContinuationMode.Branch;
         for (var index = 0; index < steps.Count; index++)
         {
             var step = steps[index];
             var isMerge = SelectedSequenceContinuationMode == ContinuationMode.Merge;
             if (selected is not null
                 && (step.OffsetMs < selected.OffsetMs
-                    || step.OffsetMs == selected.OffsetMs && step.Order <= selected.Order && !isMerge
+                    || step.OffsetMs == selected.OffsetMs && step.Order <= selected.Order && !isMerge && !isBranch
                     || isMerge
                         && string.Equals(step.BranchId, selected.BranchId, StringComparison.Ordinal)))
             {
                 continue;
             }
 
-            var title = GetSequenceActionDisplayName(step);
             _sequenceStepTargetChoices.Add(new SequenceStepTargetChoice
             {
                 StepId = step.StepId,
-                DisplayName = $"Step {index + 1} · {title} · {step.OffsetMs} ms · {GetSequenceBranchDisplayName(step.BranchId)}"
+                DisplayName = FormatTargetChoice(step, index, isPreservedCurrentTarget: false)
             });
         }
+
+        // Keep already-authored links selectable even when they violate the normal
+        // forward-time filter. The flow canvas draws the stored IDs, so hiding these
+        // choices made arrows appear while the corresponding property looked empty.
+        var includedTargetIds = _sequenceStepTargetChoices
+            .Where(static choice => choice.StepId.HasValue)
+            .Select(static choice => choice.StepId!.Value)
+            .ToHashSet();
+        var existingTargetIds = new[]
+            {
+                selected?.OnSuccessStepId,
+                selected?.OnFailureStepId,
+                selected?.MergeTargetStepId
+            }
+            .Where(static targetId => targetId.HasValue)
+            .Select(static targetId => targetId!.Value)
+            .Distinct();
+        foreach (var targetId in existingTargetIds)
+        {
+            if (!includedTargetIds.Add(targetId))
+            {
+                continue;
+            }
+
+            var targetIndex = steps.FindIndex(step => step.StepId == targetId);
+            if (targetIndex < 0)
+            {
+                _sequenceStepTargetChoices.Add(new SequenceStepTargetChoice
+                {
+                    StepId = targetId,
+                    IsPreservedCurrentTarget = true,
+                    DisplayName = $"Missing step · {targetId:D} · current link outside eligible range"
+                });
+                continue;
+            }
+
+            _sequenceStepTargetChoices.Add(new SequenceStepTargetChoice
+            {
+                StepId = targetId,
+                IsPreservedCurrentTarget = true,
+                DisplayName = FormatTargetChoice(steps[targetIndex], targetIndex, isPreservedCurrentTarget: true)
+            });
+        }
+
+        string FormatTargetChoice(ProjectSequenceStepDto step, int index, bool isPreservedCurrentTarget)
+        {
+            var currentLinkNote = isPreservedCurrentTarget ? " · current link outside eligible range" : string.Empty;
+            return $"Step {index + 1} · {GetSequenceActionDisplayName(step)} · {step.OffsetMs} ms · {GetSequenceBranchDisplayName(step.BranchId)}{currentLinkNote}";
+        }
+
         OnPropertyChanged(nameof(SequenceStepTargetChoices));
         OnPropertyChanged(nameof(SequenceMergeTargetChoices));
         OnPropertyChanged(nameof(SelectedSequenceSuccessTargetChoice));
@@ -1138,7 +1355,52 @@ public sealed partial class MainWindowViewModel
     {
         var elapsed = Stopwatch.StartNew();
         _sequenceTimeSlices.Clear();
+        _sequenceFlowTimeSlices.Clear();
         var steps = _sequenceSteps.ToList();
+        var soundEffectNamesById = new Dictionary<Guid, string>();
+        foreach (var choice in _sequenceSoundEffectChoices)
+        {
+            var name = !string.IsNullOrWhiteSpace(choice.DisplayName)
+                ? choice.DisplayName.Trim()
+                : choice.SoundEffectKey.Trim();
+            if (choice.SoundEffectId != Guid.Empty && !string.IsNullOrWhiteSpace(name))
+            {
+                soundEffectNamesById.TryAdd(choice.SoundEffectId, name);
+            }
+        }
+
+        // Existing steps can retain a sound reference even if the library entry is
+        // no longer in the sequence owner's currently selectable scopes. Resolve
+        // those labels from the project so the card still shows the authored name.
+        var unresolvedSoundEffectIds = steps
+            .Where(static step => step.StepType == SequenceStepType.Sound)
+            .Select(static step => step.SoundEffectId)
+            .Where(static soundEffectId => soundEffectId.HasValue && soundEffectId.Value != Guid.Empty)
+            .Select(static soundEffectId => soundEffectId!.Value)
+            .Where(soundEffectId => !soundEffectNamesById.ContainsKey(soundEffectId))
+            .ToHashSet();
+        foreach (var entry in unresolvedSoundEffectIds.Count == 0
+                     ? Enumerable.Empty<SoundEffectLibraryEntry>()
+                     : EnumerateProjectSoundEffectLibraryEntries())
+        {
+            if (!unresolvedSoundEffectIds.Contains(entry.SoundEffectId))
+            {
+                continue;
+            }
+
+            var name = !string.IsNullOrWhiteSpace(entry.DisplayName)
+                ? entry.DisplayName.Trim()
+                : (entry.SoundEffectKey ?? string.Empty).Trim();
+            if (entry.SoundEffectId != Guid.Empty && !string.IsNullOrWhiteSpace(name))
+            {
+                soundEffectNamesById.TryAdd(entry.SoundEffectId, name);
+                unresolvedSoundEffectIds.Remove(entry.SoundEffectId);
+                if (unresolvedSoundEffectIds.Count == 0)
+                {
+                    break;
+                }
+            }
+        }
 
         var stepNumbers = steps.Select((step, index) => (step.StepId, Label: $"Step {index + 1}"))
             .Where(static pair => pair.StepId != Guid.Empty)
@@ -1327,20 +1589,22 @@ public sealed partial class MainWindowViewModel
                         var playback = soundTimings.GetValueOrDefault(step);
                         var routeMode = step.ContinuationMode ?? ContinuationMode.Continue;
                         var soundName = step.SoundEffectId is Guid selectedSoundId
-                            ? _sequenceSoundEffectChoices.FirstOrDefault(choice => choice.SoundEffectId == selectedSoundId)?.DisplayName ?? selectedSoundId.ToString("D")
+                            ? soundEffectNamesById.GetValueOrDefault(selectedSoundId) ?? selectedSoundId.ToString("D")
                             : "Sound effect";
+                        var stepLabel = stepNumbers.TryGetValue(step.StepId, out var label) ? label : "Step";
                         var repeatNote = playback is not null && !string.Equals(playback.Choice.RepeatMode, "None", StringComparison.OrdinalIgnoreCase)
                             ? $" Repeats may continue after this single-play marker ({playback.Choice.RepeatMode})."
                             : string.Empty;
                         column.Cards.Add(new SequenceTimelineCardViewModel
                         {
                             Step = step,
-                            StepLabel = stepNumbers.TryGetValue(step.StepId, out var stepLabel) ? stepLabel : "Step",
+                            StepLabel = $"{stepLabel} - {step.OffsetMs:N0} ms",
                             BranchDisplayName = GetSequenceBranchDisplayName(step.BranchId ?? MainSequenceBranchId),
                             ActionDisplayName = GetSequenceActionDisplayName(step),
+                            ActionSourceLabel = step.InlineAction is null ? "Shared" : "Inline",
                             SoundEffectLabel = step.SoundEffectId is not Guid soundEffectId || soundEffectId == Guid.Empty
                                 ? "No sound effect selected"
-                                : _sequenceSoundEffectChoices.FirstOrDefault(choice => choice.SoundEffectId == soundEffectId)?.DisplayName ?? soundEffectId.ToString("D"),
+                                : soundEffectNamesById.GetValueOrDefault(soundEffectId) ?? soundEffectId.ToString("D"),
                             SoundDurationLabel = playback is null ? string.Empty : $"One play · {FormatSoundDuration(playback.DurationMs)}",
                             PlaybackStartOffsetMs = playback?.StartOffsetMs,
                             PlaybackEndOffsetMs = playback?.EndOffsetMs,
@@ -1382,8 +1646,120 @@ public sealed partial class MainWindowViewModel
             }
         }
 
+        BuildSparseSequenceFlowSlices();
         OnPropertyChanged(nameof(SequenceTimeSlices));
+        OnPropertyChanged(nameof(SequenceFlowTimeSlices));
         _lastSequenceTimelineModelMs = elapsed.Elapsed.TotalMilliseconds;
+    }
+
+    private IEnumerable<SoundEffectLibraryEntry> EnumerateProjectSoundEffectLibraryEntries()
+    {
+        foreach (var entry in _project.GlobalScope.SoundEffectLibraryEntries)
+        {
+            yield return entry;
+        }
+
+        var pendingScopes = new Stack<IScopedAwareNode>(_project.ChildScopes.Reverse());
+        while (pendingScopes.Count > 0)
+        {
+            var scope = pendingScopes.Pop();
+            var entries = scope switch
+            {
+                GameObject gameObject => gameObject.SoundEffectLibraryEntries,
+                Room room => room.SoundEffectLibraryEntries,
+                Area area => area.SoundEffectLibraryEntries,
+                Country country => country.SoundEffectLibraryEntries,
+                Planet planet => planet.SoundEffectLibraryEntries,
+                PhaseNode phase => phase.SoundEffectLibraryEntries,
+                _ => null
+            };
+
+            if (entries is not null)
+            {
+                foreach (var entry in entries)
+                {
+                    yield return entry;
+                }
+            }
+
+            foreach (var childScope in scope.ChildScopes.Reverse())
+            {
+                pendingScopes.Push(childScope);
+            }
+        }
+    }
+
+    private void BuildSparseSequenceFlowSlices()
+    {
+        var index = 0;
+        while (index < _sequenceTimeSlices.Count)
+        {
+            var current = _sequenceTimeSlices[index];
+            if (current.HasSteps)
+            {
+                _sequenceFlowTimeSlices.Add(current);
+                index++;
+                continue;
+            }
+
+            var gapStartIndex = index;
+            var gapWidth = 0d;
+            var gapStartOffset = current.IsRange ? current.RangeStartOffsetMs : current.OffsetMs;
+            var gapEndOffset = current.IsRange ? current.RangeEndOffsetMs : current.OffsetMs;
+            var gapLanes = current.Lanes;
+            while (index < _sequenceTimeSlices.Count)
+            {
+                var slice = _sequenceTimeSlices[index];
+                if (slice.HasSteps)
+                {
+                    break;
+                }
+
+                // Keep the compressed long tail as its own segment so its time scale
+                // does not get blended with the regularly spaced ruler intervals.
+                if (index > gapStartIndex && slice.IsRange
+                    && slice.RangeEndOffsetMs - slice.RangeStartOffsetMs > 1_000)
+                {
+                    break;
+                }
+
+                gapWidth += slice.Width;
+                gapEndOffset = slice.IsRange ? slice.RangeEndOffsetMs : slice.OffsetMs;
+                index++;
+
+                if (slice.IsRange && slice.RangeEndOffsetMs - slice.RangeStartOffsetMs > 1_000)
+                {
+                    break;
+                }
+            }
+
+            var gap = new SequenceTimelineTimeSliceViewModel
+            {
+                OffsetMs = gapStartOffset,
+                RangeStartOffsetMs = gapStartOffset,
+                RangeEndOffsetMs = gapEndOffset,
+                RulerLabel = gapEndOffset > gapStartOffset ? $"{gapStartOffset}–{gapEndOffset} ms" : $"{gapStartOffset} ms",
+                ShowRulerLabel = false,
+                HasSteps = false,
+                IsDisplayGap = true,
+                Width = gapWidth
+            };
+            foreach (var sourceLane in gapLanes)
+            {
+                var lane = new SequenceTimelineBranchLaneViewModel
+                {
+                    BranchId = sourceLane.BranchId,
+                    DisplayName = sourceLane.DisplayName,
+                    Height = sourceLane.Height,
+                    LaneBackground = sourceLane.LaneBackground,
+                    LaneBorder = sourceLane.LaneBorder
+                };
+                lane.Columns.Add(new SequenceTimelineColumnViewModel());
+                gap.Lanes.Add(lane);
+            }
+
+            _sequenceFlowTimeSlices.Add(gap);
+        }
     }
 
     private static string FormatSoundDuration(int durationMs) => durationMs >= 1000
@@ -1535,14 +1911,22 @@ public sealed partial class MainWindowViewModel
 
     public IReadOnlyList<(CommandAction Action, string ScopeName)> GetSequenceActionChoices()
     {
+        return GetSequenceActionPickerChoices()
+            .Select(static choice => (choice.Action, choice.ScopeName))
+            .ToList();
+    }
+
+    public IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> GetSequenceActionPickerChoices()
+    {
         if (SelectedSequenceScope is null)
         {
-            return Array.Empty<(CommandAction Action, string ScopeName)>();
+            return Array.Empty<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)>();
         }
 
-        var choices = new List<(CommandAction Action, string ScopeName)>();
+        var choices = new List<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)>();
         var seenActionIds = new HashSet<Guid>();
-        for (IScopedAwareNode? scope = SelectedSequenceScope; scope is not null; scope = scope.ParentScope)
+
+        void AddScopeActions(IScopedAwareNode scope, LinkedActionTargetGroup group)
         {
             foreach (var action in GetAvailableActionsForScope(scope)
                          .Where(static action => action.Id != Guid.Empty)
@@ -1551,8 +1935,25 @@ public sealed partial class MainWindowViewModel
             {
                 if (seenActionIds.Add(action.Id))
                 {
-                    choices.Add((action, GetScopeDisplayPath(scope)));
+                    choices.Add((action, GetScopeDisplayPath(scope), group));
                 }
+            }
+        }
+
+        AddScopeActions(SelectedSequenceScope, LinkedActionTargetGroup.CurrentScope);
+        for (var scope = SelectedSequenceScope.ParentScope; scope is not null; scope = scope.ParentScope)
+        {
+            AddScopeActions(scope, LinkedActionTargetGroup.Ancestors);
+        }
+
+        var pendingChildren = new Stack<IScopedAwareNode>(SelectedSequenceScope.ChildScopes.Reverse());
+        while (pendingChildren.Count > 0)
+        {
+            var child = pendingChildren.Pop();
+            AddScopeActions(child, LinkedActionTargetGroup.Children);
+            foreach (var nestedChild in child.ChildScopes.Reverse())
+            {
+                pendingChildren.Push(nestedChild);
             }
         }
 
@@ -1664,7 +2065,9 @@ public sealed partial class MainWindowViewModel
 
     private (CommandAction Action, string ScopeName)? ResolveSequenceAction(Guid actionId)
     {
-        return GetSequenceActionChoices().FirstOrDefault(choice => choice.Action.Id == actionId) is var choice
+        return GetSequenceActionPickerChoices()
+                   .Select(static choice => (choice.Action, choice.ScopeName))
+                   .FirstOrDefault(choice => choice.Action.Id == actionId) is var choice
                && choice.Action is not null
             ? choice
             : null;

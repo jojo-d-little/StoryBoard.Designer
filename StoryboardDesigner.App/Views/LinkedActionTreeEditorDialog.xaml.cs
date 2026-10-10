@@ -3,6 +3,7 @@ using System.Windows;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
+using Storyboard.Shared.RuntimeContracts.Enums;
 
 namespace StoryboardDesigner.App.Views;
 
@@ -21,14 +22,18 @@ public partial class LinkedActionTreeEditorDialog : Window
         public required string Title { get; set; }
         public CommandAction? Action { get; init; }
         public CommandAction? ParentAction { get; init; }
-        public LinkedActionReference? Link { get; init; }
+        public LinkedActionFlowLink? Link { get; init; }
         public LinkedActionRunWhen? RunWhen { get; init; }
+        public int? FlowNodeId { get; init; }
+        public int? ParentFlowNodeId { get; init; }
+        public bool IsEntryLink { get; init; }
         public ObservableCollection<TreeNode> Children { get; } = new();
     }
 
     private readonly string _scopeLabel;
     private readonly CommandAction _rootAction;
     private readonly IList<CommandAction> _editableActions;
+    private readonly IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> _externalActionChoices;
     private readonly IReadOnlyList<CommandAction> _externalActions;
     private readonly PropertyResolutionScope _variableScope;
     private readonly IReadOnlyList<GamePropertyChoiceItem> _variableChoices;
@@ -42,9 +47,10 @@ public partial class LinkedActionTreeEditorDialog : Window
     private readonly IReadOnlyList<SequenceDefinitionChoiceItem> _sequenceDefinitionChoices;
     private Dictionary<Guid, CommandAction> _allActionsById = new();
     private readonly HashSet<Guid> _originalActionIds;
-    private readonly Dictionary<Guid, List<LinkedActionReference>> _originalLinks;
-    private readonly HashSet<Guid> _forcedConditional = new();
+    private readonly LinkedActionFlowDefinition _originalDefinition;
+    private readonly HashSet<int> _forcedConditional = new();
     private bool _accepted;
+    private bool _updatingExitResultSelection;
 
     private ObservableCollection<TreeNode> _treeRoots = new();
 
@@ -52,7 +58,7 @@ public partial class LinkedActionTreeEditorDialog : Window
         string scopeLabel,
         CommandAction rootAction,
         IList<CommandAction> editableActions,
-        IReadOnlyList<CommandAction>? externalActions = null,
+        IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)>? externalActions = null,
         PropertyResolutionScope variableScope = PropertyResolutionScope.Room,
         IReadOnlyList<GamePropertyChoiceItem>? variableChoices = null,
         IReadOnlyList<string>? echoReferenceTokens = null,
@@ -69,7 +75,8 @@ public partial class LinkedActionTreeEditorDialog : Window
         _scopeLabel = scopeLabel;
         _rootAction = rootAction;
         _editableActions = editableActions;
-        _externalActions = externalActions ?? Array.Empty<CommandAction>();
+        _externalActionChoices = externalActions ?? Array.Empty<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)>();
+        _externalActions = _externalActionChoices.Select(static choice => choice.Action).ToList();
         _variableScope = variableScope;
         _variableChoices = variableChoices ?? Array.Empty<GamePropertyChoiceItem>();
         _echoReferenceTokens = echoReferenceTokens ?? Array.Empty<string>();
@@ -82,14 +89,7 @@ public partial class LinkedActionTreeEditorDialog : Window
         _sequenceDefinitionChoices = sequenceDefinitionChoices ?? Array.Empty<SequenceDefinitionChoiceItem>();
         RefreshActionLookup();
         _originalActionIds = editableActions.Select(action => action.Id).ToHashSet();
-        _originalLinks = editableActions.ToDictionary(
-            action => action.Id,
-            action => action.LinkedActions.Select(link => new LinkedActionReference
-            {
-                ActionId = link.ActionId,
-                RunWhen = link.RunWhen,
-                Order = link.Order
-            }).ToList());
+        _originalDefinition = rootAction.LinkedFlowDefinition.Clone();
 
         HeaderText.Text = $"Linked Action Flow - {rootAction.Name}";
         RebuildTree();
@@ -99,27 +99,66 @@ public partial class LinkedActionTreeEditorDialog : Window
     private void RebuildTree()
     {
         _treeRoots = new ObservableCollection<TreeNode>();
-        _treeRoots.Add(BuildActionNode(_rootAction, new HashSet<Guid>()));
+        var rootNode = new TreeNode
+        {
+            Kind = NodeKind.Action,
+            Title = $"{_rootAction.Name} ({_rootAction.ActionType})",
+            Action = _rootAction
+        };
+        var entryBranch = new TreeNode
+        {
+            Kind = NodeKind.Branch,
+            Title = "Always",
+            ParentAction = _rootAction,
+            RunWhen = LinkedActionRunWhen.Always,
+            IsEntryLink = true
+        };
+        if (_rootAction.LinkedFlowDefinition.EntryNodeId is int entryNodeId)
+        {
+            entryBranch.Children.Add(BuildFlowNode(entryNodeId, null, LinkedActionRunWhen.Always, new HashSet<int>()));
+        }
+        rootNode.Children.Add(entryBranch);
+        _treeRoots.Add(rootNode);
         FlowTree.ItemsSource = _treeRoots;
     }
 
-    private TreeNode BuildActionNode(CommandAction action, HashSet<Guid> path)
+    private TreeNode BuildFlowNode(
+        int flowNodeId,
+        int? parentFlowNodeId,
+        LinkedActionRunWhen incomingRunWhen,
+        HashSet<int> path)
     {
+        var flowNode = _rootAction.LinkedFlowDefinition.Nodes.FirstOrDefault(node => node.NodeId == flowNodeId);
+        var action = flowNode is null ? null : TryGetAction(flowNode.ActionId);
         var node = new TreeNode
         {
-            Kind = NodeKind.Action,
-            Title = $"{action.Name} ({action.ActionType})",
-            Action = action
+            Kind = NodeKind.LinkedAction,
+            Title = action is null ? $"-> missing action ({flowNode?.ActionId:N})" : $"-> {action.Name} ({action.ActionType})",
+            Action = action,
+            ParentAction = parentFlowNodeId is null ? _rootAction : TryGetAction(_rootAction.LinkedFlowDefinition.Nodes.FirstOrDefault(candidate => candidate.NodeId == parentFlowNodeId.Value)?.ActionId ?? Guid.Empty),
+            Link = parentFlowNodeId is null
+                ? null
+                : _rootAction.LinkedFlowDefinition.Nodes.FirstOrDefault(candidate => candidate.NodeId == parentFlowNodeId.Value)?.Links
+                    .FirstOrDefault(link => link.TargetNodeId == flowNodeId && link.RunWhen == incomingRunWhen),
+            RunWhen = incomingRunWhen,
+            FlowNodeId = flowNodeId,
+            ParentFlowNodeId = parentFlowNodeId,
+            IsEntryLink = parentFlowNodeId is null
         };
 
-        var nextPath = new HashSet<Guid>(path) { action.Id };
-        AppendBranchNodes(action, node, nextPath);
+        if (flowNode is null || action is null || path.Contains(flowNodeId))
+        {
+            return node;
+        }
+
+        var nextPath = new HashSet<int>(path) { flowNodeId };
+        AppendBranchNodes(flowNode, action, node, nextPath);
         return node;
     }
 
-    private void AppendBranchNodes(CommandAction action, TreeNode parent, HashSet<Guid> path)
+    private void AppendBranchNodes(LinkedActionFlowNode flowNode, CommandAction action, TreeNode parent, HashSet<int> path)
     {
-        var isConditional = IsConditionalMode(action);
+        var isConditional = IsConditionalMode(flowNode);
         var branches = isConditional
             ? new[] { LinkedActionRunWhen.OnSuccess, LinkedActionRunWhen.OnFailure }
             : new[] { LinkedActionRunWhen.Always };
@@ -131,70 +170,33 @@ public partial class LinkedActionTreeEditorDialog : Window
                 Kind = NodeKind.Branch,
                 Title = runWhen.ToString(),
                 ParentAction = action,
-                RunWhen = runWhen
+                RunWhen = runWhen,
+                FlowNodeId = flowNode.NodeId
             };
 
-            var links = action.LinkedActions
+            var links = flowNode.Links
                 .Where(link => link.RunWhen == runWhen)
                 .OrderBy(link => link.Order)
-                .ThenBy(link => link.ActionId)
+                .ThenBy(link => link.TargetNodeId)
                 .ToList();
 
             foreach (var link in links)
             {
-                var target = TryGetAction(link.ActionId);
-                if (target is null)
-                {
-                    var missingNode = new TreeNode
-                    {
-                        Kind = NodeKind.LinkedAction,
-                        Title = $"-> missing action ({link.ActionId:N})",
-                        ParentAction = action,
-                        Link = link
-                    };
-                    branchNode.Children.Add(missingNode);
-                    continue;
-                }
-
-                var linkNode = new TreeNode
-                {
-                    Kind = NodeKind.LinkedAction,
-                    Title = $"-> {target.Name} ({target.ActionType})",
-                    Action = target,
-                    ParentAction = action,
-                    Link = link
-                };
-
-                if (path.Contains(target.Id))
-                {
-                    linkNode.Children.Add(new TreeNode
-                    {
-                        Kind = NodeKind.Action,
-                        Title = "[cycle]",
-                        Action = target
-                    });
-                }
-                else
-                {
-                    var nextPath = new HashSet<Guid>(path) { target.Id };
-                    AppendBranchNodes(target, linkNode, nextPath);
-                }
-
-                branchNode.Children.Add(linkNode);
+                branchNode.Children.Add(BuildFlowNode(link.TargetNodeId, flowNode.NodeId, runWhen, path));
             }
 
             parent.Children.Add(branchNode);
         }
     }
 
-    private bool IsConditionalMode(CommandAction action)
+    private bool IsConditionalMode(LinkedActionFlowNode flowNode)
     {
-        if (_forcedConditional.Contains(action.Id))
+        if (_forcedConditional.Contains(flowNode.NodeId))
         {
             return true;
         }
 
-        return action.LinkedActions.Any(link => link.RunWhen != LinkedActionRunWhen.Always);
+        return flowNode.Links.Any(link => link.RunWhen != LinkedActionRunWhen.Always);
     }
 
     private void FlowTree_OnSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
@@ -206,16 +208,47 @@ public partial class LinkedActionTreeEditorDialog : Window
     {
         var node = FlowTree.SelectedItem as TreeNode;
 
-        AddExistingButton.IsEnabled = node?.Kind == NodeKind.Branch;
-        AddNewButton.IsEnabled = node?.Kind == NodeKind.Branch;
+        var definition = _rootAction.LinkedFlowDefinition;
+        AddExistingButton.IsEnabled = node?.Kind == NodeKind.Branch
+            && (!node.IsEntryLink || !definition.EntryNodeId.HasValue);
+        AddNewButton.IsEnabled = AddExistingButton.IsEnabled;
         EditActionButton.IsEnabled = ResolveSelectedEditableLinkedAction(node) is not null;
-        RemoveLinkButton.IsEnabled = node?.Kind == NodeKind.LinkedAction && node.Link is not null;
+        RemoveLinkButton.IsEnabled = node?.Kind == NodeKind.LinkedAction && (node.IsEntryLink || node.Link is not null);
 
         var selectedAction = ResolveSelectedAction(node);
-        RunConditionalButton.IsEnabled = selectedAction is not null;
-        RunAlwaysButton.IsEnabled = selectedAction is not null;
+        RunConditionalButton.IsEnabled = selectedAction is not null && ResolveSelectedFlowNodeId(node).HasValue;
+        RunAlwaysButton.IsEnabled = RunConditionalButton.IsEnabled;
 
-        if (node?.Kind == NodeKind.Branch)
+        var selectedExitBranch = node?.Kind == NodeKind.Branch
+            && node.FlowNodeId.HasValue
+            && node.RunWhen.HasValue;
+        var selectedFlowNode = selectedExitBranch
+            ? definition.Nodes.FirstOrDefault(flowNode => flowNode.NodeId == node!.FlowNodeId!.Value)
+            : null;
+        var selectedRunWhen = selectedExitBranch ? node!.RunWhen : null;
+        var exitResult = selectedFlowNode is null || selectedRunWhen is null
+            ? null
+            : GetExitResult(selectedFlowNode, selectedRunWhen.Value);
+        _updatingExitResultSelection = true;
+        ExitResultComboBox.Visibility = selectedFlowNode is null ? Visibility.Collapsed : Visibility.Visible;
+        ExitResultComboBox.IsEnabled = selectedFlowNode is not null
+            && selectedRunWhen is not null
+            && !HasOutcomeTargets(selectedFlowNode, selectedRunWhen.Value);
+        ExitResultComboBox.SelectedIndex = exitResult switch
+        {
+            LinkedActionExitResult.Success => 1,
+            LinkedActionExitResult.Failure => 2,
+            _ => 0
+        };
+        _updatingExitResultSelection = false;
+
+        if (selectedExitBranch && selectedFlowNode is not null && selectedRunWhen.HasValue)
+        {
+            HintText.Text = HasOutcomeTargets(selectedFlowNode, selectedRunWhen.Value)
+                ? $"This {selectedRunWhen} outcome continues to linked action(s). Remove its linked next action to set an exit result."
+                : $"Set the result reported by the linked action when this {selectedRunWhen} outcome ends here. Unset uses the last action's result.";
+        }
+        else if (node?.Kind == NodeKind.Branch)
         {
             HintText.Text = "Add existing or new linked actions under the selected branch.";
         }
@@ -233,6 +266,54 @@ public partial class LinkedActionTreeEditorDialog : Window
         }
     }
 
+    private void ExitResultComboBox_OnSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_updatingExitResultSelection
+            || FlowTree.SelectedItem is not TreeNode { Kind: NodeKind.Branch, FlowNodeId: int nodeId, RunWhen: LinkedActionRunWhen runWhen })
+        {
+            return;
+        }
+
+        var node = _rootAction.LinkedFlowDefinition.Nodes.FirstOrDefault(flowNode => flowNode.NodeId == nodeId);
+        if (node is null || HasOutcomeTargets(node, runWhen))
+        {
+            return;
+        }
+
+        SetExitResult(node, runWhen, ExitResultComboBox.SelectedIndex switch
+        {
+            1 => LinkedActionExitResult.Success,
+            2 => LinkedActionExitResult.Failure,
+            _ => null
+        });
+    }
+
+    private static LinkedActionExitResult? GetExitResult(LinkedActionFlowNode node, LinkedActionRunWhen runWhen) => runWhen switch
+    {
+        LinkedActionRunWhen.OnSuccess => node.OnSuccessExitResult,
+        LinkedActionRunWhen.OnFailure => node.OnFailureExitResult,
+        _ => node.OnAlwaysExitResult
+    };
+
+    private static void SetExitResult(LinkedActionFlowNode node, LinkedActionRunWhen runWhen, LinkedActionExitResult? result)
+    {
+        switch (runWhen)
+        {
+            case LinkedActionRunWhen.OnSuccess:
+                node.OnSuccessExitResult = result;
+                break;
+            case LinkedActionRunWhen.OnFailure:
+                node.OnFailureExitResult = result;
+                break;
+            default:
+                node.OnAlwaysExitResult = result;
+                break;
+        }
+    }
+
+    private static bool HasOutcomeTargets(LinkedActionFlowNode node, LinkedActionRunWhen runWhen) =>
+        node.Links.Any(link => link.RunWhen == runWhen);
+
     private CommandAction? ResolveSelectedAction(TreeNode? node)
     {
         if (node is null)
@@ -240,11 +321,25 @@ public partial class LinkedActionTreeEditorDialog : Window
             return null;
         }
 
-        return node.Kind switch
+        var flowNodeId = ResolveSelectedFlowNodeId(node);
+        if (flowNodeId.HasValue)
         {
-            NodeKind.Action => node.Action,
-            NodeKind.Branch => node.ParentAction,
-            NodeKind.LinkedAction => node.ParentAction ?? node.Action,
+            var actionId = _rootAction.LinkedFlowDefinition.Nodes
+                .FirstOrDefault(flowNode => flowNode.NodeId == flowNodeId.Value)?.ActionId;
+            return actionId.HasValue ? TryGetAction(actionId.Value) : null;
+        }
+
+        return node.Kind == NodeKind.LinkedAction && node.IsEntryLink
+            ? _rootAction
+            : null;
+    }
+
+    private static int? ResolveSelectedFlowNodeId(TreeNode? node)
+    {
+        return node?.Kind switch
+        {
+            NodeKind.Branch => node.FlowNodeId,
+            NodeKind.LinkedAction => node.ParentFlowNodeId,
             _ => null
         };
     }
@@ -275,7 +370,7 @@ public partial class LinkedActionTreeEditorDialog : Window
                 _scopeLabel,
                 selectedAction,
                 _editableActions,
-                _externalActions,
+                _externalActionChoices,
                 _variableScope,
                 _variableChoices,
                 _echoReferenceTokens,
@@ -326,11 +421,15 @@ public partial class LinkedActionTreeEditorDialog : Window
             return;
         }
 
-        var candidates = _allActionsById.Values
-            .Where(action => action.Id != branchNode.ParentAction.Id)
-            .Where(action => action.ActionType != CommandActionType.Synonym)
-            .OrderBy(action => action.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(action => action.Id)
+        var candidates = _editableActions
+            .Select(action => (Action: action, ScopeName: _scopeLabel, Group: LinkedActionTargetGroup.CurrentScope))
+            .Concat(_externalActionChoices)
+            .Where(candidate => candidate.Action.Id != branchNode.ParentAction.Id)
+            .Where(static candidate => candidate.Action.ActionType != CommandActionType.Synonym)
+            .GroupBy(static candidate => candidate.Action.Id)
+            .Select(static group => group.First())
+            .OrderBy(candidate => candidate.Action.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(candidate => candidate.Action.Id)
             .ToList();
         if (candidates.Count == 0)
         {
@@ -348,7 +447,7 @@ public partial class LinkedActionTreeEditorDialog : Window
             return;
         }
 
-        AddLink(branchNode.ParentAction, branchNode.RunWhen.Value, picker.SelectedAction.Id);
+        AddLink(branchNode, picker.SelectedAction.Id, reuseExistingFlowNode: true);
     }
 
     private void AddNew_OnClick(object sender, RoutedEventArgs e)
@@ -394,29 +493,78 @@ public partial class LinkedActionTreeEditorDialog : Window
 
         _editableActions.Add(created);
         RefreshActionLookup();
-        AddLink(branchNode.ParentAction, branchNode.RunWhen.Value, created.Id);
+        AddLink(branchNode, created.Id, reuseExistingFlowNode: false);
     }
 
-    private void AddLink(CommandAction parentAction, LinkedActionRunWhen runWhen, Guid actionId)
+    private void AddLink(TreeNode branchNode, Guid actionId, bool reuseExistingFlowNode)
     {
-        if (parentAction.Id == actionId)
+        if (branchNode.ParentAction?.Id == actionId)
         {
             System.Windows.MessageBox.Show(this, "An action cannot link to itself.", "Linked Actions", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        var nextOrder = parentAction.LinkedActions
-            .Where(link => link.RunWhen == runWhen)
-            .Select(link => link.Order)
-            .DefaultIfEmpty(-1)
-            .Max() + 1;
-
-        parentAction.LinkedActions.Add(new LinkedActionReference
+        var definition = _rootAction.LinkedFlowDefinition;
+        var existingNode = reuseExistingFlowNode
+            ? definition.Nodes.FirstOrDefault(node => node.ActionId == actionId)
+            : null;
+        var nodeId = existingNode?.NodeId
+            ?? definition.Nodes.Select(static node => node.NodeId).DefaultIfEmpty(0).Max() + 1;
+        if (existingNode is null)
         {
-            ActionId = actionId,
-            RunWhen = runWhen,
-            Order = nextOrder
-        });
+            definition.Nodes.Add(new LinkedActionFlowNode
+            {
+                NodeId = nodeId,
+                ActionId = actionId
+            });
+        }
+
+        if (branchNode.IsEntryLink)
+        {
+            if (definition.EntryNodeId.HasValue)
+            {
+                if (existingNode is null)
+                {
+                    definition.Nodes.RemoveAll(node => node.NodeId == nodeId);
+                }
+                System.Windows.MessageBox.Show(this, "This linked action already has an entry step. Add another step from an outcome on the existing step.", "Linked Actions", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            definition.EntryNodeId = nodeId;
+        }
+        else if (branchNode.FlowNodeId is int parentNodeId && branchNode.RunWhen is LinkedActionRunWhen runWhen)
+        {
+            var parentNode = definition.Nodes.FirstOrDefault(node => node.NodeId == parentNodeId);
+            if (parentNode is null)
+            {
+                if (existingNode is null)
+                {
+                    definition.Nodes.RemoveAll(node => node.NodeId == nodeId);
+                }
+                return;
+            }
+
+            var nextOrder = parentNode.Links
+                .Where(link => link.RunWhen == runWhen)
+                .Select(static link => link.Order)
+                .DefaultIfEmpty(-1)
+                .Max() + 1;
+            parentNode.Links.Add(new LinkedActionFlowLink
+            {
+                TargetNodeId = nodeId,
+                RunWhen = runWhen,
+                Order = nextOrder
+            });
+        }
+        else
+        {
+            if (existingNode is null)
+            {
+                definition.Nodes.RemoveAll(node => node.NodeId == nodeId);
+            }
+            return;
+        }
 
         RebuildTree();
     }
@@ -425,14 +573,54 @@ public partial class LinkedActionTreeEditorDialog : Window
     {
         if (FlowTree.SelectedItem is not TreeNode selected
             || selected.Kind != NodeKind.LinkedAction
-            || selected.ParentAction is null
-            || selected.Link is null)
+            || (!selected.IsEntryLink && (selected.ParentFlowNodeId is null || selected.Link is null)))
         {
             return;
         }
 
-        selected.ParentAction.LinkedActions.Remove(selected.Link);
+        var definition = _rootAction.LinkedFlowDefinition;
+        if (selected.IsEntryLink && selected.FlowNodeId is int entryNodeId)
+        {
+            definition.EntryNodeId = null;
+            definition.Nodes.RemoveAll(node => node.NodeId == entryNodeId);
+        }
+        else if (selected.ParentFlowNodeId is int parentNodeId && selected.Link is not null)
+        {
+            var parentNode = definition.Nodes.FirstOrDefault(node => node.NodeId == parentNodeId);
+            parentNode?.Links.Remove(selected.Link);
+        }
+
+        PruneUnreachableNodes(definition);
         RebuildTree();
+    }
+
+    private static void PruneUnreachableNodes(LinkedActionFlowDefinition definition)
+    {
+        if (definition.EntryNodeId is not int entryNodeId)
+        {
+            definition.Nodes.Clear();
+            return;
+        }
+
+        var nodesById = definition.Nodes.ToDictionary(static node => node.NodeId);
+        var reachable = new HashSet<int>();
+        var pending = new Stack<int>();
+        pending.Push(entryNodeId);
+        while (pending.Count > 0)
+        {
+            var currentId = pending.Pop();
+            if (!reachable.Add(currentId) || !nodesById.TryGetValue(currentId, out var current))
+            {
+                continue;
+            }
+
+            foreach (var link in current.Links)
+            {
+                pending.Push(link.TargetNodeId);
+            }
+        }
+
+        definition.Nodes.RemoveAll(node => !reachable.Contains(node.NodeId));
     }
 
     private void RunConditionally_OnClick(object sender, RoutedEventArgs e)
@@ -443,7 +631,16 @@ public partial class LinkedActionTreeEditorDialog : Window
             return;
         }
 
-        var alwaysLinks = selectedAction.LinkedActions.Where(link => link.RunWhen == LinkedActionRunWhen.Always).ToList();
+        var flowNodeId = ResolveSelectedFlowNodeId(FlowTree.SelectedItem as TreeNode);
+        var flowNode = flowNodeId.HasValue
+            ? _rootAction.LinkedFlowDefinition.Nodes.FirstOrDefault(node => node.NodeId == flowNodeId.Value)
+            : null;
+        if (flowNode is null)
+        {
+            return;
+        }
+
+        var alwaysLinks = flowNode.Links.Where(link => link.RunWhen == LinkedActionRunWhen.Always).ToList();
         if (alwaysLinks.Count > 0)
         {
             var choice = System.Windows.MessageBox.Show(
@@ -468,7 +665,7 @@ public partial class LinkedActionTreeEditorDialog : Window
             }
         }
 
-        _forcedConditional.Add(selectedAction.Id);
+        _forcedConditional.Add(flowNode.NodeId);
         RebuildTree();
     }
 
@@ -480,12 +677,21 @@ public partial class LinkedActionTreeEditorDialog : Window
             return;
         }
 
-        foreach (var link in selectedAction.LinkedActions)
+        var flowNodeId = ResolveSelectedFlowNodeId(FlowTree.SelectedItem as TreeNode);
+        var flowNode = flowNodeId.HasValue
+            ? _rootAction.LinkedFlowDefinition.Nodes.FirstOrDefault(node => node.NodeId == flowNodeId.Value)
+            : null;
+        if (flowNode is null)
+        {
+            return;
+        }
+
+        foreach (var link in flowNode.Links)
         {
             link.RunWhen = LinkedActionRunWhen.Always;
         }
 
-        _forcedConditional.Remove(selectedAction.Id);
+        _forcedConditional.Remove(flowNode.NodeId);
         RebuildTree();
     }
 
@@ -529,21 +735,7 @@ public partial class LinkedActionTreeEditorDialog : Window
             _editableActions.Remove(action);
         }
 
-        foreach (var action in _editableActions)
-        {
-            if (!_originalLinks.TryGetValue(action.Id, out var snapshotLinks))
-            {
-                action.LinkedActions = new List<LinkedActionReference>();
-                continue;
-            }
-
-            action.LinkedActions = snapshotLinks.Select(link => new LinkedActionReference
-            {
-                ActionId = link.ActionId,
-                RunWhen = link.RunWhen,
-                Order = link.Order
-            }).ToList();
-        }
+        _rootAction.LinkedFlowDefinition = _originalDefinition.Clone();
 
         RefreshActionLookup();
     }

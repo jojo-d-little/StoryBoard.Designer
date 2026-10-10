@@ -93,7 +93,7 @@ public sealed partial class CommandAction
     public IActionPayload? CreatePayloadSnapshot()
     {
         return ActionPayloadSchemaMap.IsPayloadCompatible(ActionType, _payload)
-            ? CommandActionPayloadCoordinator.CreateSnapshot(ActionType, _payload, LinkedActions)
+            ? CommandActionPayloadCoordinator.CreateSnapshot(_payload)
             : null;
     }
 
@@ -105,23 +105,9 @@ public sealed partial class CommandAction
         }
 
         _payload = CommandActionPayloadCoordinator.ClonePayload(payload);
-        SyncCompatibilityStateFromPayload(_payload);
         RaiseProjectionChangedForPayload(_payload);
 
         return true;
-    }
-
-    private void SyncCompatibilityStateFromPayload(IActionPayload payload)
-    {
-        if (!CommandActionPayloadCoordinator.TryReadCompatibilityState(payload, out var linkedActions))
-        {
-            return;
-        }
-
-        if (linkedActions is not null)
-        {
-            _linkedActions = linkedActions;
-        }
     }
 
     private void RaiseProjectionChangedForPayload(IActionPayload payload)
@@ -140,6 +126,25 @@ public sealed partial class CommandAction
         where TPayload : IActionPayload
     {
         return _payload is TPayload facet ? facet : fallbackFactory();
+    }
+
+    public LinkedActionFlowDefinition LinkedFlowDefinition
+    {
+        get => _payload is LinkedFlowPayload linkedFlow
+            ? linkedFlow.Definition
+            : new LinkedActionFlowDefinition();
+        set
+        {
+            if (ActionType != CommandActionType.LinkedActions)
+            {
+                return;
+            }
+
+            _payload = new LinkedFlowPayload(value ?? new LinkedActionFlowDefinition());
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(Payload));
+            RaiseSummaryChanged();
+        }
     }
 
     private void SetFacet<TPayload>(TPayload facet)

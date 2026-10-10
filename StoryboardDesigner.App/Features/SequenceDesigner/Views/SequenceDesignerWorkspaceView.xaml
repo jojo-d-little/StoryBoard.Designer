@@ -13,6 +13,7 @@
                     <RadioButton Content="Select" GroupName="SequenceTools" IsChecked="{Binding IsSequenceSelectToolActive, Mode=TwoWay}" VerticalAlignment="Center" Margin="6,0" ToolTip="Select a step and edit its properties" />
                     <RadioButton Content="Move" GroupName="SequenceTools" IsChecked="{Binding IsSequenceMoveToolActive, Mode=TwoWay}" VerticalAlignment="Center" Margin="6,0" ToolTip="Move a step in time without moving later steps" />
                     <RadioButton Content="Ripple" GroupName="SequenceTools" IsChecked="{Binding IsSequenceRippleToolActive, Mode=TwoWay}" VerticalAlignment="Center" Margin="6,0" ToolTip="Move a step and shift later steps by the same amount" />
+                    <RadioButton Content="Relocate" GroupName="SequenceTools" IsChecked="{Binding IsSequenceRelocateToolActive, Mode=TwoWay}" VerticalAlignment="Center" Margin="6,0" ToolTip="Move a step to another time or branch; explicit outcome links stay attached" />
                     <Button Content="−" Click="ZoomOut_OnClick" Margin="4,0" Padding="10,5" ToolTip="Zoom out" />
                     <Button Content="+" Click="ZoomIn_OnClick" Margin="4,0" Padding="10,5" ToolTip="Zoom in" />
                     <Button Content="Fit sequence" Click="FitSequence_OnClick" Margin="4,0" Padding="10,5" />
@@ -48,7 +49,12 @@
                     </StackPanel>
                     <Border Grid.Row="1" Margin="10,0,10,10" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" ClipToBounds="True">
                         <ScrollViewer x:Name="SequenceCanvasScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                            <Grid x:Name="SequenceCanvasContent" Margin="18" SizeChanged="SequenceCanvasContent_OnSizeChanged">
+                            <Grid x:Name="SequenceCanvasContent"
+                                  Margin="18"
+                                  SizeChanged="SequenceCanvasContent_OnSizeChanged"
+                                  PreviewMouseMove="SequenceCanvasContent_OnPreviewMouseMove"
+                                  PreviewDragOver="SequenceCanvasContent_OnPreviewDragOver"
+                                  MouseLeave="SequenceCanvasContent_OnMouseLeave">
                                 <Grid.LayoutTransform>
                                     <ScaleTransform ScaleX="{Binding SequenceZoom}" ScaleY="{Binding SequenceZoom}" />
                                 </Grid.LayoutTransform>
@@ -58,43 +64,24 @@
                                 </Grid.RowDefinitions>
                                 <StackPanel x:Name="SequenceTimelineRuler" Grid.Row="0">
                                 <TextBlock Text="Timeline · positions snap to 50 ms" FontWeight="SemiBold" Foreground="#374151" Margin="0,0,0,6" />
-                                <ItemsControl ItemsSource="{Binding SequenceTimeSlices}" Margin="0,0,0,5">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Width="{Binding Width}" Height="38" BorderBrush="#94A3B8" BorderThickness="1,0,0,1"
-                                                    Background="#F8FAFC" ToolTip="Right-click to add a step at this time" AllowDrop="True" DragOver="TimelineTimeSlice_OnDragOver" Drop="TimelineTimeSlice_OnDrop"
-                                                    ContextMenuOpening="TimelineTimeSlice_OnContextMenuOpening">
-                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,3">
-                                                    <Border Width="1" Height="10" Background="#64748B" VerticalAlignment="Top" Margin="0,0,4,0" />
-                                                    <TextBlock Text="{Binding RulerLabel}" TextTrimming="CharacterEllipsis" FontSize="10" Foreground="#334155" VerticalAlignment="Center">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
-                                                                <Setter Property="Visibility" Value="Collapsed" />
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding ShowRulerLabel}" Value="True">
-                                                                        <Setter Property="Visibility" Value="Visible" />
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <Canvas x:Name="SequenceTimelineRulerCanvas"
+                                        Height="38"
+                                        Background="#F8FAFC"
+                                        Margin="0,0,0,5"
+                                        AllowDrop="True"
+                                        DragOver="TimelineTimeSlice_OnDragOver"
+                                        Drop="SequenceTimelineRulerCanvas_OnDrop"
+                                        ContextMenuOpening="SequenceTimelineRulerCanvas_OnContextMenuOpening" />
                                 </StackPanel>
-                                <ScrollViewer x:Name="SequenceBranchScrollViewer" Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                                <Grid Grid.Row="1">
+                                <ScrollViewer x:Name="SequenceBranchScrollViewer"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              VerticalScrollBarVisibility="Auto">
                                     <Grid x:Name="SequenceBranchContent">
                                         <Canvas x:Name="SequenceFlowConnectionCanvas" IsHitTestVisible="False" Panel.ZIndex="2" />
                                         <Canvas x:Name="SequenceSoundEndMarkerCanvas" IsHitTestVisible="True" Panel.ZIndex="3" />
                                         <StackPanel Panel.ZIndex="1">
-                                <ItemsControl ItemsSource="{Binding SequenceTimeSlices}">
+                                <ItemsControl ItemsSource="{Binding SequenceFlowTimeSlices}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <StackPanel Orientation="Horizontal" />
@@ -103,9 +90,20 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Border Width="{Binding Width}" Padding="0" Margin="0,0,0,0" Tag="SequenceFlowCell"
-                                                    Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1,0,0,0" ToolTip="{Binding RulerLabel}"
                                                     AllowDrop="True" DragOver="TimelineTimeSlice_OnDragOver" Drop="TimelineTimeSlice_OnDrop"
                                                     ContextMenuOpening="TimelineTimeSlice_OnContextMenuOpening">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#FFFFFF" />
+                                                        <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                                        <Setter Property="BorderThickness" Value="1,0,0,0" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsDisplayGap}" Value="True">
+                                                                <Setter Property="BorderThickness" Value="0" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
                                                 <Grid>
                                                     <ItemsControl ItemsSource="{Binding Lanes}">
                                                         <ItemsControl.ItemsPanel>
@@ -117,6 +115,7 @@
                                                             <DataTemplate>
                                                                 <Border Height="{Binding Height}" Tag="{Binding BranchId}" BorderThickness="0,0,0,1" Padding="4,3"
                                                                         Background="{Binding LaneBackground}" BorderBrush="{Binding LaneBorder}"
+                                                                        AllowDrop="True" DragOver="TimelineTimeSlice_OnDragOver" Drop="TimelineTimeSlice_OnDrop"
                                                                         ContextMenuOpening="TimelineTimeSlice_OnContextMenuOpening">
                                                                     <DockPanel>
                                                                         <TextBlock DockPanel.Dock="Top" Text="{Binding DisplayName}" FontSize="10" FontWeight="SemiBold" Foreground="#475569" Margin="2,0,0,3" />
@@ -157,6 +156,18 @@
                                                                                     <StackPanel>
                                                                                         <TextBlock Text="{Binding StepLabel}" Foreground="#6B7280" FontSize="10" />
                                                                                         <TextBlock Text="{Binding RoutingLabel}" Foreground="#64748B" FontSize="9" TextTrimming="CharacterEllipsis" />
+                                                                                        <TextBlock Text="{Binding ActionSourceLabel}" Foreground="#6B7280" FontSize="9" Margin="0,1,0,0">
+                                                                                            <TextBlock.Style>
+                                                                                                <Style TargetType="TextBlock">
+                                                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                                                    <Style.Triggers>
+                                                                                                        <DataTrigger Binding="{Binding IsAction}" Value="True">
+                                                                                                            <Setter Property="Visibility" Value="Visible" />
+                                                                                                        </DataTrigger>
+                                                                                                    </Style.Triggers>
+                                                                                                </Style>
+                                                                                            </TextBlock.Style>
+                                                                                        </TextBlock>
                                                                                         <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" Foreground="#111827" />
                                                                                         <TextBlock Text="{Binding ActionDisplayName}" TextTrimming="CharacterEllipsis" Foreground="#374151" Margin="0,3,0,0">
                                                                                             <TextBlock.Style>
@@ -255,9 +266,13 @@
                                                             <Style TargetType="TextBlock">
                                                                 <Setter Property="Visibility" Value="Collapsed" />
                                                                 <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding HasSteps}" Value="False">
+                                                                <MultiDataTrigger>
+                                                                    <MultiDataTrigger.Conditions>
+                                                                        <Condition Binding="{Binding HasSteps}" Value="False" />
+                                                                        <Condition Binding="{Binding IsDisplayGap}" Value="False" />
+                                                                    </MultiDataTrigger.Conditions>
                                                                         <Setter Property="Visibility" Value="Visible" />
-                                                                    </DataTrigger>
+                                                                </MultiDataTrigger>
                                                                 </Style.Triggers>
                                                             </Style>
                                                         </TextBlock.Style>
@@ -281,8 +296,32 @@
                                     </TextBlock.Style>
                                 </TextBlock>
                                 </StackPanel>
+                                        <Canvas x:Name="SequenceTimeMappingPreviewCanvas" IsHitTestVisible="False" Panel.ZIndex="4">
+                                            <Line x:Name="SequenceTimeMappingPreviewLine"
+                                                  Stroke="#2563EB"
+                                                  StrokeThickness="2"
+                                                  StrokeDashArray="3,2"
+                                                  Visibility="Collapsed" />
+                                        </Canvas>
                                     </Grid>
                                 </ScrollViewer>
+                                    <Border x:Name="SequenceTimeMappingPreviewReadout"
+                                            HorizontalAlignment="Left"
+                                            VerticalAlignment="Top"
+                                            Background="#1E40AF"
+                                            CornerRadius="3"
+                                            Padding="7,3"
+                                            MaxWidth="420"
+                                            IsHitTestVisible="False"
+                                            Panel.ZIndex="5"
+                                            Visibility="Collapsed">
+                                        <TextBlock x:Name="SequenceTimeMappingPreviewLabel"
+                                                   Foreground="White"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   TextWrapping="Wrap" />
+                                    </Border>
+                                </Grid>
                             </Grid>
                         </ScrollViewer>
                     </Border>
@@ -320,6 +359,40 @@
                                     <TextBlock Grid.Column="2" Text="{Binding SelectedSequenceActionSourceDescription}" Foreground="#6B7280"
                                                VerticalAlignment="Top" Margin="12,2,0,0" />
                                 </Grid>
+                                <Grid Margin="0,3,0,0">
+                                    <Grid.Style>
+                                        <Style TargetType="Grid">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSelectedSequenceActionStep}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Grid.Style>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.ColumnSpan="2" Orientation="Horizontal">
+                                        <TextBlock Text="Action source" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <Button Content="{Binding SequenceActionPickerButtonText}" Click="ChooseSequenceAction_OnClick"
+                                                Padding="8,3" ToolTip="Choose from the current scope, its ancestors, or its children. Replacing an inline action discards its inline definition." />
+                                        <Button Content="Edit inline action…" Command="{Binding EditSequenceActionCommand}"
+                                                Margin="8,0,0,0" Padding="8,3">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelectedSequenceInlineAction}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
                                 <Grid Margin="0,2,0,0">
                                     <Grid.Style>
                                         <Style TargetType="Grid">
@@ -340,7 +413,7 @@
                                               ItemsSource="{Binding SequenceSoundEffectChoices}"
                                               DisplayMemberPath="DisplayName"
                                               SelectedValuePath="SoundEffectId"
-                                              SelectedValue="{Binding SelectedSequenceStep.SoundEffectId, Mode=TwoWay}" />
+                                              SelectedValue="{Binding SelectedSequenceSoundEffectId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 </Grid>
                             </StackPanel>
                             <Grid Grid.Row="1">

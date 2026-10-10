@@ -65,6 +65,8 @@ public partial class GameObjectSettingsDialog : Window
         InventoriableCheckBox.IsChecked = initialValues.IsInventoriable;
         InventoryPointsTextBox.Text = SanitizePoints(initialValues.InventoryPointsDefaultValue).ToString();
         ContainerCheckBox.IsChecked = initialValues.IsContainer;
+        HideContainedObjectsCheckBox.IsChecked = initialValues.HideContainedObjects;
+        SetShowWhenContained(initialValues.ShowWhenContained);
         ContainerPointsTextBox.Text = SanitizePoints(initialValues.ContainerPointsDefaultValue).ToString();
         CapacityPointShareDividerCheckBox.IsChecked = initialValues.IsContainer && initialValues.IsCapacityPointShareDividerEnabled;
         CapacityPointShareDividerTextBox.Text = SanitizePoints(initialValues.CapacityPointShareDividerDefaultValue).ToString();
@@ -142,6 +144,7 @@ public partial class GameObjectSettingsDialog : Window
 
         _isInitializingMovementUi = false;
         RefreshCapacityPointShareDividerInputs();
+        RefreshContainedVisibilityInputs();
         UpdateCompositeSummary();
         UpdateLockRequirementsSummary();
         RefreshMovementRestrictionsUiState();
@@ -157,6 +160,8 @@ public partial class GameObjectSettingsDialog : Window
         InventoryPointsTextBox.IsEnabled = false;
 
         ContainerCheckBox.IsEnabled = false;
+        HideContainedObjectsCheckBox.IsEnabled = false;
+        ShowWhenContainedComboBox.IsEnabled = false;
         ContainerPointsTextBox.IsEnabled = false;
         CapacityPointShareDividerCheckBox.IsEnabled = false;
         CapacityPointShareDividerTextBox.IsEnabled = false;
@@ -252,7 +257,9 @@ public partial class GameObjectSettingsDialog : Window
                 PointLight: LightingModelCloner.ClonePointLight(_pointLight),
                 LightOcclusion: LightingModelCloner.CloneLightOcclusion(_lightOcclusion),
                 IsPointLightEnabledDefaultValue: _isPointLightEnabledDefaultValue,
-                PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_pointLightDefaults));
+                PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_pointLightDefaults),
+                HideContainedObjects: HideContainedObjectsCheckBox.IsChecked != false,
+                ShowWhenContained: InventoriableCheckBox.IsChecked == true ? GetShowWhenContained() : null);
         }
     }
 
@@ -745,6 +752,12 @@ public partial class GameObjectSettingsDialog : Window
     private void ContainerCheckBox_OnChanged(object sender, RoutedEventArgs e)
     {
         RefreshCapacityPointShareDividerInputs();
+        RefreshContainedVisibilityInputs();
+    }
+
+    private void InventoriableCheckBox_OnChanged(object sender, RoutedEventArgs e)
+    {
+        RefreshContainedVisibilityInputs();
     }
 
     private void CapacityPointShareDividerCheckBox_OnChanged(object sender, RoutedEventArgs e)
@@ -853,6 +866,40 @@ public partial class GameObjectSettingsDialog : Window
         }
 
         CapacityPointShareDividerTextBox.IsEnabled = containerEnabled && CapacityPointShareDividerCheckBox.IsChecked == true;
+    }
+
+    private void RefreshContainedVisibilityInputs()
+    {
+        if (HideContainedObjectsCheckBox is null || ShowWhenContainedComboBox is null)
+        {
+            return;
+        }
+
+        HideContainedObjectsCheckBox.IsEnabled = ContainerCheckBox.IsChecked == true && !_movementRestrictionsLockedByLink;
+        ShowWhenContainedComboBox.IsEnabled = InventoriableCheckBox.IsChecked == true && !_movementRestrictionsLockedByLink;
+    }
+
+    private void SetShowWhenContained(bool? value)
+    {
+        var tag = value.HasValue ? value.Value ? "true" : "false" : "inherit";
+        ShowWhenContainedComboBox.SelectedItem = ShowWhenContainedComboBox.Items
+            .OfType<ComboBoxItem>()
+            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), tag, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private bool? GetShowWhenContained()
+    {
+        if (ShowWhenContainedComboBox.SelectedItem is not ComboBoxItem item)
+        {
+            return null;
+        }
+
+        return item.Tag?.ToString()?.ToLowerInvariant() switch
+        {
+            "true" => true,
+            "false" => false,
+            _ => null
+        };
     }
 
     private void ManageLockRequirementsButton_OnClick(object sender, RoutedEventArgs e)

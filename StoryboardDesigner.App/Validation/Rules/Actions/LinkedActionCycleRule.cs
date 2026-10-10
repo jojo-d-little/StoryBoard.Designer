@@ -16,7 +16,31 @@ public sealed class LinkedActionCycleRule : IValidationRule
             yield break;
         }
 
-        var cycle = TryFindCycleStartingAt(context.Action.Id, context.ActionById);
+        var action = context.Action;
+        if (action.ActionType == CommandActionType.LinkedActions)
+        {
+            var flowCycle = TryFindFlowNodeCycle(action.LinkedFlowDefinition);
+            if (flowCycle is null)
+            {
+                yield break;
+            }
+
+            var flowNames = flowCycle.Select(nodeId =>
+            {
+                var flowNode = action.LinkedFlowDefinition.Nodes.FirstOrDefault(node => node.NodeId == nodeId);
+                return flowNode is not null && context.LinkTargetById.TryGetValue(flowNode.ActionId, out var target)
+                    ? $"{target.Name} ({flowNode.ActionId:N})"
+                    : $"node {nodeId}";
+            });
+            yield return new ValidationIssue(
+                Metadata.RuleId,
+                Metadata.DefaultSeverity,
+                ActionRuleSupport.BuildActionIssuePath(context.Path, action),
+                $"linked-action cycle detected ({string.Join(" -> ", flowNames)}).");
+            yield break;
+        }
+
+        var cycle = TryFindCycleStartingAt(action.Id, context.ActionById);
         if (cycle is null)
         {
             yield break;
@@ -25,8 +49,59 @@ public sealed class LinkedActionCycleRule : IValidationRule
         yield return new ValidationIssue(
             Metadata.RuleId,
             Metadata.DefaultSeverity,
-            ActionRuleSupport.BuildActionIssuePath(context.Path, context.Action),
+            ActionRuleSupport.BuildActionIssuePath(context.Path, action),
             $"linked-action cycle detected ({FormatPath(cycle, context.ActionById)}).");
+    }
+
+    private static IReadOnlyList<int>? TryFindFlowNodeCycle(LinkedActionFlowDefinition definition)
+    {
+        var nodesById = definition.Nodes
+            .Where(static node => node.NodeId > 0)
+            .GroupBy(static node => node.NodeId)
+            .ToDictionary(static group => group.Key, static group => group.First());
+        var visiting = new Dictionary<int, int>();
+        var visited = new HashSet<int>();
+        var path = new List<int>();
+
+        foreach (var nodeId in nodesById.Keys)
+        {
+            var cycle = Visit(nodeId);
+            if (cycle is not null)
+            {
+                return cycle;
+            }
+        }
+
+        return null;
+
+        IReadOnlyList<int>? Visit(int nodeId)
+        {
+            if (visiting.TryGetValue(nodeId, out var cycleStart))
+            {
+                return path.Skip(cycleStart).Append(nodeId).ToList();
+            }
+
+            if (visited.Contains(nodeId) || !nodesById.TryGetValue(nodeId, out var node))
+            {
+                return null;
+            }
+
+            visiting[nodeId] = path.Count;
+            path.Add(nodeId);
+            foreach (var link in node.Links)
+            {
+                var cycle = Visit(link.TargetNodeId);
+                if (cycle is not null)
+                {
+                    return cycle;
+                }
+            }
+
+            path.RemoveAt(path.Count - 1);
+            visiting.Remove(nodeId);
+            visited.Add(nodeId);
+            return null;
+        }
     }
 
     private static IReadOnlyList<Guid>? TryFindCycleStartingAt(

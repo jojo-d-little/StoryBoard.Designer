@@ -11,12 +11,27 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
     private double? _flowInvalidationToDataBindPriorityMs;
     private long? _sequenceDropEventCompletedTimestamp;
     private double? _sequenceDropToDragReturnMs;
+    private SequenceTimelineScreenTimeMap? _sequenceTimelineScreenTimeMap;
+    private string _lastSequenceRulerLayout = string.Empty;
     private string _lastFlowConnectionLayout = string.Empty;
     private int _unchangedFlowLayoutPassCount;
     private double _unchangedFlowLayoutTotalMs;
     private double _unchangedFlowVisualScanTotalMs;
 
     private sealed record SequenceRouteTargetEditState(Guid SourceStepId, string RouteKind, Guid? OriginalTargetStepId);
+
+    private sealed class SoundPlaybackTrackVisual
+    {
+        public required Guid StepId { get; init; }
+        public required System.Windows.Shapes.Line Halo { get; init; }
+        public required System.Windows.Shapes.Line Span { get; init; }
+        public required System.Windows.Controls.Border Marker { get; init; }
+        public required System.Windows.Controls.TextBlock Label { get; init; }
+        public required double MarkerCenterX { get; init; }
+        public required double MarkerCenterY { get; init; }
+    }
+
+    private readonly List<SoundPlaybackTrackVisual> _soundPlaybackTrackVisuals = new();
 
     public SequenceDesignerWorkspaceView()
     {
@@ -27,6 +42,8 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
 
     private void SequenceDesignerWorkspaceView_OnDataContextChanged(object sender, System.Windows.DependencyPropertyChangedEventArgs e)
     {
+        _lastSequenceRulerLayout = string.Empty;
+        _lastFlowConnectionLayout = string.Empty;
         if (e.OldValue is StoryboardDesigner.App.ViewModels.MainWindowViewModel oldViewModel)
         {
             oldViewModel.PropertyChanged -= SequenceViewModel_OnPropertyChanged;
@@ -42,8 +59,14 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
 
     private void SequenceViewModel_OnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(StoryboardDesigner.App.ViewModels.MainWindowViewModel.SelectedSequenceStep))
+        {
+            UpdateSoundPlaybackTrackSelection();
+        }
+
         if (string.IsNullOrEmpty(e.PropertyName)
-            || e.PropertyName == nameof(StoryboardDesigner.App.ViewModels.MainWindowViewModel.SequenceTimeSlices))
+            || e.PropertyName == nameof(StoryboardDesigner.App.ViewModels.MainWindowViewModel.SequenceTimeSlices)
+            || e.PropertyName == nameof(StoryboardDesigner.App.ViewModels.MainWindowViewModel.SequenceFlowTimeSlices))
         {
             InvalidateSequenceFlowConnections();
         }
@@ -131,13 +154,19 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
         if (sender is not System.Windows.Controls.ComboBox comboBox
             || DataContext is not StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel
             || viewModel.SelectedSequenceStep is not { } source
-            || comboBox.Tag is not string routeKind
-            || comboBox.SelectedItem is not StoryboardDesigner.App.ViewModels.MainWindowViewModel.SequenceStepTargetChoice choice)
+            || comboBox.Tag is not string routeKind)
         {
             return;
         }
 
-        _sequenceRouteTargetEdits[comboBox] = new SequenceRouteTargetEditState(source.StepId, routeKind, choice.StepId);
+        var currentTargetStepId = routeKind switch
+        {
+            "Success" => source.OnSuccessStepId,
+            "Failure" => source.OnFailureStepId,
+            "Merge" => source.MergeTargetStepId,
+            _ => null
+        };
+        _sequenceRouteTargetEdits[comboBox] = new SequenceRouteTargetEditState(source.StepId, routeKind, currentTargetStepId);
     }
 
     private void SequenceTargetComboBox_OnDropDownClosed(object sender, System.EventArgs e)
@@ -192,13 +221,29 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
 
     private void TimelineTimeSlice_OnDrop(object sender, System.Windows.DragEventArgs e)
     {
-        if (sender is not System.Windows.Controls.Border { DataContext: StoryboardDesigner.App.ViewModels.MainWindowViewModel.SequenceTimelineTimeSliceViewModel timeSlice })
+        if (sender is not System.Windows.Controls.Border border)
         {
             return;
         }
 
-        var border = (System.Windows.Controls.Border)sender;
-        MoveDraggedSequenceStep(e, GetTimelineOffsetAtPointer(border, timeSlice, e.GetPosition(border)));
+        var lane = border.DataContext as StoryboardDesigner.App.ViewModels.MainWindowViewModel.SequenceTimelineBranchLaneViewModel;
+        var timeCellBorder = lane is null ? border : FindParentTimeCellBorder(border);
+        if (timeCellBorder?.DataContext is not StoryboardDesigner.App.ViewModels.MainWindowViewModel.SequenceTimelineTimeSliceViewModel timeSlice)
+        {
+            return;
+        }
+
+        var currentViewModel = DataContext as StoryboardDesigner.App.ViewModels.MainWindowViewModel;
+        var relocationTargetBranchId = currentViewModel?.SequenceTimelineTool == StoryboardDesigner.App.ViewModels.SequenceTimelineToolMode.Relocate
+            ? lane?.BranchId
+            : null;
+        var targetOffsetMs = DataContext is StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel
+            && viewModel.SequenceTimelineTool is StoryboardDesigner.App.ViewModels.SequenceTimelineToolMode.Move
+                or StoryboardDesigner.App.ViewModels.SequenceTimelineToolMode.Ripple
+                or StoryboardDesigner.App.ViewModels.SequenceTimelineToolMode.Relocate
+            ? GetInsertionOffsetAtPointer(timeCellBorder, timeSlice, e.GetPosition(SequenceFlowConnectionCanvas))
+            : GetTimelineOffsetAtPointer(timeCellBorder, timeSlice, e.GetPosition(timeCellBorder));
+        MoveDraggedSequenceStep(e, targetOffsetMs, relocationTargetBranchId);
         _sequenceDropEventCompletedTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
     }
 
@@ -222,7 +267,10 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
         // next right-click. Open the newly built menu explicitly for this click.
         e.Handled = true;
 
-        var targetOffsetMs = GetTimelineOffsetAtPointer(timeCellBorder, timeSlice, System.Windows.Input.Mouse.GetPosition(timeCellBorder));
+        var targetOffsetMs = GetInsertionOffsetAtPointer(
+            timeCellBorder,
+            timeSlice,
+            System.Windows.Input.Mouse.GetPosition(SequenceFlowConnectionCanvas));
         var menu = new System.Windows.Controls.ContextMenu();
         if (lane is null)
         {
@@ -236,29 +284,32 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
         else
         {
             var branchId = lane.BranchId;
-            var canAddToLane = viewModel.CanAddSequenceStepAtOffset(targetOffsetMs, branchId);
+            var addDisabledReason = viewModel.GetSequenceStepAddDisabledReason(targetOffsetMs, branchId);
             var laneName = viewModel.GetSequenceBranchDisplayName(branchId);
             var addInline = new System.Windows.Controls.MenuItem
             {
                 Header = $"Add inline action to {laneName} at {targetOffsetMs} ms",
-                IsEnabled = canAddToLane
+                IsEnabled = addDisabledReason is null
             };
+            SetDisabledMenuItemToolTip(addInline, addDisabledReason);
             addInline.Click += (_, _) => viewModel.AddInlineActionSequenceStepAtOffset(targetOffsetMs, branchId);
             menu.Items.Add(addInline);
 
             var addExisting = new System.Windows.Controls.MenuItem
             {
                 Header = $"Add existing action to {laneName} at {targetOffsetMs} ms",
-                IsEnabled = canAddToLane
+                IsEnabled = addDisabledReason is null
             };
+            SetDisabledMenuItemToolTip(addExisting, addDisabledReason);
             addExisting.Click += (_, _) => AddExistingActionAtOffset(targetOffsetMs, branchId, viewModel);
             menu.Items.Add(addExisting);
 
             var addSound = new System.Windows.Controls.MenuItem
             {
                 Header = $"Add sound effect to {laneName} at {targetOffsetMs} ms",
-                IsEnabled = canAddToLane
+                IsEnabled = addDisabledReason is null
             };
+            SetDisabledMenuItemToolTip(addSound, addDisabledReason);
             addSound.Click += (_, _) => viewModel.AddSoundSequenceStepAtOffset(targetOffsetMs, branchId);
             menu.Items.Add(addSound);
 
@@ -288,33 +339,84 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
             }
         }
 
-        if (viewModel.SelectedSequenceStep is { StepType: Storyboard.Shared.RuntimeContracts.Enums.SequenceStepType.Action } fork
-            && (fork.ContinuationMode ?? Storyboard.Shared.RuntimeContracts.Enums.ContinuationMode.Continue) == Storyboard.Shared.RuntimeContracts.Enums.ContinuationMode.Branch)
-        {
-            if (!fork.OnSuccessStepId.HasValue || !fork.OnFailureStepId.HasValue)
-            {
-                menu.Items.Add(new System.Windows.Controls.Separator());
-            }
-
-            if (!fork.OnSuccessStepId.HasValue)
-            {
-                menu.Items.Add(CreateForkStepMenuItem("success", targetOffsetMs, sound: false, viewModel));
-                menu.Items.Add(CreateForkExistingActionMenuItem("success", targetOffsetMs, viewModel));
-                menu.Items.Add(CreateForkStepMenuItem("success", targetOffsetMs, sound: true, viewModel));
-            }
-
-            if (!fork.OnFailureStepId.HasValue)
-            {
-                menu.Items.Add(CreateForkStepMenuItem("failure", targetOffsetMs, sound: false, viewModel));
-                menu.Items.Add(CreateForkExistingActionMenuItem("failure", targetOffsetMs, viewModel));
-                menu.Items.Add(CreateForkStepMenuItem("failure", targetOffsetMs, sound: true, viewModel));
-            }
-        }
+        AddForkOutcomeMenuItems(menu, targetOffsetMs, viewModel);
 
         menu.PlacementTarget = border;
         menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
         border.ContextMenu = menu;
         menu.IsOpen = true;
+    }
+
+    private void SequenceTimelineRulerCanvas_OnContextMenuOpening(object sender, System.Windows.Controls.ContextMenuEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Canvas rulerCanvas
+            || DataContext is not StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel
+            || _sequenceTimelineScreenTimeMap is null)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        var targetOffsetMs = _sequenceTimelineScreenTimeMap.GetOffsetAtX(
+            System.Windows.Input.Mouse.GetPosition(SequenceFlowConnectionCanvas).X);
+        var menu = new System.Windows.Controls.ContextMenu();
+        menu.Items.Add(CreateBranchChoiceMenu("Add inline action", targetOffsetMs, viewModel,
+            branchId => viewModel.AddInlineActionSequenceStepAtOffset(targetOffsetMs, branchId)));
+        menu.Items.Add(CreateBranchChoiceMenu("Add existing action", targetOffsetMs, viewModel,
+            branchId => AddExistingActionAtOffset(targetOffsetMs, branchId, viewModel)));
+        menu.Items.Add(CreateBranchChoiceMenu("Add sound effect", targetOffsetMs, viewModel,
+            branchId => viewModel.AddSoundSequenceStepAtOffset(targetOffsetMs, branchId)));
+        AddForkOutcomeMenuItems(menu, targetOffsetMs, viewModel);
+        menu.PlacementTarget = rulerCanvas;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+        rulerCanvas.ContextMenu = menu;
+        menu.IsOpen = true;
+    }
+
+    private void SequenceTimelineRulerCanvas_OnDrop(object sender, System.Windows.DragEventArgs e)
+    {
+        if (_sequenceTimelineScreenTimeMap is null)
+        {
+            return;
+        }
+
+        MoveDraggedSequenceStep(
+            e,
+            _sequenceTimelineScreenTimeMap.GetOffsetAtX(e.GetPosition(SequenceFlowConnectionCanvas).X),
+            targetBranchId: null);
+        _sequenceDropEventCompletedTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
+    }
+
+    private void AddForkOutcomeMenuItems(
+        System.Windows.Controls.ContextMenu menu,
+        int targetOffsetMs,
+        StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel)
+    {
+        if (viewModel.SelectedSequenceStep is not { StepType: Storyboard.Shared.RuntimeContracts.Enums.SequenceStepType.Action } fork
+            || (fork.ContinuationMode ?? Storyboard.Shared.RuntimeContracts.Enums.ContinuationMode.Continue)
+                != Storyboard.Shared.RuntimeContracts.Enums.ContinuationMode.Branch)
+        {
+            return;
+        }
+
+        if (!fork.OnSuccessStepId.HasValue || !fork.OnFailureStepId.HasValue)
+        {
+            menu.Items.Add(new System.Windows.Controls.Separator());
+        }
+
+        if (!fork.OnSuccessStepId.HasValue)
+        {
+            menu.Items.Add(CreateForkStepMenuItem("success", targetOffsetMs, sound: false, viewModel));
+            menu.Items.Add(CreateForkExistingActionMenuItem("success", targetOffsetMs, viewModel));
+            menu.Items.Add(CreateForkStepMenuItem("success", targetOffsetMs, sound: true, viewModel));
+        }
+
+        if (!fork.OnFailureStepId.HasValue)
+        {
+            menu.Items.Add(CreateForkStepMenuItem("failure", targetOffsetMs, sound: false, viewModel));
+            menu.Items.Add(CreateForkExistingActionMenuItem("failure", targetOffsetMs, viewModel));
+            menu.Items.Add(CreateForkStepMenuItem("failure", targetOffsetMs, sound: true, viewModel));
+        }
     }
 
     private void RenameSequenceBranch(string branchId, StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel)
@@ -383,11 +485,13 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
         var menu = new System.Windows.Controls.MenuItem { Header = $"{header} at {offsetMs} ms" };
         foreach (var branchId in viewModel.SequenceBranchChoices)
         {
+            var disabledReason = viewModel.GetSequenceStepAddDisabledReason(offsetMs, branchId);
             var branchItem = new System.Windows.Controls.MenuItem
             {
                 Header = viewModel.GetSequenceBranchDisplayName(branchId),
-                IsEnabled = viewModel.CanAddSequenceStepAtOffset(offsetMs, branchId)
+                IsEnabled = disabledReason is null
             };
+            SetDisabledMenuItemToolTip(branchItem, disabledReason);
             branchItem.Click += (_, _) => addStep(branchId);
             menu.Items.Add(branchItem);
         }
@@ -399,11 +503,11 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
         string branchId,
         StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel)
     {
-        var choices = viewModel.GetSequenceActionChoices();
+        var choices = viewModel.GetSequenceActionPickerChoices();
         if (choices.Count == 0)
         {
             System.Windows.MessageBox.Show(System.Windows.Window.GetWindow(this),
-                "There are no actions in this scope or its parent scopes to add.",
+                "There are no actions in this scope, its ancestors, or its children to add.",
                 "Add Existing Action",
                 System.Windows.MessageBoxButton.OK,
                 System.Windows.MessageBoxImage.Information);
@@ -425,19 +529,20 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
         int offsetMs,
         StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel)
     {
+        var disabledReason = viewModel.GetForkOutcomeAddDisabledReason(offsetMs);
         var menuItem = new System.Windows.Controls.MenuItem
         {
             Header = $"Add existing action on {outcome} branch at {offsetMs} ms",
-            IsEnabled = viewModel.SelectedSequenceStep is { } source
-                && offsetMs >= source.OffsetMs
+            IsEnabled = disabledReason is null
         };
+        SetDisabledMenuItemToolTip(menuItem, disabledReason);
         menuItem.Click += (_, _) =>
         {
-            var choices = viewModel.GetSequenceActionChoices();
+            var choices = viewModel.GetSequenceActionPickerChoices();
             if (choices.Count == 0)
             {
                 System.Windows.MessageBox.Show(System.Windows.Window.GetWindow(this),
-                    "There are no actions in this scope or its parent scopes to add.",
+                    "There are no actions in this scope, its ancestors, or its children to add.",
                     "Add Existing Action",
                     System.Windows.MessageBoxButton.OK,
                     System.Windows.MessageBoxImage.Information);
@@ -456,20 +561,63 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
         return menuItem;
     }
 
+    private void ChooseSequenceAction_OnClick(object sender, System.Windows.RoutedEventArgs e)
+    {
+        if (DataContext is not StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel
+            || viewModel.SelectedSequenceStep is not { StepType: Storyboard.Shared.RuntimeContracts.Enums.SequenceStepType.Action })
+        {
+            return;
+        }
+
+        var choices = viewModel.GetSequenceActionPickerChoices();
+        if (choices.Count == 0)
+        {
+            System.Windows.MessageBox.Show(System.Windows.Window.GetWindow(this),
+                "There are no actions in this scope, its ancestors, or its children.",
+                "Choose Action",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Information);
+            return;
+        }
+
+        var picker = new StoryboardDesigner.App.Views.SelectLinkedActionDialog(choices)
+        {
+            Owner = System.Windows.Window.GetWindow(this)
+        };
+        if (picker.ShowDialog() == true && picker.SelectedAction is not null)
+        {
+            viewModel.SelectedSequenceActionId = picker.SelectedAction.Id;
+        }
+    }
+
     private static System.Windows.Controls.MenuItem CreateForkStepMenuItem(
         string outcome,
         int offsetMs,
         bool sound,
         StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel)
     {
+        var disabledReason = viewModel.GetForkOutcomeAddDisabledReason(offsetMs);
         var menuItem = new System.Windows.Controls.MenuItem
         {
             Header = $"Add {(sound ? "sound effect" : "action")} on {outcome} branch at {offsetMs} ms",
-            IsEnabled = viewModel.SelectedSequenceStep is { } source
-                && offsetMs >= source.OffsetMs
+            IsEnabled = disabledReason is null
         };
+        SetDisabledMenuItemToolTip(menuItem, disabledReason);
         menuItem.Click += (_, _) => viewModel.AddForkOutcomeStepAtOffset(offsetMs, success: outcome == "success", sound: sound);
         return menuItem;
+    }
+
+    private static void SetDisabledMenuItemToolTip(
+        System.Windows.Controls.MenuItem menuItem,
+        string? disabledReason)
+    {
+        if (menuItem.IsEnabled || string.IsNullOrWhiteSpace(disabledReason))
+        {
+            return;
+        }
+
+        menuItem.ToolTip = disabledReason;
+        System.Windows.Controls.ToolTipService.SetShowOnDisabled(menuItem, true);
     }
 
     private static int GetTimelineOffsetAtPointer(
@@ -489,6 +637,16 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
         return Math.Clamp(roundedOffset, timeSlice.RangeStartOffsetMs, timeSlice.RangeEndOffsetMs);
     }
 
+    private int GetInsertionOffsetAtPointer(
+        System.Windows.Controls.Border timeCellBorder,
+        StoryboardDesigner.App.ViewModels.MainWindowViewModel.SequenceTimelineTimeSliceViewModel timeSlice,
+        System.Windows.Point position)
+    {
+        return _sequenceTimelineScreenTimeMap is null
+            ? GetTimelineOffsetAtPointer(timeCellBorder, timeSlice, System.Windows.Input.Mouse.GetPosition(timeCellBorder))
+            : _sequenceTimelineScreenTimeMap.GetOffsetAtX(position.X);
+    }
+
     private void SetTimelineDropEffect(System.Windows.DragEventArgs e)
     {
         if (e.Data.GetDataPresent(typeof(Storyboard.Shared.DesignerContracts.ProjectSequenceStepDto))
@@ -505,7 +663,7 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
         e.Handled = true;
     }
 
-    private void MoveDraggedSequenceStep(System.Windows.DragEventArgs e, int targetOffsetMs)
+    private void MoveDraggedSequenceStep(System.Windows.DragEventArgs e, int targetOffsetMs, string? targetBranchId = null)
     {
         if (e.Data.GetData(typeof(Storyboard.Shared.DesignerContracts.ProjectSequenceStepDto)) is not Storyboard.Shared.DesignerContracts.ProjectSequenceStepDto step
             || DataContext is not StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel)
@@ -513,10 +671,115 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
             return;
         }
 
-        if (viewModel.MoveSequenceStepToOffset(step, targetOffsetMs))
+        var moved = viewModel.SequenceTimelineTool == StoryboardDesigner.App.ViewModels.SequenceTimelineToolMode.Relocate
+            ? viewModel.RelocateSequenceStepTo(
+                step,
+                targetOffsetMs,
+                targetBranchId ?? step.BranchId ?? StoryboardDesigner.App.ViewModels.MainWindowViewModel.MainSequenceBranchId)
+            : viewModel.MoveSequenceStepToOffset(step, targetOffsetMs);
+        if (moved)
         {
             e.Handled = true;
         }
+    }
+
+    private void SequenceCanvasContent_OnPreviewMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        UpdateSequenceTimeMappingPreview(
+            e.GetPosition(SequenceFlowConnectionCanvas),
+            GetSequenceBranchIdAtPointer(e.OriginalSource));
+    }
+
+    private void SequenceCanvasContent_OnPreviewDragOver(object sender, System.Windows.DragEventArgs e)
+    {
+        if (DataContext is StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel
+            && viewModel.SequenceTimelineTool is StoryboardDesigner.App.ViewModels.SequenceTimelineToolMode.Move
+                or StoryboardDesigner.App.ViewModels.SequenceTimelineToolMode.Ripple
+                or StoryboardDesigner.App.ViewModels.SequenceTimelineToolMode.Relocate)
+        {
+            UpdateSequenceTimeMappingPreview(
+                e.GetPosition(SequenceFlowConnectionCanvas),
+                GetSequenceBranchIdAtPointer(e.OriginalSource));
+        }
+        else
+        {
+            HideSequenceTimeMappingPreview();
+        }
+    }
+
+    private void SequenceCanvasContent_OnMouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        HideSequenceTimeMappingPreview();
+    }
+
+    private void UpdateSequenceTimeMappingPreview(System.Windows.Point pointer, string? targetBranchId = null)
+    {
+        if (_sequenceTimelineScreenTimeMap is null
+            || pointer.X < 0d
+            || pointer.X > SequenceTimeMappingPreviewCanvas.ActualWidth)
+        {
+            HideSequenceTimeMappingPreview();
+            return;
+        }
+
+        var offsetMs = _sequenceTimelineScreenTimeMap.GetOffsetAtX(pointer.X);
+        var snapX = _sequenceTimelineScreenTimeMap.GetXAtOffset(offsetMs);
+        SequenceTimeMappingPreviewLine.X1 = snapX;
+        SequenceTimeMappingPreviewLine.X2 = snapX;
+        SequenceTimeMappingPreviewLine.Y1 = 0d;
+        SequenceTimeMappingPreviewLine.Y2 = SequenceTimeMappingPreviewCanvas.ActualHeight;
+        if (DataContext is StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel
+            && viewModel.SequenceTimelineTool == StoryboardDesigner.App.ViewModels.SequenceTimelineToolMode.Relocate
+            && viewModel.SelectedSequenceStep is { } selectedStep)
+        {
+            var destinationBranchId = targetBranchId
+                ?? selectedStep.BranchId
+                ?? StoryboardDesigner.App.ViewModels.MainWindowViewModel.MainSequenceBranchId;
+            SequenceTimeMappingPreviewLabel.Text = viewModel.GetSequenceRelocationPreviewDescription(
+                selectedStep,
+                offsetMs,
+                destinationBranchId);
+        }
+        else
+        {
+            SequenceTimeMappingPreviewLabel.Text = $"50 ms slot · {offsetMs:N0} ms";
+        }
+        SequenceTimeMappingPreviewReadout.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+        var left = snapX + 7d;
+        if (left + SequenceTimeMappingPreviewReadout.DesiredSize.Width > SequenceTimeMappingPreviewCanvas.ActualWidth)
+        {
+            left = snapX - SequenceTimeMappingPreviewReadout.DesiredSize.Width - 7d;
+        }
+
+        var maxLeft = Math.Max(0d, SequenceBranchScrollViewer.ActualWidth - SequenceTimeMappingPreviewReadout.DesiredSize.Width);
+        SequenceTimeMappingPreviewReadout.Margin = new System.Windows.Thickness(Math.Clamp(left, 0d, maxLeft), 3d, 0d, 0d);
+        SequenceTimeMappingPreviewLine.Visibility = System.Windows.Visibility.Visible;
+        SequenceTimeMappingPreviewReadout.Visibility = System.Windows.Visibility.Visible;
+    }
+
+    private string? GetSequenceBranchIdAtPointer(object? source)
+    {
+        var current = source as System.Windows.DependencyObject;
+        while (current is not null && !ReferenceEquals(current, SequenceCanvasContent))
+        {
+            if (current is System.Windows.Controls.Border
+                {
+                    DataContext: StoryboardDesigner.App.ViewModels.MainWindowViewModel.SequenceTimelineBranchLaneViewModel lane
+                })
+            {
+                return lane.BranchId;
+            }
+
+            current = System.Windows.Media.VisualTreeHelper.GetParent(current);
+        }
+
+        return null;
+    }
+
+    private void HideSequenceTimeMappingPreview()
+    {
+        SequenceTimeMappingPreviewLine.Visibility = System.Windows.Visibility.Collapsed;
+        SequenceTimeMappingPreviewReadout.Visibility = System.Windows.Visibility.Collapsed;
     }
 
     private void SequenceCanvasContent_OnSizeChanged(object sender, System.Windows.SizeChangedEventArgs e)
@@ -577,6 +840,26 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
         _flowConnectionInvalidationElapsed = null;
         _flowInvalidationToNormalPriorityMs = null;
         _flowInvalidationToDataBindPriorityMs = null;
+        if (DataContext is StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel)
+        {
+            // The flow surface renders the sparse slices, so the ruler and pointer
+            // mapping must use that same screen-space layout to stay aligned with cards.
+            _sequenceTimelineScreenTimeMap = CreateSequenceTimelineScreenTimeMap(viewModel.SequenceFlowTimeSlices);
+            var rulerLayout = string.Join("|", viewModel.SequenceFlowTimeSlices.Select(static slice =>
+                $"{slice.OffsetMs}:{slice.RangeStartOffsetMs}-{slice.RangeEndOffsetMs}:{slice.Width:0.##}:{slice.HasSteps}"));
+            if (!string.Equals(rulerLayout, _lastSequenceRulerLayout, StringComparison.Ordinal))
+            {
+                _lastSequenceRulerLayout = rulerLayout;
+                DrawSequenceTimelineRuler(viewModel, _sequenceTimelineScreenTimeMap);
+            }
+        }
+        else
+        {
+            _sequenceTimelineScreenTimeMap = null;
+            SequenceTimelineRulerCanvas.Width = 0d;
+            SequenceTimelineRulerCanvas.Children.Clear();
+        }
+
         var layout = System.Diagnostics.Stopwatch.StartNew();
         SequenceCanvasContent.UpdateLayout();
         var updateLayoutMs = layout.Elapsed.TotalMilliseconds;
@@ -599,6 +882,8 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
                 border.TranslatePoint(new System.Windows.Point(0d, 0d), SequenceFlowConnectionCanvas),
                 border.ActualWidth))
             .ToList();
+        SequenceTimeMappingPreviewCanvas.Width = SequenceFlowConnectionCanvas.ActualWidth;
+        SequenceTimeMappingPreviewCanvas.Height = SequenceFlowConnectionCanvas.ActualHeight;
         var byStepId = cards
             .Where(static card => card.Card.Step.StepId != Guid.Empty)
             .GroupBy(static card => card.Card.Step.StepId)
@@ -620,9 +905,10 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
         var draw = System.Diagnostics.Stopwatch.StartNew();
         SequenceFlowConnectionCanvas.Children.Clear();
         SequenceSoundEndMarkerCanvas.Children.Clear();
+        _soundPlaybackTrackVisuals.Clear();
         SequenceSoundEndMarkerCanvas.Width = SequenceFlowConnectionCanvas.ActualWidth;
         SequenceSoundEndMarkerCanvas.Height = SequenceFlowConnectionCanvas.ActualHeight;
-        DrawSoundPlaybackSpans(cards, timeCells);
+        DrawSoundPlaybackSpans(cards, _sequenceTimelineScreenTimeMap);
         foreach (var card in cards)
         {
             var step = card.Card.Step;
@@ -670,9 +956,9 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
             + $"invalidate-to-normal={(invalidationToNormalPriorityMs.HasValue ? $"{invalidationToNormalPriorityMs.Value:F1}ms" : "n/a")}; "
             + $"invalidate-to-databind={(invalidationToDataBindPriorityMs.HasValue ? $"{invalidationToDataBindPriorityMs.Value:F1}ms" : "n/a")}; "
             + $"drop-to-drag-return={(_sequenceDropToDragReturnMs.HasValue ? $"{_sequenceDropToDragReturnMs.Value:F1}ms" : "n/a")}{unchangedPassSummary}";
-        if (DataContext is StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel)
+        if (DataContext is StoryboardDesigner.App.ViewModels.MainWindowViewModel performanceViewModel)
         {
-            viewModel.CompleteSequenceEditPerformance(flowDetails);
+            performanceViewModel.CompleteSequenceEditPerformance(flowDetails);
         }
         }
         finally
@@ -681,93 +967,346 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
         }
     }
 
-    private void DrawSoundPlaybackSpans(
-        IReadOnlyList<FlowCardVisual> cards,
-        IReadOnlyList<FlowTimeCellVisual> timeCells)
+    private static SequenceTimelineScreenTimeMap? CreateSequenceTimelineScreenTimeMap(
+        IReadOnlyList<StoryboardDesigner.App.ViewModels.MainWindowViewModel.SequenceTimelineTimeSliceViewModel> timeSlices)
     {
-        if (timeCells.Count == 0)
+        if (timeSlices.Count == 0)
+        {
+            return null;
+        }
+
+        var x = 0d;
+        var cells = new List<SequenceTimelineScreenTimeMap.TimelineCell>(timeSlices.Count);
+        foreach (var slice in timeSlices)
+        {
+            cells.Add(new SequenceTimelineScreenTimeMap.TimelineCell(
+                slice.OffsetMs,
+                slice.RangeStartOffsetMs,
+                slice.RangeEndOffsetMs,
+                slice.IsRange,
+                slice.HasSteps,
+                x,
+                slice.Width));
+            x += slice.Width;
+        }
+
+        return new SequenceTimelineScreenTimeMap(cells);
+    }
+
+    private void DrawSequenceTimelineRuler(
+        StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel,
+        SequenceTimelineScreenTimeMap? screenTimeMap)
+    {
+        var timeSlices = viewModel.SequenceFlowTimeSlices;
+        var width = timeSlices.Sum(static slice => slice.Width);
+        SequenceTimelineRulerCanvas.Width = width;
+        SequenceTimelineRulerCanvas.Children.Clear();
+        if (screenTimeMap is null || timeSlices.Count == 0)
         {
             return;
         }
 
-        double? GetX(int offsetMs)
+        var lastSlice = timeSlices[^1];
+        var endOffsetMs = lastSlice.IsRange ? lastSlice.RangeEndOffsetMs : lastSlice.OffsetMs;
+        long intervalMs = 1_000L;
+        while (endOffsetMs / intervalMs > 160L)
         {
-            foreach (var cell in timeCells)
-            {
-                var slice = cell.Slice;
-                if (slice.IsRange && offsetMs >= slice.RangeStartOffsetMs && offsetMs <= slice.RangeEndOffsetMs)
-                {
-                    var fraction = (offsetMs - slice.RangeStartOffsetMs)
-                        / (double)(slice.RangeEndOffsetMs - slice.RangeStartOffsetMs);
-                    return cell.Position.X + cell.Width * fraction;
-                }
-
-                if (!slice.IsRange && slice.OffsetMs == offsetMs)
-                {
-                    return cell.Position.X;
-                }
-            }
-
-            var ordered = timeCells.Where(static cell => !cell.Slice.IsRange)
-                .OrderBy(static cell => cell.Slice.OffsetMs)
-                .ToList();
-            var before = ordered.LastOrDefault(cell => cell.Slice.OffsetMs < offsetMs);
-            var after = ordered.FirstOrDefault(cell => cell.Slice.OffsetMs > offsetMs);
-            if (before is null || after is null)
-            {
-                return null;
-            }
-
-            var fractionBetween = (offsetMs - before.Slice.OffsetMs)
-                / (double)(after.Slice.OffsetMs - before.Slice.OffsetMs);
-            return before.Position.X + (after.Position.X - before.Position.X) * fractionBetween;
+            intervalMs *= 2L;
         }
 
-        var markerStacks = new Dictionary<(int X, int Y), int>();
-        foreach (var source in cards.Where(static card => card.Card.IsSound
-            && card.Card.PlaybackStartOffsetMs.HasValue
-            && card.Card.PlaybackEndOffsetMs.HasValue))
+        SequenceTimelineRulerCanvas.Children.Add(new System.Windows.Shapes.Line
         {
-            var startX = GetX(source.Card.PlaybackStartOffsetMs!.Value);
-            var endX = GetX(source.Card.PlaybackEndOffsetMs!.Value);
-            if (!startX.HasValue || !endX.HasValue || endX.Value <= startX.Value)
+            X1 = 0d,
+            X2 = width,
+            Y1 = 37d,
+            Y2 = 37d,
+            Stroke = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(148, 163, 184)),
+            StrokeThickness = 1d,
+            IsHitTestVisible = false
+        });
+
+        double? lastMajorTickX = null;
+        var lastLabelRight = double.NegativeInfinity;
+        for (long offsetMs = 0L; offsetMs <= endOffsetMs; offsetMs += intervalMs)
+        {
+            var x = screenTimeMap.GetXAtOffset((int)offsetMs);
+            if (lastMajorTickX.HasValue && x - lastMajorTickX.Value < 34d)
             {
                 continue;
             }
 
-            var y = source.Position.Y + source.Button.ActualHeight - 7d;
-            var markerStackKey = ((int)Math.Round(endX.Value), (int)Math.Round(y));
-            markerStacks.TryGetValue(markerStackKey, out var markerStackIndex);
-            markerStacks[markerStackKey] = markerStackIndex + 1;
-            var spanColor = System.Windows.Media.Color.FromArgb(110, 13, 148, 136);
-            SequenceSoundEndMarkerCanvas.Children.Add(new System.Windows.Shapes.Line
+            lastMajorTickX = x;
+            SequenceTimelineRulerCanvas.Children.Add(new System.Windows.Shapes.Line
             {
-                X1 = startX.Value,
-                X2 = endX.Value,
-                Y1 = y,
-                Y2 = y,
-                Stroke = new System.Windows.Media.SolidColorBrush(spanColor),
-                StrokeThickness = 3d,
-                StrokeStartLineCap = System.Windows.Media.PenLineCap.Round,
-                StrokeEndLineCap = System.Windows.Media.PenLineCap.Round,
+                X1 = x,
+                X2 = x,
+                Y1 = 9d,
+                Y2 = 37d,
+                Stroke = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(71, 85, 105)),
+                StrokeThickness = 1d,
                 IsHitTestVisible = false
             });
 
+            var label = new System.Windows.Controls.TextBlock
+            {
+                Text = $"{offsetMs / 1_000d:0.##}s",
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(51, 65, 85)),
+                FontSize = 10d,
+                IsHitTestVisible = false
+            };
+            label.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+            var left = x + 4d;
+            if (left + label.DesiredSize.Width > width)
+            {
+                left = x - label.DesiredSize.Width - 4d;
+            }
+
+            left = Math.Clamp(left, 0d, Math.Max(0d, width - label.DesiredSize.Width));
+            if (left >= lastLabelRight + 8d)
+            {
+                System.Windows.Controls.Canvas.SetLeft(label, left);
+                System.Windows.Controls.Canvas.SetTop(label, 15d);
+                SequenceTimelineRulerCanvas.Children.Add(label);
+                lastLabelRight = left + label.DesiredSize.Width;
+            }
+        }
+
+        var majorTickPositions = SequenceTimelineRulerCanvas.Children
+            .OfType<System.Windows.Shapes.Line>()
+            .Where(static line => line.Y1 == 9d)
+            .Select(static line => line.X1)
+            .ToList();
+        foreach (var occupiedOffset in timeSlices
+                     .Where(static slice => slice.HasSteps)
+                     .Select(static slice => slice.OffsetMs)
+                     .Distinct())
+        {
+            var x = screenTimeMap.GetXAtOffset(occupiedOffset);
+            if (majorTickPositions.Any(majorX => Math.Abs(majorX - x) < 2d))
+            {
+                continue;
+            }
+
+            SequenceTimelineRulerCanvas.Children.Add(new System.Windows.Shapes.Line
+            {
+                X1 = x,
+                X2 = x,
+                Y1 = 25d,
+                Y2 = 37d,
+                Stroke = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235)),
+                StrokeThickness = 2d,
+                IsHitTestVisible = false
+            });
+        }
+    }
+
+    private void DrawSoundPlaybackSpans(
+        IReadOnlyList<FlowCardVisual> cards,
+        SequenceTimelineScreenTimeMap? screenTimeMap)
+    {
+        if (screenTimeMap is null)
+        {
+            return;
+        }
+
+        var markerStacks = new Dictionary<(int X, int Y), int>();
+        var occupiedVisualTracksByRow = new Dictionary<int, List<int>>();
+        var palette = new[]
+        {
+            System.Windows.Media.Color.FromRgb(13, 148, 136),  // teal
+            System.Windows.Media.Color.FromRgb(37, 99, 235),   // blue
+            System.Windows.Media.Color.FromRgb(217, 119, 6),   // amber
+            System.Windows.Media.Color.FromRgb(124, 58, 237),  // violet
+            System.Windows.Media.Color.FromRgb(220, 38, 38),   // red
+            System.Windows.Media.Color.FromRgb(5, 150, 105),   // green
+            System.Windows.Media.Color.FromRgb(219, 39, 119),  // pink
+            System.Windows.Media.Color.FromRgb(71, 85, 105)    // slate
+        };
+        var soundCards = cards
+            .Where(static card => card.Card.IsSound
+                && card.Card.PlaybackStartOffsetMs.HasValue
+                && card.Card.PlaybackEndOffsetMs.HasValue)
+            .OrderBy(static card => card.Card.Step.OffsetMs)
+            .ThenBy(static card => card.Card.Step.Order)
+            .ThenBy(static card => card.Card.Step.StepId)
+            .ToList();
+        var selectedStepId = (DataContext as StoryboardDesigner.App.ViewModels.MainWindowViewModel)?.SelectedSequenceStep?.StepId;
+        for (var soundIndex = 0; soundIndex < soundCards.Count; soundIndex++)
+        {
+            var source = soundCards[soundIndex];
+            var startX = screenTimeMap.GetXAtOffset(source.Card.PlaybackStartOffsetMs!.Value);
+            var endX = screenTimeMap.GetXAtOffset(source.Card.PlaybackEndOffsetMs!.Value);
+            if (endX <= startX)
+            {
+                continue;
+            }
+
+            var baseY = source.Position.Y + source.Button.ActualHeight - 7d;
+            var rowKey = (int)Math.Round(baseY);
+            if (!occupiedVisualTracksByRow.TryGetValue(rowKey, out var activeTrackEndOffsets))
+            {
+                activeTrackEndOffsets = new List<int>();
+                occupiedVisualTracksByRow[rowKey] = activeTrackEndOffsets;
+            }
+
+            var startOffsetMs = source.Card.PlaybackStartOffsetMs!.Value;
+            var endOffsetMs = source.Card.PlaybackEndOffsetMs!.Value;
+            var visualTrackIndex = activeTrackEndOffsets.FindIndex(endOffset => endOffset <= startOffsetMs);
+            if (visualTrackIndex < 0)
+            {
+                visualTrackIndex = activeTrackEndOffsets.Count;
+                activeTrackEndOffsets.Add(endOffsetMs);
+            }
+            else
+            {
+                activeTrackEndOffsets[visualTrackIndex] = endOffsetMs;
+            }
+
+            // Keep simultaneous spans legible without changing branch or card layout.
+            // The 6 px offset is only used while another sound span on this visual row is active.
+            var y = baseY + visualTrackIndex * 6d;
+            var markerStackKey = ((int)Math.Round(endX), (int)Math.Round(y));
+            markerStacks.TryGetValue(markerStackKey, out var markerStackIndex);
+            markerStacks[markerStackKey] = markerStackIndex + 1;
+            var trackColor = palette[soundIndex % palette.Length];
+            var isSelected = source.Card.Step.StepId == selectedStepId;
+            var halo = new System.Windows.Shapes.Line
+            {
+                X1 = startX,
+                X2 = endX,
+                Y1 = y,
+                Y2 = y,
+                Stroke = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(210, 255, 255, 255)),
+                StrokeThickness = 7d,
+                StrokeStartLineCap = System.Windows.Media.PenLineCap.Round,
+                StrokeEndLineCap = System.Windows.Media.PenLineCap.Round,
+                Visibility = isSelected ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed,
+                IsHitTestVisible = false
+            };
+            SequenceSoundEndMarkerCanvas.Children.Add(halo);
+
+            var span = new System.Windows.Shapes.Line
+            {
+                X1 = startX,
+                X2 = endX,
+                Y1 = y,
+                Y2 = y,
+                Stroke = new System.Windows.Media.SolidColorBrush(trackColor),
+                StrokeThickness = isSelected ? 5d : 3d,
+                StrokeStartLineCap = System.Windows.Media.PenLineCap.Round,
+                StrokeEndLineCap = System.Windows.Media.PenLineCap.Round,
+                Opacity = isSelected ? 1d : 0.82d,
+                IsHitTestVisible = false
+            };
+            SequenceSoundEndMarkerCanvas.Children.Add(span);
+
+            const double markerWidth = 8d;
+            const double markerHeight = 12d;
+            var markerCenterY = y - markerStackIndex * 18d;
+            if (markerStackIndex > 0)
+            {
+                SequenceSoundEndMarkerCanvas.Children.Add(new System.Windows.Shapes.Line
+                {
+                    X1 = endX,
+                    X2 = endX,
+                    Y1 = markerCenterY + markerHeight / 2d,
+                    Y2 = y,
+                    Stroke = new System.Windows.Media.SolidColorBrush(trackColor),
+                    StrokeThickness = 1.5d,
+                    IsHitTestVisible = false
+                });
+            }
+
             var marker = new System.Windows.Controls.Border
             {
-                Width = 8d,
-                Height = 12d,
+                Width = isSelected ? 11d : markerWidth,
+                Height = isSelected ? 16d : markerHeight,
                 CornerRadius = new System.Windows.CornerRadius(2d),
-                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(13, 148, 136)),
-                BorderBrush = System.Windows.Media.Brushes.White,
-                BorderThickness = new System.Windows.Thickness(1d),
+                Background = new System.Windows.Media.SolidColorBrush(trackColor),
+                BorderBrush = isSelected ? System.Windows.Media.Brushes.White : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 255)),
+                BorderThickness = new System.Windows.Thickness(isSelected ? 2d : 1d),
                 ToolTip = source.Card.PlaybackEndMarkerToolTip,
                 IsHitTestVisible = true
             };
             System.Windows.Controls.ToolTipService.SetInitialShowDelay(marker, 250);
-            System.Windows.Controls.Canvas.SetLeft(marker, endX.Value - marker.Width / 2d);
-            System.Windows.Controls.Canvas.SetTop(marker, y - marker.Height / 2d - markerStackIndex * 9d);
+            System.Windows.Controls.Canvas.SetLeft(marker, endX - marker.Width / 2d);
+            System.Windows.Controls.Canvas.SetTop(marker, markerCenterY - marker.Height / 2d);
             SequenceSoundEndMarkerCanvas.Children.Add(marker);
+
+            var labelText = new System.Windows.Controls.TextBlock
+            {
+                Text = $"End · {source.Card.SoundEffectLabel}",
+                Foreground = new System.Windows.Media.SolidColorBrush(trackColor),
+                FontSize = 10d,
+                FontWeight = isSelected ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Medium,
+                TextTrimming = System.Windows.TextTrimming.CharacterEllipsis,
+                MaxWidth = 180d,
+                ToolTip = source.Card.PlaybackEndMarkerToolTip,
+                IsHitTestVisible = false
+            };
+            labelText.Measure(new System.Windows.Size(180d, double.PositiveInfinity));
+            var label = new System.Windows.Controls.Border
+            {
+                Child = labelText,
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(238, 255, 255, 255)),
+                BorderBrush = new System.Windows.Media.SolidColorBrush(trackColor),
+                BorderThickness = new System.Windows.Thickness(isSelected ? 1.5d : 1d),
+                CornerRadius = new System.Windows.CornerRadius(2d),
+                Padding = new System.Windows.Thickness(3d, 1d, 3d, 1d),
+                IsHitTestVisible = false
+            };
+            label.Measure(new System.Windows.Size(186d, double.PositiveInfinity));
+            var labelWidth = label.DesiredSize.Width;
+            var labelHeight = label.DesiredSize.Height;
+            var labelLeft = endX + 7d;
+            if (labelLeft + labelWidth > SequenceSoundEndMarkerCanvas.Width)
+            {
+                labelLeft = Math.Max(0d, endX - labelWidth - 7d);
+            }
+
+            var labelTop = markerCenterY - labelHeight / 2d;
+            System.Windows.Controls.Canvas.SetLeft(label, labelLeft);
+            System.Windows.Controls.Canvas.SetTop(label, labelTop);
+            SequenceSoundEndMarkerCanvas.Children.Add(label);
+
+            _soundPlaybackTrackVisuals.Add(new SoundPlaybackTrackVisual
+            {
+                StepId = source.Card.Step.StepId,
+                Halo = halo,
+                Span = span,
+                Marker = marker,
+                Label = labelText,
+                MarkerCenterX = endX,
+                MarkerCenterY = markerCenterY
+            });
+        }
+    }
+
+    private void UpdateSoundPlaybackTrackSelection()
+    {
+        var selectedStepId = (DataContext as StoryboardDesigner.App.ViewModels.MainWindowViewModel)?.SelectedSequenceStep?.StepId;
+        foreach (var track in _soundPlaybackTrackVisuals)
+        {
+            var isSelected = track.StepId == selectedStepId;
+            track.Halo.Visibility = isSelected ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            track.Span.StrokeThickness = isSelected ? 5d : 3d;
+            track.Span.Opacity = isSelected ? 1d : 0.82d;
+            track.Marker.Width = isSelected ? 11d : 8d;
+            track.Marker.Height = isSelected ? 16d : 12d;
+            track.Marker.BorderThickness = new System.Windows.Thickness(isSelected ? 2d : 1d);
+            System.Windows.Controls.Canvas.SetLeft(track.Marker, track.MarkerCenterX - track.Marker.Width / 2d);
+            System.Windows.Controls.Canvas.SetTop(track.Marker, track.MarkerCenterY - track.Marker.Height / 2d);
+            track.Label.FontWeight = isSelected ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Medium;
+            track.Label.FontSize = isSelected ? 11d : 10d;
+            if (track.Label.Parent is System.Windows.Controls.Border labelBorder)
+            {
+                labelBorder.BorderThickness = new System.Windows.Thickness(isSelected ? 1.5d : 1d);
+                System.Windows.Controls.Panel.SetZIndex(labelBorder, isSelected ? 3 : 1);
+            }
+
+            System.Windows.Controls.Panel.SetZIndex(track.Halo, isSelected ? 1 : 0);
+            System.Windows.Controls.Panel.SetZIndex(track.Span, isSelected ? 2 : 0);
+            System.Windows.Controls.Panel.SetZIndex(track.Marker, isSelected ? 4 : 2);
         }
     }
 

@@ -1409,12 +1409,6 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
             SimilarChildDispatchMode = action.SimilarChildDispatchMode,
             OutcomeMessageMap = action.OutcomeMessageMap,
             OutcomeSoundEffectsMap = CommandAction.CloneOutcomeSoundEffectsMap(action.OutcomeSoundEffectsMap),
-            LinkedActions = action.LinkedActions?.Select(reference => new LinkedActionReference
-            {
-                ActionId = reference.ActionId,
-                RunWhen = reference.RunWhen,
-                Order = reference.Order
-            }).ToList() ?? new List<LinkedActionReference>()
         };
 
         ActionPayloadAccessors.SetEchoMessage(clone, ActionPayloadAccessors.GetEchoMessage(action));

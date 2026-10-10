@@ -11,7 +11,7 @@ public interface IMainWindowDialogWorkflowService
         PropertyResolutionScope variableScope,
         string scopeEntityName,
         IList<CommandAction> actions,
-        IReadOnlyList<CommandAction> additionalLinkTargetActions,
+        IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> additionalLinkTargetActions,
         IReadOnlyList<ContainerTargetChoiceItem> containerTargetChoices,
         IReadOnlyList<MaterializeSourceObjectChoiceItem> materializeSourceObjectChoices,
         IReadOnlyList<ProcedureChoiceItem> procedureChoices,
@@ -38,4 +38,20 @@ public interface IMainWindowDialogWorkflowService
         IReadOnlyList<string> timerKeySuggestions,
         IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
         IReadOnlyList<CommandAction> availableActions);
+
+    bool EditLinkedActionFlow(
+        string scopeLabel,
+        CommandAction action,
+        IList<CommandAction> editableActions,
+        IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> externalActionChoices,
+        PropertyResolutionScope variableScope,
+        IReadOnlyList<GamePropertyChoiceItem> variableChoices,
+        IReadOnlyList<string> echoReferenceTokens,
+        IReadOnlyList<ContainerTargetChoiceItem> containerTargetChoices,
+        IReadOnlyList<MaterializeSourceObjectChoiceItem> materializeSourceObjectChoices,
+        IReadOnlyList<ProcedureChoiceItem> procedureChoices,
+        IReadOnlyList<CompositeRecipeChoiceItem> compositeRecipeChoices,
+        IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
+        IReadOnlyList<string> timerKeySuggestions,
+        IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices);
 }

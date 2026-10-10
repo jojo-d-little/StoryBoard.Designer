@@ -16,7 +16,7 @@ public partial class ScopedActionsDialog : Window
     private readonly IList<CommandAction> _targetActions;
     private readonly IReadOnlyList<GamePropertyChoiceItem> _variableChoices;
     private readonly IReadOnlyList<string> _echoReferenceTokens;
-    private readonly IReadOnlyList<CommandAction> _additionalLinkTargetActions;
+    private readonly IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> _additionalLinkTargetActions;
     private readonly IReadOnlyList<ContainerTargetChoiceItem> _containerTargetChoices;
     private readonly IReadOnlyList<MaterializeSourceObjectChoiceItem> _materializeSourceObjectChoices;
     private readonly IReadOnlyList<ProcedureChoiceItem> _procedureChoices;
@@ -36,7 +36,7 @@ public partial class ScopedActionsDialog : Window
         PropertyResolutionScope variableScope,
         string scopeEntityName,
         IList<CommandAction> actions,
-        IReadOnlyList<CommandAction> additionalLinkTargetActions,
+        IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> additionalLinkTargetActions,
         IReadOnlyList<ContainerTargetChoiceItem> containerTargetChoices,
         IReadOnlyList<MaterializeSourceObjectChoiceItem> materializeSourceObjectChoices,
         IReadOnlyList<ProcedureChoiceItem> procedureChoices,
@@ -239,12 +239,6 @@ public partial class ScopedActionsDialog : Window
             ChildCommandForwardingMode = source.ChildCommandForwardingMode,
             OutcomeMessageMap = source.OutcomeMessageMap,
             OutcomeSoundEffectsMap = CommandAction.CloneOutcomeSoundEffectsMap(source.OutcomeSoundEffectsMap),
-            LinkedActions = source.LinkedActions.Select(static link => new LinkedActionReference
-            {
-                ActionId = link.ActionId,
-                RunWhen = link.RunWhen,
-                Order = link.Order
-            }).ToList(),
             Payload = source.CreatePayloadSnapshot()
         };
     }
@@ -382,7 +376,10 @@ public partial class ScopedActionsDialog : Window
 
         errors.AddRange(ValidateDuplicateVerbUsage(_workingActions));
 
-        errors.AddRange(LinkedActionGraphValidator.Validate(_workingActions, _scopeLabel, _additionalLinkTargetActions));
+        errors.AddRange(LinkedActionGraphValidator.Validate(
+            _workingActions,
+            _scopeLabel,
+            _additionalLinkTargetActions.Select(static choice => choice.Action).ToList()));
 
         if (errors.Count > 0)
         {

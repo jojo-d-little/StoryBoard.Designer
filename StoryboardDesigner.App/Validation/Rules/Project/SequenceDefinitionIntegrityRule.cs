@@ -88,10 +88,14 @@ public static class SequenceDefinitionIntegrityEvaluator
                 static group => group.Key,
                 static group => group.OrderBy(static step => step.OffsetMs).ThenBy(static step => step.Order).ToList(),
                 StringComparer.Ordinal);
+        var orderedStepsForLabels = steps
+            .OrderBy(static step => step.OffsetMs)
+            .ThenBy(static step => step.Order)
+            .ToList();
 
-        foreach (var (step, index) in steps.Select((step, index) => (step, index)))
+        foreach (var step in orderedStepsForLabels)
         {
-            var stepLabel = $"Step {index + 1}";
+            var stepLabel = DescribeStep(step);
             if (step.StepId == Guid.Empty)
             {
                 issues.Add(new SequenceDefinitionIssue(null, $"{stepLabel} has no step ID.", "Recreate this step so it receives a unique ID."));
@@ -181,8 +185,8 @@ public static class SequenceDefinitionIntegrityEvaluator
                         AddIssue("Branch mode needs at least one outcome target.", "Choose the first step on a different branch for success or failure; an unset outcome ends the run.");
                     }
 
-                    var successTarget = ValidateTarget(step, step.OnSuccessStepId, "success branch", requireDifferentBranch: true, requireNewBranchEntry: true);
-                    var failureTarget = ValidateTarget(step, step.OnFailureStepId, "failure branch", requireDifferentBranch: true, requireNewBranchEntry: true);
+                    var successTarget = ValidateTarget(step, step.OnSuccessStepId, "OnSuccess", requireDifferentBranch: true, requireNewBranchEntry: true, allowSameTimeTarget: true);
+                    var failureTarget = ValidateTarget(step, step.OnFailureStepId, "OnFailure", requireDifferentBranch: true, requireNewBranchEntry: true, allowSameTimeTarget: true);
                     if (successTarget is not null && failureTarget is not null
                         && (ReferenceEquals(successTarget, failureTarget)
                             || string.Equals(successTarget.BranchId, failureTarget.BranchId, StringComparison.Ordinal)))
@@ -204,8 +208,8 @@ public static class SequenceDefinitionIntegrityEvaluator
                     {
                         AddIssue("Action Merge mode needs at least one outcome target.", "Choose a merge target for success or failure; an unset outcome ends the run.");
                     }
-                    ValidateTarget(step, step.OnSuccessStepId, "success merge", requireDifferentBranch: true, requireNewBranchEntry: false, allowSameTimeTarget: true);
-                    ValidateTarget(step, step.OnFailureStepId, "failure merge", requireDifferentBranch: true, requireNewBranchEntry: false, allowSameTimeTarget: true);
+                    ValidateTarget(step, step.OnSuccessStepId, "OnSuccess merge", requireDifferentBranch: true, requireNewBranchEntry: false, allowSameTimeTarget: true);
+                    ValidateTarget(step, step.OnFailureStepId, "OnFailure merge", requireDifferentBranch: true, requireNewBranchEntry: false, allowSameTimeTarget: true);
                     break;
 
                 case ContinuationMode.Merge when step.StepType == SequenceStepType.Sound:
@@ -221,7 +225,7 @@ public static class SequenceDefinitionIntegrityEvaluator
                     {
                         AddIssue("Sound Merge mode needs a target.", "Choose a same-time or future step on another branch.");
                     }
-                    ValidateTarget(step, step.MergeTargetStepId, "sound merge", requireDifferentBranch: true, requireNewBranchEntry: false, allowSameTimeTarget: true);
+            ValidateTarget(step, step.MergeTargetStepId, "sound merge", requireDifferentBranch: true, requireNewBranchEntry: false, allowSameTimeTarget: true);
                     break;
 
                 case ContinuationMode.End:
@@ -236,7 +240,7 @@ public static class SequenceDefinitionIntegrityEvaluator
                     break;
             }
 
-            void AddIssue(string description, string hint) => issues.Add(new SequenceDefinitionIssue(step.StepId, description, hint));
+            void AddIssue(string description, string hint) => issues.Add(new SequenceDefinitionIssue(step.StepId, $"{stepLabel}: {description}", hint));
         }
 
         foreach (var timeGroup in steps.GroupBy(static step => step.OffsetMs))
@@ -245,7 +249,9 @@ public static class SequenceDefinitionIntegrityEvaluator
             {
                 foreach (var step in orderGroup)
                 {
-                    issues.Add(new SequenceDefinitionIssue(step.StepId, "Two or more steps in this time slot share the same order.", "Give the steps distinct order values."));
+                    issues.Add(new SequenceDefinitionIssue(step.StepId,
+                        $"{DescribeStep(step)} shares its time-slot order with another step.",
+                        "Give the steps distinct order values."));
                 }
             }
         }
@@ -295,7 +301,9 @@ public static class SequenceDefinitionIntegrityEvaluator
 
             foreach (var step in steps.Where(step => step.StepId != Guid.Empty && !reachable.Contains(step.StepId)))
             {
-                issues.Add(new SequenceDefinitionIssue(step.StepId, "Step is unreachable from the sequence's main-branch entry.", "Connect it to a reachable branch or remove it."));
+                issues.Add(new SequenceDefinitionIssue(step.StepId,
+                    $"{DescribeStep(step)} is unreachable from the sequence's main-branch entry.",
+                    "Connect it to a reachable branch or remove it."));
             }
 
             void EnqueueTarget(Guid? targetId)
@@ -329,7 +337,9 @@ public static class SequenceDefinitionIntegrityEvaluator
 
             if (targetId.Value == Guid.Empty || !stepsById.TryGetValue(targetId.Value, out var target))
             {
-                issues.Add(new SequenceDefinitionIssue(source.StepId, $"Step route '{route}' points to a missing step.", "Choose an existing step or end this outcome."));
+                issues.Add(new SequenceDefinitionIssue(source.StepId,
+                    $"{DescribeStep(source)} {route} points to a missing step ({targetId.Value:D}).",
+                    "Choose an existing step or end this outcome."));
                 return null;
             }
 
@@ -337,14 +347,18 @@ public static class SequenceDefinitionIntegrityEvaluator
                 || target.OffsetMs == source.OffsetMs && (allowSameTimeTarget || target.Order > source.Order);
             if (!isLater)
             {
-                issues.Add(new SequenceDefinitionIssue(source.StepId, $"Step route '{route}' does not move forward in authored time.", allowSameTimeTarget
-                    ? "Choose a step at the same or a later offset."
-                    : "Choose a step at a later offset or order."));
+                issues.Add(new SequenceDefinitionIssue(source.StepId,
+                    $"{DescribeStep(source)} {route} points to {DescribeStep(target)}, which is not later in authored time.",
+                    allowSameTimeTarget
+                        ? "Choose a step at the same or a later offset."
+                        : "Choose a step at a later offset, or at the same offset with a later order."));
             }
 
             if (requireDifferentBranch && string.Equals(target.BranchId, source.BranchId, StringComparison.Ordinal))
             {
-                issues.Add(new SequenceDefinitionIssue(source.StepId, $"Step route '{route}' targets its current branch.", "Choose the first step on a different branch."));
+                issues.Add(new SequenceDefinitionIssue(source.StepId,
+                    $"{DescribeStep(source)} {route} points to {DescribeStep(target)} on the same branch.",
+                    "Choose the first step on a different branch."));
             }
 
             if (requireNewBranchEntry
@@ -352,10 +366,23 @@ public static class SequenceDefinitionIntegrityEvaluator
                 && stepsByBranch.TryGetValue(target.BranchId, out var targetBranch)
                 && !ReferenceEquals(targetBranch.FirstOrDefault(), target))
             {
-                issues.Add(new SequenceDefinitionIssue(source.StepId, $"Step route '{route}' does not target the first step on its branch.", "Choose the first authored step on the target branch."));
+                issues.Add(new SequenceDefinitionIssue(source.StepId,
+                    $"{DescribeStep(source)} {route} points to {DescribeStep(target)}, which is not the first step on its branch.",
+                    "Choose the first authored step on the target branch."));
             }
 
             return target;
+        }
+
+        string DescribeStep(ProjectSequenceStepDto step)
+        {
+            var stepNumber = orderedStepsForLabels.IndexOf(step) + 1;
+            var branchName = !string.IsNullOrWhiteSpace(step.BranchId)
+                && branchesById.TryGetValue(step.BranchId, out var matchingBranches)
+                && !string.IsNullOrWhiteSpace(matchingBranches[0].DisplayName)
+                    ? matchingBranches[0].DisplayName.Trim()
+                    : string.IsNullOrWhiteSpace(step.BranchId) ? "(no branch)" : step.BranchId;
+            return $"Step {stepNumber} on branch '{branchName}' at {step.OffsetMs:N0} ms (order {step.Order})";
         }
 
         bool ContainsFlowCycle()

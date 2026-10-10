@@ -1756,6 +1756,7 @@ public sealed partial class MainWindowViewModel
         registry.Register(new InvokeProcedureMissingTargetRule());
         registry.Register(new MaterializeSourceObjectReferenceExistsRule());
         registry.Register(new OutcomeSoundEffectReferenceExistsRule());
+        registry.Register(new ObjectPresentationCueTargetReferenceExistsRule());
         registry.Register(new CheckCommandContextPayloadRule());
         registry.Register(new ScriptUnknownReferenceRule());
         registry.Register(new ScriptMalformedIndexedReferenceRule());

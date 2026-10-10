@@ -64,19 +64,38 @@ public sealed class CommandActionPayloadLifecycleTests
             ActionType = CommandActionType.LinkedActions
         };
 
-        action.LinkedActions.Add(new LinkedActionReference
+        action.LinkedFlowDefinition = new LinkedActionFlowDefinition
         {
-            ActionId = Guid.NewGuid(),
-            RunWhen = LinkedActionRunWhen.OnSuccess,
-            Order = 2
-        });
+            EntryNodeId = 5,
+            Nodes =
+            [
+                new LinkedActionFlowNode
+                {
+                    NodeId = 5,
+                    ActionId = Guid.NewGuid(),
+                    Links =
+                    [
+                        new LinkedActionFlowLink
+                        {
+                            TargetNodeId = 8,
+                            RunWhen = LinkedActionRunWhen.OnSuccess,
+                            Order = 2
+                        }
+                    ]
+                },
+                new LinkedActionFlowNode { NodeId = 8, ActionId = Guid.NewGuid() }
+            ]
+        };
 
         action.Payload = action.CreatePayloadSnapshot();
 
         var payload = Assert.IsType<LinkedFlowPayload>(action.Payload);
-        Assert.Single(payload.LinkedActions);
-        Assert.Equal(2, payload.LinkedActions[0].Order);
-        Assert.Equal(LinkedActionRunWhen.OnSuccess, payload.LinkedActions[0].RunWhen);
+        Assert.Equal(5, payload.Definition.EntryNodeId);
+        var entryNode = Assert.Single(payload.Definition.Nodes, node => node.NodeId == 5);
+        var entryLink = Assert.Single(entryNode.Links);
+        Assert.Equal(8, entryLink.TargetNodeId);
+        Assert.Equal(2, entryLink.Order);
+        Assert.Equal(LinkedActionRunWhen.OnSuccess, entryLink.RunWhen);
     }
 
     [Fact]

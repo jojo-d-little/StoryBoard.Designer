@@ -67,4 +67,6 @@ public sealed record ObjectBasicPropertiesEditRequest(
     PointLight? PointLight = null,
     LightOcclusion? LightOcclusion = null,
     bool IsPointLightEnabledDefaultValue = true,
-    PointLightDefaults? PointLightDefaults = null);
+    PointLightDefaults? PointLightDefaults = null,
+    bool HideContainedObjects = true,
+    bool? ShowWhenContained = null);

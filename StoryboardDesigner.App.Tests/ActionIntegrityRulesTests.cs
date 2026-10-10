@@ -56,8 +56,17 @@ public sealed class ActionIntegrityRulesTests
     [Fact]
     public void LinkedActionSelfTargetRule_ReportsIssue_WhenActionLinksToSelf()
     {
-        var action = new CommandAction { Name = "root", ActionType = CommandActionType.EchoMessage };
-        action.LinkedActions.Add(new LinkedActionReference { ActionId = action.Id, RunWhen = LinkedActionRunWhen.Always });
+        var action = new CommandAction
+        {
+            Name = "root",
+            ActionType = CommandActionType.LinkedActions,
+            LinkedFlowDefinition = new LinkedActionFlowDefinition
+            {
+                EntryNodeId = 1,
+                Nodes = [new LinkedActionFlowNode { NodeId = 1, ActionId = Guid.NewGuid() }]
+            }
+        };
+        action.LinkedFlowDefinition.Nodes[0].ActionId = action.Id;
         var issues = Evaluate(new LinkedActionSelfTargetRule(), action);
         Assert.Contains(issues, issue => issue.RuleId == "ACT-004");
     }
@@ -65,8 +74,16 @@ public sealed class ActionIntegrityRulesTests
     [Fact]
     public void LinkedActionMissingTargetRule_ReportsIssue_WhenLinkedTargetNotFound()
     {
-        var action = new CommandAction { Name = "root", ActionType = CommandActionType.EchoMessage };
-        action.LinkedActions.Add(new LinkedActionReference { ActionId = Guid.NewGuid(), RunWhen = LinkedActionRunWhen.Always });
+        var action = new CommandAction
+        {
+            Name = "root",
+            ActionType = CommandActionType.LinkedActions,
+            LinkedFlowDefinition = new LinkedActionFlowDefinition
+            {
+                EntryNodeId = 1,
+                Nodes = [new LinkedActionFlowNode { NodeId = 1, ActionId = Guid.NewGuid() }]
+            }
+        };
         var issues = Evaluate(new LinkedActionMissingTargetRule(), action);
         Assert.Contains(issues, issue => issue.RuleId == "ACT-005");
     }
@@ -74,9 +91,18 @@ public sealed class ActionIntegrityRulesTests
     [Fact]
     public void LinkedFlowTargetsSynonymRule_ReportsIssue_WhenLinkedFlowTargetsSynonym()
     {
-        var source = new CommandAction { Name = "source", ActionType = CommandActionType.EchoMessage };
+        var source = new CommandAction
+        {
+            Name = "source",
+            ActionType = CommandActionType.LinkedActions,
+            LinkedFlowDefinition = new LinkedActionFlowDefinition
+            {
+                EntryNodeId = 1,
+                Nodes = [new LinkedActionFlowNode { NodeId = 1 }]
+            }
+        };
         var synonym = new CommandAction { Name = "alias", ActionType = CommandActionType.Synonym, SynonymTargetActionId = Guid.NewGuid() };
-        source.LinkedActions.Add(new LinkedActionReference { ActionId = synonym.Id, RunWhen = LinkedActionRunWhen.Always });
+        source.LinkedFlowDefinition.Nodes[0].ActionId = synonym.Id;
 
         var issues = Evaluate(new LinkedFlowTargetsSynonymRule(), source, synonym);
         Assert.Contains(issues, issue => issue.RuleId == "ACT-006");
@@ -85,9 +111,18 @@ public sealed class ActionIntegrityRulesTests
     [Fact]
     public void SynonymUsedInLinkedFlowRule_ReportsIssue_WhenSynonymIsLinkedTarget()
     {
-        var source = new CommandAction { Name = "source", ActionType = CommandActionType.EchoMessage };
+        var source = new CommandAction
+        {
+            Name = "source",
+            ActionType = CommandActionType.LinkedActions,
+            LinkedFlowDefinition = new LinkedActionFlowDefinition
+            {
+                EntryNodeId = 1,
+                Nodes = [new LinkedActionFlowNode { NodeId = 1 }]
+            }
+        };
         var synonym = new CommandAction { Name = "alias", ActionType = CommandActionType.Synonym, SynonymTargetActionId = Guid.NewGuid() };
-        source.LinkedActions.Add(new LinkedActionReference { ActionId = synonym.Id, RunWhen = LinkedActionRunWhen.Always });
+        source.LinkedFlowDefinition.Nodes[0].ActionId = synonym.Id;
 
         var issues = Evaluate(new SynonymUsedInLinkedFlowRule(), source, synonym);
         Assert.Contains(issues, issue => issue.RuleId == "ACT-007");
@@ -98,10 +133,32 @@ public sealed class ActionIntegrityRulesTests
     {
         var a = new CommandAction { Name = "A", ActionType = CommandActionType.EchoMessage };
         var b = new CommandAction { Name = "B", ActionType = CommandActionType.EchoMessage };
-        a.LinkedActions.Add(new LinkedActionReference { ActionId = b.Id, RunWhen = LinkedActionRunWhen.Always });
-        b.LinkedActions.Add(new LinkedActionReference { ActionId = a.Id, RunWhen = LinkedActionRunWhen.Always });
+        var root = new CommandAction
+        {
+            Name = "flow",
+            ActionType = CommandActionType.LinkedActions,
+            LinkedFlowDefinition = new LinkedActionFlowDefinition
+            {
+                EntryNodeId = 1,
+                Nodes =
+                [
+                    new LinkedActionFlowNode
+                    {
+                        NodeId = 1,
+                        ActionId = a.Id,
+                        Links = [new LinkedActionFlowLink { TargetNodeId = 2 }]
+                    },
+                    new LinkedActionFlowNode
+                    {
+                        NodeId = 2,
+                        ActionId = b.Id,
+                        Links = [new LinkedActionFlowLink { TargetNodeId = 1 }]
+                    }
+                ]
+            }
+        };
 
-        var issues = Evaluate(new LinkedActionCycleRule(), a, b);
+        var issues = Evaluate(new LinkedActionCycleRule(), root, a, b);
         Assert.Contains(issues, issue => issue.RuleId == "ACT-008");
     }
 

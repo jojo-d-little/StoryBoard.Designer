@@ -152,15 +152,16 @@ public static class CommandActionSummaryPresenter
 
     private static string BuildLinkedFlowSummary(CommandAction action)
     {
-        var linkedActions = ActionPayloadAccessors.GetLinkedActions(action);
-        if (linkedActions.Count == 0)
+        var nodes = action.LinkedFlowDefinition.Nodes;
+        if (nodes.Count == 0)
         {
             return "Flow: no links";
         }
 
-        var successCount = linkedActions.Count(link => link.RunWhen == LinkedActionRunWhen.OnSuccess);
-        var failureCount = linkedActions.Count(link => link.RunWhen == LinkedActionRunWhen.OnFailure);
-        var alwaysCount = linkedActions.Count(link => link.RunWhen == LinkedActionRunWhen.Always);
+        var links = nodes.SelectMany(static node => node.Links).ToList();
+        var successCount = links.Count(link => link.RunWhen == LinkedActionRunWhen.OnSuccess);
+        var failureCount = links.Count(link => link.RunWhen == LinkedActionRunWhen.OnFailure);
+        var alwaysCount = links.Count(link => link.RunWhen == LinkedActionRunWhen.Always);
         return $"Flow links (success:{successCount}, failure:{failureCount}, always:{alwaysCount})";
     }
 

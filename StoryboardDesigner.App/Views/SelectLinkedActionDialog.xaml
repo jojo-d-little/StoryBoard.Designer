@@ -7,11 +7,19 @@
         WindowStartupLocation="CenterOwner">
     <Grid Margin="14">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <ListBox x:Name="ActionsListBox" DisplayMemberPath="Label" ToolTip="Choose an existing action to link into the current flow.">
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="Show:" VerticalAlignment="Center" Margin="0,0,12,0" />
+            <RadioButton x:Name="CurrentScopeRadio" Content="Current scope" GroupName="LinkedActionTargetGroup" Checked="TargetGroup_OnChecked" Margin="0,0,14,0" />
+            <RadioButton x:Name="AncestorsRadio" Content="Ancestors" GroupName="LinkedActionTargetGroup" Checked="TargetGroup_OnChecked" Margin="0,0,14,0" />
+            <RadioButton x:Name="ChildrenRadio" Content="Children" GroupName="LinkedActionTargetGroup" Checked="TargetGroup_OnChecked" />
+        </StackPanel>
+
+        <ListBox x:Name="ActionsListBox" Grid.Row="1" DisplayMemberPath="Label" ToolTip="Choose an existing action to link into the current flow.">
             <ListBox.GroupStyle>
                 <GroupStyle>
                     <GroupStyle.HeaderTemplate>
@@ -23,7 +31,7 @@
             </ListBox.GroupStyle>
         </ListBox>
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
             <Button Width="92" Margin="0,0,8,0" Content="Select" Click="Select_OnClick" />
             <Button Width="92" Content="Cancel" Click="Cancel_OnClick" />
         </StackPanel>

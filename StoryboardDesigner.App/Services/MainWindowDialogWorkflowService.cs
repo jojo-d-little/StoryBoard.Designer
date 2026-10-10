@@ -14,7 +14,7 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
         PropertyResolutionScope variableScope,
         string scopeEntityName,
         IList<CommandAction> actions,
-        IReadOnlyList<CommandAction> additionalLinkTargetActions,
+        IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> additionalLinkTargetActions,
         IReadOnlyList<ContainerTargetChoiceItem> containerTargetChoices,
         IReadOnlyList<MaterializeSourceObjectChoiceItem> materializeSourceObjectChoices,
         IReadOnlyList<ProcedureChoiceItem> procedureChoices,
@@ -62,6 +62,44 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
             soundEffectChoices,
             timerKeySuggestions,
             availableActions,
+            sequenceDefinitionChoices)
+        {
+            Owner = GetOwnerWindow()
+        };
+
+        return dialog.ShowDialog() == true;
+    }
+
+    public bool EditLinkedActionFlow(
+        string scopeLabel,
+        CommandAction action,
+        IList<CommandAction> editableActions,
+        IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> externalActionChoices,
+        PropertyResolutionScope variableScope,
+        IReadOnlyList<GamePropertyChoiceItem> variableChoices,
+        IReadOnlyList<string> echoReferenceTokens,
+        IReadOnlyList<ContainerTargetChoiceItem> containerTargetChoices,
+        IReadOnlyList<MaterializeSourceObjectChoiceItem> materializeSourceObjectChoices,
+        IReadOnlyList<ProcedureChoiceItem> procedureChoices,
+        IReadOnlyList<CompositeRecipeChoiceItem> compositeRecipeChoices,
+        IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
+        IReadOnlyList<string> timerKeySuggestions,
+        IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices)
+    {
+        var dialog = new LinkedActionTreeEditorDialog(
+            scopeLabel,
+            action,
+            editableActions,
+            externalActionChoices,
+            variableScope,
+            variableChoices,
+            echoReferenceTokens,
+            containerTargetChoices,
+            materializeSourceObjectChoices,
+            procedureChoices,
+            compositeRecipeChoices,
+            soundEffectChoices,
+            timerKeySuggestions,
             sequenceDefinitionChoices)
         {
             Owner = GetOwnerWindow()

@@ -17,7 +17,10 @@ public sealed class LinkedActionSelfTargetRule : IValidationRule
         }
 
         var action = context.Action;
-        foreach (var link in action.GetLinkedActions().Where(link => link.ActionId == action.Id))
+        var selfTargets = action.ActionType == CommandActionType.LinkedActions
+            ? action.LinkedFlowDefinition.Nodes.Any(node => node.ActionId == action.Id)
+            : action.GetLinkedActions().Any(link => link.ActionId == action.Id);
+        if (selfTargets)
         {
             yield return new ValidationIssue(Metadata.RuleId, Metadata.DefaultSeverity, ActionRuleSupport.BuildActionIssuePath(context.Path, action), $"action '{action.Name}' cannot link to itself.");
         }

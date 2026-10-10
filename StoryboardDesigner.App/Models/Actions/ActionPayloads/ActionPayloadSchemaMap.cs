@@ -7,7 +7,7 @@ public static class ActionPayloadSchemaMap
     private static readonly IReadOnlyDictionary<CommandActionType, ActionPayloadSchemaEntry> Entries =
         new Dictionary<CommandActionType, ActionPayloadSchemaEntry>
         {
-            [CommandActionType.LinkedActions] = new(CommandActionType.LinkedActions, typeof(LinkedFlowPayload), [nameof(CommandAction.LinkedActions)]),
+            [CommandActionType.LinkedActions] = new(CommandActionType.LinkedActions, typeof(LinkedFlowPayload), [nameof(CommandAction.LinkedFlowDefinition)]),
             [CommandActionType.Synonym] = new(CommandActionType.Synonym, typeof(SynonymPayload), [nameof(CommandAction.SynonymTargetActionId)]),
             [CommandActionType.EchoMessage] = new(CommandActionType.EchoMessage, typeof(EchoPayload), []),
             [CommandActionType.SetFlag] = new(CommandActionType.SetFlag, typeof(SetFlagPayload), [nameof(CommandAction.FlagName), nameof(CommandAction.FlagValue)]),

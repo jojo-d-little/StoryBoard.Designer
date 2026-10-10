@@ -64,6 +64,16 @@
             <Button x:Name="RunConditionalButton" Margin="0,0,0,8" Content="Run Conditionally" ToolTip="Execute this linked action only when conditional criteria pass." Click="RunConditionally_OnClick" />
             <Button x:Name="RunAlwaysButton" Margin="0,0,0,8" Content="Run Always" ToolTip="Always execute this linked action when flow reaches it." Click="RunAlways_OnClick" />
 
+            <TextBlock Margin="0,10,0,6" FontWeight="SemiBold" Text="Outcome exit result" />
+            <ComboBox x:Name="ExitResultComboBox"
+                      Visibility="Collapsed"
+                      SelectionChanged="ExitResultComboBox_OnSelectionChanged"
+                      ToolTip="Set this on an Always, OnSuccess, or OnFailure branch with no linked next action. If unset, the last action's result is used.">
+                <ComboBoxItem Content="Use last action result" />
+                <ComboBoxItem Content="Report success" />
+                <ComboBoxItem Content="Report failure" />
+            </ComboBox>
+
             <Border Margin="0,14,0,0" Padding="8" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6">
                 <TextBlock x:Name="HintText"
                            TextWrapping="Wrap"

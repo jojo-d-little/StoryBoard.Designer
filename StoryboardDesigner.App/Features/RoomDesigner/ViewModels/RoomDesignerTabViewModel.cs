@@ -440,17 +440,37 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
 
         RoomChildObjects.Clear();
 
+        var totalObjectCount = CountRoomObjectTree(Room.GameObjects);
+        var drawOrderStride = totalObjectCount + 1;
         for (var index = 0; index < Room.GameObjects.Count; index++)
         {
             var gameObject = Room.GameObjects[index];
+            var rootDrawOrder = (Room.GameObjects.Count - index) * drawOrderStride;
             var preview = new RoomDesignerPreviewObjectViewModel(gameObject, OnRoomChildObjectEdited, _projectFilePathAccessor, _definitionResolver)
             {
-                DrawOrderZIndex = Room.GameObjects.Count - index
+                DrawOrderZIndex = gameObject.RenderZOrder != 0 ? gameObject.RenderZOrder : rootDrawOrder
             };
             preview.PlacementComparisonMode = _previewPlacementComparisonMode;
             preview.UpdateGridCellSize(_roomGridCellSize);
 
             RoomChildObjects.Add(preview);
+            AddVisibleContainedObjectPreviews(gameObject, rootDrawOrder, 1);
+        }
+
+        // Once the author has explicitly arranged the visible room objects, preserve that
+        // flat draw order across rebuilds even though the objects remain in their original
+        // containment hierarchy.
+        if (RoomChildObjects.Count > 0 && RoomChildObjects.All(item => item.GameObject.RenderZOrder != 0))
+        {
+            var orderedPreviews = RoomChildObjects
+                .OrderByDescending(item => item.GameObject.RenderZOrder)
+                .ToList();
+            RoomChildObjects.Clear();
+            foreach (var preview in orderedPreviews)
+            {
+                preview.DrawOrderZIndex = preview.GameObject.RenderZOrder;
+                RoomChildObjects.Add(preview);
+            }
         }
 
         SelectedRoomChildObject = selectedObjectId.HasValue
@@ -462,6 +482,44 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         OnPropertyChanged(nameof(FilteredRoomChildObjects));
         OnPropertyChanged(nameof(RoomDesignerDiagnosticsLines));
         RaiseRoomChildCommandStates();
+    }
+
+    private void AddVisibleContainedObjectPreviews(GameObject parent, int rootDrawOrder, int depth)
+    {
+        foreach (var child in parent.ContainedObjects)
+        {
+            var isVisibleWhileContained = child.IsInventoriable && child.ShowWhenContained.HasValue
+                ? child.ShowWhenContained.Value
+                : !parent.HideContainedObjects;
+            if (!isVisibleWhileContained)
+            {
+                continue;
+            }
+
+            var preview = new RoomDesignerPreviewObjectViewModel(child, OnRoomChildObjectEdited, _projectFilePathAccessor, _definitionResolver)
+            {
+                // Contained parts start behind their parent. The list controls can move
+                // them in front later when the authored scene requires it.
+                DrawOrderZIndex = child.RenderZOrder != 0 ? child.RenderZOrder : rootDrawOrder - depth
+            };
+            preview.PlacementComparisonMode = _previewPlacementComparisonMode;
+            preview.UpdateGridCellSize(_roomGridCellSize);
+            RoomChildObjects.Add(preview);
+
+            AddVisibleContainedObjectPreviews(child, rootDrawOrder, depth + 1);
+        }
+    }
+
+    private static int CountRoomObjectTree(IEnumerable<GameObject> objects)
+    {
+        var count = 0;
+        foreach (var gameObject in objects)
+        {
+            count++;
+            count += CountRoomObjectTree(gameObject.ContainedObjects);
+        }
+
+        return count;
     }
 
     private void OnSlotEdited()
@@ -620,23 +678,14 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
 
     private bool CanMoveRoomChildObjectUp(RoomDesignerPreviewObjectViewModel? preview)
     {
-        if (preview is null)
-        {
-            return false;
-        }
-
-        return Room.GameObjects.IndexOf(preview.GameObject) > 0;
+        return preview is not null && RoomChildObjects.IndexOf(preview) > 0;
     }
 
     private bool CanMoveRoomChildObjectDown(RoomDesignerPreviewObjectViewModel? preview)
     {
-        if (preview is null)
-        {
-            return false;
-        }
-
-        var index = Room.GameObjects.IndexOf(preview.GameObject);
-        return index >= 0 && index < Room.GameObjects.Count - 1;
+        return preview is not null
+               && RoomChildObjects.IndexOf(preview) >= 0
+               && RoomChildObjects.IndexOf(preview) < RoomChildObjects.Count - 1;
     }
 
     private void MoveRoomChildObjectUp(RoomDesignerPreviewObjectViewModel? preview)
@@ -646,16 +695,19 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
             return;
         }
 
-        var currentIndex = Room.GameObjects.IndexOf(preview.GameObject);
+        var currentIndex = RoomChildObjects.IndexOf(preview);
         if (currentIndex <= 0)
         {
             return;
         }
 
-        Room.GameObjects.RemoveAt(currentIndex);
-        Room.GameObjects.Insert(currentIndex - 1, preview.GameObject);
-        BuildRoomChildObjects();
-        SelectedRoomChildObject = RoomChildObjects.FirstOrDefault(item => item.GameObject == preview.GameObject);
+        RoomChildObjects.RemoveAt(currentIndex);
+        RoomChildObjects.Insert(currentIndex - 1, preview);
+        SaveRoomPreviewDrawOrder();
+        SelectedRoomChildObject = preview;
+        OnPropertyChanged(nameof(RenderableRoomChildObjects));
+        OnPropertyChanged(nameof(FilteredRoomChildObjects));
+        RaiseRoomChildCommandStates();
         _onEdited?.Invoke();
     }
 
@@ -666,17 +718,32 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
             return;
         }
 
-        var currentIndex = Room.GameObjects.IndexOf(preview.GameObject);
-        if (currentIndex < 0 || currentIndex >= Room.GameObjects.Count - 1)
+        var currentIndex = RoomChildObjects.IndexOf(preview);
+        if (currentIndex < 0 || currentIndex >= RoomChildObjects.Count - 1)
         {
             return;
         }
 
-        Room.GameObjects.RemoveAt(currentIndex);
-        Room.GameObjects.Insert(currentIndex + 1, preview.GameObject);
-        BuildRoomChildObjects();
-        SelectedRoomChildObject = RoomChildObjects.FirstOrDefault(item => item.GameObject == preview.GameObject);
+        RoomChildObjects.RemoveAt(currentIndex);
+        RoomChildObjects.Insert(currentIndex + 1, preview);
+        SaveRoomPreviewDrawOrder();
+        SelectedRoomChildObject = preview;
+        OnPropertyChanged(nameof(RenderableRoomChildObjects));
+        OnPropertyChanged(nameof(FilteredRoomChildObjects));
+        RaiseRoomChildCommandStates();
         _onEdited?.Invoke();
+    }
+
+    private void SaveRoomPreviewDrawOrder()
+    {
+        var count = RoomChildObjects.Count;
+        for (var index = 0; index < count; index++)
+        {
+            var zOrder = count - index;
+            var preview = RoomChildObjects[index];
+            preview.GameObject.RenderZOrder = zOrder;
+            preview.DrawOrderZIndex = zOrder;
+        }
     }
 
     private void EditRoomChildObjectImage(RoomDesignerPreviewObjectViewModel? preview)

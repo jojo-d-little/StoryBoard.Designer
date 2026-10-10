@@ -73,7 +73,7 @@ public sealed partial class MainWindowViewModel
 
         var verbSuggestions = GetScopedVerbSuggestions(target.ScopeNode);
         var directionalSuggestions = GetScopedDirectionalSuggestions(target.ScopeNode);
-        var additionalLinkTargetActions = ResolveAdditionalLinkTargetActions(target.Actions);
+        var additionalLinkTargetActions = ResolveAdditionalLinkTargetActions(target.Actions, target.ScopeNode);
         var containerTargetChoices = GetContainerTargetChoicesForScopeNode(target.ScopeNode);
         var materializeSourceObjectChoices = GetMaterializeSourceObjectChoicesForScopeNode(target.ScopeNode);
         var procedureChoices = GetProcedureChoicesForScopeNode(target.ScopeNode);
@@ -541,24 +541,67 @@ public sealed partial class MainWindowViewModel
         return choices;
     }
 
-    private IReadOnlyList<CommandAction> ResolveAdditionalLinkTargetActions(IList<CommandAction> currentScopeActions)
+    private IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> ResolveAdditionalLinkTargetActions(
+        IList<CommandAction> currentScopeActions,
+        IScopedAwareNode? currentScope)
     {
-        var globalObjectActions = _project.GlobalScope.GameObjects
-            .SelectMany(obj => obj.AvailableActions)
-            .ToList();
-
-        if (globalObjectActions.Count == 0)
-        {
-            return Array.Empty<CommandAction>();
-        }
-
-        var currentIds = currentScopeActions
-            .Select(action => action.Id)
+        var choices = new List<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)>();
+        var seenActionIds = currentScopeActions
+            .Where(static action => action.Id != Guid.Empty)
+            .Select(static action => action.Id)
             .ToHashSet();
 
-        return globalObjectActions
-            .Where(action => !currentIds.Contains(action.Id))
-            .ToList();
+        void AddScopeActions(IScopedAwareNode scope, LinkedActionTargetGroup group)
+        {
+            foreach (var action in GetAvailableActionsForScope(scope))
+            {
+                if (action.Id != Guid.Empty && seenActionIds.Add(action.Id))
+                {
+                    choices.Add((action, GetScopeDisplayPath(scope), group));
+                }
+            }
+        }
+
+        // Look upward from the action's scope, including the containing scope's
+        // ancestors, so local linked actions can reuse broader actions.
+        for (var scope = currentScope?.ParentScope; scope is not null; scope = scope.ParentScope)
+        {
+            AddScopeActions(scope, LinkedActionTargetGroup.Ancestors);
+        }
+
+        // Actions can also link to actions owned by child objects, including
+        // nested contained objects beneath the current scope.
+        if (currentScope is not null)
+        {
+            foreach (var gameObject in EnumerateChildObjects(currentScope))
+            {
+                AddScopeActions(gameObject, LinkedActionTargetGroup.Children);
+            }
+        }
+
+        // Preserve the existing ability to reuse actions on global objects.
+        foreach (var gameObject in EnumerateGameObjectsRecursive(_project.GlobalScope.GameObjects))
+        {
+            AddScopeActions(gameObject, LinkedActionTargetGroup.Ancestors);
+        }
+
+        return choices;
+
+        static IEnumerable<GameObject> EnumerateChildObjects(IScopedAwareNode scope)
+        {
+            foreach (var child in scope.ChildScopes)
+            {
+                if (child is GameObject gameObject)
+                {
+                    yield return gameObject;
+                }
+
+                foreach (var nested in EnumerateChildObjects(child))
+                {
+                    yield return nested;
+                }
+            }
+        }
     }
 
     private IReadOnlyList<ProjectValidationIssue> ValidateScopedActionsWithPipeline(

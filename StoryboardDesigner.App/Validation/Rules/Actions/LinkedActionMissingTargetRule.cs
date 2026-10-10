@@ -17,6 +17,36 @@ public sealed class LinkedActionMissingTargetRule : IValidationRule
         }
 
         var action = context.Action;
+        if (action.ActionType == CommandActionType.LinkedActions)
+        {
+            var nodesById = action.LinkedFlowDefinition.Nodes
+                .Where(static node => node.NodeId > 0)
+                .GroupBy(static node => node.NodeId)
+                .ToDictionary(static group => group.Key, static group => group.First());
+            foreach (var node in nodesById.Values)
+            {
+                if (!context.LinkTargetById.ContainsKey(node.ActionId))
+                {
+                    yield return new ValidationIssue(
+                        Metadata.RuleId,
+                        Metadata.DefaultSeverity,
+                        ActionRuleSupport.BuildActionIssuePath(context.Path, action),
+                        $"linked action '{action.Name}' references missing action id '{node.ActionId}'.");
+                }
+
+                foreach (var link in node.Links.Where(link => !nodesById.ContainsKey(link.TargetNodeId)))
+                {
+                    yield return new ValidationIssue(
+                        Metadata.RuleId,
+                        Metadata.DefaultSeverity,
+                        ActionRuleSupport.BuildActionIssuePath(context.Path, action),
+                        $"linked action '{action.Name}' node {node.NodeId} targets missing flow node {link.TargetNodeId}.");
+                }
+            }
+
+            yield break;
+        }
+
         foreach (var link in action.GetLinkedActions())
         {
             if (context.LinkTargetById.ContainsKey(link.ActionId))

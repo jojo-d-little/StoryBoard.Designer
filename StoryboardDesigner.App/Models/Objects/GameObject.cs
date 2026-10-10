@@ -13,6 +13,8 @@ public sealed class GameObject : ScopeNodeBase, INotifyPropertyChanged
     private string _producerNotes = string.Empty;
     private bool _isInventoriable;
     private bool _isContainer;
+    private bool _hideContainedObjects = true;
+    private bool? _showWhenContained;
     private bool _isOpenable;
     private bool _isLockable;
     private bool _isActivatable;
@@ -533,6 +535,36 @@ public sealed class GameObject : ScopeNodeBase, INotifyPropertyChanged
 
             ApplyFeatureVariableContract();
 
+            OnPropertyChanged();
+        }
+    }
+
+    public bool HideContainedObjects
+    {
+        get => _hideContainedObjects;
+        set
+        {
+            if (_hideContainedObjects == value)
+            {
+                return;
+            }
+
+            _hideContainedObjects = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool? ShowWhenContained
+    {
+        get => _showWhenContained;
+        set
+        {
+            if (_showWhenContained == value)
+            {
+                return;
+            }
+
+            _showWhenContained = value;
             OnPropertyChanged();
         }
     }

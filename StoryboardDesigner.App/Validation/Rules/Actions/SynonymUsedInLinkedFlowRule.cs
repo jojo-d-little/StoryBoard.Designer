@@ -18,8 +18,9 @@ public sealed class SynonymUsedInLinkedFlowRule : IValidationRule
 
         var action = context.Action;
         var linkedTargets = context.Actions
-            .SelectMany(static actionNode => actionNode.GetLinkedActions())
-            .Select(link => link.ActionId)
+            .SelectMany(static actionNode => actionNode.ActionType == CommandActionType.LinkedActions
+                ? actionNode.LinkedFlowDefinition.Nodes.Select(static node => node.ActionId)
+                : actionNode.GetLinkedActions().Select(static link => link.ActionId))
             .ToHashSet();
 
         if (action.ActionType == CommandActionType.Synonym && linkedTargets.Contains(action.Id))

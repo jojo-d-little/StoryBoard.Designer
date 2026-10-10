@@ -15,7 +15,6 @@ public sealed partial class CommandAction : INotifyPropertyChanged,
     private IActionPayload _payload = new EchoPayload();
     private Dictionary<string, string> _outcomeMessageMap = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, List<OutcomeSoundEffectCue>> _outcomeSoundEffectsMap = new(StringComparer.OrdinalIgnoreCase);
-    private List<LinkedActionReference> _linkedActions = new();
     private bool _noVerbLinkage;
     private List<string> _verbs = new();
     private string _directionQualifierText = string.Empty;
@@ -95,12 +94,6 @@ public sealed partial class CommandAction : INotifyPropertyChanged,
             OnPropertyChanged();
             RaiseSummaryChanged();
         }
-    }
-
-    public List<LinkedActionReference> LinkedActions
-    {
-        get => _linkedActions;
-        set => _linkedActions = value ?? new List<LinkedActionReference>();
     }
 
     public Dictionary<string, List<OutcomeSoundEffectCue>> OutcomeSoundEffectsMap
@@ -260,13 +253,12 @@ public sealed partial class CommandAction : INotifyPropertyChanged,
 
     public IReadOnlyList<LinkedActionReference> GetLinkedActions()
     {
-        var payloadLinks = Payload?.GetLinkedActions() ?? [];
-        if (payloadLinks.Count > 0 || ActionType == CommandActionType.Synonym || ActionType == CommandActionType.LinkedActions)
+        if (ActionType is CommandActionType.LinkedActions or CommandActionType.Synonym)
         {
-            return payloadLinks;
+            return Payload?.GetLinkedActions() ?? Array.Empty<LinkedActionReference>();
         }
 
-        return LinkedActions;
+        return Array.Empty<LinkedActionReference>();
     }
 
     public IReadOnlyList<LinkedActionReference> GetActionLinkedActions() => GetLinkedActions();
