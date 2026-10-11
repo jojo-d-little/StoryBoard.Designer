@@ -62,7 +62,7 @@ public sealed class BuildCompositeByPartsMissingTargetObjectRule : IValidationRu
             }
         }
 
-        foreach (var template in project.ObjectTemplates)
+        foreach (var template in project.EnumerateAllObjectTemplateRoots())
         {
             AddObject(template, known);
         }

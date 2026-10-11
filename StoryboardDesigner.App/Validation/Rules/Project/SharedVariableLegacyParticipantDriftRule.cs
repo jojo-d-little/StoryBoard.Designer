@@ -67,10 +67,10 @@ public sealed class SharedVariableLegacyParticipantDriftRule : IValidationRule
         AddGlobalParticipants(project.GlobalVariables, map);
         AddGlobalParticipants(project.GlobalScope.GameProperties, map);
         AddObjectParticipants(project.GlobalScope.GameObjects, map);
-        AddObjectParticipants(project.ObjectTemplates, map);
+        AddObjectParticipants(project.EnumerateAllObjectTemplateRoots(), map);
         AddObjectParticipants(project.BaseObjects, map);
 
-        foreach (var roomTemplate in project.RoomTemplates)
+        foreach (var roomTemplate in project.EnumerateAllRoomTemplateRoots())
         {
             AddGlobalParticipants(roomTemplate.Variables, map);
             AddObjectParticipants(roomTemplate.GameObjects, map);

@@ -283,7 +283,7 @@ internal static class ActionRuleSupport
             }
         }
 
-        foreach (var template in project.ObjectTemplates)
+        foreach (var template in project.EnumerateAllObjectTemplateRoots())
         {
             AddObject(template, lookup);
         }

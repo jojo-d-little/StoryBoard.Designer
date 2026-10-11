@@ -26,6 +26,7 @@ public partial class ScopedActionsDialog : Window
     private readonly IReadOnlyList<string> _timerKeySuggestions;
     private readonly PropertyResolutionScope _variableScope;
     private readonly string _scopeEntityName;
+    private readonly Guid? _defaultCurrentObjectId;
     private readonly ObservableCollection<CommandAction> _workingActions;
     private readonly IReadOnlyList<string> _verbEntrySuggestions;
     private readonly Func<IReadOnlyList<CommandAction>, IReadOnlyList<ProjectValidationIssue>>? _validateWithPipeline;
@@ -48,7 +49,8 @@ public partial class ScopedActionsDialog : Window
         IReadOnlyList<string> timerKeySuggestions,
         IReadOnlyList<string> verbSuggestions,
         IReadOnlyList<string> directionalSuggestions,
-        Func<IReadOnlyList<CommandAction>, IReadOnlyList<ProjectValidationIssue>>? validateWithPipeline = null)
+        Func<IReadOnlyList<CommandAction>, IReadOnlyList<ProjectValidationIssue>>? validateWithPipeline = null,
+        Guid? defaultCurrentObjectId = null)
     {
         InitializeComponent();
 
@@ -66,6 +68,7 @@ public partial class ScopedActionsDialog : Window
         _echoReferenceTokens = echoReferenceTokens;
         _variableScope = variableScope;
         _scopeEntityName = scopeEntityName;
+        _defaultCurrentObjectId = defaultCurrentObjectId;
         _workingActions = new ObservableCollection<CommandAction>(actions.Select(CloneAction));
         _verbEntrySuggestions = BuildVerbEntrySuggestions(verbSuggestions);
         DirectionalSuggestions = directionalSuggestions;
@@ -108,7 +111,7 @@ public partial class ScopedActionsDialog : Window
             return;
         }
 
-        var dialog = new RoomActionEditorDialog(action, _variableScope, _variableChoices, _echoReferenceTokens, _containerTargetChoices, _materializeSourceObjectChoices, _procedureChoices, _compositeRecipeChoices, _soundEffectChoices, _timerKeySuggestions, _workingActions, _sequenceDefinitionChoices)
+        var dialog = new RoomActionEditorDialog(action, _variableScope, _variableChoices, _echoReferenceTokens, _containerTargetChoices, _materializeSourceObjectChoices, _procedureChoices, _compositeRecipeChoices, _soundEffectChoices, _timerKeySuggestions, _workingActions, _sequenceDefinitionChoices, _defaultCurrentObjectId)
         {
             Owner = this
         };

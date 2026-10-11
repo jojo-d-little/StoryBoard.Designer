@@ -18,6 +18,8 @@ public sealed class Area : ScopeNodeBase
     public List<SoundEffectLibraryEntry> SoundEffectLibraryEntries { get; set; } = new();
     public List<string> BaseObjectsIgnoredValidationRuleIds { get; set; } = new();
     public List<GameObject> BaseObjects { get; set; } = new();
+    public List<GameObject> ObjectTemplates { get; set; } = new();
+    public List<Room> RoomTemplates { get; set; } = new();
     public List<GameObject> GameObjects { get; set; } = new();
     public List<Room> Rooms { get; set; } = new();
     public List<RoomLink> Links { get; set; } = new();

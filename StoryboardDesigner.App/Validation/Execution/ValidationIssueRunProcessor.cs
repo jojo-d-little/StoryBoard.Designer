@@ -255,12 +255,12 @@ public static class ValidationIssueRunProcessor
             yield return globalObject;
         }
 
-        foreach (var templateObject in EnumerateGameObjects(project.ObjectTemplates))
+        foreach (var templateObject in EnumerateGameObjects(project.EnumerateAllObjectTemplateRoots()))
         {
             yield return templateObject;
         }
 
-        foreach (var templateRoom in project.RoomTemplates)
+        foreach (var templateRoom in project.EnumerateAllRoomTemplateRoots())
         {
             yield return templateRoom;
 

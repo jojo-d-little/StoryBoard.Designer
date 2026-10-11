@@ -1166,7 +1166,7 @@ public sealed partial class MainWindowViewModel
     private static ScopeNodeBase? ResolveSequenceScopeOwner(HierarchyNodeViewModel node) => node switch
     {
         PhaseNodeViewModel phase => phase.PhaseNode,
-        GameObjectNodeViewModel gameObject => gameObject.GameObject,
+        GameObjectNodeViewModel gameObject when !gameObject.GameObject.IsRoomInstance => gameObject.GameObject,
         GlobalObjectNodeViewModel globalObject => globalObject.GameObject,
         TemplateGameObjectNodeViewModel templateObject => templateObject.GameObject,
         RoomNodeViewModel room => room.Room,
@@ -2147,7 +2147,8 @@ public sealed partial class MainWindowViewModel
                 GetSoundEffectChoicesForScopeNode(scopeNode),
                 GetTimerKeySuggestionsForScopeNode(scopeNode),
                 GetSequenceDefinitionChoices(),
-                availableActions))
+                availableActions,
+                scopeNode is GameObject ownerObject ? ownerObject.ObjectId : null))
         {
             return false;
         }

@@ -127,7 +127,7 @@ public sealed class SharedVariableSingleMembershipRule : IValidationRule
         AddPath(map, project.GlobalVariables, "Global");
         AddPath(map, project.GlobalScope.GameProperties, "Global / Game Properties");
         AddObjectPaths(map, project.GlobalScope.GameObjects, "Global");
-        AddObjectPaths(map, project.ObjectTemplates, "Global / Templates");
+        AddObjectPaths(map, project.EnumerateAllObjectTemplateRoots(), "Global / Templates");
 
         foreach (var planet in project.Planets)
         {

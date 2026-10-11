@@ -28,7 +28,7 @@ internal static class SharedVariableRuleSupport
         AddRange(map, project.GlobalVariables);
         AddRange(map, project.GlobalScope.GameProperties);
         AddObjectRanges(map, project.GlobalScope.GameObjects);
-        AddObjectRanges(map, project.ObjectTemplates);
+        AddObjectRanges(map, project.EnumerateAllObjectTemplateRoots());
 
         foreach (var planet in project.Planets)
         {

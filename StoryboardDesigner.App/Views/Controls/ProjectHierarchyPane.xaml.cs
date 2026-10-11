@@ -117,6 +117,20 @@ public partial class ProjectHierarchyPane : System.Windows.Controls.UserControl
         var tree = sender as System.Windows.Controls.TreeView;
         var treeViewItem = FindAncestor<TreeViewItem>(e.OriginalSource as DependencyObject)
                            ?? FindTreeViewItemAtPointer(tree, e.GetPosition(tree));
+        if (treeViewItem?.DataContext is GoToBaseObjectNodeViewModel baseObjectLinkNode)
+        {
+            viewModel.ExecuteTreeContextAction("go-to-base-object", baseObjectLinkNode);
+            e.Handled = true;
+            return;
+        }
+
+        if (treeViewItem?.DataContext is InstanceNamingNodeViewModel instanceNamingNode)
+        {
+            viewModel.ExecuteTreeContextAction("edit-instance-naming", instanceNamingNode);
+            e.Handled = true;
+            return;
+        }
+
         if (treeViewItem?.DataContext is RoomNodeViewModel roomNode)
         {
             viewModel.SelectedNode = roomNode;

@@ -69,8 +69,8 @@ public sealed class ObjectPresentationCueTargetReferenceExistsRule : IValidation
             }
         }
 
-        AddObjects(project.ObjectTemplates, known);
-        AddObjects(project.RoomTemplates.SelectMany(static room => room.GameObjects), known);
+        AddObjects(project.EnumerateAllObjectTemplateRoots(), known);
+        AddObjects(project.EnumerateAllRoomTemplateRoots().SelectMany(static room => room.GameObjects), known);
         AddObjects(project.BaseObjects, known);
         AddObjects(project.GlobalScope.GameObjects, known);
 

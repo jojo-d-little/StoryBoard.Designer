@@ -201,6 +201,22 @@ public sealed class ProjectModel : ScopeNodeBase
     public List<GameObject> ObjectTemplates { get; set; } = new();
     public List<Room> RoomTemplates { get; set; } = new();
     public List<GameObject> BaseObjects { get; set; } = new();
+
+    public IEnumerable<GameObject> EnumerateAllObjectTemplateRoots()
+    {
+        return ObjectTemplates
+            .Concat(Planets.SelectMany(static planet => planet.ObjectTemplates))
+            .Concat(Planets.SelectMany(static planet => planet.Countries).SelectMany(static country => country.ObjectTemplates))
+            .Concat(Planets.SelectMany(static planet => planet.Countries).SelectMany(static country => country.Areas).SelectMany(static area => area.ObjectTemplates));
+    }
+
+    public IEnumerable<Room> EnumerateAllRoomTemplateRoots()
+    {
+        return RoomTemplates
+            .Concat(Planets.SelectMany(static planet => planet.RoomTemplates))
+            .Concat(Planets.SelectMany(static planet => planet.Countries).SelectMany(static country => country.RoomTemplates))
+            .Concat(Planets.SelectMany(static planet => planet.Countries).SelectMany(static country => country.Areas).SelectMany(static area => area.RoomTemplates));
+    }
     public ProjectUiState UiState { get; set; } = new();
     public List<Planet> Planets { get; set; } = new();
     public List<PhaseNode> PhaseBooks

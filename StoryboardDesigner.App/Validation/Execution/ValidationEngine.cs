@@ -299,12 +299,12 @@ public sealed class ValidationEngine
             }
         }
 
-        foreach (var template in project.ObjectTemplates)
+        foreach (var template in project.EnumerateAllObjectTemplateRoots())
         {
             AddObject(template);
         }
 
-        foreach (var templateRoomObject in project.RoomTemplates.SelectMany(room => room.GameObjects))
+        foreach (var templateRoomObject in project.EnumerateAllRoomTemplateRoots().SelectMany(room => room.GameObjects))
         {
             AddObject(templateRoomObject);
         }

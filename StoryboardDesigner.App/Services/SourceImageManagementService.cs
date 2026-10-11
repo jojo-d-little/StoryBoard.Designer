@@ -252,7 +252,7 @@ public static class SourceImageManagementService
 
     private static IEnumerable<ImageRef> EnumerateImageRefs(ProjectModel project)
     {
-        foreach (var room in project.RoomTemplates)
+        foreach (var room in project.EnumerateAllRoomTemplateRoots())
         {
             foreach (var imageRef in EnumerateRoomImageRefs(room, "room-templates", $"{Sanitize(room.Name)}--{room.Id:N}", $"Global / Room Templates / {room.Name}"))
             {
@@ -268,7 +268,7 @@ public static class SourceImageManagementService
             }
         }
 
-        foreach (var obj in project.ObjectTemplates)
+        foreach (var obj in project.EnumerateAllObjectTemplateRoots())
         {
             foreach (var imageRef in EnumerateObjectImageRefs(obj, "object-templates", $"{Sanitize(obj.Name)}--{obj.ObjectId:N}", $"Global / Object Templates / {obj.Name}"))
             {

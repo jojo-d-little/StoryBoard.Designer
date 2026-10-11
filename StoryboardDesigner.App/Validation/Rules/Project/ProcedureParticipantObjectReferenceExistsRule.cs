@@ -83,9 +83,9 @@ public sealed class ProcedureParticipantObjectReferenceExistsRule : IValidationR
         }
 
         AddRange(ids, project.GlobalScope.GameObjects);
-        AddRange(ids, project.ObjectTemplates);
+        AddRange(ids, project.EnumerateAllObjectTemplateRoots());
         AddRange(ids, project.BaseObjects);
-        AddRange(ids, project.RoomTemplates.SelectMany(static room => room.GameObjects));
+        AddRange(ids, project.EnumerateAllRoomTemplateRoots().SelectMany(static room => room.GameObjects));
 
         foreach (var planet in project.Planets)
         {

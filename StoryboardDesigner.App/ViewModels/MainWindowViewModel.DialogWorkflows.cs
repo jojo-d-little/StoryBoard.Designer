@@ -99,7 +99,8 @@ public sealed partial class MainWindowViewModel
                 timerKeySuggestions,
                 verbSuggestions,
                 directionalSuggestions,
-                workingActions => ValidateScopedActionsWithPipeline(target, workingActions)))
+                workingActions => ValidateScopedActionsWithPipeline(target, workingActions),
+                target.ScopeNode is GameObject ownerObject ? ownerObject.ObjectId : null))
         {
             return;
         }
@@ -210,10 +211,17 @@ public sealed partial class MainWindowViewModel
             }
         }
 
-        foreach (var template in _project.ObjectTemplates)
+        foreach (var template in _project.EnumerateAllObjectTemplateRoots())
         {
             var templateName = GetScopeLabel(template.ScopeName, "Unnamed Object");
-            AddObject(template, $"Object Templates / {templateName}");
+            var ownerPath = template.ParentScope switch
+            {
+                Area area => $"{area.Name} / Object Templates",
+                Country country when country.ParentScope is Planet planet => $"{planet.Name} / {country.Name} / Object Templates",
+                Planet planet => $"{planet.Name} / Object Templates",
+                _ => "Object Templates"
+            };
+            AddObject(template, $"{ownerPath} / {templateName}");
         }
 
         foreach (var baseObject in _project.BaseObjects)
@@ -546,6 +554,7 @@ public sealed partial class MainWindowViewModel
         IScopedAwareNode? currentScope)
     {
         var choices = new List<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)>();
+        var objectLookup = BuildObjectScopePathLookup();
         var seenActionIds = currentScopeActions
             .Where(static action => action.Id != Guid.Empty)
             .Select(static action => action.Id)
@@ -553,7 +562,22 @@ public sealed partial class MainWindowViewModel
 
         void AddScopeActions(IScopedAwareNode scope, LinkedActionTargetGroup group)
         {
-            foreach (var action in GetAvailableActionsForScope(scope))
+            var actions = GetAvailableActionsForScope(scope);
+            if (scope is GameObject
+                {
+                    IsRoomInstance: true,
+                    LinkActionsToBaseObject: true,
+                    LinkedBaseObjectId: Guid baseObjectId
+                }
+                && objectLookup.TryGetValue(baseObjectId, out var baseObject))
+            {
+                // Child objects can themselves be linked instances. Their reusable
+                // action definitions belong to the base object, so expose those
+                // definitions in the parent's Children picker as well.
+                actions = actions.Concat(baseObject.Object.AvailableActions);
+            }
+
+            foreach (var action in actions)
             {
                 if (action.Id != Guid.Empty && seenActionIds.Add(action.Id))
                 {
@@ -573,7 +597,11 @@ public sealed partial class MainWindowViewModel
         // nested contained objects beneath the current scope.
         if (currentScope is not null)
         {
-            foreach (var gameObject in EnumerateChildObjects(currentScope))
+            var childObjects = currentScope is GameObject parentObject
+                ? EnumerateContainedObjects(parentObject.ContainedObjects)
+                : EnumerateChildObjects(currentScope);
+
+            foreach (var gameObject in childObjects)
             {
                 AddScopeActions(gameObject, LinkedActionTargetGroup.Children);
             }
@@ -587,6 +615,19 @@ public sealed partial class MainWindowViewModel
 
         return choices;
 
+        static IEnumerable<GameObject> EnumerateContainedObjects(IEnumerable<GameObject> roots)
+        {
+            foreach (var gameObject in roots)
+            {
+                yield return gameObject;
+
+                foreach (var nested in EnumerateContainedObjects(gameObject.ContainedObjects))
+                {
+                    yield return nested;
+                }
+            }
+        }
+
         static IEnumerable<GameObject> EnumerateChildObjects(IScopedAwareNode scope)
         {
             foreach (var child in scope.ChildScopes)
@@ -594,11 +635,18 @@ public sealed partial class MainWindowViewModel
                 if (child is GameObject gameObject)
                 {
                     yield return gameObject;
-                }
 
-                foreach (var nested in EnumerateChildObjects(child))
+                    foreach (var nested in EnumerateContainedObjects(gameObject.ContainedObjects))
+                    {
+                        yield return nested;
+                    }
+                }
+                else
                 {
-                    yield return nested;
+                    foreach (var nested in EnumerateChildObjects(child))
+                    {
+                        yield return nested;
+                    }
                 }
             }
         }

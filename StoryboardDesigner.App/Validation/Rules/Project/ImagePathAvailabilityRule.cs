@@ -145,7 +145,7 @@ public sealed class ImagePathAvailabilityRule : IValidationRule
 
     private static bool IsObjectTemplateGameObject(ProjectModel project, GameObject target)
     {
-        foreach (var root in project.ObjectTemplates)
+        foreach (var root in project.EnumerateAllObjectTemplateRoots())
         {
             if (ContainsGameObjectRecursive(root, target))
             {
@@ -218,7 +218,7 @@ public sealed class ImagePathAvailabilityRule : IValidationRule
             }
         }
 
-        foreach (var root in project.ObjectTemplates)
+        foreach (var root in project.EnumerateAllObjectTemplateRoots())
         {
             if (TryBuildObjectPathFromRoot(root, target, "Global / Object Templates", out var path))
             {
@@ -295,12 +295,12 @@ public sealed class ImagePathAvailabilityRule : IValidationRule
             }
         }
 
-        foreach (var template in project.ObjectTemplates)
+        foreach (var template in project.EnumerateAllObjectTemplateRoots())
         {
             AddObject(template, lookup);
         }
 
-        foreach (var roomTemplateObject in project.RoomTemplates.SelectMany(room => room.GameObjects))
+        foreach (var roomTemplateObject in project.EnumerateAllRoomTemplateRoots().SelectMany(room => room.GameObjects))
         {
             AddObject(roomTemplateObject, lookup);
         }

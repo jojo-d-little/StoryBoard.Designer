@@ -2,6 +2,7 @@ using System.Windows.Input;
 using System.IO;
 using System.Text.Json;
 using Storyboard.Shared.Serialization;
+using Storyboard.Shared.DesignerContracts;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Orchestration.Workflows;
 using StoryboardDesigner.App.Services;
@@ -20,6 +21,8 @@ namespace StoryboardDesigner.App.ViewModels;
 
 public sealed partial class MainWindowViewModel
 {
+    private static readonly JsonSerializerOptions SequenceCloneJsonOptions = JsonExportService.CreateJsonOptions();
+
     private enum TreeValidationCompletionMode
     {
         FullReport,
@@ -1280,7 +1283,127 @@ public sealed partial class MainWindowViewModel
             }).ToList()
         };
 
+        clone.SequenceDefinitions = CloneSequenceDefinitionsForRoom(source, clone);
         return clone;
+    }
+
+    private static List<ProjectSequenceDefinitionDto> CloneSequenceDefinitionsForRoom(Room source, Room clone)
+    {
+        var actionIds = new Dictionary<Guid, Guid>();
+        var soundEffectIds = new Dictionary<Guid, Guid>();
+
+        void MapScopeActions(IReadOnlyList<CommandAction> sourceActions, IReadOnlyList<CommandAction> clonedActions)
+        {
+            for (var index = 0; index < Math.Min(sourceActions.Count, clonedActions.Count); index++)
+            {
+                actionIds[sourceActions[index].Id] = clonedActions[index].Id;
+            }
+        }
+
+        void MapObject(GameObject sourceObject, GameObject clonedObject)
+        {
+            MapScopeActions(sourceObject.AvailableActions, clonedObject.AvailableActions);
+            for (var index = 0; index < Math.Min(sourceObject.SoundEffectLibraryEntries.Count, clonedObject.SoundEffectLibraryEntries.Count); index++)
+            {
+                soundEffectIds[sourceObject.SoundEffectLibraryEntries[index].SoundEffectId] = clonedObject.SoundEffectLibraryEntries[index].SoundEffectId;
+            }
+
+            for (var index = 0; index < Math.Min(sourceObject.ContainedObjects.Count, clonedObject.ContainedObjects.Count); index++)
+            {
+                MapObject(sourceObject.ContainedObjects[index], clonedObject.ContainedObjects[index]);
+            }
+        }
+
+        MapScopeActions(source.AvailableActions, clone.AvailableActions);
+        for (var index = 0; index < Math.Min(source.SoundEffectLibraryEntries.Count, clone.SoundEffectLibraryEntries.Count); index++)
+        {
+            soundEffectIds[source.SoundEffectLibraryEntries[index].SoundEffectId] = clone.SoundEffectLibraryEntries[index].SoundEffectId;
+        }
+
+        for (var index = 0; index < Math.Min(source.GameObjects.Count, clone.GameObjects.Count); index++)
+        {
+            MapObject(source.GameObjects[index], clone.GameObjects[index]);
+        }
+
+        return CloneSequenceDefinitionsWithMaps(source.SequenceDefinitions, actionIds, soundEffectIds);
+    }
+
+    private static List<ProjectSequenceDefinitionDto> CloneSequenceDefinitionsWithMaps(
+        IEnumerable<ProjectSequenceDefinitionDto>? sourceDefinitions,
+        IReadOnlyDictionary<Guid, Guid> actionIds,
+        IReadOnlyDictionary<Guid, Guid> soundEffectIds)
+    {
+        return (sourceDefinitions ?? Array.Empty<ProjectSequenceDefinitionDto>())
+            .Select(sequence =>
+            {
+                var copy = JsonSerializer.Deserialize<ProjectSequenceDefinitionDto>(JsonSerializer.Serialize(sequence, SequenceCloneJsonOptions), SequenceCloneJsonOptions)
+                    ?? throw new InvalidOperationException("A sequence definition could not be cloned.");
+                copy.SequenceId = Guid.NewGuid();
+
+                var branchIds = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var branch in sequence.Branches ?? new List<ProjectSequenceBranchDto>())
+                {
+                    if (!branchIds.ContainsKey(branch.BranchId))
+                    {
+                        branchIds.Add(
+                            branch.BranchId,
+                            string.Equals(branch.BranchId, MainSequenceBranchId, StringComparison.Ordinal)
+                                ? MainSequenceBranchId
+                                : Guid.NewGuid().ToString("N"));
+                    }
+                }
+                foreach (var branch in copy.Branches ?? new List<ProjectSequenceBranchDto>())
+                {
+                    if (branchIds.TryGetValue(branch.BranchId, out var newBranchId))
+                    {
+                        branch.BranchId = newBranchId;
+                    }
+                }
+
+                var steps = copy.Steps ?? new List<ProjectSequenceStepDto>();
+                var sourceSteps = sequence.Steps ?? new List<ProjectSequenceStepDto>();
+                var stepIds = new Dictionary<Guid, Guid>();
+                foreach (var sourceStep in sourceSteps)
+                {
+                    stepIds.TryAdd(sourceStep.StepId, Guid.NewGuid());
+                }
+                foreach (var step in steps)
+                {
+                    if (stepIds.TryGetValue(step.StepId, out var newStepId))
+                    {
+                        step.StepId = newStepId;
+                    }
+
+                    if (step.BranchId is not null && branchIds.TryGetValue(step.BranchId, out var newBranchId))
+                    {
+                        step.BranchId = newBranchId;
+                    }
+
+                    step.OnSuccessStepId = RemapStepId(step.OnSuccessStepId, stepIds);
+                    step.OnFailureStepId = RemapStepId(step.OnFailureStepId, stepIds);
+                    step.MergeTargetStepId = RemapStepId(step.MergeTargetStepId, stepIds);
+                    if (step.ActionId is { } actionId && actionIds.TryGetValue(actionId, out var newActionId))
+                    {
+                        step.ActionId = newActionId;
+                    }
+
+                    if (step.SoundEffectId is { } soundEffectId && soundEffectIds.TryGetValue(soundEffectId, out var newSoundEffectId))
+                    {
+                        step.SoundEffectId = newSoundEffectId;
+                    }
+
+                    if (step.InlineAction is not null)
+                    {
+                        step.InlineAction.Id = Guid.NewGuid();
+                    }
+                }
+
+                return copy;
+            })
+            .ToList();
+
+        static Guid? RemapStepId(Guid? stepId, IReadOnlyDictionary<Guid, Guid> map) =>
+            stepId.HasValue && map.TryGetValue(stepId.Value, out var mapped) ? mapped : stepId;
     }
 
     private sealed class SectionImportResult
@@ -1716,6 +1839,8 @@ public sealed partial class MainWindowViewModel
         registry.Register(new EventSubscriptionAnchorDynamicTailReferenceRule());
         registry.Register(new TimerDefinitionOwnerScopeContextRule());
         registry.Register(new SequenceDefinitionIntegrityRule());
+        registry.Register(new SequenceIdentityUniquenessRule());
+        registry.Register(new SequenceActionReferenceReachabilityRule());
         registry.Register(new PhaseAmbientTimerKeyCrossTierWarningRule());
         registry.Register(new ScopedActionNameUniquenessRule());
         registry.Register(new RuntimeExportIdUniquenessRule());
@@ -1757,6 +1882,9 @@ public sealed partial class MainWindowViewModel
         registry.Register(new MaterializeSourceObjectReferenceExistsRule());
         registry.Register(new OutcomeSoundEffectReferenceExistsRule());
         registry.Register(new ObjectPresentationCueTargetReferenceExistsRule());
+        registry.Register(new ActionObjectTargetReachabilityRule());
+        registry.Register(new ScopedSoundEffectReferenceRule());
+        registry.Register(new SequenceActionTargetExistsRule());
         registry.Register(new CheckCommandContextPayloadRule());
         registry.Register(new ScriptUnknownReferenceRule());
         registry.Register(new ScriptMalformedIndexedReferenceRule());
@@ -2421,12 +2549,12 @@ public sealed partial class MainWindowViewModel
             yield return globalObject;
         }
 
-        foreach (var templateObject in EnumerateGameObjects(_project.ObjectTemplates))
+        foreach (var templateObject in EnumerateGameObjects(_project.EnumerateAllObjectTemplateRoots()))
         {
             yield return templateObject;
         }
 
-        foreach (var roomTemplate in _project.RoomTemplates)
+        foreach (var roomTemplate in _project.EnumerateAllRoomTemplateRoots())
         {
             yield return roomTemplate;
 

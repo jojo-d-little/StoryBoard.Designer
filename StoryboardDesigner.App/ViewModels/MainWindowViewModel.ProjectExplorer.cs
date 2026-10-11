@@ -16,7 +16,9 @@ public sealed partial class MainWindowViewModel
     private const string GoToBaseObjectActionId = "go-to-base-object";
     private const string PromoteToBaseObjectActionId = "promote-to-base-object";
     private const string CreateTemplateFromObjectActionId = "create-template-from-object";
-    private const string CreateTemplateFromRoomActionId = "create-template-from-room";
+    private const string CloneTemplateFromRoomActionId = "clone-template-from-room";
+    private const string CloneTemplateToRoomTemplatesActionId = "clone-template-to-room-templates";
+    private const string CancelRoomTemplateCloneActionId = "cancel-room-template-clone";
     private const string AddNewRoomTemplateActionId = "add-new-room-template";
     private const string DeleteRoomTemplateActionId = "delete-room-template";
     private const string AddNewPhaseBookActionId = "add-new-phase-book";
@@ -24,6 +26,12 @@ public sealed partial class MainWindowViewModel
     private const string AddNewPhasePageActionId = "add-new-phase-page";
     private const string AddNewSequenceActionId = "add-new-sequence";
     private const string RemoveSequenceActionId = "remove-sequence";
+    private const string RelocateObjectFromActionId = "relocate-object-from";
+    private const string RelocateObjectToActionId = "relocate-object-to";
+    private const string CancelObjectRelocationActionId = "cancel-object-relocation";
+    private const string RelocateSequenceFromActionId = "relocate-sequence-from";
+    private const string RelocateSequenceToActionId = "relocate-sequence-to";
+    private const string CancelSequenceRelocationActionId = "cancel-sequence-relocation";
     private const string MovePhaseNodeUpActionId = "move-phase-node-up";
     private const string MovePhaseNodeDownActionId = "move-phase-node-down";
     private const string ReviewPhaseNarrativeActionId = "review-phase-narrative";
@@ -62,6 +70,10 @@ public sealed partial class MainWindowViewModel
     internal const string ShowNodeValidationIssuesActionId = "show-node-validation-issues";
 
     private readonly Dictionary<object, HashSet<string>> _scopedNameIndexes = new(ReferenceEqualityComparer.Instance);
+    private GameObject? _pendingObjectRelocation;
+    private HierarchyNodeViewModel? _pendingObjectRelocationNode;
+    private SequenceDefinitionNodeViewModel? _pendingSequenceRelocationNode;
+    private RoomNodeViewModel? _pendingRoomTemplateCloneSourceNode;
 
     private RelayCommand _addObjectCommand = null!;
     private RelayCommand _removeObjectCommand = null!;
@@ -158,6 +170,9 @@ public sealed partial class MainWindowViewModel
     public IReadOnlyList<TreeContextAction> GetTreeContextActions(HierarchyNodeViewModel node)
     {
         var actions = GetNodeSpecificTreeContextActions(node).ToList();
+        actions.AddRange(GetObjectRelocationContextActions(node));
+        actions.AddRange(GetSequenceRelocationContextActions(node));
+        actions.AddRange(GetRoomTemplateCloneContextActions(node));
         if (node.HasValidationErrorsOnNode || node.HasValidationWarningsOnNode)
         {
             actions.Add(new TreeContextAction(ShowNodeValidationIssuesActionId, "Show Node Validation Issues"));
@@ -168,8 +183,712 @@ public sealed partial class MainWindowViewModel
         return actions;
     }
 
+    private IReadOnlyList<TreeContextAction> GetRoomTemplateCloneContextActions(HierarchyNodeViewModel node)
+    {
+        var actions = new List<TreeContextAction>();
+        if (node is RoomNodeViewModel roomNode)
+        {
+            actions.Add(new TreeContextAction(
+                CloneTemplateFromRoomActionId,
+                ReferenceEquals(_pendingRoomTemplateCloneSourceNode, roomNode)
+                    ? "Clone Template From Room (restart)"
+                    : "Clone Template From Room"));
+        }
+
+        if (_pendingRoomTemplateCloneSourceNode is not null)
+        {
+            if (node is RoomTemplatesNodeViewModel templatesNode
+                && ReferenceEquals(templatesNode.Project, _project)
+                && IsValidTemplateCatalogOwner(templatesNode.CatalogParentScope))
+            {
+                actions.Add(new TreeContextAction(CloneTemplateToRoomTemplatesActionId, "Clone Template To Here"));
+            }
+
+            actions.Add(new TreeContextAction(CancelRoomTemplateCloneActionId, "Cancel Template Clone"));
+        }
+
+        return actions;
+    }
+
+    private bool BeginRoomTemplateClone(RoomNodeViewModel sourceNode)
+    {
+        if (!EnumerateHierarchyNodes(HierarchyRoots).Any(candidate => ReferenceEquals(candidate, sourceNode))
+            || !sourceNode.Area.Rooms.Contains(sourceNode.Room))
+        {
+            ExportStatus = "This room is no longer available to clone as a template.";
+            return false;
+        }
+
+        _pendingRoomTemplateCloneSourceNode = sourceNode;
+        ExportStatus = $"Cloning a room template from '{sourceNode.Room.Name}'. Right-click Room Templates and choose 'Clone Template To Here', or cancel the operation.";
+        return true;
+    }
+
+    private bool CancelRoomTemplateClone()
+    {
+        if (_pendingRoomTemplateCloneSourceNode is null)
+        {
+            return false;
+        }
+
+        var sourceName = _pendingRoomTemplateCloneSourceNode.Room.Name;
+        _pendingRoomTemplateCloneSourceNode = null;
+        ExportStatus = $"Cancelled room template clone from '{sourceName}'.";
+        return true;
+    }
+
+    private bool CompleteRoomTemplateClone(RoomTemplatesNodeViewModel destinationNode)
+    {
+        var sourceNode = _pendingRoomTemplateCloneSourceNode;
+        if (sourceNode is null)
+        {
+            ExportStatus = "Choose a room as the clone source before choosing Room Templates as the destination.";
+            return false;
+        }
+
+        if (!ReferenceEquals(destinationNode.Project, _project)
+            || !IsValidTemplateCatalogOwner(destinationNode.CatalogParentScope)
+            || !EnumerateHierarchyNodes(HierarchyRoots).Any(candidate => ReferenceEquals(candidate, destinationNode)))
+        {
+            ExportStatus = "Choose a Room Templates catalog in the project hierarchy as the destination.";
+            return false;
+        }
+
+        if (!EnumerateHierarchyNodes(HierarchyRoots).Any(candidate => ReferenceEquals(candidate, sourceNode))
+            || !sourceNode.Area.Rooms.Contains(sourceNode.Room))
+        {
+            _pendingRoomTemplateCloneSourceNode = null;
+            ExportStatus = "The source room is no longer available; the pending template clone was cancelled.";
+            return false;
+        }
+
+        if (!CreateTemplateFromRoom(sourceNode, destinationNode))
+        {
+            return false;
+        }
+
+        _pendingRoomTemplateCloneSourceNode = null;
+        return true;
+    }
+
+    private static bool IsValidTemplateCatalogOwner(ScopeNodeBase scope) =>
+        scope is RoomTemplatesScopeNode or Planet or Country or Area;
+
+    private IReadOnlyList<TreeContextAction> GetObjectRelocationContextActions(HierarchyNodeViewModel node)
+    {
+        var actions = new List<TreeContextAction>();
+        if (TryGetRelocationSourceObject(node, out var sourceObject))
+        {
+            actions.Add(new TreeContextAction(
+                RelocateObjectFromActionId,
+                ReferenceEquals(_pendingObjectRelocation, sourceObject)
+                    ? "Relocate from here (restart)"
+                    : "Relocate from here"));
+        }
+
+        if (_pendingObjectRelocation is not null)
+        {
+            if (TryResolveObjectRelocationTarget(node, out var target))
+            {
+                var blockReason = GetObjectRelocationBlockReason(_pendingObjectRelocation, target);
+                actions.Add(new TreeContextAction(
+                    RelocateObjectToActionId,
+                    string.IsNullOrWhiteSpace(blockReason) ? "Relocate to here" : $"Relocate to here ({blockReason})",
+                    isEnabled: string.IsNullOrWhiteSpace(blockReason)));
+            }
+
+            actions.Add(new TreeContextAction(CancelObjectRelocationActionId, "Cancel relocation"));
+        }
+
+        return actions;
+    }
+
+    private IReadOnlyList<TreeContextAction> GetSequenceRelocationContextActions(HierarchyNodeViewModel node)
+    {
+        var actions = new List<TreeContextAction>();
+        if (node is SequenceDefinitionNodeViewModel sequenceNode)
+        {
+            actions.Add(new TreeContextAction(
+                RelocateSequenceFromActionId,
+                ReferenceEquals(_pendingSequenceRelocationNode, sequenceNode)
+                    ? "Relocate sequence from here (restart)"
+                    : "Relocate sequence from here"));
+        }
+
+        if (_pendingSequenceRelocationNode is not null)
+        {
+            var target = ResolveSequenceRelocationTargetOwner(node);
+            if (target is not null)
+            {
+                var blockReason = GetSequenceRelocationBlockReason(_pendingSequenceRelocationNode, target);
+                actions.Add(new TreeContextAction(
+                    RelocateSequenceToActionId,
+                    string.IsNullOrWhiteSpace(blockReason) ? "Relocate sequence to here" : $"Relocate sequence to here ({blockReason})",
+                    isEnabled: string.IsNullOrWhiteSpace(blockReason)));
+            }
+
+            actions.Add(new TreeContextAction(CancelSequenceRelocationActionId, "Cancel sequence relocation"));
+        }
+
+        return actions;
+    }
+
+    private bool BeginSequenceRelocation(HierarchyNodeViewModel node)
+    {
+        if (node is not SequenceDefinitionNodeViewModel sequenceNode
+            || !sequenceNode.Owner.SequenceDefinitions.Contains(sequenceNode.Definition))
+        {
+            ExportStatus = "This sequence is not in a relocatable scope.";
+            return false;
+        }
+
+        _pendingSequenceRelocationNode = sequenceNode;
+        ExportStatus = $"Relocating sequence '{sequenceNode.Definition.DisplayName}' from {BuildScopePathForScopedNode(sequenceNode.Owner)}. Right-click its new owning scope and choose 'Relocate sequence to here', or cancel relocation.";
+        return true;
+    }
+
+    private bool CancelSequenceRelocation()
+    {
+        if (_pendingSequenceRelocationNode is null)
+        {
+            return false;
+        }
+
+        var name = _pendingSequenceRelocationNode.Definition.DisplayName;
+        _pendingSequenceRelocationNode = null;
+        ExportStatus = $"Cancelled relocation of sequence '{name}'.";
+        return true;
+    }
+
+    private bool CompleteSequenceRelocation(HierarchyNodeViewModel node)
+    {
+        var sourceNode = _pendingSequenceRelocationNode;
+        var targetOwner = ResolveSequenceRelocationTargetOwner(node);
+        if (sourceNode is null || targetOwner is null)
+        {
+            ExportStatus = "Choose a valid destination scope for the pending sequence relocation.";
+            return false;
+        }
+
+        var blockReason = GetSequenceRelocationBlockReason(sourceNode, targetOwner);
+        if (!string.IsNullOrWhiteSpace(blockReason))
+        {
+            ExportStatus = $"Cannot relocate sequence '{sourceNode.Definition.DisplayName}': {blockReason}.";
+            return false;
+        }
+
+        if (!sourceNode.Owner.SequenceDefinitions.Contains(sourceNode.Definition)
+            || sourceNode.Parent is not SequencesNodeViewModel sourceSequencesNode
+            || !sourceSequencesNode.Children.Contains(sourceNode))
+        {
+            _pendingSequenceRelocationNode = null;
+            ExportStatus = "The source sequence is no longer available for relocation.";
+            return false;
+        }
+
+        var targetSequencesNode = FindOrCreateSequencesNode(targetOwner);
+        if (targetSequencesNode is null)
+        {
+            ExportStatus = "The destination scope could not be shown in the hierarchy.";
+            return false;
+        }
+
+        var definition = sourceNode.Definition;
+        if (!targetOwner.SequenceDefinitions.Contains(definition))
+        {
+            targetOwner.SequenceDefinitions.Add(definition);
+        }
+
+        if (!sourceNode.Owner.SequenceDefinitions.Remove(definition))
+        {
+            if (!ReferenceEquals(sourceNode.Owner, targetOwner))
+            {
+                targetOwner.SequenceDefinitions.Remove(definition);
+            }
+
+            ExportStatus = "The source sequence could not be removed; its original placement was preserved.";
+            return false;
+        }
+
+        sourceSequencesNode.Children.Remove(sourceNode);
+        var relocatedNode = new SequenceDefinitionNodeViewModel(targetOwner, definition, targetSequencesNode);
+        targetSequencesNode.Children.Add(relocatedNode);
+
+        _pendingSequenceRelocationNode = null;
+        SelectedNode = relocatedNode;
+        NotifySequenceProjectEdited();
+        ExpandToNode(relocatedNode);
+        ExportStatus = $"Relocated sequence '{definition.DisplayName}' to {BuildScopePathForScopedNode(targetOwner)}. Its ID, steps, and routing were preserved; run validation to find references that may no longer be reachable.";
+        return true;
+    }
+
+    private static ScopeNodeBase? ResolveSequenceRelocationTargetOwner(HierarchyNodeViewModel node)
+    {
+        return node switch
+        {
+            SequencesNodeViewModel sequencesNode => sequencesNode.Owner,
+            _ => ResolveSequenceScopeOwner(node)
+        };
+    }
+
+    private static string? GetSequenceRelocationBlockReason(
+        SequenceDefinitionNodeViewModel source,
+        ScopeNodeBase targetOwner)
+    {
+        if (ReferenceEquals(source.Owner, targetOwner))
+        {
+            return "the sequence already belongs to this scope";
+        }
+
+        if (targetOwner.SequenceDefinitions.Any(definition => definition.SequenceId == source.Definition.SequenceId))
+        {
+            return "the destination already contains a sequence with this ID";
+        }
+
+        return null;
+    }
+
+    private SequencesNodeViewModel? FindOrCreateSequencesNode(ScopeNodeBase owner)
+    {
+        var existing = EnumerateHierarchyNodes(HierarchyRoots)
+            .OfType<SequencesNodeViewModel>()
+            .FirstOrDefault(candidate => ReferenceEquals(candidate.Owner, owner));
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var ownerNode = EnumerateHierarchyNodes(HierarchyRoots)
+            .FirstOrDefault(candidate => ReferenceEquals(ResolveSequenceScopeOwner(candidate), owner));
+        if (ownerNode is null)
+        {
+            return null;
+        }
+
+        var created = new SequencesNodeViewModel(owner, ownerNode);
+        ownerNode.Children.Add(created);
+        return created;
+    }
+
+    private bool BeginObjectRelocation(HierarchyNodeViewModel node)
+    {
+        if (!TryGetRelocationSourceObject(node, out var sourceObject)
+            || sourceObject.ParentScope is not ScopeNodeBase parentScope
+            || GetLiveGameObjectCollection(parentScope) is not { } parentCollection
+            || !parentCollection.Contains(sourceObject))
+        {
+            ExportStatus = "This game object is not in a relocatable scope.";
+            return false;
+        }
+
+        _pendingObjectRelocation = sourceObject;
+        _pendingObjectRelocationNode = node;
+        var sourcePath = BuildScopePathForScopedNode(sourceObject);
+        ExportStatus = $"Relocating '{sourceObject.Name}' from {sourcePath}. Right-click its new parent and choose 'Relocate to here', or cancel relocation.";
+        return true;
+    }
+
+    private bool CancelObjectRelocation()
+    {
+        if (_pendingObjectRelocation is null)
+        {
+            return false;
+        }
+
+        var name = _pendingObjectRelocation.Name;
+        ClearPendingObjectRelocation();
+        ExportStatus = $"Cancelled relocation of '{name}'.";
+        return true;
+    }
+
+    private bool CompleteObjectRelocation(HierarchyNodeViewModel node)
+    {
+        var sourceObject = _pendingObjectRelocation;
+        var sourceNode = _pendingObjectRelocationNode;
+        if (sourceObject is null || sourceNode is null || !TryResolveObjectRelocationTarget(node, out var target))
+        {
+            ExportStatus = "Choose a valid destination scope for the pending relocation.";
+            return false;
+        }
+
+        var blockReason = GetObjectRelocationBlockReason(sourceObject, target);
+        if (!string.IsNullOrWhiteSpace(blockReason))
+        {
+            ExportStatus = $"Cannot relocate '{sourceObject.Name}': {blockReason}.";
+            return false;
+        }
+
+        if (sourceObject.ParentScope is not ScopeNodeBase sourceScope
+            || GetLiveGameObjectCollection(sourceScope) is not { } sourceCollection
+            || !sourceCollection.Contains(sourceObject)
+            || GetLiveGameObjectCollection(target.Scope) is not { } targetCollection)
+        {
+            ClearPendingObjectRelocation();
+            ExportStatus = "The source or destination is no longer available for relocation.";
+            return false;
+        }
+
+        if (!TryGetRelocationDestinationChildren(target, out var destinationChildren))
+        {
+            ExportStatus = "The destination scope could not be shown in the hierarchy.";
+            return false;
+        }
+
+        var oldRoom = FindContainingRoom(sourceScope);
+        if (!sourceScope.RemoveChildScope(sourceObject))
+        {
+            ExportStatus = "The source object could not be removed from its current scope.";
+            return false;
+        }
+
+        if (!target.Scope.AddChildScope(sourceObject))
+        {
+            sourceScope.AddChildScope(sourceObject);
+            ExportStatus = "The destination scope rejected this game object; the original placement was restored.";
+            return false;
+        }
+
+        var sourceHierarchyChildren = GetRelocationSourceHierarchyChildren(sourceNode);
+        if (sourceHierarchyChildren is null || !sourceHierarchyChildren.Remove(sourceNode))
+        {
+            // Keep the model consistent if the hierarchy got stale while relocation was pending.
+            target.Scope.RemoveChildScope(sourceObject);
+            sourceScope.AddChildScope(sourceObject);
+            ClearPendingObjectRelocation();
+            ExportStatus = "The hierarchy changed before relocation completed; the original placement was restored.";
+            return false;
+        }
+
+        var sourceHierarchyOwner = GetRelocationSourceHierarchyOwner(sourceNode);
+        if (sourceHierarchyOwner is not null)
+        {
+            ApplyHideEmptyConfiguration(sourceHierarchyOwner);
+        }
+
+        var insertedNode = CreateRelocatedObjectNode(sourceObject, target, destinationChildren);
+        destinationChildren.Add(insertedNode);
+
+        RefreshScopedNameIndex(sourceCollection, static gameObject => gameObject.Name);
+        RefreshScopedNameIndex(targetCollection, static gameObject => gameObject.Name);
+
+        var newRoom = FindContainingRoom(target.Scope);
+        if (oldRoom is not null)
+        {
+            RefreshOpenRoomEditorObjectLists(oldRoom);
+        }
+
+        if (newRoom is not null && !ReferenceEquals(newRoom, oldRoom))
+        {
+            RefreshOpenRoomEditorObjectLists(newRoom);
+        }
+
+        ClearPendingObjectRelocation();
+        NotifyProjectEdited();
+        SelectedGameObject = sourceObject;
+        ExpandToNode(insertedNode);
+        SelectedNode = insertedNode;
+        ExportStatus = $"Relocated '{sourceObject.Name}' to {BuildScopePathForScopedNode(sourceObject)}. Existing references were preserved; run validation to find any that are no longer reachable.";
+        return true;
+    }
+
+    private void ClearPendingObjectRelocation()
+    {
+        _pendingObjectRelocation = null;
+        _pendingObjectRelocationNode = null;
+    }
+
+    private void ClearPendingRelocationIfRemovedSubtree(GameObject removedRoot)
+    {
+        for (IScopedAwareNode? current = _pendingObjectRelocation; current is not null; current = current.ParentScope)
+        {
+            if (ReferenceEquals(current, removedRoot))
+            {
+                ClearPendingObjectRelocation();
+                return;
+            }
+        }
+    }
+
+    private static bool TryGetRelocationSourceObject(HierarchyNodeViewModel node, out GameObject gameObject)
+    {
+        gameObject = node switch
+        {
+            GameObjectNodeViewModel objectNode => objectNode.GameObject,
+            GlobalObjectNodeViewModel globalObjectNode => globalObjectNode.GameObject,
+            _ => null!
+        };
+        return gameObject is not null;
+    }
+
+    private bool TryResolveObjectRelocationTarget(HierarchyNodeViewModel node, out ObjectRelocationTarget target)
+    {
+        switch (node)
+        {
+            case ProjectRootNodeViewModel projectRoot:
+                target = new ObjectRelocationTarget(projectRoot.Project, node, ObjectRelocationTargetKind.ProjectGlobalObjects);
+                return true;
+            case GlobalObjectsNodeViewModel globalObjects:
+                target = new ObjectRelocationTarget(globalObjects.Project, node, ObjectRelocationTargetKind.ObjectList);
+                return true;
+            case GameObjectsNodeViewModel objectsNode when objectsNode.ScopeNode is ScopeNodeBase scope
+                                                           && IsRelocationScope(scope):
+                target = new ObjectRelocationTarget(scope, node, ObjectRelocationTargetKind.ObjectList);
+                return true;
+            case PlanetNodeViewModel planetNode:
+                target = new ObjectRelocationTarget(planetNode.Planet, node, ObjectRelocationTargetKind.ScopeOwner);
+                return true;
+            case CountryNodeViewModel countryNode:
+                target = new ObjectRelocationTarget(countryNode.Country, node, ObjectRelocationTargetKind.ScopeOwner);
+                return true;
+            case AreaNodeViewModel areaNode:
+                target = new ObjectRelocationTarget(areaNode.Area, node, ObjectRelocationTargetKind.ScopeOwner);
+                return true;
+            case RoomNodeViewModel roomNode:
+                target = new ObjectRelocationTarget(roomNode.Room, node, ObjectRelocationTargetKind.ScopeOwner);
+                return true;
+            case GameObjectNodeViewModel objectNode:
+                target = new ObjectRelocationTarget(objectNode.GameObject, node, ObjectRelocationTargetKind.ObjectParent);
+                return true;
+            case GlobalObjectNodeViewModel globalObjectNode:
+                target = new ObjectRelocationTarget(globalObjectNode.GameObject, node, ObjectRelocationTargetKind.ObjectParent);
+                return true;
+            case ChildrenGroupNodeViewModel { OwnerNode: GameObjectNodeViewModel objectNode }:
+                target = new ObjectRelocationTarget(objectNode.GameObject, node, ObjectRelocationTargetKind.ObjectParent);
+                return true;
+            case ChildrenGroupNodeViewModel { OwnerNode: GlobalObjectNodeViewModel globalObjectNode }:
+                target = new ObjectRelocationTarget(globalObjectNode.GameObject, node, ObjectRelocationTargetKind.ObjectParent);
+                return true;
+            default:
+                target = null!;
+                return false;
+        }
+    }
+
+    private static bool IsRelocationScope(ScopeNodeBase scope)
+    {
+        return scope is ProjectModel or Planet or Country or Area or Room or GameObject;
+    }
+
+    private static List<GameObject>? GetLiveGameObjectCollection(ScopeNodeBase scope)
+    {
+        return scope switch
+        {
+            ProjectModel project => project.GlobalScope.GameObjects,
+            Planet planet => planet.GameObjects,
+            Country country => country.GameObjects,
+            Area area => area.GameObjects,
+            Room room => room.GameObjects,
+            GameObject gameObject => gameObject.ContainedObjects,
+            _ => null
+        };
+    }
+
+    private static string? GetObjectRelocationBlockReason(GameObject sourceObject, ObjectRelocationTarget target)
+    {
+        if (!IsRelocationScope(target.Scope) || GetLiveGameObjectCollection(target.Scope) is null)
+        {
+            return "this scope cannot own game objects";
+        }
+
+        if (ReferenceEquals(sourceObject, target.Scope))
+        {
+            return "an object cannot be its own parent";
+        }
+
+        for (IScopedAwareNode? ancestor = target.Scope; ancestor is not null; ancestor = ancestor.ParentScope)
+        {
+            if (ReferenceEquals(ancestor, sourceObject))
+            {
+                return "an object cannot be moved beneath itself or one of its descendants";
+            }
+        }
+
+        if (ReferenceEquals(sourceObject.ParentScope, target.Scope))
+        {
+            return "the object already belongs to this scope";
+        }
+
+        return null;
+    }
+
+    private static IList<HierarchyNodeViewModel>? GetRelocationSourceHierarchyChildren(HierarchyNodeViewModel sourceNode)
+    {
+        return sourceNode switch
+        {
+            GameObjectNodeViewModel { ParentObjectNode: not null } objectNode => GetOrCreateChildrenGroup(objectNode.ParentObjectNode).Children,
+            GameObjectNodeViewModel objectNode => objectNode.ParentObjectsNode.Children,
+            GlobalObjectNodeViewModel { ParentObjectNode: not null } objectNode => GetOrCreateChildrenGroup(objectNode.ParentObjectNode).Children,
+            GlobalObjectNodeViewModel objectNode => objectNode.ParentGlobalObjectsNode.Children,
+            _ => null
+        };
+    }
+
+    private static HierarchyNodeViewModel? GetRelocationSourceHierarchyOwner(HierarchyNodeViewModel sourceNode)
+    {
+        return sourceNode switch
+        {
+            GameObjectNodeViewModel { ParentObjectNode: not null } objectNode => objectNode.ParentObjectNode,
+            GameObjectNodeViewModel objectNode => objectNode.ParentObjectsNode.Parent,
+            GlobalObjectNodeViewModel { ParentObjectNode: not null } objectNode => objectNode.ParentObjectNode,
+            GlobalObjectNodeViewModel objectNode => objectNode.ParentGlobalObjectsNode.Parent,
+            _ => null
+        };
+    }
+
+    private bool TryGetRelocationDestinationChildren(
+        ObjectRelocationTarget target,
+        out IList<HierarchyNodeViewModel> children)
+    {
+        switch (target.Kind)
+        {
+            case ObjectRelocationTargetKind.ObjectList when target.Node is GameObjectsNodeViewModel objectsNode:
+                children = objectsNode.Children;
+                return true;
+            case ObjectRelocationTargetKind.ObjectParent when target.Node is GameObjectNodeViewModel objectNode:
+                children = GetOrCreateChildrenGroup(objectNode).Children;
+                return true;
+            case ObjectRelocationTargetKind.ObjectParent when target.Node is GlobalObjectNodeViewModel globalObjectNode:
+                children = GetOrCreateChildrenGroup(globalObjectNode).Children;
+                return true;
+            case ObjectRelocationTargetKind.ObjectParent when target.Node is ChildrenGroupNodeViewModel childrenGroup:
+                children = childrenGroup.Children;
+                return true;
+            case ObjectRelocationTargetKind.ProjectGlobalObjects when target.Node is ProjectRootNodeViewModel projectRoot:
+            {
+                var objectsNode = projectRoot.Children.OfType<GlobalObjectsNodeViewModel>().FirstOrDefault();
+                if (objectsNode is null)
+                {
+                    objectsNode = new GlobalObjectsNodeViewModel(projectRoot.Project, projectRoot);
+                    foreach (var objectNode in CreateGlobalGameObjectNodes(objectsNode))
+                    {
+                        objectsNode.Children.Add(objectNode);
+                    }
+                    projectRoot.Children.Add(objectsNode);
+                }
+
+                children = objectsNode.Children;
+                return true;
+            }
+            case ObjectRelocationTargetKind.ScopeOwner:
+                return TryGetOrCreateScopeObjectChildren(target.Node, out children);
+            default:
+                children = null!;
+                return false;
+        }
+    }
+
+    private static bool TryGetOrCreateScopeObjectChildren(
+        HierarchyNodeViewModel ownerNode,
+        out IList<HierarchyNodeViewModel> children)
+    {
+        GameObjectsNodeViewModel? objectsNode = ownerNode switch
+        {
+            PlanetNodeViewModel planetNode => planetNode.Children.OfType<PlanetGameObjectsNodeViewModel>().FirstOrDefault()
+                ?? AddCreatedObjectsNode(planetNode, CreateObjectsNode(planetNode)),
+            CountryNodeViewModel countryNode => countryNode.Children.OfType<CountryGameObjectsNodeViewModel>().FirstOrDefault()
+                ?? AddCreatedObjectsNode(countryNode, CreateObjectsNode(countryNode)),
+            AreaNodeViewModel areaNode => areaNode.Children.OfType<AreaGameObjectsNodeViewModel>().FirstOrDefault()
+                ?? AddCreatedObjectsNode(areaNode, CreateObjectsNode(areaNode)),
+            RoomNodeViewModel roomNode => roomNode.Children.OfType<RoomGameObjectsNodeViewModel>().FirstOrDefault()
+                ?? AddCreatedObjectsNode(roomNode, CreateObjectsNode(roomNode)),
+            _ => null
+        };
+
+        children = objectsNode?.Children!;
+        return objectsNode is not null;
+
+        static T AddCreatedObjectsNode<T>(HierarchyNodeViewModel owner, T created)
+            where T : GameObjectsNodeViewModel
+        {
+            owner.Children.Add(created);
+            return created;
+        }
+    }
+
+    private static HierarchyNodeViewModel CreateRelocatedObjectNode(
+        GameObject sourceObject,
+        ObjectRelocationTarget target,
+        IList<HierarchyNodeViewModel> destinationChildren)
+    {
+        switch (target.Kind)
+        {
+            case ObjectRelocationTargetKind.ObjectList when target.Node is GlobalObjectsNodeViewModel globalObjectsNode:
+                return CreateGlobalGameObjectNode(sourceObject, globalObjectsNode);
+            case ObjectRelocationTargetKind.ObjectParent when target.Node is GlobalObjectNodeViewModel globalObjectNode:
+                return CreateNestedGlobalGameObjectNode(sourceObject, globalObjectNode);
+            case ObjectRelocationTargetKind.ObjectParent when target.Node is ChildrenGroupNodeViewModel { OwnerNode: GlobalObjectNodeViewModel globalOwner }:
+                return CreateNestedGlobalGameObjectNode(sourceObject, globalOwner);
+            case ObjectRelocationTargetKind.ObjectParent when target.Node is GameObjectNodeViewModel objectNode:
+                return CreateNestedRoomObjectNode(sourceObject, objectNode);
+            case ObjectRelocationTargetKind.ObjectParent when target.Node is ChildrenGroupNodeViewModel { OwnerNode: GameObjectNodeViewModel roomOwner }:
+                return CreateNestedRoomObjectNode(sourceObject, roomOwner);
+            case ObjectRelocationTargetKind.ProjectGlobalObjects when target.Node is ProjectRootNodeViewModel projectRoot:
+                return CreateGlobalGameObjectNode(
+                    sourceObject,
+                    projectRoot.Children.OfType<GlobalObjectsNodeViewModel>().First());
+            case ObjectRelocationTargetKind.ProjectGlobalObjects:
+                throw new InvalidOperationException("The project hierarchy has no global game-object list node.");
+            case ObjectRelocationTargetKind.ObjectList when target.Node is GameObjectsNodeViewModel objectListNode:
+                return CreateScopedObjectNode(sourceObject, objectListNode);
+            case ObjectRelocationTargetKind.ScopeOwner:
+                GameObjectsNodeViewModel scopeObjectsNode = destinationChildren switch
+                {
+                    _ when target.Node is PlanetNodeViewModel planetNode => (GameObjectsNodeViewModel)planetNode.Children.OfType<PlanetGameObjectsNodeViewModel>().First(),
+                    _ when target.Node is CountryNodeViewModel countryNode => (GameObjectsNodeViewModel)countryNode.Children.OfType<CountryGameObjectsNodeViewModel>().First(),
+                    _ when target.Node is AreaNodeViewModel areaNode => (GameObjectsNodeViewModel)areaNode.Children.OfType<AreaGameObjectsNodeViewModel>().First(),
+                    _ when target.Node is RoomNodeViewModel roomNode => (GameObjectsNodeViewModel)roomNode.Children.OfType<RoomGameObjectsNodeViewModel>().First(),
+                    _ => throw new InvalidOperationException("The destination scope has no game-object list node.")
+                };
+                return CreateScopedObjectNode(sourceObject, scopeObjectsNode);
+            default:
+                throw new InvalidOperationException("Unsupported game-object relocation destination.");
+        }
+    }
+
+    private static Room? FindContainingRoom(IScopedAwareNode scope)
+    {
+        for (IScopedAwareNode? current = scope; current is not null; current = current.ParentScope)
+        {
+            if (current is Room room)
+            {
+                return room;
+            }
+        }
+
+        return null;
+    }
+
+    private enum ObjectRelocationTargetKind
+    {
+        ObjectList,
+        ScopeOwner,
+        ProjectGlobalObjects,
+        ObjectParent
+    }
+
+    private sealed record ObjectRelocationTarget(
+        ScopeNodeBase Scope,
+        HierarchyNodeViewModel Node,
+        ObjectRelocationTargetKind Kind);
+
     private IReadOnlyList<TreeContextAction> GetNodeSpecificTreeContextActions(HierarchyNodeViewModel node)
     {
+        if (node is GoToBaseObjectNodeViewModel)
+        {
+            return new List<TreeContextAction>
+            {
+                new(GoToBaseObjectActionId, "Go to My Base")
+            };
+        }
+
+        if (node is InstanceNamingNodeViewModel)
+        {
+            return new List<TreeContextAction>
+            {
+                new("edit-instance-naming", "Edit Instance Naming")
+            };
+        }
+
         if (node is SequencesNodeViewModel)
         {
             return new List<TreeContextAction>
@@ -436,7 +1155,6 @@ public sealed partial class MainWindowViewModel
                 new("add-existing-quantifiable-object", "Add Instance of Existing Object")
             };
 
-            actions.Insert(0, new TreeContextAction(CreateTemplateFromRoomActionId, "Create Template From"));
             return actions;
         }
 
@@ -569,16 +1287,21 @@ public sealed partial class MainWindowViewModel
 
         if (node is GameObjectNodeViewModel or GlobalObjectNodeViewModel or TemplateGameObjectNodeViewModel)
         {
+            var isLinkedInstance = TryResolveObjectFromNodeOrAncestor(node)?.IsRoomInstance == true;
             var actions = new List<TreeContextAction>
             {
-                new(EditIgnoredValidationRulesActionId, "Edit Ignored Validation Rules"),
-                new("add-new-object", node is TemplateGameObjectNodeViewModel templateAddNode
-                    ? (templateAddNode.ParentTemplatesNode.IsBaseCatalog ? "Add Contained Base Object" : "Add Contained Template Object")
-                    : "Add Contained Game Object"),
-                new("remove-object", node is TemplateGameObjectNodeViewModel templateRemoveNode
-                    ? (templateRemoveNode.ParentTemplatesNode.IsBaseCatalog ? "Delete Base Object" : "Delete Template Object")
-                    : "Delete Game Object")
+                new(EditIgnoredValidationRulesActionId, "Edit Ignored Validation Rules")
             };
+            if (!isLinkedInstance)
+            {
+                actions.Add(new TreeContextAction("add-new-object", node is TemplateGameObjectNodeViewModel templateAddNode
+                    ? (templateAddNode.ParentTemplatesNode.IsBaseCatalog ? "Add Contained Base Object" : "Add Contained Template Object")
+                    : "Add Contained Game Object"));
+            }
+
+            actions.Add(new TreeContextAction("remove-object", node is TemplateGameObjectNodeViewModel templateRemoveNode
+                ? (templateRemoveNode.ParentTemplatesNode.IsBaseCatalog ? "Delete Base Object" : "Delete Template Object")
+                : "Delete Game Object"));
 
             if (node is GameObjectNodeViewModel roomObjectNode
                 && roomObjectNode.ParentObjectsNode is RoomGameObjectsNodeViewModel)
@@ -1247,14 +1970,14 @@ public sealed partial class MainWindowViewModel
             }
         }
 
-        foreach (var roomTemplate in project.RoomTemplates)
+        foreach (var roomTemplate in project.EnumerateAllRoomTemplateRoots())
         {
             roomTemplate.HideEmptyConfiguration = hideEmptyConfiguration;
             ApplyHideEmptyConfigurationToObjects(roomTemplate.GameObjects, hideEmptyConfiguration);
         }
 
         ApplyHideEmptyConfigurationToObjects(project.GlobalScope.GameObjects, hideEmptyConfiguration);
-        ApplyHideEmptyConfigurationToObjects(project.ObjectTemplates, hideEmptyConfiguration);
+        ApplyHideEmptyConfigurationToObjects(project.EnumerateAllObjectTemplateRoots(), hideEmptyConfiguration);
         ApplyHideEmptyConfigurationToObjects(project.BaseObjects, hideEmptyConfiguration);
     }
 
@@ -1319,6 +2042,8 @@ public sealed partial class MainWindowViewModel
     {
         var direct = node switch
         {
+            GoToBaseObjectNodeViewModel baseObjectLinkNode => baseObjectLinkNode.Instance,
+            InstanceNamingNodeViewModel instanceNamingNode => instanceNamingNode.Instance,
             GameObjectNodeViewModel objectNode => objectNode.GameObject,
             GlobalObjectNodeViewModel playerObjectNode => playerObjectNode.GameObject,
             TemplateGameObjectNodeViewModel templateObjectNode => templateObjectNode.GameObject,
@@ -1375,13 +2100,107 @@ public sealed partial class MainWindowViewModel
         return true;
     }
 
+    private bool EditInstanceNaming(InstanceNamingNodeViewModel namingNode)
+    {
+        var instance = namingNode.Instance;
+        var definition = TryResolveLinkedDefinitionObject(instance);
+        if (definition is null)
+        {
+            _projectUiService.ShowWarning("The linked base object could not be found, so its naming values cannot be shown.", "Instance Naming");
+            return false;
+        }
+
+        var parentNode = namingNode.Parent;
+        var siblings = parentNode switch
+        {
+            GameObjectNodeViewModel objectNode => GetScopedObjectSiblings(objectNode),
+            GlobalObjectNodeViewModel globalObjectNode => GetScopedObjectSiblings(globalObjectNode),
+            TemplateGameObjectNodeViewModel templateObjectNode => GetScopedObjectSiblings(templateObjectNode),
+            _ => null
+        };
+        if (siblings is null)
+        {
+            return false;
+        }
+
+        var initialValues = new InstanceNamingEditRequest(
+            BaseName: definition.Name,
+            BaseNameInGame: definition.NameInGame,
+            BaseNameSynonyms: SerializeObjectNameSynonyms(definition.NameSynonyms),
+            InstanceName: instance.Name,
+            InstanceNameInGame: instance.NameInGame,
+            InstanceNameSynonyms: SerializeObjectNameSynonyms(instance.NameSynonyms));
+        if (!_treeContextInteractionService.TryEditInstanceNaming(initialValues, out var updatedValues))
+        {
+            return false;
+        }
+
+        var localName = updatedValues.InstanceName.Trim();
+        var effectiveNameCandidate = string.IsNullOrWhiteSpace(localName) ? definition.Name : localName;
+        if (!TryValidateScopedObjectName(siblings, instance, effectiveNameCandidate, out var normalizedEffectiveName))
+        {
+            return false;
+        }
+
+        var updatedLocalName = string.IsNullOrWhiteSpace(localName) ? string.Empty : normalizedEffectiveName;
+        var updatedNameInGame = updatedValues.InstanceNameInGame.Trim();
+        var updatedSynonyms = ParseObjectNameSynonyms(updatedValues.InstanceNameSynonyms);
+        var existingNameInGameOverride = instance.InstanceOverrides.TryGetValue(EffectiveObjectFieldResolver.NameInGameField, out var nameInGameOverride)
+            ? nameInGameOverride
+            : null;
+        var existingNameSynonymOverride = instance.InstanceOverrides.TryGetValue(EffectiveObjectFieldResolver.NameSynonymsField, out var existingOverride)
+            ? existingOverride
+            : null;
+        var shouldKeepSynonymOverride = updatedSynonyms.Count > 0
+            && !updatedSynonyms.SequenceEqual(ParseObjectNameSynonyms(definition.NameSynonyms), StringComparer.OrdinalIgnoreCase);
+        var updatedSynonymOverride = shouldKeepSynonymOverride
+            ? SerializeObjectNameSynonyms(updatedSynonyms)
+            : null;
+
+        var hasChanges = !string.Equals(instance.Name, updatedLocalName, StringComparison.Ordinal)
+            || !string.Equals(instance.NameInGame, updatedNameInGame, StringComparison.Ordinal)
+            || existingNameInGameOverride is not null
+            || !instance.NameSynonyms.SequenceEqual(updatedSynonyms, StringComparer.OrdinalIgnoreCase)
+            || !string.Equals(existingNameSynonymOverride, updatedSynonymOverride, StringComparison.Ordinal);
+        if (!hasChanges)
+        {
+            return false;
+        }
+
+        instance.Name = updatedLocalName;
+        instance.NameInGame = updatedNameInGame;
+        instance.NameSynonyms = updatedSynonyms;
+        EffectiveObjectFieldResolver.ClearOverride(instance, EffectiveObjectFieldResolver.NameInGameField);
+        if (updatedSynonymOverride is null)
+        {
+            EffectiveObjectFieldResolver.ClearOverride(instance, EffectiveObjectFieldResolver.NameSynonymsField);
+        }
+        else
+        {
+            EffectiveObjectFieldResolver.SetOverride(instance, EffectiveObjectFieldResolver.NameSynonymsField, updatedSynonymOverride);
+        }
+
+        namingNode.Parent?.SetEditableNameWithoutModelRename(normalizedEffectiveName);
+        ExportStatus = $"Updated naming for instance '{normalizedEffectiveName}'.";
+        return true;
+    }
+
     public bool ExecuteTreeContextAction(string actionId, HierarchyNodeViewModel node)
     {
         return actionId switch
         {
+            RelocateObjectFromActionId => BeginObjectRelocation(node),
+            RelocateObjectToActionId => CompleteObjectRelocation(node),
+            CancelObjectRelocationActionId => CancelObjectRelocation(),
+            RelocateSequenceFromActionId => BeginSequenceRelocation(node),
+            RelocateSequenceToActionId => CompleteSequenceRelocation(node),
+            CancelSequenceRelocationActionId => CancelSequenceRelocation(),
             GoToBaseObjectActionId => GoToBaseObjectForNode(node),
+            "edit-instance-naming" when node is InstanceNamingNodeViewModel instanceNamingNode => EditInstanceNaming(instanceNamingNode),
             CreateTemplateFromObjectActionId when node is GameObjectNodeViewModel roomObjectNode => CreateTemplateFromObject(roomObjectNode),
-            CreateTemplateFromRoomActionId when node is RoomNodeViewModel roomNode => CreateTemplateFromRoom(roomNode),
+            CloneTemplateFromRoomActionId when node is RoomNodeViewModel roomNode => BeginRoomTemplateClone(roomNode),
+            CloneTemplateToRoomTemplatesActionId when node is RoomTemplatesNodeViewModel templatesNode => CompleteRoomTemplateClone(templatesNode),
+            CancelRoomTemplateCloneActionId => CancelRoomTemplateClone(),
             PromoteToBaseObjectActionId when node is GameObjectNodeViewModel roomObjectNode => PromoteToBaseObject(roomObjectNode),
             "run-traversal-wizard" when node is RoomNodeViewModel roomNode => RunTraversalWizardForRoom(roomNode),
             ToggleHideEmptyConfigurationActionId => ToggleHideEmptyConfigurationForNode(node),
@@ -1591,7 +2410,7 @@ public sealed partial class MainWindowViewModel
         AddObjectRanges(keys, _project.GlobalScope.GameObjects);
         AddObjectRanges(keys, _project.BaseObjects);
 
-        foreach (var templateRoom in _project.RoomTemplates)
+        foreach (var templateRoom in _project.EnumerateAllRoomTemplateRoots())
         {
             AddRange(keys, templateRoom.TimerDefinitions);
             AddObjectRanges(keys, templateRoom.GameObjects);
@@ -2025,7 +2844,7 @@ public sealed partial class MainWindowViewModel
         var area = roomNode.Area;
         var sourceRoom = roomNode.Room;
         var choicesByDirection = result.Rows.ToDictionary(choice => choice.Direction);
-        var doorTemplateById = _project.ObjectTemplates
+        var doorTemplateById = GetObjectTemplatesForScope(area)
             .Where(template => template.ObjectId != Guid.Empty)
             .GroupBy(template => template.ObjectId)
             .ToDictionary(group => group.Key, group => group.First());
@@ -2589,7 +3408,7 @@ public sealed partial class MainWindowViewModel
         var area = roomNode.Area;
         var sourceRoom = roomNode.Room;
         var effectiveMode = TraversalModeResolutionUtility.ResolveEffectiveTraversalMode(_project, area, sourceRoom);
-        var doorTemplateOptions = _project.ObjectTemplates
+        var doorTemplateOptions = GetObjectTemplatesForScope(area)
             .Where(template => template.ObjectId != Guid.Empty
                                && !string.IsNullOrWhiteSpace(template.Name)
                                && template.Name.Contains("door", StringComparison.OrdinalIgnoreCase))
@@ -2916,7 +3735,8 @@ public sealed partial class MainWindowViewModel
                 soundEffectChoices,
                 timerKeySuggestions,
                 sequenceDefinitionChoices,
-                target.Actions.ToList()))
+                target.Actions.ToList(),
+                target.ScopeNode is GameObject ownerObject ? ownerObject.ObjectId : null))
         {
             return false;
         }
@@ -3526,7 +4346,7 @@ public sealed partial class MainWindowViewModel
             }
         }
 
-        foreach (var roomTemplate in _project.RoomTemplates)
+        foreach (var roomTemplate in _project.EnumerateAllRoomTemplateRoots())
         {
             AddRange(roomTemplate.EventSubscriptions);
         }
@@ -4261,7 +5081,7 @@ public sealed partial class MainWindowViewModel
             .ToList();
 
         foreach (var obj in EnumerateGameObjectsRecursive(_project.GlobalScope.GameObjects)
-                     .Concat(EnumerateGameObjectsRecursive(_project.ObjectTemplates))
+                     .Concat(EnumerateGameObjectsRecursive(_project.EnumerateAllObjectTemplateRoots()))
                      .Concat(EnumerateGameObjectsRecursive(_project.BaseObjects))
                      .Concat(_project.Planets
                          .SelectMany(static planet => planet.Countries)
@@ -4297,7 +5117,7 @@ public sealed partial class MainWindowViewModel
         }
 
         foreach (var obj in EnumerateGameObjectsRecursive(_project.GlobalScope.GameObjects)
-                     .Concat(EnumerateGameObjectsRecursive(_project.ObjectTemplates))
+                     .Concat(EnumerateGameObjectsRecursive(_project.EnumerateAllObjectTemplateRoots()))
                      .Concat(EnumerateGameObjectsRecursive(_project.BaseObjects))
                      .Concat(_project.Planets
                          .SelectMany(static planet => planet.Countries)
@@ -4320,7 +5140,7 @@ public sealed partial class MainWindowViewModel
     private IReadOnlyList<MaterializeSourceObjectChoiceItem> BuildProjectWideObjectChoices()
     {
         var allObjects = EnumerateGameObjectsRecursive(_project.GlobalScope.GameObjects)
-            .Concat(EnumerateGameObjectsRecursive(_project.ObjectTemplates))
+            .Concat(EnumerateGameObjectsRecursive(_project.EnumerateAllObjectTemplateRoots()))
             .Concat(EnumerateGameObjectsRecursive(_project.BaseObjects))
             .Concat(_project.Planets
                 .SelectMany(static planet => planet.Countries)
@@ -6612,7 +7432,7 @@ public sealed partial class MainWindowViewModel
         }
 
         AddObjects(index, _project.GlobalScope.GameObjects, "Global Objects");
-        AddObjects(index, _project.ObjectTemplates, "Object Templates");
+        AddObjects(index, _project.EnumerateAllObjectTemplateRoots(), "Object Templates");
         AddObjects(index, _project.BaseObjects, "Base Objects");
 
         foreach (var planet in _project.Planets)
@@ -6816,7 +7636,7 @@ public sealed partial class MainWindowViewModel
             yield return variable;
         }
 
-        foreach (var variable in EnumerateObjectVariables(_project.ObjectTemplates))
+        foreach (var variable in EnumerateObjectVariables(_project.EnumerateAllObjectTemplateRoots()))
         {
             yield return variable;
         }
@@ -7523,9 +8343,9 @@ public sealed partial class MainWindowViewModel
         AddEntries(_project.Planets.SelectMany(static planet => planet.Countries).SelectMany(static country => country.SoundEffectLibraryEntries));
         AddEntries(_project.Planets.SelectMany(static planet => planet.Countries).SelectMany(static country => country.Areas).SelectMany(static area => area.SoundEffectLibraryEntries));
         AddEntries(_project.Planets.SelectMany(static planet => planet.Countries).SelectMany(static country => country.Areas).SelectMany(static area => area.Rooms).SelectMany(static room => room.SoundEffectLibraryEntries));
-        AddEntries(_project.RoomTemplates.SelectMany(static room => room.SoundEffectLibraryEntries));
+        AddEntries(_project.EnumerateAllRoomTemplateRoots().SelectMany(static room => room.SoundEffectLibraryEntries));
         AddEntries(EnumerateGameObjectsRecursive(_project.GlobalScope.GameObjects).SelectMany(static obj => obj.SoundEffectLibraryEntries));
-        AddEntries(EnumerateGameObjectsRecursive(_project.ObjectTemplates).SelectMany(static obj => obj.SoundEffectLibraryEntries));
+        AddEntries(EnumerateGameObjectsRecursive(_project.EnumerateAllObjectTemplateRoots()).SelectMany(static obj => obj.SoundEffectLibraryEntries));
         AddEntries(EnumerateGameObjectsRecursive(_project.BaseObjects).SelectMany(static obj => obj.SoundEffectLibraryEntries));
         AddEntries(_project.Planets
             .SelectMany(static planet => planet.Countries)
@@ -7533,7 +8353,7 @@ public sealed partial class MainWindowViewModel
             .SelectMany(static area => area.Rooms)
             .SelectMany(static room => EnumerateGameObjectsRecursive(room.GameObjects))
             .SelectMany(static obj => obj.SoundEffectLibraryEntries));
-        AddEntries(_project.RoomTemplates
+        AddEntries(_project.EnumerateAllRoomTemplateRoots()
             .SelectMany(static room => EnumerateGameObjectsRecursive(room.GameObjects))
             .SelectMany(static obj => obj.SoundEffectLibraryEntries));
 
@@ -7759,6 +8579,11 @@ public sealed partial class MainWindowViewModel
 
     public bool EditRoomSettings(TemplateRoomNodeViewModel templateRoomNode)
     {
+        if (templateRoomNode.Parent is not RoomTemplatesNodeViewModel templatesNode)
+        {
+            return false;
+        }
+
         var current = new RoomSettingsEditRequest(
             templateRoomNode.Room.Name,
             templateRoomNode.Room.ProducerNotes,
@@ -7774,7 +8599,7 @@ public sealed partial class MainWindowViewModel
             return false;
         }
 
-        var uniqueName = MakeUniqueScopedEntityName(_project.RoomTemplates, static room => room.Name, updated.Name, templateRoomNode.Room);
+        var uniqueName = MakeUniqueScopedEntityName(templatesNode.RoomTemplates, static room => room.Name, updated.Name, templateRoomNode.Room);
         var hasChanges = !string.Equals(templateRoomNode.Room.Name, uniqueName, StringComparison.Ordinal)
                          || !string.Equals(templateRoomNode.Room.NameInGame, updated.NameInGame, StringComparison.Ordinal)
                          || !templateRoomNode.Room.NameSynonyms.SequenceEqual(ParseObjectNameSynonyms(updated.NameSynonyms), StringComparer.OrdinalIgnoreCase)
@@ -7795,7 +8620,7 @@ public sealed partial class MainWindowViewModel
         templateRoomNode.Room.RoomImageCanvasWidth = updated.RoomCanvasWidth;
         templateRoomNode.Room.RoomImageCanvasHeight = updated.RoomCanvasHeight;
         templateRoomNode.Room.AmbientLighting = LightingModelCloner.CloneRoomAmbientLighting(updated.AmbientLighting);
-        RefreshScopedNameIndex(_project.RoomTemplates, static room => room.Name);
+        RefreshScopedNameIndex(templatesNode.RoomTemplates, static room => room.Name);
 
         NotifyProjectEdited();
         SelectedNode = templateRoomNode;
@@ -7944,9 +8769,7 @@ public sealed partial class MainWindowViewModel
             EffectiveObjectFieldResolver.ApplyDefinitionOwnedOverrides(objectNode.GameObject, overridePlan);
         }
         objectNode.GameObject.NameInGame = updated.NameInGame;
-        objectNode.GameObject.NameSynonyms = linkedDefinition is null
-            ? updatedNameSynonyms
-            : ParseObjectNameSynonyms(linkedDefinition.NameSynonyms);
+        objectNode.GameObject.NameSynonyms = updatedNameSynonyms;
         objectNode.GameObject.ProducerNotes = updated.ProducerNotes;
         objectNode.GameObject.IsInventoriable = updated.IsInventoriable;
         objectNode.GameObject.InventoryPointsDefaultValue = updated.InventoryPointsDefaultValue;
@@ -8659,9 +9482,7 @@ public sealed partial class MainWindowViewModel
             EffectiveObjectFieldResolver.ApplyDefinitionOwnedOverrides(objectNode.GameObject, overridePlan);
         }
         objectNode.GameObject.NameInGame = updated.NameInGame;
-        objectNode.GameObject.NameSynonyms = linkedDefinition is null
-            ? updatedNameSynonyms
-            : ParseObjectNameSynonyms(linkedDefinition.NameSynonyms);
+        objectNode.GameObject.NameSynonyms = updatedNameSynonyms;
         objectNode.GameObject.ProducerNotes = updated.ProducerNotes;
         objectNode.GameObject.IsInventoriable = updated.IsInventoriable;
         objectNode.GameObject.InventoryPointsDefaultValue = updated.InventoryPointsDefaultValue;
@@ -8903,9 +9724,7 @@ public sealed partial class MainWindowViewModel
             EffectiveObjectFieldResolver.ApplyDefinitionOwnedOverrides(objectNode.GameObject, overridePlan);
         }
         objectNode.GameObject.NameInGame = updated.NameInGame;
-        objectNode.GameObject.NameSynonyms = linkedDefinition is null
-            ? updatedNameSynonyms
-            : ParseObjectNameSynonyms(linkedDefinition.NameSynonyms);
+        objectNode.GameObject.NameSynonyms = updatedNameSynonyms;
         objectNode.GameObject.ProducerNotes = updated.ProducerNotes;
         objectNode.GameObject.IsInventoriable = updated.IsInventoriable;
         objectNode.GameObject.InventoryPointsDefaultValue = updated.InventoryPointsDefaultValue;
@@ -9083,7 +9902,7 @@ public sealed partial class MainWindowViewModel
 
     private bool AddNewRoom(AreaNodeViewModel areaNode)
     {
-        if (!TryCreateNewRoomFromTemplate(out var room))
+        if (!TryCreateNewRoomFromTemplate(areaNode.Area, out var room))
         {
             return false;
         }
@@ -9228,6 +10047,10 @@ public sealed partial class MainWindowViewModel
         var templateRoomName = templateRoom.Name;
 
         templatesNode.RoomTemplates.RemoveAll(candidate => candidate.Id == templateRoom.Id);
+        if (ReferenceEquals(templateRoom.ParentScope, templatesNode.CatalogParentScope))
+        {
+            templateRoom.ParentScope = null;
+        }
         templatesNode.Children.Remove(templateRoomNode);
 
         foreach (var roomEditor in OpenRoomEditors.Where(editor => editor.Room.Id == templateRoom.Id).ToList())
@@ -9267,14 +10090,15 @@ public sealed partial class MainWindowViewModel
         return true;
     }
 
-    private bool TryCreateNewRoomFromTemplate(out Room room)
+    private bool TryCreateNewRoomFromTemplate(Area destinationArea, out Room room)
     {
         room = null!;
         Room? selectedTemplate = null;
+        var availableTemplates = GetRoomTemplatesForScope(destinationArea).ToList();
 
-        if (_project.RoomTemplates.Count > 0)
+        if (availableTemplates.Count > 0)
         {
-            if (!_treeContextInteractionService.TrySelectRoomTemplate(_project.RoomTemplates, out selectedTemplate))
+            if (!_treeContextInteractionService.TrySelectRoomTemplate(availableTemplates, out selectedTemplate))
             {
                 return false;
             }
@@ -9306,6 +10130,62 @@ public sealed partial class MainWindowViewModel
             Images = CreateDefaultRoomImages()
         };
         return true;
+    }
+
+    private IEnumerable<Room> GetRoomTemplatesForScope(IScopedAwareNode scope)
+    {
+        var scopedTemplates = new List<Room>();
+        for (IScopedAwareNode? current = scope; current is not null; current = current.ParentScope)
+        {
+            switch (current)
+            {
+                case Area area:
+                    scopedTemplates.AddRange(area.RoomTemplates);
+                    break;
+                case Country country:
+                    scopedTemplates.AddRange(country.RoomTemplates);
+                    break;
+                case Planet planet:
+                    scopedTemplates.AddRange(planet.RoomTemplates);
+                    break;
+            }
+        }
+
+        scopedTemplates.AddRange(_project.RoomTemplates);
+        return scopedTemplates.DistinctBy(static template => template.Id);
+    }
+
+    private IEnumerable<GameObject> GetObjectTemplatesForScope(IScopedAwareNode scope)
+    {
+        var scopedTemplates = new List<GameObject>();
+        for (IScopedAwareNode? current = scope; current is not null; current = current.ParentScope)
+        {
+            switch (current)
+            {
+                case Area area:
+                    scopedTemplates.AddRange(area.ObjectTemplates);
+                    break;
+                case Country country:
+                    scopedTemplates.AddRange(country.ObjectTemplates);
+                    break;
+                case Planet planet:
+                    scopedTemplates.AddRange(planet.ObjectTemplates);
+                    break;
+            }
+        }
+
+        scopedTemplates.AddRange(_project.ObjectTemplates);
+        return scopedTemplates.DistinctBy(static template => template.ObjectId);
+    }
+
+    private static void AddRoomTemplateToCatalog(ScopeNodeBase catalogOwner, List<Room> catalog, Room template)
+    {
+        if (!catalog.Contains(template))
+        {
+            catalog.Add(template);
+        }
+
+        template.ParentScope = catalogOwner;
     }
 
     private bool SetStartingRoom(RoomNodeViewModel roomNode)
@@ -9941,9 +10821,7 @@ public sealed partial class MainWindowViewModel
         definition.NameInGame = source.NameInGame;
         NormalizePromotedBaseDefinition(definition);
 
-        var previousLinkedBaseObjectId = source.LinkedBaseObjectId;
-        var previousLinkActionsToBase = source.LinkActionsToBaseObject;
-        var previousActions = CloneActions(source.AvailableActions);
+        var previousPromotionState = CapturePromotionState(source).ToList();
 
         try
         {
@@ -9974,9 +10852,8 @@ public sealed partial class MainWindowViewModel
                 baseCatalogNode.IsExpanded = true;
             }
 
-            source.LinkedBaseObjectId = definition.ObjectId;
-            source.LinkActionsToBaseObject = true;
-            source.AvailableActions.Clear();
+            LinkPromotedObjectTree(source, definition);
+            RemoveSequenceNodesForLinkedObjects(objectNode);
 
             NotifyProjectEdited();
             SelectedNode = objectNode;
@@ -9986,17 +10863,82 @@ public sealed partial class MainWindowViewModel
         catch
         {
             baseCatalog.Remove(definition);
-            source.LinkedBaseObjectId = previousLinkedBaseObjectId;
-            source.LinkActionsToBaseObject = previousLinkActionsToBase;
-            source.AvailableActions = previousActions;
+            RestorePromotionState(previousPromotionState);
             throw;
+        }
+    }
+
+    private static IEnumerable<(GameObject Object, Guid? LinkedBaseObjectId, bool LinkActionsToBaseObject, List<CommandAction> Actions, List<ProjectSequenceDefinitionDto> Sequences)> CapturePromotionState(GameObject source)
+    {
+        yield return (source, source.LinkedBaseObjectId, source.LinkActionsToBaseObject, CloneActions(source.AvailableActions), source.SequenceDefinitions.ToList());
+        foreach (var child in source.ContainedObjects)
+        {
+            foreach (var state in CapturePromotionState(child))
+            {
+                yield return state;
+            }
+        }
+    }
+
+    private static void RestorePromotionState(IEnumerable<(GameObject Object, Guid? LinkedBaseObjectId, bool LinkActionsToBaseObject, List<CommandAction> Actions, List<ProjectSequenceDefinitionDto> Sequences)> states)
+    {
+        foreach (var state in states)
+        {
+            state.Object.LinkedBaseObjectId = state.LinkedBaseObjectId;
+            state.Object.LinkActionsToBaseObject = state.LinkActionsToBaseObject;
+            state.Object.AvailableActions = state.Actions;
+            state.Object.SequenceDefinitions = state.Sequences;
+        }
+    }
+
+    private static void LinkPromotedObjectTree(GameObject instance, GameObject definition)
+    {
+        if (instance.ContainedObjects.Count != definition.ContainedObjects.Count)
+        {
+            throw new InvalidOperationException("The promoted base-object clone does not match the source child-object structure.");
+        }
+
+        instance.LinkedBaseObjectId = definition.ObjectId;
+        instance.LinkActionsToBaseObject = true;
+        instance.AvailableActions.Clear();
+        instance.SequenceDefinitions.Clear();
+
+        for (var index = 0; index < instance.ContainedObjects.Count; index++)
+        {
+            LinkPromotedObjectTree(instance.ContainedObjects[index], definition.ContainedObjects[index]);
+        }
+    }
+
+    private static void RemoveSequenceNodesForLinkedObjects(HierarchyNodeViewModel hierarchyNode)
+    {
+        if (hierarchyNode is GameObjectNodeViewModel objectNode && objectNode.GameObject.IsRoomInstance)
+        {
+            foreach (var sequencesNode in objectNode.Children.OfType<SequencesNodeViewModel>().ToList())
+            {
+                objectNode.Children.Remove(sequencesNode);
+            }
+        }
+
+        foreach (var child in hierarchyNode.Children.ToList())
+        {
+            RemoveSequenceNodesForLinkedObjects(child);
         }
     }
 
     private bool CreateTemplateFromObject(GameObjectNodeViewModel objectNode)
     {
-        var templateCatalog = _project.ObjectTemplates;
         var source = objectNode.GameObject;
+        var catalogOwner = GetNearestTemplateCatalogOwner(source.ParentScope);
+        var templateCatalog = GetObjectTemplateCollection(catalogOwner);
+        var templateCatalogNode = EnumerateHierarchyNodes(HierarchyRoots)
+            .OfType<ObjectTemplatesNodeViewModel>()
+            .FirstOrDefault(node => !node.IsBaseCatalog && ReferenceEquals(node.CatalogParentScope, catalogOwner));
+        if (templateCatalogNode is null)
+        {
+            ExportStatus = "The object template catalog for this scope is not available in the project hierarchy.";
+            return false;
+        }
+
         if (!_treeContextInteractionService.TryGetTemplateNameFromObject(source.Name, out var templateName))
         {
             return false;
@@ -10037,32 +10979,67 @@ public sealed partial class MainWindowViewModel
                 return false;
             }
 
-            var templateCatalogNode = EnumerateHierarchyNodes(HierarchyRoots)
-                .OfType<ObjectTemplatesNodeViewModel>()
-                .FirstOrDefault(node => !node.IsBaseCatalog && node.Parent is ProjectRootNodeViewModel);
-
-            if (templateCatalogNode is not null)
+            if (catalogOwner is not ObjectTemplatesScopeNode)
             {
-                var templateNode = CreateTemplateObjectNode(definition, templateCatalogNode);
-                templateCatalogNode.Children.Add(templateNode);
-                templateCatalogNode.IsExpanded = true;
+                definition.ParentScope = catalogOwner;
             }
+
+            var templateNode = CreateTemplateObjectNode(definition, templateCatalogNode);
+            templateCatalogNode.Children.Add(templateNode);
+            templateCatalogNode.IsExpanded = true;
+            RefreshScopedNameIndex(templateCatalog, static template => template.Name);
 
             NotifyProjectEdited();
             SelectedNode = objectNode;
-            ExportStatus = $"Created object template '{definition.Name}' from placed object.";
+            ExportStatus = $"Created object template '{definition.Name}' in {GetTemplateCatalogDisplayName(catalogOwner)} from placed object.";
             return true;
         }
         catch
         {
             templateCatalog.Remove(definition);
+            if (ReferenceEquals(definition.ParentScope, catalogOwner))
+            {
+                definition.ParentScope = null;
+            }
             throw;
         }
     }
 
-    private bool CreateTemplateFromRoom(RoomNodeViewModel roomNode)
+    private ScopeNodeBase GetNearestTemplateCatalogOwner(IScopedAwareNode? scope)
     {
-        var templateCatalog = _project.RoomTemplates;
+        for (var current = scope; current is not null; current = current.ParentScope)
+        {
+            if (current is Area or Country or Planet)
+            {
+                return (ScopeNodeBase)current;
+            }
+        }
+
+        return EnumerateHierarchyNodes(HierarchyRoots)
+            .OfType<ObjectTemplatesNodeViewModel>()
+            .First(node => !node.IsBaseCatalog && node.Parent is ProjectRootNodeViewModel)
+            .CatalogParentScope!;
+    }
+
+    private List<GameObject> GetObjectTemplateCollection(ScopeNodeBase catalogOwner) => catalogOwner switch
+    {
+        Area area => area.ObjectTemplates,
+        Country country => country.ObjectTemplates,
+        Planet planet => planet.ObjectTemplates,
+        _ => _project.ObjectTemplates
+    };
+
+    private static string GetTemplateCatalogDisplayName(ScopeNodeBase catalogOwner) => catalogOwner switch
+    {
+        Area area => $"Area '{area.Name}'",
+        Country country => $"Country '{country.Name}'",
+        Planet planet => $"Planet '{planet.Name}'",
+        _ => "Global"
+    };
+
+    private bool CreateTemplateFromRoom(RoomNodeViewModel roomNode, RoomTemplatesNodeViewModel templateCatalogNode)
+    {
+        var templateCatalog = templateCatalogNode.RoomTemplates;
         var source = roomNode.Room;
         if (!_treeContextInteractionService.TryGetTemplateNameFromObject(source.Name, out var templateName))
         {
@@ -10072,7 +11049,7 @@ public sealed partial class MainWindowViewModel
         var normalizedName = NormalizeScopedName(templateName);
         if (string.IsNullOrWhiteSpace(normalizedName))
         {
-            _projectUiService.ShowWarning("Room name is required before creating a room template.", "Create Template From");
+            _projectUiService.ShowWarning("Room name is required before creating a room template.", "Clone Template From Room");
             return false;
         }
 
@@ -10080,14 +11057,14 @@ public sealed partial class MainWindowViewModel
             string.Equals(NormalizeScopedName(existing.Name), normalizedName, StringComparison.OrdinalIgnoreCase));
         if (duplicateExists)
         {
-            _projectUiService.ShowWarning($"A room template named '{templateName}' already exists.", "Create Template From");
+            _projectUiService.ShowWarning($"A room template named '{templateName}' already exists.", "Clone Template From Room");
             return false;
         }
 
         var definition = CloneTemplateRoom(source);
         ResetHideEmptyConfigurationForNewRoom(definition);
         definition.Name = templateName;
-        var normalizationWarnings = NormalizeSharedVariableLinksToRoomBoundary(source, definition, "Create Template From");
+        var normalizationWarnings = NormalizeSharedVariableLinksToRoomBoundary(source, definition, "Clone Template From Room");
 
         try
         {
@@ -10097,38 +11074,38 @@ public sealed partial class MainWindowViewModel
             }
 
             templateCatalog.Add(definition);
+            definition.ParentScope = templateCatalogNode.CatalogParentScope;
 
             if (!templateCatalog.Contains(definition))
             {
                 return false;
             }
 
-            var templateCatalogNode = EnumerateHierarchyNodes(HierarchyRoots)
-                .OfType<RoomTemplatesNodeViewModel>()
-                .FirstOrDefault(node => node.Parent is ProjectRootNodeViewModel);
-
-            if (templateCatalogNode is not null)
-            {
-                var templateNode = CreateTemplateRoomNode(definition, templateCatalogNode);
-                templateCatalogNode.Children.Add(templateNode);
-                templateCatalogNode.IsExpanded = true;
-            }
+            var templateNode = CreateTemplateRoomNode(definition, templateCatalogNode);
+            templateCatalogNode.Children.Add(templateNode);
+            templateCatalogNode.IsExpanded = true;
+            RefreshScopedNameIndex(templateCatalog, static template => template.Name);
 
             NotifyProjectEdited();
-            SelectedNode = roomNode;
+            SelectedNode = templateNode;
+            ExpandToNode(templateNode);
             if (normalizationWarnings.Count > 0)
             {
                 var message = string.Join(Environment.NewLine, normalizationWarnings);
-                _projectUiService.ShowWarning(message, "Create Template From");
+                _projectUiService.ShowWarning(message, "Clone Template From Room");
                 AppendOutputConsoleLine($"RoomTemplatePromotion.SharedVariableNormalization: {message}");
             }
 
-            ExportStatus = $"Created room template '{definition.Name}' from room '{source.Name}'.";
+            ExportStatus = $"Cloned room template '{definition.Name}' from room '{source.Name}'.";
             return true;
         }
         catch
         {
             templateCatalog.Remove(definition);
+            if (ReferenceEquals(definition.ParentScope, templateCatalogNode.CatalogParentScope))
+            {
+                definition.ParentScope = null;
+            }
             throw;
         }
     }
@@ -10346,10 +11323,7 @@ public sealed partial class MainWindowViewModel
         };
         templateRoom.DesignerPersistenceScopeKind = ScopeNodeKind.RoomTemplates;
 
-        if (!templatesNode.CatalogParentScope.AddChildScope(templateRoom))
-        {
-            return false;
-        }
+        AddRoomTemplateToCatalog(templatesNode.CatalogParentScope, templatesNode.RoomTemplates, templateRoom);
 
         var roomNode = CreateTemplateRoomNode(templateRoom, templatesNode);
         templatesNode.Children.Add(roomNode);
@@ -10497,6 +11471,7 @@ public sealed partial class MainWindowViewModel
         usedIndividualExpansion = false;
 
         var gameObjects = gameObjectsAccessor(collectionNode);
+        var scopeNode = scopeNodeAccessor(collectionNode);
         var defaultObjectName = MakeUniqueScopedEntityName(gameObjects, static obj => obj.Name, "New Game Object");
 
         if (!TryCreateAndConfigureNewObject(
@@ -10504,6 +11479,7 @@ public sealed partial class MainWindowViewModel
                 gameObjects,
                 gameObjects,
                 defaultObjectName,
+                scopeNode,
                 out var interactiveObject,
                 out objectName))
         {
@@ -10514,7 +11490,6 @@ public sealed partial class MainWindowViewModel
             && string.Equals(interactiveObject.QuantifiablePlacementDistributionMode, "IndividualInstances", StringComparison.OrdinalIgnoreCase)
             && interactiveObject.Quantity > 1;
 
-        var scopeNode = scopeNodeAccessor(collectionNode);
         var addedNodes = new List<TObjectNode>();
 
         if (usedIndividualExpansion)
@@ -10647,6 +11622,7 @@ public sealed partial class MainWindowViewModel
             siblings,
             compositePartSource,
             defaultObjectName,
+            parentObject,
             out var interactiveObject,
             out objectName))
         {
@@ -10729,6 +11705,7 @@ public sealed partial class MainWindowViewModel
                 templatesNode.CatalogObjects,
                 templatesNode.CatalogObjects,
                 defaultObjectName,
+                templatesNode.CatalogParentScope!,
                 out var interactiveObject,
                 out var objectName))
         {
@@ -10804,14 +11781,15 @@ public sealed partial class MainWindowViewModel
         return true;
     }
 
-    private bool TryCreateNewObjectFromTemplate(bool defaultInventoriable, out GameObject gameObject)
+    private bool TryCreateNewObjectFromTemplate(bool defaultInventoriable, IScopedAwareNode templateLookupScope, out GameObject gameObject)
     {
         gameObject = null!;
         GameObject? selectedTemplate = null;
+        var availableTemplates = GetObjectTemplatesForScope(templateLookupScope).ToList();
 
-        if (_project.ObjectTemplates.Count > 0)
+        if (availableTemplates.Count > 0)
         {
-            if (!_treeContextInteractionService.TrySelectObjectTemplate(_project.ObjectTemplates, out selectedTemplate))
+            if (!_treeContextInteractionService.TrySelectObjectTemplate(availableTemplates, out selectedTemplate))
             {
                 return false;
             }
@@ -10833,13 +11811,14 @@ public sealed partial class MainWindowViewModel
         List<GameObject> siblings,
         IEnumerable<GameObject> compositePartSource,
         string defaultObjectName,
+        IScopedAwareNode templateLookupScope,
         out GameObject interactiveObject,
         out string objectName)
     {
         objectName = string.Empty;
         interactiveObject = null!;
 
-        if (!TryCreateNewObjectFromTemplate(defaultInventoriable, out interactiveObject))
+        if (!TryCreateNewObjectFromTemplate(defaultInventoriable, templateLookupScope, out interactiveObject))
         {
             return false;
         }
@@ -10996,10 +11975,44 @@ public sealed partial class MainWindowViewModel
         };
 
         clone.DesignerPersistenceScopeKind = template.DesignerPersistenceScopeKind;
+        BuildObjectCloneReferenceMaps(template, clone, out var actionIds, out var soundEffectIds);
+        clone.SequenceDefinitions = CloneSequenceDefinitionsWithMaps(template.SequenceDefinitions, actionIds, soundEffectIds);
 
         clone.InitializeFeatureFlagsFromKnownVariables();
         clone.ApplyFeatureVariableContract();
         return clone;
+    }
+
+    private static void BuildObjectCloneReferenceMaps(
+        GameObject source,
+        GameObject clone,
+        out Dictionary<Guid, Guid> actionIds,
+        out Dictionary<Guid, Guid> soundEffectIds)
+    {
+        var mappedActionIds = new Dictionary<Guid, Guid>();
+        var mappedSoundEffectIds = new Dictionary<Guid, Guid>();
+
+        void Map(GameObject sourceObject, GameObject clonedObject)
+        {
+            for (var index = 0; index < Math.Min(sourceObject.AvailableActions.Count, clonedObject.AvailableActions.Count); index++)
+            {
+                mappedActionIds[sourceObject.AvailableActions[index].Id] = clonedObject.AvailableActions[index].Id;
+            }
+
+            for (var index = 0; index < Math.Min(sourceObject.SoundEffectLibraryEntries.Count, clonedObject.SoundEffectLibraryEntries.Count); index++)
+            {
+                mappedSoundEffectIds[sourceObject.SoundEffectLibraryEntries[index].SoundEffectId] = clonedObject.SoundEffectLibraryEntries[index].SoundEffectId;
+            }
+
+            for (var index = 0; index < Math.Min(sourceObject.ContainedObjects.Count, clonedObject.ContainedObjects.Count); index++)
+            {
+                Map(sourceObject.ContainedObjects[index], clonedObject.ContainedObjects[index]);
+            }
+        }
+
+        Map(source, clone);
+        actionIds = mappedActionIds;
+        soundEffectIds = mappedSoundEffectIds;
     }
 
     private static void ApplyDesignerTemplateScope(IEnumerable<GameObject> objects)
@@ -11716,6 +12729,10 @@ public sealed partial class MainWindowViewModel
         var removedNode = objectNode.ParentObjectNode is not null
             ? objectNode.ParentObjectNode.Children.Remove(objectNode)
             : objectNode.ParentObjectsNode.Children.Remove(objectNode);
+        if (removedModel)
+        {
+            ClearPendingRelocationIfRemovedSubtree(objectNode.GameObject);
+        }
         HierarchyNodeViewModel fallbackNode = objectNode.ParentObjectNode is not null
             ? objectNode.ParentObjectNode
             : objectNode.ParentObjectsNode;
@@ -11743,6 +12760,10 @@ public sealed partial class MainWindowViewModel
         var removedNode = objectNode.ParentObjectNode is not null
             ? objectNode.ParentObjectNode.Children.Remove(objectNode)
             : objectNode.ParentGlobalObjectsNode.Children.Remove(objectNode);
+        if (removedModel)
+        {
+            ClearPendingRelocationIfRemovedSubtree(objectNode.GameObject);
+        }
         HierarchyNodeViewModel fallbackNode = objectNode.ParentObjectNode is not null
             ? objectNode.ParentObjectNode
             : objectNode.ParentGlobalObjectsNode;
@@ -11937,6 +12958,7 @@ public sealed partial class MainWindowViewModel
         roomNode.Children.Add(CreateTimerDefinitionsNode(roomNode, PropertyResolutionScope.Room, room.TimerDefinitions));
 
         roomNode.Children.Add(CreateTemplateRoomObjectsNode(roomNode));
+        AddSequenceNodeIfNeeded(roomNode, room);
         ApplyHideEmptyConfiguration(roomNode);
 
         return roomNode;
@@ -11966,12 +12988,13 @@ public sealed partial class MainWindowViewModel
     {
         var objectNode = new GameObjectNodeViewModel(interactiveObject, parent);
         PopulateObjectNodeCommonChildren(objectNode, interactiveObject);
-        var childrenGroup = objectNode.Children.OfType<ChildrenGroupNodeViewModel>().First();
+        var childrenGroup = objectNode.Children.OfType<ChildrenGroupNodeViewModel>().FirstOrDefault();
         foreach (var childObject in interactiveObject.ContainedObjects)
         {
-            childrenGroup.Children.Add(CreateNestedRoomObjectNode(childObject, objectNode));
+            childrenGroup?.Children.Add(CreateNestedRoomObjectNode(childObject, objectNode));
         }
 
+        AddSequenceNodeIfNeeded(objectNode, interactiveObject);
         ApplyHideEmptyConfiguration(objectNode);
 
         return objectNode;
@@ -11981,12 +13004,13 @@ public sealed partial class MainWindowViewModel
     {
         var objectNode = new GameObjectNodeViewModel(interactiveObject, parent);
         PopulateObjectNodeCommonChildren(objectNode, interactiveObject);
-        var childrenGroup = objectNode.Children.OfType<ChildrenGroupNodeViewModel>().First();
+        var childrenGroup = objectNode.Children.OfType<ChildrenGroupNodeViewModel>().FirstOrDefault();
         foreach (var childObject in interactiveObject.ContainedObjects)
         {
-            childrenGroup.Children.Add(CreateNestedRoomObjectNode(childObject, objectNode));
+            childrenGroup?.Children.Add(CreateNestedRoomObjectNode(childObject, objectNode));
         }
 
+        AddSequenceNodeIfNeeded(objectNode, interactiveObject);
         ApplyHideEmptyConfiguration(objectNode);
 
         return objectNode;
@@ -11996,12 +13020,13 @@ public sealed partial class MainWindowViewModel
     {
         var objectNode = new GlobalObjectNodeViewModel(interactiveObject, parent);
         PopulateGlobalObjectNodeCommonChildren(objectNode, interactiveObject);
-        var childrenGroup = objectNode.Children.OfType<ChildrenGroupNodeViewModel>().First();
+        var childrenGroup = objectNode.Children.OfType<ChildrenGroupNodeViewModel>().FirstOrDefault();
         foreach (var childObject in interactiveObject.ContainedObjects)
         {
-            childrenGroup.Children.Add(CreateNestedGlobalGameObjectNode(childObject, objectNode));
+            childrenGroup?.Children.Add(CreateNestedGlobalGameObjectNode(childObject, objectNode));
         }
 
+        AddSequenceNodeIfNeeded(objectNode, interactiveObject);
         ApplyHideEmptyConfiguration(objectNode);
 
         return objectNode;
@@ -12011,12 +13036,13 @@ public sealed partial class MainWindowViewModel
     {
         var objectNode = new GlobalObjectNodeViewModel(interactiveObject, parent);
         PopulateGlobalObjectNodeCommonChildren(objectNode, interactiveObject);
-        var childrenGroup = objectNode.Children.OfType<ChildrenGroupNodeViewModel>().First();
+        var childrenGroup = objectNode.Children.OfType<ChildrenGroupNodeViewModel>().FirstOrDefault();
         foreach (var childObject in interactiveObject.ContainedObjects)
         {
-            childrenGroup.Children.Add(CreateNestedGlobalGameObjectNode(childObject, objectNode));
+            childrenGroup?.Children.Add(CreateNestedGlobalGameObjectNode(childObject, objectNode));
         }
 
+        AddSequenceNodeIfNeeded(objectNode, interactiveObject);
         ApplyHideEmptyConfiguration(objectNode);
 
         return objectNode;
@@ -12026,12 +13052,13 @@ public sealed partial class MainWindowViewModel
     {
         var objectNode = new TemplateGameObjectNodeViewModel(interactiveObject, parent);
         PopulateTemplateObjectNodeCommonChildren(objectNode, interactiveObject);
-        var childrenGroup = objectNode.Children.OfType<ChildrenGroupNodeViewModel>().First();
+        var childrenGroup = objectNode.Children.OfType<ChildrenGroupNodeViewModel>().FirstOrDefault();
         foreach (var childObject in interactiveObject.ContainedObjects)
         {
-            childrenGroup.Children.Add(CreateNestedTemplateObjectNode(childObject, objectNode));
+            childrenGroup?.Children.Add(CreateNestedTemplateObjectNode(childObject, objectNode));
         }
 
+        AddSequenceNodeIfNeeded(objectNode, interactiveObject);
         ApplyHideEmptyConfiguration(objectNode);
 
         return objectNode;
@@ -12041,19 +13068,46 @@ public sealed partial class MainWindowViewModel
     {
         var objectNode = new TemplateGameObjectNodeViewModel(interactiveObject, parent);
         PopulateTemplateObjectNodeCommonChildren(objectNode, interactiveObject);
-        var childrenGroup = objectNode.Children.OfType<ChildrenGroupNodeViewModel>().First();
+        var childrenGroup = objectNode.Children.OfType<ChildrenGroupNodeViewModel>().FirstOrDefault();
         foreach (var childObject in interactiveObject.ContainedObjects)
         {
-            childrenGroup.Children.Add(CreateNestedTemplateObjectNode(childObject, objectNode));
+            childrenGroup?.Children.Add(CreateNestedTemplateObjectNode(childObject, objectNode));
         }
 
+        AddSequenceNodeIfNeeded(objectNode, interactiveObject);
         ApplyHideEmptyConfiguration(objectNode);
 
         return objectNode;
     }
 
+    private static void AddSequenceNodeIfNeeded(HierarchyNodeViewModel hierarchyNode, ScopeNodeBase owner)
+    {
+        if (owner is GameObject { IsRoomInstance: true }
+            || owner.SequenceDefinitions.Count == 0
+            || hierarchyNode.Children.OfType<SequencesNodeViewModel>().Any())
+        {
+            return;
+        }
+
+        var sequencesNode = new SequencesNodeViewModel(owner, hierarchyNode);
+        foreach (var definition in owner.SequenceDefinitions)
+        {
+            sequencesNode.Children.Add(new SequenceDefinitionNodeViewModel(owner, definition, sequencesNode));
+        }
+
+        hierarchyNode.Children.Add(sequencesNode);
+    }
+
     private static void PopulateObjectNodeCommonChildren(GameObjectNodeViewModel objectNode, GameObject interactiveObject)
     {
+        if (interactiveObject.IsRoomInstance)
+        {
+            objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject.Variables, PropertyResolutionScope.Object));
+            objectNode.Children.Add(new InstanceNamingNodeViewModel(interactiveObject, objectNode));
+            objectNode.Children.Add(new GoToBaseObjectNodeViewModel(interactiveObject, objectNode));
+            return;
+        }
+
         var childrenGroup = new ChildrenGroupNodeViewModel(objectNode);
         objectNode.Children.Add(CreateObjectSettingsNode(objectNode));
         objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject.Variables, PropertyResolutionScope.Object));
@@ -12069,6 +13123,14 @@ public sealed partial class MainWindowViewModel
 
     private static void PopulateGlobalObjectNodeCommonChildren(GlobalObjectNodeViewModel objectNode, GameObject interactiveObject)
     {
+        if (interactiveObject.IsRoomInstance)
+        {
+            objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject.Variables, PropertyResolutionScope.Object));
+            objectNode.Children.Add(new InstanceNamingNodeViewModel(interactiveObject, objectNode));
+            objectNode.Children.Add(new GoToBaseObjectNodeViewModel(interactiveObject, objectNode));
+            return;
+        }
+
         var childrenGroup = new ChildrenGroupNodeViewModel(objectNode);
         objectNode.Children.Add(CreateObjectSettingsNode(objectNode));
         objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject.Variables, PropertyResolutionScope.Object));
@@ -12084,6 +13146,14 @@ public sealed partial class MainWindowViewModel
 
     private static void PopulateTemplateObjectNodeCommonChildren(TemplateGameObjectNodeViewModel objectNode, GameObject interactiveObject)
     {
+        if (interactiveObject.IsRoomInstance)
+        {
+            objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject.Variables, PropertyResolutionScope.Object));
+            objectNode.Children.Add(new InstanceNamingNodeViewModel(interactiveObject, objectNode));
+            objectNode.Children.Add(new GoToBaseObjectNodeViewModel(interactiveObject, objectNode));
+            return;
+        }
+
         var childrenGroup = new ChildrenGroupNodeViewModel(objectNode);
         objectNode.Children.Add(CreateObjectSettingsNode(objectNode));
         objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject.Variables, PropertyResolutionScope.Object));
@@ -12148,6 +13218,18 @@ public sealed partial class MainWindowViewModel
 
     private static bool IsAlwaysVisibleConfigurationChild(HierarchyNodeViewModel ownerNode, HierarchyNodeViewModel childNode)
     {
+        if (ownerNode switch
+            {
+                GameObjectNodeViewModel objectNode => objectNode.GameObject.IsRoomInstance,
+                GlobalObjectNodeViewModel objectNode => objectNode.GameObject.IsRoomInstance,
+                TemplateGameObjectNodeViewModel objectNode => objectNode.GameObject.IsRoomInstance,
+                _ => false
+            }
+            && childNode is GamePropertiesContainerNodeViewModel)
+        {
+            return true;
+        }
+
         if (childNode is GlobalSettingsNodeViewModel
             or PhaseBooksNodeViewModel
             or PlanetSettingsNodeViewModel
@@ -12915,7 +13997,7 @@ public sealed partial class MainWindowViewModel
 
     private IEnumerable<GameObject> EnumerateAllProjectGameObjects()
     {
-        foreach (var template in EnumerateGameObjectsRecursive(_project.ObjectTemplates))
+        foreach (var template in EnumerateGameObjectsRecursive(_project.EnumerateAllObjectTemplateRoots()))
         {
             yield return template;
         }

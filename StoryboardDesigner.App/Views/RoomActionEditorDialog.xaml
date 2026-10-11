@@ -754,7 +754,7 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,10"
                                Foreground="#4B5563" TextWrapping="Wrap"
-                               Text="Changes the active presentation cue list on a current-room object. Leave Object Id blank to use the command's primary target." />
+                               Text="Changes the active presentation cue list on a current-room object or a direct child of this action's current object. Leave Object Id blank to use the command's primary target." />
                     <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Object Id" />
                     <ComboBox x:Name="ObjectPresentationCueObjectIdComboBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10"
                               DisplayMemberPath="DisplayName" SelectedValuePath="ObjectId"

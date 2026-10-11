@@ -106,7 +106,10 @@ public partial class SelectGameObjectDialog : Window
 
             var currentObjectChoice = CurrentObjectComboBox.Items
                 .OfType<CurrentObjectChoice>()
-                .FirstOrDefault(item => item.ObjectId == selectedObjectId.Value);
+                .FirstOrDefault(item => item.ObjectId == _options.DefaultCurrentObjectId)
+                ?? CurrentObjectComboBox.Items
+                    .OfType<CurrentObjectChoice>()
+                    .FirstOrDefault(item => item.ObjectId == selectedObjectId.Value);
             if (currentObjectChoice is not null)
             {
                 CurrentObjectComboBox.SelectedItem = currentObjectChoice;

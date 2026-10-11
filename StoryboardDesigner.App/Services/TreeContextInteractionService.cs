@@ -321,6 +321,23 @@ public sealed class TreeContextInteractionService : ITreeContextInteractionServi
         return true;
     }
 
+    public bool TryEditInstanceNaming(InstanceNamingEditRequest initialValues, out InstanceNamingEditRequest updatedValues)
+    {
+        var dialog = new InstanceNamingDialog(initialValues)
+        {
+            Owner = GetOwnerWindow()
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            updatedValues = initialValues;
+            return false;
+        }
+
+        updatedValues = dialog.Values;
+        return true;
+    }
+
     public bool TryEditAreaBasicProperties(AreaBasicPropertiesEditRequest initialValues, IReadOnlyList<AreaStartingRoomOption> startingRoomOptions, out AreaBasicPropertiesEditRequest updatedValues)
     {
         var dialog = new AreaPropertiesDialog(initialValues, startingRoomOptions)

@@ -76,7 +76,7 @@ public sealed class SoundEffectIdentityUniquenessWarningRule : IValidationRule
             yield return new SoundEntryLocation("Global", "Global", entry);
         }
 
-        foreach (var template in project.ObjectTemplates)
+        foreach (var template in project.EnumerateAllObjectTemplateRoots())
         {
             foreach (var location in EnumerateGameObjectLocations(template, "Templates / Object Templates"))
             {
@@ -92,7 +92,7 @@ public sealed class SoundEffectIdentityUniquenessWarningRule : IValidationRule
             }
         }
 
-        foreach (var roomTemplate in project.RoomTemplates)
+        foreach (var roomTemplate in project.EnumerateAllRoomTemplateRoots())
         {
             var roomPath = $"Templates / Room Templates / {GetName(roomTemplate.Name, "Room")}";
             foreach (var entry in roomTemplate.SoundEffectLibraryEntries)

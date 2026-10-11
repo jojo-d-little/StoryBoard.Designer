@@ -15,6 +15,8 @@ public sealed class Country : ScopeNodeBase
     public List<SoundEffectLibraryEntry> SoundEffectLibraryEntries { get; set; } = new();
     public List<string> BaseObjectsIgnoredValidationRuleIds { get; set; } = new();
     public List<GameObject> BaseObjects { get; set; } = new();
+    public List<GameObject> ObjectTemplates { get; set; } = new();
+    public List<Room> RoomTemplates { get; set; } = new();
     public List<GameObject> GameObjects { get; set; } = new();
     public List<Area> Areas { get; set; } = new();
 

@@ -26,9 +26,10 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
         IReadOnlyList<string> timerKeySuggestions,
         IReadOnlyList<string> verbSuggestions,
         IReadOnlyList<string> directionalSuggestions,
-        Func<IReadOnlyList<CommandAction>, IReadOnlyList<ProjectValidationIssue>>? validateWithPipeline = null)
+        Func<IReadOnlyList<CommandAction>, IReadOnlyList<ProjectValidationIssue>>? validateWithPipeline = null,
+        Guid? defaultCurrentObjectId = null)
     {
-        var dialog = new ScopedActionsDialog(scopeLabel, variableScope, scopeEntityName, actions, additionalLinkTargetActions, containerTargetChoices, materializeSourceObjectChoices, procedureChoices, compositeRecipeChoices, soundEffectChoices, sequenceDefinitionChoices, variableChoices, echoReferenceTokens, timerKeySuggestions, verbSuggestions, directionalSuggestions, validateWithPipeline)
+        var dialog = new ScopedActionsDialog(scopeLabel, variableScope, scopeEntityName, actions, additionalLinkTargetActions, containerTargetChoices, materializeSourceObjectChoices, procedureChoices, compositeRecipeChoices, soundEffectChoices, sequenceDefinitionChoices, variableChoices, echoReferenceTokens, timerKeySuggestions, verbSuggestions, directionalSuggestions, validateWithPipeline, defaultCurrentObjectId)
         {
             Owner = GetOwnerWindow()
         };
@@ -48,7 +49,8 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
         IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
         IReadOnlyList<string> timerKeySuggestions,
         IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
-        IReadOnlyList<CommandAction> availableActions)
+        IReadOnlyList<CommandAction> availableActions,
+        Guid? defaultCurrentObjectId = null)
     {
         var dialog = new RoomActionEditorDialog(
             action,
@@ -62,7 +64,8 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
             soundEffectChoices,
             timerKeySuggestions,
             availableActions,
-            sequenceDefinitionChoices)
+            sequenceDefinitionChoices,
+            defaultCurrentObjectId)
         {
             Owner = GetOwnerWindow()
         };

@@ -5,13 +5,30 @@ namespace StoryboardDesigner.App.ViewModels;
 public sealed class RoomTemplatesNodeViewModel : HierarchyNodeViewModel
 {
     public RoomTemplatesNodeViewModel(ProjectModel project, HierarchyNodeViewModel parent)
-        : base("Room Templates", parent)
+        : this(
+            project,
+            parent,
+            "Room Templates",
+            project.RoomTemplates,
+            project.RoomTemplatesIgnoredValidationRuleIds,
+            new RoomTemplatesScopeNode(project))
+    {
+    }
+
+    public RoomTemplatesNodeViewModel(
+        ProjectModel project,
+        HierarchyNodeViewModel parent,
+        string displayName,
+        List<Room> roomTemplates,
+        List<string> catalogIgnoredValidationRuleIds,
+        ScopeNodeBase catalogParentScope)
+        : base(displayName, parent)
     {
         Project = project;
-        RoomTemplates = project.RoomTemplates;
-        CatalogIgnoredValidationRuleIds = project.RoomTemplatesIgnoredValidationRuleIds;
-        CatalogParentScope = new RoomTemplatesScopeNode(project);
-        NodeTypeLabel = "Room Templates";
+        RoomTemplates = roomTemplates;
+        CatalogIgnoredValidationRuleIds = catalogIgnoredValidationRuleIds;
+        CatalogParentScope = catalogParentScope;
+        NodeTypeLabel = displayName;
     }
 
     public ProjectModel Project { get; }

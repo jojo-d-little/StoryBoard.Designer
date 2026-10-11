@@ -78,12 +78,12 @@ public sealed class LinkedBaseObjectSingleLevelRule : IValidationRule
             }
         }
 
-        foreach (var template in project.ObjectTemplates)
+        foreach (var template in project.EnumerateAllObjectTemplateRoots())
         {
             AddObject(template, lookup);
         }
 
-        foreach (var roomTemplateObject in project.RoomTemplates.SelectMany(room => room.GameObjects))
+        foreach (var roomTemplateObject in project.EnumerateAllRoomTemplateRoots().SelectMany(room => room.GameObjects))
         {
             AddObject(roomTemplateObject, lookup);
         }

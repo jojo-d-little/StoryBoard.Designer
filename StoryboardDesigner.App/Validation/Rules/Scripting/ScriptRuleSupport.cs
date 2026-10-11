@@ -30,7 +30,7 @@ internal static class ScriptRuleSupport
             AddObjectVariableTokens(tokens, globalObject);
         }
 
-        foreach (var templateObject in EnumerateGameObjects(project.ObjectTemplates))
+        foreach (var templateObject in EnumerateGameObjects(project.EnumerateAllObjectTemplateRoots()))
         {
             AddObjectVariableTokens(tokens, templateObject);
         }
@@ -86,7 +86,7 @@ internal static class ScriptRuleSupport
             }
         }
 
-        foreach (var templateObject in EnumerateGameObjects(project.ObjectTemplates))
+        foreach (var templateObject in EnumerateGameObjects(project.EnumerateAllObjectTemplateRoots()))
         {
             var objectPath = $"Global / {templateObject.Name}";
             foreach (var action in templateObject.AvailableActions)

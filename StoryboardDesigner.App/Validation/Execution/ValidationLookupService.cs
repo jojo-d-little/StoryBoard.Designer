@@ -87,7 +87,7 @@ public sealed class ValidationLookupService : IValidationLookupService
         AddRange(project.GlobalVariables, "Global", "ProjectGlobalVariable");
         AddRange(project.GlobalScope.GameProperties, "Global / Game Properties", "GlobalScopeVariable");
         AddRange(project.GlobalScope.GameObjects.SelectMany(static obj => obj.Variables), "Global / Game Objects", "GameObjectVariable");
-        AddRange(project.ObjectTemplates.SelectMany(static obj => obj.Variables), "Global / Templates", "TemplateObjectVariable");
+        AddRange(project.EnumerateAllObjectTemplateRoots().SelectMany(static obj => obj.Variables), "Global / Templates", "TemplateObjectVariable");
 
         foreach (var planet in project.Planets)
         {

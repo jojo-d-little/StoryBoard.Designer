@@ -31,7 +31,7 @@ public sealed class GameObjectSelectionOptionDiscoveryService : IGameObjectSelec
 
         if ((scopeTargets & ScopeSearchDepth.Children) != 0)
         {
-            PopulateChildrenCandidates(request.CurrentObject, candidates, sourceType, request.RequiredFeatures);
+            PopulateChildrenCandidates(request.CurrentObject, candidates, request.RequiredFeatures);
         }
 
         if ((scopeTargets & ScopeSearchDepth.Project) != 0)
@@ -127,13 +127,15 @@ public sealed class GameObjectSelectionOptionDiscoveryService : IGameObjectSelec
     private static void PopulateChildrenCandidates(
         GameObject currentObject,
         ICollection<GameObject> candidates,
-        GameObjectOptionSourceTarget sourceType,
         GameObjectFeatureRequirements requiredFeatures)
     {
-        foreach (var child in EnumerateGameObjectsRecursive(currentObject.ContainedObjects))
+        // Children means the immediate contained objects of the selected current
+        // object. A base object's child definitions are valid targets even when
+        // the source-type filter is set to RealObjects; that filter applies to
+        // local/project searches, not this explicit relationship.
+        foreach (var child in currentObject.ContainedObjects)
         {
-            if (!MatchesRequiredFeatures(child, requiredFeatures)
-                || !MatchesSourceType(child, sourceType))
+            if (!MatchesRequiredFeatures(child, requiredFeatures))
             {
                 continue;
             }

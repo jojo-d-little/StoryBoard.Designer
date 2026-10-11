@@ -140,7 +140,7 @@ public sealed class RuntimeExportIdUniquenessRule : IValidationRule
             }
         }
 
-        foreach (var templateObject in project.ObjectTemplates)
+        foreach (var templateObject in project.EnumerateAllObjectTemplateRoots())
         {
             foreach (var objectEntry in EnumerateGameObjectEntries(templateObject))
             {
@@ -156,7 +156,7 @@ public sealed class RuntimeExportIdUniquenessRule : IValidationRule
             }
         }
 
-        foreach (var roomTemplate in project.RoomTemplates)
+        foreach (var roomTemplate in project.EnumerateAllRoomTemplateRoots())
         {
             if (roomTemplate.Id != Guid.Empty)
             {

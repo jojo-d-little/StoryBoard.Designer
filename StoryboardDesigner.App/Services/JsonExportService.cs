@@ -285,7 +285,7 @@ public sealed class JsonExportService : IJsonExportService
     private readonly JsonSerializerOptions _jsonOptions = CreateJsonOptions();
     private readonly JsonSerializerOptions _jsonReadOptions = CreateJsonOptions(propertyNameCaseInsensitive: true);
 
-    private static JsonSerializerOptions CreateJsonOptions(bool propertyNameCaseInsensitive = false)
+    internal static JsonSerializerOptions CreateJsonOptions(bool propertyNameCaseInsensitive = false)
     {
         var options = StoryboardJsonSerializerOptions.Create(propertyNameCaseInsensitive);
         var resolver = new DefaultJsonTypeInfoResolver();
@@ -418,9 +418,10 @@ public sealed class JsonExportService : IJsonExportService
         pendingWrites.Add((projectFilePath, JsonSerializer.Serialize(dto, _jsonOptions)));
 
         var mappedGlobalObjects = project.GlobalScope.GameObjects.Select(obj => ToProjectGameObjectDto(obj, null, linkedActionLookup: linkedActionLookup)).ToList();
-        var mappedObjectTemplates = project.ObjectTemplates.Select(obj => ToProjectGameObjectDto(obj, null, scopeKindOverride: ScopeNodeKind.Templates, linkedActionLookup: linkedActionLookup)).ToList();
+        var allObjectTemplates = project.EnumerateAllObjectTemplateRoots().ToList();
+        var mappedObjectTemplates = allObjectTemplates.Select(obj => ToProjectGameObjectDto(obj, null, scopeKindOverride: ScopeNodeKind.Templates, linkedActionLookup: linkedActionLookup)).ToList();
         var mappedBaseObjects = project.BaseObjects.Select(obj => ToProjectGameObjectDto(obj, null, scopeKindOverride: ScopeNodeKind.Templates, linkedActionLookup: linkedActionLookup)).ToList();
-        var mappedRoomTemplates = project.RoomTemplates.Select(room => ToRoomTemplateDto(room, linkedActionLookup)).ToList();
+        var mappedRoomTemplates = project.EnumerateAllRoomTemplateRoots().Select(room => ToRoomTemplateDto(room, linkedActionLookup)).ToList();
         var mappedPhaseBooks = project.PhaseBooks.Select(phase => ToPhaseNodeDto(phase, linkedActionLookup)).ToList();
         var mappedPhases = FlattenPhaseDtos(mappedPhaseBooks)
             .Select(ToPhaseSidecarDto)
@@ -472,12 +473,14 @@ public sealed class JsonExportService : IJsonExportService
             GameObjects = new List<ProjectGameObjectDto>(),
             PhaseBooks = new List<PhaseNodeDto>(),
             ObjectTemplateIds = mappedObjectTemplates
+                .Where(obj => project.ObjectTemplates.Any(template => template.ObjectId == obj.Id))
                 .Select(static obj => obj.Id)
                 .Where(static id => id != Guid.Empty)
                 .Distinct()
                 .ToList(),
             ObjectTemplates = new List<ProjectGameObjectDto>(),
             RoomTemplateIds = mappedRoomTemplates
+                .Where(room => project.RoomTemplates.Any(template => template.Id == room.Id))
                 .Select(static room => room.Id)
                 .Where(static id => id != Guid.Empty)
                 .Distinct()
@@ -671,6 +674,15 @@ public sealed class JsonExportService : IJsonExportService
                     .Distinct()
                     .ToList(),
                 GameObjects = new List<ProjectGameObjectDto>(),
+                ObjectTemplateIds = planet.ObjectTemplates
+                    .Select(static template => template.ObjectId)
+                    .Where(static id => id != Guid.Empty)
+                    .Distinct()
+                    .ToList(),
+                RoomTemplateIds = planet.RoomTemplates
+                    .Select(template => EnsureScopeId(template.Id, $"planet room template '{template.Name}'"))
+                    .Distinct()
+                    .ToList(),
                 CountryIds = planet.Countries.Select(country => EnsureScopeId(country.Id, $"country '{country.Name}'")).ToList()
             };
 
@@ -715,6 +727,15 @@ public sealed class JsonExportService : IJsonExportService
                         .Distinct()
                         .ToList(),
                     GameObjects = new List<ProjectGameObjectDto>(),
+                    ObjectTemplateIds = country.ObjectTemplates
+                        .Select(static template => template.ObjectId)
+                        .Where(static id => id != Guid.Empty)
+                        .Distinct()
+                        .ToList(),
+                    RoomTemplateIds = country.RoomTemplates
+                        .Select(template => EnsureScopeId(template.Id, $"country room template '{template.Name}'"))
+                        .Distinct()
+                        .ToList(),
                     AreaIds = country.Areas.Select(area => EnsureScopeId(area.Id, $"area '{area.Name}'")).ToList()
                 };
 
@@ -762,6 +783,15 @@ public sealed class JsonExportService : IJsonExportService
                             .Distinct()
                             .ToList(),
                         GameObjects = new List<ProjectGameObjectDto>(),
+                        ObjectTemplateIds = area.ObjectTemplates
+                            .Select(static template => template.ObjectId)
+                            .Where(static id => id != Guid.Empty)
+                            .Distinct()
+                            .ToList(),
+                        RoomTemplateIds = area.RoomTemplates
+                            .Select(template => EnsureScopeId(template.Id, $"area room template '{template.Name}'"))
+                            .Distinct()
+                            .ToList(),
                         RoomIds = area.Rooms.Select(room => room.Id).ToList(),
                         TraversalConnections = BuildTraversalConnectionsForPersistence(area)
                             .Select(connection => ToTraversalConnectionDto(connection, linkedActionLookup))
@@ -1037,7 +1067,7 @@ public sealed class JsonExportService : IJsonExportService
                 Planets = (globalNode.PlanetIds ?? new List<Guid>())
                     .Select(planetId => planetDtos.FirstOrDefault(planet => planet.Id == planetId))
                     .Where(static planet => planet is not null)
-                    .Select(planet => BuildPlanetModel(planet!, countriesById, areasById, roomMap, authoringObjectDtosById))
+                    .Select(planet => BuildPlanetModel(planet!, countriesById, areasById, roomMap, authoringObjectDtosById, roomTemplateDtosById))
                     .ToList()
             };
 
@@ -1060,7 +1090,7 @@ public sealed class JsonExportService : IJsonExportService
             if (globalNode.ProcedureIds is not { Count: > 0 })
             {
                 var objectProcedureIds = EnumerateGameObjectsRecursive(loadedProject.GlobalScope.GameObjects)
-                    .Concat(EnumerateGameObjectsRecursive(loadedProject.ObjectTemplates))
+                    .Concat(EnumerateGameObjectsRecursive(loadedProject.EnumerateAllObjectTemplateRoots()))
                     .Concat(EnumerateGameObjectsRecursive(loadedProject.BaseObjects))
                     .Concat(loadedProject.Planets
                         .SelectMany(static planet => planet.Countries)
@@ -2087,12 +2117,12 @@ public sealed class JsonExportService : IJsonExportService
         IReadOnlyDictionary<Guid, GameObject> objectLookup,
         CleanExportImageAssetStager imageAssetStager)
     {
-        foreach (var template in EnumerateGameObjectsRecursive(project.ObjectTemplates))
+        foreach (var template in EnumerateGameObjectsRecursive(project.EnumerateAllObjectTemplateRoots()))
         {
             StageGameObjectImageVariants(template, objectLookup, imageAssetStager, $"templateObject:{template.ObjectId:N}");
         }
 
-        foreach (var templateRoom in project.RoomTemplates)
+        foreach (var templateRoom in project.EnumerateAllRoomTemplateRoots())
         {
             foreach (var image in templateRoom.Images)
             {
@@ -2205,6 +2235,7 @@ public sealed class JsonExportService : IJsonExportService
 
             AddObjectRows($"{planetScopePath}.baseObjects", planet.BaseObjects, ScopeNodeKind.GameObject);
             AddObjectRows($"{planetScopePath}.gameObjects", planet.GameObjects, ScopeNodeKind.GameObject);
+            AddObjectRows($"{planetScopePath}.objectTemplates", planet.ObjectTemplates, ScopeNodeKind.Templates);
 
             foreach (var country in planet.Countries.OrderBy(static country => country.Name, StringComparer.OrdinalIgnoreCase))
             {
@@ -2213,6 +2244,7 @@ public sealed class JsonExportService : IJsonExportService
 
                 AddObjectRows($"{countryScopePath}.baseObjects", country.BaseObjects, ScopeNodeKind.GameObject);
                 AddObjectRows($"{countryScopePath}.gameObjects", country.GameObjects, ScopeNodeKind.GameObject);
+                AddObjectRows($"{countryScopePath}.objectTemplates", country.ObjectTemplates, ScopeNodeKind.Templates);
 
                 foreach (var area in country.Areas.OrderBy(static area => area.Name, StringComparer.OrdinalIgnoreCase))
                 {
@@ -2221,6 +2253,7 @@ public sealed class JsonExportService : IJsonExportService
 
                     AddObjectRows($"{areaScopePath}.baseObjects", area.BaseObjects, ScopeNodeKind.GameObject);
                     AddObjectRows($"{areaScopePath}.gameObjects", area.GameObjects, ScopeNodeKind.GameObject);
+                    AddObjectRows($"{areaScopePath}.objectTemplates", area.ObjectTemplates, ScopeNodeKind.Templates);
 
                     foreach (var room in area.Rooms.OrderBy(static room => room.Name, StringComparer.OrdinalIgnoreCase))
                     {
@@ -2298,7 +2331,7 @@ public sealed class JsonExportService : IJsonExportService
                 Path.GetRelativePath(projectFolderPath, BuildRoomFilePath(projectFilePath, room.Id)).Replace('\\', '/')));
         }
 
-        foreach (var roomTemplate in project.RoomTemplates
+        foreach (var roomTemplate in project.EnumerateAllRoomTemplateRoots()
                      .Where(static room => room.Id != Guid.Empty)
                      .OrderBy(static room => room.Id))
         {
@@ -3883,10 +3916,13 @@ public sealed class JsonExportService : IJsonExportService
         IReadOnlyDictionary<Guid, CountryDto> countriesById,
         IReadOnlyDictionary<Guid, AreaDto> areasById,
         Dictionary<Guid, Room> roomMap,
-        IReadOnlyDictionary<Guid, ProjectGameObjectDto> objectDtosById)
+        IReadOnlyDictionary<Guid, ProjectGameObjectDto> objectDtosById,
+        IReadOnlyDictionary<Guid, RoomDto> roomTemplateDtosById)
     {
         var resolvedPlanetBaseObjects = ResolveScopedObjectDtos(dto.BaseObjectIds, dto.BaseObjects, objectDtosById);
         var resolvedPlanetObjects = ResolveScopedObjectDtos(dto.GameObjectIds, dto.GameObjects, objectDtosById);
+        var resolvedPlanetObjectTemplates = ResolveScopedObjectDtos(dto.ObjectTemplateIds, new List<ProjectGameObjectDto>(), objectDtosById);
+        var resolvedPlanetRoomTemplates = ResolveScopedRoomDtos(dto.RoomTemplateIds, roomTemplateDtosById, new List<RoomDto>());
 
         return new Planet
         {
@@ -3913,10 +3949,12 @@ public sealed class JsonExportService : IJsonExportService
             TimerDefinitions = (dto.TimerDefinitions ?? new List<ProjectTimerDefinitionDto>()).Select(ToTimerDefinitionModel).ToList(),
             BaseObjects = resolvedPlanetBaseObjects.Select(ToGameObjectModel).ToList(),
             GameObjects = resolvedPlanetObjects.Select(ToGameObjectModel).ToList(),
+            ObjectTemplates = resolvedPlanetObjectTemplates.Select(static template => ApplyTemplateScopeKind(template)).Select(ToGameObjectModel).ToList(),
+            RoomTemplates = resolvedPlanetRoomTemplates.Select(template => ToRoomModel(ApplyRoomTemplateScopeKind(template), objectDtosById, 800, 600)).ToList(),
             Countries = dto.CountryIds
                 .Select(countryId => countriesById.TryGetValue(countryId, out var country) ? country : null)
                 .Where(static country => country is not null)
-                .Select(country => BuildCountryModel(country!, areasById, roomMap, objectDtosById))
+                .Select(country => BuildCountryModel(country!, areasById, roomMap, objectDtosById, roomTemplateDtosById))
                 .ToList()
         };
     }
@@ -3925,10 +3963,13 @@ public sealed class JsonExportService : IJsonExportService
         CountryDto dto,
         IReadOnlyDictionary<Guid, AreaDto> areasById,
         Dictionary<Guid, Room> roomMap,
-        IReadOnlyDictionary<Guid, ProjectGameObjectDto> objectDtosById)
+        IReadOnlyDictionary<Guid, ProjectGameObjectDto> objectDtosById,
+        IReadOnlyDictionary<Guid, RoomDto> roomTemplateDtosById)
     {
         var resolvedCountryBaseObjects = ResolveScopedObjectDtos(dto.BaseObjectIds, dto.BaseObjects, objectDtosById);
         var resolvedCountryObjects = ResolveScopedObjectDtos(dto.GameObjectIds, dto.GameObjects, objectDtosById);
+        var resolvedCountryObjectTemplates = ResolveScopedObjectDtos(dto.ObjectTemplateIds, new List<ProjectGameObjectDto>(), objectDtosById);
+        var resolvedCountryRoomTemplates = ResolveScopedRoomDtos(dto.RoomTemplateIds, roomTemplateDtosById, new List<RoomDto>());
 
         return new Country
         {
@@ -3955,10 +3996,12 @@ public sealed class JsonExportService : IJsonExportService
             TimerDefinitions = (dto.TimerDefinitions ?? new List<ProjectTimerDefinitionDto>()).Select(ToTimerDefinitionModel).ToList(),
             BaseObjects = resolvedCountryBaseObjects.Select(ToGameObjectModel).ToList(),
             GameObjects = resolvedCountryObjects.Select(ToGameObjectModel).ToList(),
+            ObjectTemplates = resolvedCountryObjectTemplates.Select(static template => ApplyTemplateScopeKind(template)).Select(ToGameObjectModel).ToList(),
+            RoomTemplates = resolvedCountryRoomTemplates.Select(template => ToRoomModel(ApplyRoomTemplateScopeKind(template), objectDtosById, 800, 600)).ToList(),
             Areas = dto.AreaIds
                 .Select(areaId => areasById.TryGetValue(areaId, out var area) ? area : null)
                 .Where(static area => area is not null)
-                .Select(area => BuildAreaModel(area!, roomMap, objectDtosById))
+                .Select(area => BuildAreaModel(area!, roomMap, objectDtosById, roomTemplateDtosById))
                 .ToList()
         };
     }
@@ -3966,13 +4009,16 @@ public sealed class JsonExportService : IJsonExportService
     private static Area BuildAreaModel(
         AreaDto dto,
         Dictionary<Guid, Room> roomMap,
-        IReadOnlyDictionary<Guid, ProjectGameObjectDto> objectDtosById)
+        IReadOnlyDictionary<Guid, ProjectGameObjectDto> objectDtosById,
+        IReadOnlyDictionary<Guid, RoomDto> roomTemplateDtosById)
     {
         var traversalConnections = (dto.TraversalConnections ?? new List<TraversalConnectionDto>())
             .Select(ToTraversalConnectionModel)
             .ToList();
         var resolvedAreaBaseObjects = ResolveScopedObjectDtos(dto.BaseObjectIds, dto.BaseObjects, objectDtosById);
         var resolvedAreaObjects = ResolveScopedObjectDtos(dto.GameObjectIds, dto.GameObjects, objectDtosById);
+        var resolvedAreaObjectTemplates = ResolveScopedObjectDtos(dto.ObjectTemplateIds, new List<ProjectGameObjectDto>(), objectDtosById);
+        var resolvedAreaRoomTemplates = ResolveScopedRoomDtos(dto.RoomTemplateIds, roomTemplateDtosById, new List<RoomDto>());
 
         return new Area
         {
@@ -4004,6 +4050,8 @@ public sealed class JsonExportService : IJsonExportService
             TimerDefinitions = (dto.TimerDefinitions ?? new List<ProjectTimerDefinitionDto>()).Select(ToTimerDefinitionModel).ToList(),
             BaseObjects = resolvedAreaBaseObjects.Select(ToGameObjectModel).ToList(),
             GameObjects = resolvedAreaObjects.Select(ToGameObjectModel).ToList(),
+            ObjectTemplates = resolvedAreaObjectTemplates.Select(static template => ApplyTemplateScopeKind(template)).Select(ToGameObjectModel).ToList(),
+            RoomTemplates = resolvedAreaRoomTemplates.Select(template => ToRoomModel(ApplyRoomTemplateScopeKind(template), objectDtosById, 800, 600)).ToList(),
             Rooms = ResolveAreaRooms(dto, roomMap),
             Links = new List<RoomLink>(),
             TraversalConnections = traversalConnections,
@@ -4914,7 +4962,7 @@ public sealed class JsonExportService : IJsonExportService
             }
         }
 
-        AddCatalog(project.ObjectTemplates);
+        AddCatalog(project.EnumerateAllObjectTemplateRoots());
         AddCatalog(project.BaseObjects);
 
         foreach (var planet in project.Planets)
@@ -4935,7 +4983,7 @@ public sealed class JsonExportService : IJsonExportService
 
     private static IEnumerable<GameObject> EnumerateDefinitionCatalogObjects(ProjectModel project)
     {
-        foreach (var obj in EnumerateGameObjectsRecursive(project.ObjectTemplates))
+        foreach (var obj in EnumerateGameObjectsRecursive(project.EnumerateAllObjectTemplateRoots()))
         {
             yield return obj;
         }
@@ -5023,7 +5071,7 @@ public sealed class JsonExportService : IJsonExportService
             yield return obj;
         }
 
-        foreach (var obj in EnumerateGameObjectsRecursive(project.ObjectTemplates))
+        foreach (var obj in EnumerateGameObjectsRecursive(project.EnumerateAllObjectTemplateRoots()))
         {
             yield return obj;
         }
@@ -5033,7 +5081,7 @@ public sealed class JsonExportService : IJsonExportService
             yield return obj;
         }
 
-        foreach (var obj in project.RoomTemplates
+        foreach (var obj in project.EnumerateAllRoomTemplateRoots()
                      .SelectMany(static roomTemplate => EnumerateGameObjectsRecursive(roomTemplate.GameObjects)))
         {
             yield return obj;
@@ -5714,9 +5762,9 @@ public sealed class JsonExportService : IJsonExportService
         }
 
         AddGraph(project.BaseObjects);
-        AddGraph(project.ObjectTemplates);
+        AddGraph(project.EnumerateAllObjectTemplateRoots());
         AddGraph(project.GlobalScope.GameObjects);
-        foreach (var roomTemplate in project.RoomTemplates)
+        foreach (var roomTemplate in project.EnumerateAllRoomTemplateRoots())
         {
             AddGraph(roomTemplate.GameObjects);
         }

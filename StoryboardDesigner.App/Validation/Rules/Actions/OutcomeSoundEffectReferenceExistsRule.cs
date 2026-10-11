@@ -86,14 +86,14 @@ public sealed class OutcomeSoundEffectReferenceExistsRule : IValidationRule
         }
 
         AddEntries(project.GlobalScope.SoundEffectLibraryEntries, known);
-        AddEntries(project.RoomTemplates.SelectMany(static room => room.SoundEffectLibraryEntries), known);
+        AddEntries(project.EnumerateAllRoomTemplateRoots().SelectMany(static room => room.SoundEffectLibraryEntries), known);
 
         foreach (var root in project.GlobalScope.GameObjects)
         {
             AddObjectRecursive(root, known);
         }
 
-        foreach (var root in project.ObjectTemplates)
+        foreach (var root in project.EnumerateAllObjectTemplateRoots())
         {
             AddObjectRecursive(root, known);
         }

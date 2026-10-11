@@ -122,7 +122,8 @@ internal sealed class MainWindowDialogWorkflowServiceStub : IMainWindowDialogWor
         IReadOnlyList<string> timerKeySuggestions,
         IReadOnlyList<string> verbSuggestions,
         IReadOnlyList<string> directionalSuggestions,
-        Func<IReadOnlyList<CommandAction>, IReadOnlyList<ProjectValidationIssue>>? validateWithPipeline = null)
+        Func<IReadOnlyList<CommandAction>, IReadOnlyList<ProjectValidationIssue>>? validateWithPipeline = null,
+        Guid? defaultCurrentObjectId = null)
     {
         return false;
     }
@@ -139,7 +140,8 @@ internal sealed class MainWindowDialogWorkflowServiceStub : IMainWindowDialogWor
         IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
         IReadOnlyList<string> timerKeySuggestions,
         IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
-        IReadOnlyList<CommandAction> availableActions)
+        IReadOnlyList<CommandAction> availableActions,
+        Guid? defaultCurrentObjectId = null)
     {
         return false;
     }
@@ -391,6 +393,7 @@ internal sealed class TreeContextInteractionServiceStub : ITreeContextInteractio
 {
     public Func<TraversalWizardDialogRequest, TraversalWizardDialogResult>? ReviewHandler { get; init; }
     public Func<ObjectBasicPropertiesEditRequest, ObjectBasicPropertiesEditRequest>? EditObjectBasicPropertiesHandler { get; init; }
+    public Func<InstanceNamingEditRequest, InstanceNamingEditRequest>? EditInstanceNamingHandler { get; init; }
     public Func<RoomSettingsEditRequest, RoomSettingsEditRequest?>? EditRoomSettingsHandler { get; init; }
     public Func<PhaseNodeEditRequest, PhaseNodeEditRequest?>? EditPhaseNodeHandler { get; init; }
     public Func<string, string?>? TemplateNameFromObjectHandler { get; init; }
@@ -599,6 +602,18 @@ internal sealed class TreeContextInteractionServiceStub : ITreeContextInteractio
         if (EditObjectBasicPropertiesHandler is not null)
         {
             updatedValues = EditObjectBasicPropertiesHandler(initialValues);
+            return true;
+        }
+
+        updatedValues = initialValues;
+        return false;
+    }
+
+    public bool TryEditInstanceNaming(InstanceNamingEditRequest initialValues, out InstanceNamingEditRequest updatedValues)
+    {
+        if (EditInstanceNamingHandler is not null)
+        {
+            updatedValues = EditInstanceNamingHandler(initialValues);
             return true;
         }
 

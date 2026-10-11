@@ -66,7 +66,7 @@ public sealed class RoomCanvasDimensionsRule : IValidationRule
 
     private static IEnumerable<(Room Room, string Path)> EnumerateRooms(ProjectModel project)
     {
-        foreach (var roomTemplate in project.RoomTemplates)
+        foreach (var roomTemplate in project.EnumerateAllRoomTemplateRoots())
         {
             var templateName = string.IsNullOrWhiteSpace(roomTemplate.Name) ? "(unnamed room template)" : roomTemplate.Name.Trim();
             yield return (roomTemplate, $"Global / Room Templates / {templateName}");

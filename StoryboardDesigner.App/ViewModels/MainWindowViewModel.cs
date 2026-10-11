@@ -920,7 +920,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         var snappedCount = 0;
 
-        foreach (var room in project.RoomTemplates)
+        foreach (var room in project.EnumerateAllRoomTemplateRoots())
         {
             snappedCount += SnapRoomObjectRotationsToQuarterTurns(room);
         }
@@ -3195,6 +3195,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private void LoadProjectIntoHierarchy()
     {
+        ClearPendingObjectRelocation();
+        _pendingSequenceRelocationNode = null;
+        _pendingRoomTemplateCloneSourceNode = null;
         OnPropertyChanged(nameof(QuickAccessRecentSectionRatio));
         _suspendUiStatePersistence = true;
         try
@@ -4249,6 +4252,24 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 planetBaseObjectsNode.Children.Add(objectNode);
             }
             planetNode.Children.Add(planetBaseObjectsNode);
+
+            var planetObjectTemplatesNode = new ObjectTemplatesNodeViewModel(
+                project, planetNode, "Object Templates", planet.ObjectTemplates,
+                project.ObjectTemplatesIgnoredValidationRuleIds, isBaseCatalog: false, catalogParentScope: planet);
+            foreach (var objectNode in CreateTemplateObjectNodes(planetObjectTemplatesNode))
+            {
+                planetObjectTemplatesNode.Children.Add(objectNode);
+            }
+            planetNode.Children.Add(planetObjectTemplatesNode);
+
+            var planetRoomTemplatesNode = new RoomTemplatesNodeViewModel(
+                project, planetNode, "Room Templates", planet.RoomTemplates,
+                project.RoomTemplatesIgnoredValidationRuleIds, planet);
+            foreach (var roomNode in CreateTemplateRoomNodes(planetRoomTemplatesNode))
+            {
+                planetRoomTemplatesNode.Children.Add(roomNode);
+            }
+            planetNode.Children.Add(planetRoomTemplatesNode);
             planetNode.Children.Add(CreateObjectsNode(planetNode));
 
             foreach (var country in planet.Countries)
@@ -4278,6 +4299,24 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                     countryBaseObjectsNode.Children.Add(objectNode);
                 }
                 countryNode.Children.Add(countryBaseObjectsNode);
+
+                var countryObjectTemplatesNode = new ObjectTemplatesNodeViewModel(
+                    project, countryNode, "Object Templates", country.ObjectTemplates,
+                    project.ObjectTemplatesIgnoredValidationRuleIds, isBaseCatalog: false, catalogParentScope: country);
+                foreach (var objectNode in CreateTemplateObjectNodes(countryObjectTemplatesNode))
+                {
+                    countryObjectTemplatesNode.Children.Add(objectNode);
+                }
+                countryNode.Children.Add(countryObjectTemplatesNode);
+
+                var countryRoomTemplatesNode = new RoomTemplatesNodeViewModel(
+                    project, countryNode, "Room Templates", country.RoomTemplates,
+                    project.RoomTemplatesIgnoredValidationRuleIds, country);
+                foreach (var roomNode in CreateTemplateRoomNodes(countryRoomTemplatesNode))
+                {
+                    countryRoomTemplatesNode.Children.Add(roomNode);
+                }
+                countryNode.Children.Add(countryRoomTemplatesNode);
                 countryNode.Children.Add(CreateObjectsNode(countryNode));
 
                 foreach (var area in country.Areas)
@@ -4307,6 +4346,24 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                         areaBaseObjectsNode.Children.Add(objectNode);
                     }
                     areaNode.Children.Add(areaBaseObjectsNode);
+
+                    var areaObjectTemplatesNode = new ObjectTemplatesNodeViewModel(
+                        project, areaNode, "Object Templates", area.ObjectTemplates,
+                        project.ObjectTemplatesIgnoredValidationRuleIds, isBaseCatalog: false, catalogParentScope: area);
+                    foreach (var objectNode in CreateTemplateObjectNodes(areaObjectTemplatesNode))
+                    {
+                        areaObjectTemplatesNode.Children.Add(objectNode);
+                    }
+                    areaNode.Children.Add(areaObjectTemplatesNode);
+
+                    var areaRoomTemplatesNode = new RoomTemplatesNodeViewModel(
+                        project, areaNode, "Room Templates", area.RoomTemplates,
+                        project.RoomTemplatesIgnoredValidationRuleIds, area);
+                    foreach (var roomNode in CreateTemplateRoomNodes(areaRoomTemplatesNode))
+                    {
+                        areaRoomTemplatesNode.Children.Add(roomNode);
+                    }
+                    areaNode.Children.Add(areaRoomTemplatesNode);
                     areaNode.Children.Add(CreateObjectsNode(areaNode));
 
                     var areaRoomLookup = area.Rooms.ToDictionary(room => room.Id, room => room.ScopeName);
@@ -4398,7 +4455,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         foreach (var hierarchyNode in EnumerateHierarchyNodes(projectRootNode).ToList())
         {
             var owner = ResolveSequenceScopeOwner(hierarchyNode);
-            if (owner is null) continue;
+            if (owner is null || hierarchyNode.Children.OfType<SequencesNodeViewModel>().Any()) continue;
             var sequencesNode = new SequencesNodeViewModel(owner, hierarchyNode);
             foreach (var definition in owner.SequenceDefinitions)
             {
@@ -4426,7 +4483,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             AddObject(obj);
         }
 
-        foreach (var obj in EnumerateGameObjectsRecursive(project.ObjectTemplates))
+        foreach (var obj in EnumerateGameObjectsRecursive(project.EnumerateAllObjectTemplateRoots()))
         {
             AddObject(obj);
         }

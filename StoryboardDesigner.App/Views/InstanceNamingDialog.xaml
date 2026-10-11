@@ -1,0 +1,61 @@
+<Window x:Class="StoryboardDesigner.App.Views.InstanceNamingDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Instance Naming"
+        Width="760"
+        Height="390"
+        MinWidth="680"
+        MinHeight="350"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock FontSize="16" FontWeight="SemiBold" Text="Instance naming" />
+            <TextBlock Margin="0,5,0,0" Foreground="#4B5563" TextWrapping="Wrap"
+                       Text="Instance values start from the base when created. A blank local value uses the base value; a nonblank value is saved on this instance." />
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="1" Margin="8,0,8,8" FontWeight="SemiBold" Text="Base value (read-only)" />
+            <TextBlock Grid.Row="0" Grid.Column="2" Margin="8,0,0,8" FontWeight="SemiBold" Text="Instance value" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,4,8,10" VerticalAlignment="Center" Text="Name" />
+            <TextBox x:Name="BaseNameTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,8,10" IsReadOnly="True" />
+            <TextBox x:Name="InstanceNameTextBox" Grid.Row="1" Grid.Column="2" Margin="0,0,0,10" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,4,8,10" VerticalAlignment="Center" Text="Name in game" />
+            <TextBox x:Name="BaseNameInGameTextBox" Grid.Row="2" Grid.Column="1" Margin="0,0,8,10" IsReadOnly="True" />
+            <TextBox x:Name="InstanceNameInGameTextBox" Grid.Row="2" Grid.Column="2" Margin="0,0,0,10" />
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,4,8,0" VerticalAlignment="Top" Text="Synonyms" />
+            <TextBox x:Name="BaseNameSynonymsTextBox" Grid.Row="3" Grid.Column="1" Margin="0,0,8,0"
+                     MinHeight="76" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+            <TextBox x:Name="InstanceNameSynonymsTextBox" Grid.Row="3" Grid.Column="2"
+                     MinHeight="76" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                     ToolTip="Separate synonyms with commas. Leave blank to use the base synonyms." />
+        </Grid>
+
+        <StackPanel Grid.Row="2" Margin="0,16,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Width="88" Margin="0,0,8,0" IsDefault="True" Click="Save_OnClick" Content="Save" />
+            <Button Width="88" IsCancel="True" Content="Cancel" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -74,6 +74,7 @@ public interface ITreeContextInteractionService
         IReadOnlyList<string> categorySuggestions,
         out IReadOnlyList<SoundEffectLibraryEntry> updatedEntries);
     bool TryEditObjectBasicProperties(ObjectBasicPropertiesEditRequest initialValues, out ObjectBasicPropertiesEditRequest updatedValues);
+    bool TryEditInstanceNaming(InstanceNamingEditRequest initialValues, out InstanceNamingEditRequest updatedValues);
     bool TryEditAreaBasicProperties(AreaBasicPropertiesEditRequest initialValues, IReadOnlyList<AreaStartingRoomOption> startingRoomOptions, out AreaBasicPropertiesEditRequest updatedValues);
     bool TrySelectObjectTemplate(IReadOnlyList<GameObject> templates, out GameObject? selectedTemplate);
     bool TrySelectRoomTemplate(IReadOnlyList<Room> templates, out Room? selectedTemplate);

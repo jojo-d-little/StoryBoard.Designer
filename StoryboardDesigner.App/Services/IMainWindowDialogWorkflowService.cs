@@ -23,7 +23,8 @@ public interface IMainWindowDialogWorkflowService
         IReadOnlyList<string> timerKeySuggestions,
         IReadOnlyList<string> verbSuggestions,
         IReadOnlyList<string> directionalSuggestions,
-        Func<IReadOnlyList<CommandAction>, IReadOnlyList<ProjectValidationIssue>>? validateWithPipeline = null);
+        Func<IReadOnlyList<CommandAction>, IReadOnlyList<ProjectValidationIssue>>? validateWithPipeline = null,
+        Guid? defaultCurrentObjectId = null);
 
     bool EditSingleScopedAction(
         CommandAction action,
@@ -37,7 +38,8 @@ public interface IMainWindowDialogWorkflowService
         IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
         IReadOnlyList<string> timerKeySuggestions,
         IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
-        IReadOnlyList<CommandAction> availableActions);
+        IReadOnlyList<CommandAction> availableActions,
+        Guid? defaultCurrentObjectId = null);
 
     bool EditLinkedActionFlow(
         string scopeLabel,

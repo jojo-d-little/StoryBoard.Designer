@@ -101,6 +101,7 @@ public partial class RoomActionEditorDialog : Window
     private readonly Dictionary<string, GamePropertyChoiceItem> _variableChoiceMap;
     private readonly IReadOnlyList<CommandAction> _availableActions;
     private readonly Dictionary<Guid, CommandAction> _availableActionsById;
+    private readonly Guid? _defaultCurrentObjectId;
     private readonly PropertyResolutionScope _variableScope;
     private readonly PresentationEffectsCatalogService _presentationEffectsCatalogService;
     private readonly IReadOnlyList<ForwardingModeOption> _forwardingModeOptions;
@@ -149,10 +150,12 @@ public partial class RoomActionEditorDialog : Window
         IReadOnlyList<SoundEffectChoiceItem>? soundEffectChoices = null,
         IReadOnlyList<string>? timerKeySuggestions = null,
         IReadOnlyList<CommandAction>? availableActions = null,
-        IReadOnlyList<SequenceDefinitionChoiceItem>? sequenceDefinitionChoices = null)
+        IReadOnlyList<SequenceDefinitionChoiceItem>? sequenceDefinitionChoices = null,
+        Guid? defaultCurrentObjectId = null)
     {
         InitializeComponent();
         _sourceAction = sourceAction;
+        _defaultCurrentObjectId = defaultCurrentObjectId;
         _presentationEffectsCatalogService = new PresentationEffectsCatalogService();
         _variableScope = variableScope;
         _variableChoices = variableChoices;
@@ -864,10 +867,9 @@ public partial class RoomActionEditorDialog : Window
         if (_workingCopy.ActionType is CommandActionType.AddObjectPresentationCue or CommandActionType.RemoveObjectPresentationCue or CommandActionType.ClearObjectPresentationCues)
         {
             if (_workingCopy.ObjectPresentationCueObjectId.HasValue
-                && !_materializeSourceObjectChoices.Any(choice => choice.ObjectId == _workingCopy.ObjectPresentationCueObjectId.Value
-                    && string.Equals(choice.SourceCategory, "Current Room", StringComparison.OrdinalIgnoreCase)))
+                && !BuildPresentationCueObjectChoices().Any(choice => choice.ObjectId == _workingCopy.ObjectPresentationCueObjectId.Value))
             {
-                System.Windows.MessageBox.Show(this, "Choose an object from the current room, or leave the target blank to use the command's primary target.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+                System.Windows.MessageBox.Show(this, "Choose a current-room object or a direct child of this action's current object, or leave the target blank to use the command's primary target.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -1235,13 +1237,21 @@ public partial class RoomActionEditorDialog : Window
 
     private IReadOnlyList<PresentationCueObjectChoiceItem> BuildPresentationCueObjectChoices()
     {
+        var currentObject = _defaultCurrentObjectId.HasValue
+            ? _materializeSourceObjectChoices.FirstOrDefault(choice => choice.ObjectId == _defaultCurrentObjectId.Value)?.SourceObject
+            : null;
+        var directChildIds = currentObject?.ContainedObjects
+            .Select(static child => child.ObjectId)
+            .ToHashSet() ?? new HashSet<Guid>();
+
         return new[]
             {
                 new PresentationCueObjectChoiceItem { ObjectId = null, DisplayName = "(Command primary target)" }
             }
             .Concat(_materializeSourceObjectChoices
-                .Where(static choice => choice.ObjectId != Guid.Empty
-                    && string.Equals(choice.SourceCategory, "Current Room", StringComparison.OrdinalIgnoreCase))
+                .Where(choice => choice.ObjectId != Guid.Empty
+                    && (string.Equals(choice.SourceCategory, "Current Room", StringComparison.OrdinalIgnoreCase)
+                        || directChildIds.Contains(choice.ObjectId)))
                 .Select(static choice => new PresentationCueObjectChoiceItem
                 {
                     ObjectId = choice.ObjectId,
@@ -1738,6 +1748,7 @@ public partial class RoomActionEditorDialog : Window
                 DefaultScopeSearchType: GameObjectOptionSourceTarget.RealObjects,
                 DefaultScopeSearchDepth: ScopeSearchDepth.Project,
                 DefaultRequiredFeatures: GameObjectFeatureRequirements.None,
+                DefaultCurrentObjectId: _defaultCurrentObjectId,
                 DefaultExcludeCurrentObject: false))
         {
             Owner = this
@@ -1799,6 +1810,7 @@ public partial class RoomActionEditorDialog : Window
                 DefaultScopeSearchType: GameObjectOptionSourceTarget.RealObjects,
                 DefaultScopeSearchDepth: ScopeSearchDepth.Project,
                 DefaultRequiredFeatures: GameObjectFeatureRequirements.None,
+                DefaultCurrentObjectId: _defaultCurrentObjectId,
                 DefaultExcludeCurrentObject: false))
         {
             Owner = this

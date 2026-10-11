@@ -85,7 +85,7 @@ public sealed class SinglePlayerMarkerRule : IValidationRule
             }
         }
 
-        foreach (var gameObject in project.ObjectTemplates)
+        foreach (var gameObject in project.EnumerateAllObjectTemplateRoots())
         {
             foreach (var candidate in EnumerateObjectTree(gameObject, "Global / Templates"))
             {

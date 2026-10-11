@@ -19,10 +19,10 @@ internal static class SharedVariableReconciliationService
         AddLinkedGlobalParticipants(project.GlobalVariables, participantsBySharedId, seedVariableBySharedId);
         AddLinkedGlobalParticipants(project.GlobalScope.GameProperties, participantsBySharedId, seedVariableBySharedId);
         AddLinkedObjectParticipants(project.GlobalScope.GameObjects, participantsBySharedId, seedVariableBySharedId);
-        AddLinkedObjectParticipants(project.ObjectTemplates, participantsBySharedId, seedVariableBySharedId);
+        AddLinkedObjectParticipants(project.EnumerateAllObjectTemplateRoots(), participantsBySharedId, seedVariableBySharedId);
         AddLinkedObjectParticipants(project.BaseObjects, participantsBySharedId, seedVariableBySharedId);
 
-        foreach (var roomTemplate in project.RoomTemplates)
+        foreach (var roomTemplate in project.EnumerateAllRoomTemplateRoots())
         {
             AddLinkedGlobalParticipants(roomTemplate.Variables, participantsBySharedId, seedVariableBySharedId);
             AddLinkedObjectParticipants(roomTemplate.GameObjects, participantsBySharedId, seedVariableBySharedId);

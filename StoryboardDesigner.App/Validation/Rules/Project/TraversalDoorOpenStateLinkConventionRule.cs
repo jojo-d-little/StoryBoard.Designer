@@ -104,7 +104,7 @@ public sealed class TraversalDoorOpenStateLinkConventionRule : IValidationRule
 
     private static string BuildObjectPath(ProjectModel project, GameObject target)
     {
-        foreach (var roomTemplate in project.RoomTemplates)
+        foreach (var roomTemplate in project.EnumerateAllRoomTemplateRoots())
         {
             foreach (var templateRoomObject in EnumerateObjects(roomTemplate.GameObjects))
             {
@@ -123,7 +123,7 @@ public sealed class TraversalDoorOpenStateLinkConventionRule : IValidationRule
             }
         }
 
-        foreach (var templateObject in EnumerateObjects(project.ObjectTemplates))
+        foreach (var templateObject in EnumerateObjects(project.EnumerateAllObjectTemplateRoots()))
         {
             if (ReferenceEquals(templateObject, target) || templateObject.ObjectId == target.ObjectId)
             {

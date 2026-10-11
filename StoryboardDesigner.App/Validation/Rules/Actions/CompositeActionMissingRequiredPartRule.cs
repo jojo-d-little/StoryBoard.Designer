@@ -73,7 +73,7 @@ public sealed class CompositeActionMissingRequiredPartRule : IValidationRule
             }
         }
 
-        foreach (var template in project.ObjectTemplates)
+        foreach (var template in project.EnumerateAllObjectTemplateRoots())
         {
             AddObject(template, known);
         }

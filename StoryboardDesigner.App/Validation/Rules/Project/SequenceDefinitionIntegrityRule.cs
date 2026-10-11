@@ -467,6 +467,11 @@ public sealed class SequenceDefinitionIntegrityRule : IValidationRule
     {
         ArgumentNullException.ThrowIfNull(context);
 
+        if (context.CandidateNode is GameObject { IsRoomInstance: true })
+        {
+            yield break;
+        }
+
         var scopePath = EventSubscriptionRuleSupport.BuildScopePath(context.CandidateNode);
         foreach (var sequence in context.CandidateNode.SequenceDefinitions ?? new List<ProjectSequenceDefinitionDto>())
         {

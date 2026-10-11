@@ -25,7 +25,12 @@ public static class EffectiveObjectFieldResolver
 
     public static string GetEffectiveName(GameObject instance, Func<Guid, GameObject?> resolveDefinition)
     {
-        return instance.Name ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(instance.Name))
+        {
+            return instance.Name;
+        }
+
+        return ResolveDefinition(instance, resolveDefinition)?.Name ?? string.Empty;
     }
 
     public static string GetEffectiveNameInGame(GameObject instance, Func<Guid, GameObject?> resolveDefinition)
@@ -35,19 +40,28 @@ public static class EffectiveObjectFieldResolver
             return instance.NameInGame;
         }
 
-        if (TryGetOverride(instance, NameInGameField, out var overrideValue))
+        if (TryGetOverride(instance, NameInGameField, out var overrideValue)
+            && !string.IsNullOrWhiteSpace(overrideValue))
         {
             return overrideValue ?? string.Empty;
         }
 
-        return instance.NameInGame ?? string.Empty;
+        var definition = ResolveDefinition(instance, resolveDefinition);
+        return definition?.NameInGame ?? instance.NameInGame ?? string.Empty;
     }
 
     public static IReadOnlyList<string> GetEffectiveNameSynonyms(GameObject instance, Func<Guid, GameObject?> resolveDefinition)
     {
-        if (TryGetOverride(instance, NameSynonymsField, out var overrideValue))
+        if (TryGetOverride(instance, NameSynonymsField, out var overrideValue)
+            && !string.IsNullOrWhiteSpace(overrideValue))
         {
             return ParseNameSynonyms(overrideValue);
+        }
+
+        var localSynonyms = NormalizeNameSynonyms(instance.NameSynonyms);
+        if (localSynonyms.Count > 0)
+        {
+            return localSynonyms;
         }
 
         var definition = ResolveDefinition(instance, resolveDefinition);
@@ -87,9 +101,11 @@ public static class EffectiveObjectFieldResolver
             return DefinitionOwnedOverridePlan.Unlinked;
         }
 
-        var desiredNameSynonymsOverride = AreEquivalentNameSynonyms(updatedNameSynonyms, definition.NameSynonyms)
+        var normalizedNameSynonyms = NormalizeNameSynonyms(updatedNameSynonyms);
+        var desiredNameSynonymsOverride = normalizedNameSynonyms.Count == 0
+            || AreEquivalentNameSynonyms(normalizedNameSynonyms, definition.NameSynonyms)
             ? null
-            : SerializeNameSynonymsOverride(updatedNameSynonyms);
+            : SerializeNameSynonymsOverride(normalizedNameSynonyms);
         var desiredDescriptionOverride = string.Equals(updatedDescription, definition.Description, StringComparison.Ordinal)
             ? null
             : updatedDescription;

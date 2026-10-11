@@ -110,7 +110,7 @@ public sealed class TraversalRequireOpenSharedIsOpenRule : IValidationRule
             yield return gameObject;
         }
 
-        foreach (var templateObject in EnumerateObjects(project.ObjectTemplates))
+        foreach (var templateObject in EnumerateObjects(project.EnumerateAllObjectTemplateRoots()))
         {
             yield return templateObject;
         }

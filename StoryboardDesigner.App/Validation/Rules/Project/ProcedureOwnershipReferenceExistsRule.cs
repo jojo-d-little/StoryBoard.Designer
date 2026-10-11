@@ -75,7 +75,7 @@ public sealed class ProcedureOwnershipReferenceExistsRule : IValidationRule
             }
         }
 
-        foreach (var root in project.ObjectTemplates)
+        foreach (var root in project.EnumerateAllObjectTemplateRoots())
         {
             foreach (var owner in EnumerateObjectTree(root))
             {
@@ -91,7 +91,7 @@ public sealed class ProcedureOwnershipReferenceExistsRule : IValidationRule
             }
         }
 
-        foreach (var root in project.RoomTemplates.SelectMany(static room => room.GameObjects))
+        foreach (var root in project.EnumerateAllRoomTemplateRoots().SelectMany(static room => room.GameObjects))
         {
             foreach (var owner in EnumerateObjectTree(root))
             {
