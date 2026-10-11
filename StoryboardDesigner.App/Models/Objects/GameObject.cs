@@ -915,6 +915,35 @@ public sealed class GameObject : ScopeNodeBase, INotifyPropertyChanged
 
     public bool IsRoomInstance => LinkedBaseObjectId.HasValue;
 
+    /// <summary>
+    /// Resolves the object that owns definition settings for this object. Room placement
+    /// objects own placement and editable instance data; their linked base owns appearance
+    /// and feature settings. Keeping this lookup on the model gives previews and exporters
+    /// the same ownership rule.
+    /// </summary>
+    public GameObject ResolveEffectiveDefinitionOwnedSource(Func<Guid, GameObject?>? resolveDefinition)
+    {
+        if (!LinkedBaseObjectId.HasValue || resolveDefinition is null)
+        {
+            return this;
+        }
+
+        var visited = new HashSet<Guid> { ObjectId };
+        var current = this;
+        while (current.LinkedBaseObjectId is Guid baseId && visited.Add(baseId))
+        {
+            var definition = resolveDefinition(baseId);
+            if (definition is null)
+            {
+                break;
+            }
+
+            current = definition;
+        }
+
+        return current;
+    }
+
     public bool IsQuantifiable
     {
         get => _isQuantifiable;

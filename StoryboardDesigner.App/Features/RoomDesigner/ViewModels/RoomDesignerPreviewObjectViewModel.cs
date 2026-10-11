@@ -91,10 +91,10 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
 
     public bool IncludeInPreview
     {
-        get => GameObject.IncludeInPreview;
+        get => _effectiveDefinitionOwnedSource.IncludeInPreview;
         set
         {
-            if (GameObject.IncludeInPreview == value)
+            if (GameObject.IsRoomInstance || _effectiveDefinitionOwnedSource.IncludeInPreview == value)
             {
                 return;
             }
@@ -224,14 +224,14 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
     public double IconLayerPositionY => PositionY + IconLayerOffsetYPixels;
 
     // Footprint dimensions are axis-swapped when orientation/rotation is an odd quarter-turn.
-    public int OrientedFootprintWidthCells => UsesSwappedFootprintAxes(GameObject.FootprintOrientation, GameObject.ImageRotationDegrees)
-        ? ResolveFootprintCellCount(GameObject.FootprintHeightCells)
-        : ResolveFootprintCellCount(GameObject.FootprintWidthCells);
+    public int OrientedFootprintWidthCells => UsesSwappedFootprintAxes(_effectiveDefinitionOwnedSource.FootprintOrientation, GameObject.ImageRotationDegrees)
+        ? ResolveFootprintCellCount(_effectiveDefinitionOwnedSource.FootprintHeightCells)
+        : ResolveFootprintCellCount(_effectiveDefinitionOwnedSource.FootprintWidthCells);
 
     // Footprint dimensions are axis-swapped when orientation/rotation is an odd quarter-turn.
-    public int OrientedFootprintHeightCells => UsesSwappedFootprintAxes(GameObject.FootprintOrientation, GameObject.ImageRotationDegrees)
-        ? ResolveFootprintCellCount(GameObject.FootprintWidthCells)
-        : ResolveFootprintCellCount(GameObject.FootprintHeightCells);
+    public int OrientedFootprintHeightCells => UsesSwappedFootprintAxes(_effectiveDefinitionOwnedSource.FootprintOrientation, GameObject.ImageRotationDegrees)
+        ? ResolveFootprintCellCount(_effectiveDefinitionOwnedSource.FootprintWidthCells)
+        : ResolveFootprintCellCount(_effectiveDefinitionOwnedSource.FootprintHeightCells);
 
     public double FootprintWidthPixels => OrientedFootprintWidthCells * Math.Max(1, _gridCellSize);
 
@@ -240,14 +240,14 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
     // Physical footprint dimensions before the room rotation is applied. The shared
     // placement math rotates this rectangle and rebases its bounds for the image.
     public double UnrotatedFootprintWidthPixels =>
-        (UsesSwappedFootprintAxes(GameObject.FootprintOrientation, 0d)
-            ? ResolveFootprintCellCount(GameObject.FootprintHeightCells)
-            : ResolveFootprintCellCount(GameObject.FootprintWidthCells)) * Math.Max(1, _gridCellSize);
+        (UsesSwappedFootprintAxes(_effectiveDefinitionOwnedSource.FootprintOrientation, 0d)
+            ? ResolveFootprintCellCount(_effectiveDefinitionOwnedSource.FootprintHeightCells)
+            : ResolveFootprintCellCount(_effectiveDefinitionOwnedSource.FootprintWidthCells)) * Math.Max(1, _gridCellSize);
 
     public double UnrotatedFootprintHeightPixels =>
-        (UsesSwappedFootprintAxes(GameObject.FootprintOrientation, 0d)
-            ? ResolveFootprintCellCount(GameObject.FootprintWidthCells)
-            : ResolveFootprintCellCount(GameObject.FootprintHeightCells)) * Math.Max(1, _gridCellSize);
+        (UsesSwappedFootprintAxes(_effectiveDefinitionOwnedSource.FootprintOrientation, 0d)
+            ? ResolveFootprintCellCount(_effectiveDefinitionOwnedSource.FootprintWidthCells)
+            : ResolveFootprintCellCount(_effectiveDefinitionOwnedSource.FootprintHeightCells)) * Math.Max(1, _gridCellSize);
 
     public int FootprintLayerZIndex => _drawOrderZIndex * 2;
 
@@ -443,9 +443,29 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(e.PropertyName)
             || string.Equals(e.PropertyName, nameof(GameObject.ImageVariants), StringComparison.Ordinal)
             || string.Equals(e.PropertyName, nameof(GameObject.ImageVariantChooserScript), StringComparison.Ordinal)
-            || string.Equals(e.PropertyName, nameof(GameObject.PointLight), StringComparison.Ordinal))
+            || string.Equals(e.PropertyName, nameof(GameObject.PointLight), StringComparison.Ordinal)
+            || string.Equals(e.PropertyName, nameof(GameObject.IncludeInPreview), StringComparison.Ordinal))
         {
             RaiseImageDerivedPropertyChanges();
+        }
+
+        if (string.IsNullOrWhiteSpace(e.PropertyName)
+            || string.Equals(e.PropertyName, nameof(GameObject.FootprintWidthCells), StringComparison.Ordinal)
+            || string.Equals(e.PropertyName, nameof(GameObject.FootprintHeightCells), StringComparison.Ordinal)
+            || string.Equals(e.PropertyName, nameof(GameObject.FootprintOrientation), StringComparison.Ordinal))
+        {
+            OnPropertyChanged(nameof(OrientedFootprintWidthCells));
+            OnPropertyChanged(nameof(OrientedFootprintHeightCells));
+            OnPropertyChanged(nameof(FootprintWidthPixels));
+            OnPropertyChanged(nameof(FootprintHeightPixels));
+            OnPropertyChanged(nameof(UnrotatedFootprintWidthPixels));
+            OnPropertyChanged(nameof(UnrotatedFootprintHeightPixels));
+        }
+
+        if (string.IsNullOrWhiteSpace(e.PropertyName)
+            || string.Equals(e.PropertyName, nameof(GameObject.HideContainedObjects), StringComparison.Ordinal))
+        {
+            OnPropertyChanged(nameof(IncludeInPreview));
         }
     }
 
@@ -559,7 +579,7 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
 
     private void RefreshEffectiveDefinitionOwnedSource(bool raiseDependentProperties = false)
     {
-        var resolved = ResolveEffectiveDefinitionOwnedSource();
+        var resolved = GameObject.ResolveEffectiveDefinitionOwnedSource(_definitionResolver);
         if (ReferenceEquals(resolved, _effectiveDefinitionOwnedSource))
         {
             return;
@@ -581,19 +601,6 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
         {
             RaiseImageDerivedPropertyChanges();
         }
-    }
-
-    private GameObject ResolveEffectiveDefinitionOwnedSource()
-    {
-        if (_definitionResolver is null || !GameObject.LinkedBaseObjectId.HasValue)
-        {
-            return GameObject;
-        }
-
-        var definition = _definitionResolver(GameObject.LinkedBaseObjectId.Value);
-        return definition is null || ReferenceEquals(definition, GameObject)
-            ? GameObject
-            : definition;
     }
 
     private void RaiseImageDerivedPropertyChanges()

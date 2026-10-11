@@ -2456,6 +2456,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         var choices = new List<MaterializeSourceObjectChoiceItem>();
         var seenObjectIds = new HashSet<Guid>();
 
+        if (scopeNode is GameObject currentObject)
+        {
+            foreach (var scopedObject in EnumerateGameObjectsRecursive(new[] { currentObject }))
+            {
+                AddMaterializeSourceChoice(choices, seenObjectIds, scopedObject, "Current Object");
+            }
+        }
+
         if (roomContext is not null)
         {
             foreach (var roomObject in EnumerateGameObjectsRecursive(roomContext.GameObjects))

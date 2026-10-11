@@ -78,6 +78,53 @@ public sealed class RoomObjectPreviewPlacementRuleTests
     }
 
     [Fact]
+    public void Execute_LinkedRoomObject_UsesBaseIncludeInPreviewValue()
+    {
+        var definition = new GameObject
+        {
+            Name = "Base Lamp",
+            IncludeInPreview = false
+        };
+        var instance = new GameObject
+        {
+            Name = "Placed Lamp",
+            LinkedBaseObjectId = definition.ObjectId,
+            IncludeInPreview = true
+        };
+        var project = BuildProjectWithRoomObject(instance);
+        project.BaseObjects.Add(definition);
+        ScopeHierarchy.AttachParents(project);
+
+        var registry = new ValidationRuleRegistry();
+        registry.Register(new RoomObjectPreviewPlacementRule());
+        var result = new ValidationEngine(registry).Execute(new ValidationExecutionRequest(project));
+
+        Assert.DoesNotContain(result.Issues, issue => issue.RuleId == "OBJ-005");
+    }
+
+    [Fact]
+    public void Execute_BaseObjectWithIncludeInPreviewFalse_IsNotMisclassifiedAsPlacedPreviewState()
+    {
+        var definition = new GameObject
+        {
+            Name = "Base Lamp",
+            IncludeInPreview = false
+        };
+        var project = new ProjectModel
+        {
+            Name = "BasePreviewFlag",
+            BaseObjects = [definition]
+        };
+        ScopeHierarchy.AttachParents(project);
+
+        var registry = new ValidationRuleRegistry();
+        registry.Register(new RoomObjectPreviewPlacementRule());
+        var result = new ValidationEngine(registry).Execute(new ValidationExecutionRequest(project));
+
+        Assert.DoesNotContain(result.Issues, issue => issue.RuleId == "OBJ-005");
+    }
+
+    [Fact]
     public void Execute_WithNestedRoomDescendantPlacementState_ReturnsWarning()
     {
         var nestedChild = new GameObject

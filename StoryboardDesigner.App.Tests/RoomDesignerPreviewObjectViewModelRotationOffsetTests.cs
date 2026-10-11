@@ -10,6 +10,44 @@ namespace StoryboardDesigner.App.Tests;
 
 public sealed class RoomDesignerPreviewObjectViewModelRotationOffsetTests
 {
+    [Fact]
+    public void LinkedPreview_UsesLiveBaseAppearanceAndKeepsPlacementEditsLocal()
+    {
+        var baseObject = new GameObject
+        {
+            ObjectId = Guid.NewGuid(),
+            FootprintWidthCells = 3,
+            FootprintHeightCells = 2,
+            IncludeInPreview = true
+        };
+        var instance = new GameObject
+        {
+            LinkedBaseObjectId = baseObject.ObjectId,
+            FootprintWidthCells = 1,
+            FootprintHeightCells = 1,
+            IncludeInPreview = false,
+            PositionX = 10,
+            ImageRotationDegrees = 0
+        };
+        var viewModel = new RoomDesignerPreviewObjectViewModel(instance, definitionResolver: id => id == baseObject.ObjectId ? baseObject : null);
+        viewModel.UpdateGridCellSize(10);
+
+        Assert.Equal(30d, viewModel.FootprintWidthPixels);
+        Assert.True(viewModel.IncludeInPreview);
+
+        baseObject.FootprintWidthCells = 4;
+        baseObject.IncludeInPreview = false;
+
+        Assert.Equal(40d, viewModel.FootprintWidthPixels);
+        Assert.False(viewModel.IncludeInPreview);
+        viewModel.PositionX = 22;
+        viewModel.RoomRotationDegrees = 180;
+        Assert.Equal(22d, instance.PositionX);
+        Assert.Equal(180d, instance.ImageRotationDegrees);
+        Assert.Equal(0d, baseObject.PositionX);
+        Assert.Equal(0d, baseObject.ImageRotationDegrees);
+    }
+
     [Theory]
     [InlineData(0d, 7d, -3d, 7d, -3d)]
     [InlineData(180d, -67d, -52d, 593.48d, 388.32d)]

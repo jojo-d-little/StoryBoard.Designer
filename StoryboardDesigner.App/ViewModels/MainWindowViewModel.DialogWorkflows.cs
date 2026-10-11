@@ -663,6 +663,17 @@ public sealed partial class MainWindowViewModel
 
         var originalActions = target.Actions.ToList();
         var replacementActions = CloneActions(workingActions);
+        var request = new ValidationExecutionRequest(
+            _project,
+            ValidationExecutionKind.ScopedNodeOnly,
+            scopeNode,
+            IncludeDescendants: false,
+            CompletionMode: ValidationCompletionMode.FullReport);
+
+        var existingIssues = BuildProjectValidationIssues(request).ProcessingResult.Issues
+            .Where(issue => TryGetActionPathParts(issue.Path, out _, out _))
+            .Select(MapValidationIssue)
+            .ToList();
 
         try
         {
@@ -674,18 +685,12 @@ public sealed partial class MainWindowViewModel
 
             ScopeHierarchy.AttachParents(_project);
 
-            var request = new ValidationExecutionRequest(
-                _project,
-                ValidationExecutionKind.ScopedNodeOnly,
-                scopeNode,
-                IncludeDescendants: false,
-                CompletionMode: ValidationCompletionMode.FullReport);
-
-            var result = BuildProjectValidationIssues(request);
-            return result.ProcessingResult.Issues
+            var candidateIssues = BuildProjectValidationIssues(request).ProcessingResult.Issues
                 .Where(issue => TryGetActionPathParts(issue.Path, out _, out _))
                 .Select(MapValidationIssue)
                 .ToList();
+
+            return ExcludeExistingValidationIssues(existingIssues, candidateIssues);
         }
         finally
         {
@@ -697,6 +702,35 @@ public sealed partial class MainWindowViewModel
 
             ScopeHierarchy.AttachParents(_project);
         }
+    }
+
+    private static IReadOnlyList<ProjectValidationIssue> ExcludeExistingValidationIssues(
+        IReadOnlyList<ProjectValidationIssue> existingIssues,
+        IReadOnlyList<ProjectValidationIssue> candidateIssues)
+    {
+        var existingCounts = existingIssues
+            .GroupBy(GetValidationIssueIdentity)
+            .ToDictionary(static group => group.Key, static group => group.Count());
+        var newIssues = new List<ProjectValidationIssue>();
+
+        foreach (var issue in candidateIssues)
+        {
+            var identity = GetValidationIssueIdentity(issue);
+            if (existingCounts.TryGetValue(identity, out var count) && count > 0)
+            {
+                existingCounts[identity] = count - 1;
+                continue;
+            }
+
+            newIssues.Add(issue);
+        }
+
+        return newIssues;
+    }
+
+    private static (string RuleId, string Path, string Description) GetValidationIssueIdentity(ProjectValidationIssue issue)
+    {
+        return (issue.RuleId, issue.Path, issue.Description);
     }
 }
 

@@ -46,12 +46,6 @@ public partial class RoomActionEditorDialog : Window
         public required string DisplayName { get; init; }
     }
 
-    private sealed class PresentationCueObjectChoiceItem
-    {
-        public Guid? ObjectId { get; init; }
-        public required string DisplayName { get; init; }
-    }
-
     private sealed class TimerOwnerTypeChoice
     {
         public TimerOwnerType? OwnerType { get; init; }
@@ -869,7 +863,7 @@ public partial class RoomActionEditorDialog : Window
             if (_workingCopy.ObjectPresentationCueObjectId.HasValue
                 && !BuildPresentationCueObjectChoices().Any(choice => choice.ObjectId == _workingCopy.ObjectPresentationCueObjectId.Value))
             {
-                System.Windows.MessageBox.Show(this, "Choose a current-room object or a direct child of this action's current object, or leave the target blank to use the command's primary target.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+                System.Windows.MessageBox.Show(this, "Choose a listed target, or explicitly select the command primary target.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -1235,29 +1229,12 @@ public partial class RoomActionEditorDialog : Window
         return configuredKeys;
     }
 
-    private IReadOnlyList<PresentationCueObjectChoiceItem> BuildPresentationCueObjectChoices()
+    private IReadOnlyList<PresentationCueTargetChoice> BuildPresentationCueObjectChoices()
     {
-        var currentObject = _defaultCurrentObjectId.HasValue
-            ? _materializeSourceObjectChoices.FirstOrDefault(choice => choice.ObjectId == _defaultCurrentObjectId.Value)?.SourceObject
-            : null;
-        var directChildIds = currentObject?.ContainedObjects
-            .Select(static child => child.ObjectId)
-            .ToHashSet() ?? new HashSet<Guid>();
-
-        return new[]
-            {
-                new PresentationCueObjectChoiceItem { ObjectId = null, DisplayName = "(Command primary target)" }
-            }
-            .Concat(_materializeSourceObjectChoices
-                .Where(choice => choice.ObjectId != Guid.Empty
-                    && (string.Equals(choice.SourceCategory, "Current Room", StringComparison.OrdinalIgnoreCase)
-                        || directChildIds.Contains(choice.ObjectId)))
-                .Select(static choice => new PresentationCueObjectChoiceItem
-                {
-                    ObjectId = choice.ObjectId,
-                    DisplayName = choice.DisplayName
-                }))
-            .ToList();
+        return PresentationCueTargetChoices.Build(
+            _materializeSourceObjectChoices,
+            _defaultCurrentObjectId,
+            _workingCopy.ObjectPresentationCueObjectId);
     }
 
     private static IReadOnlyList<TimerOwnerTypeChoice> BuildTimerOwnerTypeChoices(bool includeBlank)

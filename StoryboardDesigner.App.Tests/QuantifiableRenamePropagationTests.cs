@@ -1312,7 +1312,7 @@ public sealed class QuantifiableRenamePropagationTests
     }
 
     [Fact]
-    public void EditObjectBasicProperties_LinkedInstance_IgnoresNameSynonymEdits_WhileApplyingInstanceNameInGameEdit()
+    public void EditObjectBasicProperties_LinkedInstance_AppliesInstanceNameSynonymEdits()
     {
         var baseObjectId = Guid.NewGuid();
         var baseObject = new GameObject
@@ -1397,10 +1397,8 @@ public sealed class QuantifiableRenamePropagationTests
         Assert.True(updated);
         Assert.Equal("Fresh flowers", linkedInstance.NameInGame);
         Assert.Equal(2, linkedInstance.NameSynonyms.Count);
-        Assert.Contains("bouquet", linkedInstance.NameSynonyms, StringComparer.OrdinalIgnoreCase);
-        Assert.Contains("blossoms", linkedInstance.NameSynonyms, StringComparer.OrdinalIgnoreCase);
-        Assert.DoesNotContain("petals", linkedInstance.NameSynonyms, StringComparer.OrdinalIgnoreCase);
-        Assert.DoesNotContain("bloom", linkedInstance.NameSynonyms, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("petals", linkedInstance.NameSynonyms, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("bloom", linkedInstance.NameSynonyms, StringComparer.OrdinalIgnoreCase);
     }
 
 }

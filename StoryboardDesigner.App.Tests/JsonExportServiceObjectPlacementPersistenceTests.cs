@@ -628,7 +628,7 @@ public sealed class JsonExportServiceObjectPlacementPersistenceTests
     }
 
     [Fact]
-    public void TryLoadProjectModel_HydratesLinkedInstanceMovementRestrictions_FromDefinition()
+    public void TryLoadProjectModel_LeavesLinkedInstanceAppearanceOnDefinition()
     {
         var service = new JsonExportService();
         var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
@@ -699,9 +699,11 @@ public sealed class JsonExportServiceObjectPlacementPersistenceTests
                 .Rooms.Single()
                 .GameObjects.Single();
 
-            Assert.NotNull(loadedInstance.MovementRestrictions);
-            Assert.Equal(1, loadedInstance.MovementRestrictions!.SubsequentStacked.NW.MaxDistance);
-            Assert.False(loadedInstance.MovementRestrictions.SubsequentStacked.NW.AllowJumpOver);
+            Assert.Null(loadedInstance.MovementRestrictions);
+            var loadedDefinition = Assert.Single(loaded!.ObjectTemplates);
+            var effective = loadedInstance.ResolveEffectiveDefinitionOwnedSource(id => id == loadedDefinition.ObjectId ? loadedDefinition : null);
+            Assert.Equal(1, effective.MovementRestrictions!.SubsequentStacked.NW.MaxDistance);
+            Assert.False(effective.MovementRestrictions.SubsequentStacked.NW.AllowJumpOver);
         }
         finally
         {

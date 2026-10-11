@@ -1990,7 +1990,7 @@ public class JsonExportServiceProjectStateTests
             using (var objectDoc = JsonDocument.Parse(File.ReadAllText(savedObjectPath, Encoding.UTF8)))
             {
                 var savedObject = objectDoc.RootElement;
-                Assert.Equal("Area.StandardDoor", savedObject.GetProperty("objectType").GetString());
+                Assert.False(savedObject.TryGetProperty("objectType", out _));
                 Assert.Equal(linkedBaseObjectId.ToString(), savedObject.GetProperty("linkedBaseObjectId").GetString());
                 var overrides = savedObject.GetProperty("instanceOverrides");
                 Assert.Equal("North Door", overrides.GetProperty("NameInGame").GetString());
@@ -2007,7 +2007,7 @@ public class JsonExportServiceProjectStateTests
                 .SelectMany(r => r.GameObjects)
                 .Single(obj => string.Equals(obj.ProducerNotes, "door-instance", StringComparison.OrdinalIgnoreCase));
 
-            Assert.Equal("Area.StandardDoor", loadedRoomObject.ObjectType);
+            Assert.Equal("Standard Door", loadedRoomObject.ObjectType);
             Assert.Equal(linkedBaseObjectId, loadedRoomObject.LinkedBaseObjectId);
             Assert.Equal("North Door", loadedRoomObject.InstanceOverrides["NameInGame"]);
             Assert.Equal("Leads into the lab", loadedRoomObject.InstanceOverrides["Description"]);
@@ -2090,7 +2090,7 @@ public class JsonExportServiceProjectStateTests
             Assert.True(savedObject.GetProperty("linkActionsToBaseObject").GetBoolean());
             Assert.True(savedObject.TryGetProperty("instanceOverrides", out _));
             Assert.Equal("Standard Door", savedObject.GetProperty("name").GetString());
-            Assert.Equal("Area.StandardDoor", savedObject.GetProperty("objectType").GetString());
+            Assert.False(savedObject.TryGetProperty("objectType", out _));
 
             Assert.Equal("North Door", savedObject.GetProperty("nameInGame").GetString());
             Assert.False(savedObject.TryGetProperty("nameSynonyms", out _));
@@ -2111,7 +2111,7 @@ public class JsonExportServiceProjectStateTests
     }
 
     [Fact]
-    public void SaveProjectModel_LinkedRoomInstance_ReloadsWithDefinitionImageVariants()
+    public void SaveProjectModel_LinkedRoomInstance_ResolvesDefinitionSettingsWithoutPersistingCopies()
     {
         var service = new JsonExportService();
         var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
@@ -2174,17 +2174,22 @@ public class JsonExportServiceProjectStateTests
                 .Single();
 
             Assert.Equal(linkedBaseObjectId, loadedLinked.LinkedBaseObjectId);
-            Assert.Equal("return 'default';", loadedLinked.ImageVariantChooserScript);
-            Assert.Single(loadedLinked.ImageVariants);
-            Assert.Equal("default", loadedLinked.ImageVariants[0].VariantName);
-            Assert.Equal("images/base-tile.png", loadedLinked.ImageVariants[0].FullImagePath);
-            Assert.Equal("images/base-tile.png", loadedLinked.ResolveDefaultImagePath());
-            Assert.Equal(2, loadedLinked.FootprintWidthCells);
-            Assert.Equal(3, loadedLinked.FootprintHeightCells);
-            Assert.Equal("E", loadedLinked.FootprintOrientation);
-            Assert.Equal(4, loadedLinked.StackGroup);
-            Assert.Equal(5, loadedLinked.ObjectHeightUnits);
-            Assert.Equal(2, loadedLinked.HeightInRoom);
+            Assert.Equal(string.Empty, loadedLinked.ImageVariantChooserScript);
+            Assert.Empty(loadedLinked.ImageVariants);
+            Assert.Equal(1, loadedLinked.FootprintWidthCells);
+            Assert.Equal(1, loadedLinked.FootprintHeightCells);
+            var loadedBase = loaded!.Planets.SelectMany(planet => planet.Countries).SelectMany(country => country.Areas)
+                .SelectMany(area => area.BaseObjects).Single();
+            var settings = loadedLinked.ResolveEffectiveDefinitionOwnedSource(id => id == loadedBase.ObjectId ? loadedBase : null);
+            Assert.Equal("return 'default';", settings.ImageVariantChooserScript);
+            Assert.Single(settings.ImageVariants);
+            Assert.Equal("images/base-tile.png", settings.ResolveDefaultImagePath());
+            Assert.Equal(2, settings.FootprintWidthCells);
+            Assert.Equal(3, settings.FootprintHeightCells);
+            Assert.Equal("E", settings.FootprintOrientation);
+            Assert.Equal(4, settings.StackGroup);
+            Assert.Equal(5, settings.ObjectHeightUnits);
+            Assert.Equal(2, settings.HeightInRoom);
         }
         finally
         {
@@ -2196,7 +2201,7 @@ public class JsonExportServiceProjectStateTests
     }
 
     [Fact]
-    public void SaveProjectModel_LinkedRoomTemplateInstance_ReloadsWithDefinitionFootprint()
+    public void SaveProjectModel_LinkedRoomTemplateInstance_ResolvesDefinitionFootprint()
     {
         var service = new JsonExportService();
         var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
@@ -2245,9 +2250,12 @@ public class JsonExportServiceProjectStateTests
                 .Single();
 
             Assert.Equal(linkedBaseObjectId, loadedTemplateDoor.LinkedBaseObjectId);
-            Assert.Equal(6, loadedTemplateDoor.FootprintWidthCells);
-            Assert.Equal(1, loadedTemplateDoor.FootprintHeightCells);
-            Assert.Equal("N", loadedTemplateDoor.FootprintOrientation);
+            Assert.Equal(1, loadedTemplateDoor.FootprintWidthCells);
+            var loadedBase = loaded!.BaseObjects.Single();
+            var settings = loadedTemplateDoor.ResolveEffectiveDefinitionOwnedSource(id => id == loadedBase.ObjectId ? loadedBase : null);
+            Assert.Equal(6, settings.FootprintWidthCells);
+            Assert.Equal(1, settings.FootprintHeightCells);
+            Assert.Equal("N", settings.FootprintOrientation);
         }
         finally
         {
@@ -2259,7 +2267,7 @@ public class JsonExportServiceProjectStateTests
     }
 
     [Fact]
-    public void SaveProjectModel_LinkedInstance_HydratesFromDefinitionLocatedInRoomTemplate()
+    public void SaveProjectModel_LinkedInstance_ResolvesDefinitionFromRoomTemplate()
     {
         var service = new JsonExportService();
         var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
@@ -2314,9 +2322,14 @@ public class JsonExportServiceProjectStateTests
                 .Single();
 
             Assert.Equal(linkedBaseObjectId, loadedLinked.LinkedBaseObjectId);
-            Assert.Equal(4, loadedLinked.FootprintWidthCells);
-            Assert.Equal(2, loadedLinked.FootprintHeightCells);
-            Assert.Equal("W", loadedLinked.FootprintOrientation);
+            Assert.Equal(1, loadedLinked.FootprintWidthCells);
+            var loadedBase = loaded!.RoomTemplates
+                .Single(template => string.Equals(template.Name, "SourceTemplate", StringComparison.Ordinal))
+                .GameObjects.Single();
+            var settings = loadedLinked.ResolveEffectiveDefinitionOwnedSource(id => id == loadedBase.ObjectId ? loadedBase : null);
+            Assert.Equal(4, settings.FootprintWidthCells);
+            Assert.Equal(2, settings.FootprintHeightCells);
+            Assert.Equal("W", settings.FootprintOrientation);
         }
         finally
         {

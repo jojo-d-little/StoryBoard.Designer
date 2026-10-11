@@ -6,6 +6,50 @@ namespace StoryboardDesigner.App.Tests;
 public sealed class RoomDesignerTabViewModelPreviewWorkflowTests
 {
     [Fact]
+    public void LinkedContainerWithHideContainedObjectsFalse_ShowsItsFloorAndDoors()
+    {
+        var baseLeftDoor = new GameObject { ObjectId = Guid.NewGuid(), Name = "Left Door" };
+        var baseRightDoor = new GameObject { ObjectId = Guid.NewGuid(), Name = "Right Door" };
+        var baseObject = new GameObject
+        {
+            ObjectId = Guid.NewGuid(),
+            Name = "Elevator",
+            IsContainer = true,
+            HideContainedObjects = true,
+            ContainedObjects = [baseLeftDoor, baseRightDoor]
+        };
+        var instance = new GameObject
+        {
+            ObjectId = Guid.NewGuid(),
+            Name = "Elevator in Foyer",
+            LinkedBaseObjectId = baseObject.ObjectId,
+            IsContainer = true,
+            HideContainedObjects = true,
+            ContainedObjects =
+            [
+                new GameObject { ObjectId = Guid.NewGuid(), Name = "Left Door", LinkedBaseObjectId = baseLeftDoor.ObjectId },
+                new GameObject { ObjectId = Guid.NewGuid(), Name = "Right Door", LinkedBaseObjectId = baseRightDoor.ObjectId }
+            ]
+        };
+        var room = new Room { Name = "Foyer", GameObjects = [instance] };
+        var definitions = new[] { baseObject, baseLeftDoor, baseRightDoor }.ToDictionary(item => item.ObjectId);
+        var viewModel = new RoomDesignerTabViewModel(
+            room,
+            800,
+            600,
+            definitionResolver: id => definitions.GetValueOrDefault(id));
+
+        Assert.Contains(viewModel.RoomChildObjects, item => item.GameObject.ObjectId == instance.ObjectId);
+        Assert.DoesNotContain(viewModel.RoomChildObjects, item => item.GameObject.Name == "Left Door");
+        Assert.DoesNotContain(viewModel.RoomChildObjects, item => item.GameObject.Name == "Right Door");
+
+        baseObject.HideContainedObjects = false;
+
+        Assert.Contains(viewModel.RoomChildObjects, item => item.GameObject.Name == "Left Door");
+        Assert.Contains(viewModel.RoomChildObjects, item => item.GameObject.Name == "Right Door");
+    }
+
+    [Fact]
     public void DirectionSlots_AlwaysExposeTenDirectionalEntriesIncludingUpAndDown()
     {
         var viewModel = CreateViewModel();

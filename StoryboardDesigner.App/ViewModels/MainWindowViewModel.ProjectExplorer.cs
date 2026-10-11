@@ -933,10 +933,18 @@ public sealed partial class MainWindowViewModel
             };
 
             if (node is GamePropertyNodeViewModel variableNode
-                && variableNode.Variable.SharedVariableId is Guid sharedId
-                && sharedId != Guid.Empty)
+                && TryResolveVariableOwnerObject(variableNode, out _))
             {
-                actions.Add(new TreeContextAction(LeaveSharedVariableActionId, "Leave Share..."));
+                actions.Add(new TreeContextAction("review-shared-property-relationships", "Review Shared Relationships..."));
+                if (variableNode.Variable.SharedVariableId is Guid sharedId && sharedId != Guid.Empty)
+                {
+                    actions.Add(new TreeContextAction("share-game-property", "Share with Another Property..."));
+                    actions.Add(new TreeContextAction(LeaveSharedVariableActionId, "Leave Share..."));
+                }
+                else
+                {
+                    actions.Add(new TreeContextAction("create-shared-game-property", "Create Shared Variable..."));
+                }
             }
 
             return actions;
@@ -2231,6 +2239,7 @@ public sealed partial class MainWindowViewModel
             "add-new-game-property" when node is GamePropertiesContainerNodeViewModel variablesNode => AddNewVariable(variablesNode),
             "review-game-properties" when node is GamePropertiesContainerNodeViewModel variablesNode => ReviewVariables(variablesNode),
             "share-game-property" when node is GamePropertyNodeViewModel variableNode => ShareGameProperty(variableNode),
+            "create-shared-game-property" when node is GamePropertyNodeViewModel variableNode => CreateSharedVariableForObjectProperty(variableNode),
             "review-shared-property-relationships" when node is GamePropertyNodeViewModel variableNode => ReviewSharedPropertyRelationships(variableNode),
             LeaveSharedVariableActionId when node is GamePropertyNodeViewModel variableNode => LeaveSharedVariable(variableNode),
             "remove-game-property" when node is GamePropertyNodeViewModel variableNode => RemoveVariableNode(variableNode),
@@ -6089,6 +6098,36 @@ public sealed partial class MainWindowViewModel
         ReviewSharedPropertyRelationships(variableNode);
     }
 
+    private bool CreateSharedVariableForObjectProperty(GamePropertyNodeViewModel variableNode)
+    {
+        if (!TryResolveVariableOwnerObject(variableNode, out var ownerObject) || ownerObject.ObjectId == Guid.Empty)
+        {
+            _projectUiService.ShowWarning("Only object properties can be added to the shared variable pool.", "Create Shared Variable");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(variableNode.Variable.Name))
+        {
+            _projectUiService.ShowWarning("Select a valid game property before creating a shared variable.", "Create Shared Variable");
+            return false;
+        }
+
+        if (variableNode.Variable.SharedVariableId is Guid existingId
+            && existingId != Guid.Empty
+            && _project.SharedVariables.Any(shared => shared.Id == existingId))
+        {
+            ReviewSharedPropertyRelationships(variableNode);
+            return true;
+        }
+
+        var sharedVariable = GetOrCreateSharedVariableForSource(ownerObject, variableNode.Variable);
+        SharedVariableReconciliationService.ReconcileInPlace(_project);
+        RefreshSharedPropertyIndicators();
+        NotifyProjectEdited();
+        ExportStatus = $"Created shared variable '{sharedVariable.Name}' for {ownerObject.Name}.{variableNode.Variable.Name}.";
+        return true;
+    }
+
     private bool ShareGameProperty(GamePropertyNodeViewModel variableNode)
     {
         var propertyName = variableNode.Variable.Name?.Trim() ?? string.Empty;
@@ -6211,6 +6250,7 @@ public sealed partial class MainWindowViewModel
         var sourcePropertyName = sourceVariable.Name?.Trim() ?? string.Empty;
         var sourceRestriction = sourceVariable.ValueRestriction;
         var choices = new List<GamePropertyChoiceItem>();
+        var seenObjectIds = new HashSet<Guid>();
 
         TryFindRoomAndAreaForObject(_project, sourceObject, out var sourceArea, out var sourceRoom);
 
@@ -6229,6 +6269,8 @@ public sealed partial class MainWindowViewModel
                                 continue;
                             }
 
+                            seenObjectIds.Add(candidate.ObjectId);
+
                             foreach (var variable in candidate.Variables.Where(v => v.ValueRestriction == sourceRestriction))
                             {
                                 choices.Add(new GamePropertyChoiceItem
@@ -6239,7 +6281,7 @@ public sealed partial class MainWindowViewModel
                                     Scope = PropertyResolutionScope.Object,
                                     ValueRestriction = variable.ValueRestriction,
                                     Priority = 0,
-                                    Relation = GamePropertyChoiceRelation.Sibling
+                                    Relation = GetObjectHierarchyRelation(sourceObject, candidate)
                                 });
                             }
                         }
@@ -6313,11 +6355,95 @@ public sealed partial class MainWindowViewModel
             }
         }
 
+        // Base and template properties are authored outside room instances. Include the
+        // source object's own definition tree so its contained child properties can be
+        // selected directly when creating a shared relationship.
+        var sourceHierarchyRoot = sourceObject;
+        while (sourceHierarchyRoot.ParentScope is GameObject parentObject)
+        {
+            sourceHierarchyRoot = parentObject;
+        }
+
+        foreach (var candidate in EnumerateGameObjectsRecursive([sourceHierarchyRoot]))
+        {
+            if (ReferenceEquals(candidate, sourceObject)
+                || candidate.ObjectId == Guid.Empty
+                || !seenObjectIds.Add(candidate.ObjectId))
+            {
+                continue;
+            }
+
+            foreach (var variable in candidate.Variables.Where(variable => variable.ValueRestriction == sourceRestriction))
+            {
+                choices.Add(new GamePropertyChoiceItem
+                {
+                    Value = BuildObjectShareTargetValue(candidate.ObjectId, variable.Name),
+                    ScopePath = $"Object Hierarchy: {BuildObjectHierarchyPath(candidate)}",
+                    OwnerVariable = BuildOwnerVariable(candidate.Name, variable.Name),
+                    Scope = PropertyResolutionScope.Object,
+                    ValueRestriction = variable.ValueRestriction,
+                    Priority = 0,
+                    Relation = GetObjectHierarchyRelation(sourceObject, candidate)
+                });
+            }
+        }
+
         return choices
             .OrderBy(choice => choice.Priority)
             .ThenBy(choice => choice.ScopePath, StringComparer.OrdinalIgnoreCase)
             .ThenBy(choice => choice.OwnerVariable, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static GamePropertyChoiceRelation GetObjectHierarchyRelation(GameObject sourceObject, GameObject candidate)
+    {
+        var candidateDepth = FindContainedObjectDepth(sourceObject, candidate);
+        if (candidateDepth > 0)
+        {
+            return candidateDepth == 1 ? GamePropertyChoiceRelation.Child : GamePropertyChoiceRelation.Descendant;
+        }
+
+        var sourceDepth = FindContainedObjectDepth(candidate, sourceObject);
+        if (sourceDepth > 0)
+        {
+            return sourceDepth == 1 ? GamePropertyChoiceRelation.Parent : GamePropertyChoiceRelation.Ancestor;
+        }
+
+        return GamePropertyChoiceRelation.Sibling;
+    }
+
+    private static int FindContainedObjectDepth(GameObject parent, GameObject target, int depth = 0)
+    {
+        for (var index = 0; index < parent.ContainedObjects.Count; index++)
+        {
+            var child = parent.ContainedObjects[index];
+            if (ReferenceEquals(child, target))
+            {
+                return depth + 1;
+            }
+
+            var nestedDepth = FindContainedObjectDepth(child, target, depth + 1);
+            if (nestedDepth > 0)
+            {
+                return nestedDepth;
+            }
+        }
+
+        return 0;
+    }
+
+    private static string BuildObjectHierarchyPath(GameObject gameObject)
+    {
+        var names = new Stack<string>();
+        GameObject current = gameObject;
+        names.Push(current.Name);
+        while (current.ParentScope is GameObject parent)
+        {
+            current = parent;
+            names.Push(current.Name);
+        }
+
+        return string.Join(" > ", names);
     }
 
     private static bool TryFindRoomAndAreaForObject(ProjectModel project, GameObject targetObject, out Area area, out Room room)
@@ -6348,6 +6474,21 @@ public sealed partial class MainWindowViewModel
 
     private static bool TryFindObjectById(ProjectModel project, Guid objectId, out GameObject gameObject)
     {
+        var definitionRoots = project.EnumerateAllObjectTemplateRoots()
+            .Concat(project.BaseObjects)
+            .Concat(project.Planets.SelectMany(static planet => planet.BaseObjects))
+            .Concat(project.Planets.SelectMany(static planet => planet.Countries).SelectMany(static country => country.BaseObjects))
+            .Concat(project.Planets.SelectMany(static planet => planet.Countries)
+                .SelectMany(static country => country.Areas).SelectMany(static area => area.BaseObjects))
+            .Concat(project.GlobalScope.GameObjects);
+        var definitionMatch = EnumerateGameObjectsRecursiveStatic(definitionRoots)
+            .FirstOrDefault(candidate => candidate.ObjectId == objectId);
+        if (definitionMatch is not null)
+        {
+            gameObject = definitionMatch;
+            return true;
+        }
+
         foreach (var planet in project.Planets)
         {
             foreach (var country in planet.Countries)
@@ -8661,6 +8802,7 @@ public sealed partial class MainWindowViewModel
 
         if (linkedDefinition is not null)
         {
+            current = EnforceLinkedInstanceEditableFieldPolicy(objectNode.GameObject, linkedDefinition, current);
             current = current with
             {
                 LinkedEditNotice = BuildLinkedInstanceEditNotice(objectNode.GameObject),
@@ -8675,7 +8817,7 @@ public sealed partial class MainWindowViewModel
 
         if (linkedDefinition is not null)
         {
-            updated = EnforceLinkedInstanceEditableFieldPolicy(objectNode.GameObject, updated);
+            updated = EnforceLinkedInstanceEditableFieldPolicy(objectNode.GameObject, linkedDefinition!, updated);
         }
 
         var scopedObjects = GetScopedObjectSiblings(objectNode);
@@ -8701,7 +8843,7 @@ public sealed partial class MainWindowViewModel
                          || hasNameInGameOverrideChange
                          || !objectNode.GameObject.NameSynonyms.SequenceEqual(updatedNameSynonyms, StringComparer.OrdinalIgnoreCase)
                          || hasNameSynonymsOverrideChange
-                         || !string.Equals(objectNode.GameObject.ProducerNotes, updated.ProducerNotes, StringComparison.Ordinal)
+                         || (linkedDefinition is null && !string.Equals(objectNode.GameObject.ProducerNotes, updated.ProducerNotes, StringComparison.Ordinal))
                          || objectNode.GameObject.IsInventoriable != updated.IsInventoriable
                          || objectNode.GameObject.InventoryPointsDefaultValue != updated.InventoryPointsDefaultValue
                          || objectNode.GameObject.IsContainer != updated.IsContainer
@@ -8732,9 +8874,10 @@ public sealed partial class MainWindowViewModel
                          || !string.Equals(objectNode.GameObject.HeadingDirection, updated.HeadingDirection, StringComparison.Ordinal)
                          || objectNode.GameObject.ObjectHeightUnits != updated.ObjectHeightUnits
                          || objectNode.GameObject.HeightInRoom != updated.HeightInRoom
-                         || !Nullable.Equals(objectNode.GameObject.StackScaleStepOverride, updated.StackScaleStepOverride)
-                         || !Nullable.Equals(objectNode.GameObject.MinStackScaleOverride, updated.MinStackScaleOverride)
-                         || !AreEquivalentMovementRestrictions(objectNode.GameObject.MovementRestrictions, updated.MovementRestrictions)
+                         || (linkedDefinition is null
+                             && (!Nullable.Equals(objectNode.GameObject.StackScaleStepOverride, updated.StackScaleStepOverride)
+                                 || !Nullable.Equals(objectNode.GameObject.MinStackScaleOverride, updated.MinStackScaleOverride)
+                                 || !AreEquivalentMovementRestrictions(objectNode.GameObject.MovementRestrictions, updated.MovementRestrictions)))
                          || objectNode.GameObject.IsCompositeTarget != updated.IsCompositeTarget
                          || objectNode.GameObject.IsCompositeReversible != updated.IsCompositeReversible
                          || !string.Equals(objectNode.GameObject.CompositePartRequirementMode, updated.CompositePartRequirementMode, StringComparison.Ordinal)
@@ -8770,7 +8913,10 @@ public sealed partial class MainWindowViewModel
         }
         objectNode.GameObject.NameInGame = updated.NameInGame;
         objectNode.GameObject.NameSynonyms = updatedNameSynonyms;
-        objectNode.GameObject.ProducerNotes = updated.ProducerNotes;
+        if (linkedDefinition is null)
+        {
+            objectNode.GameObject.ProducerNotes = updated.ProducerNotes;
+        }
         objectNode.GameObject.IsInventoriable = updated.IsInventoriable;
         objectNode.GameObject.InventoryPointsDefaultValue = updated.InventoryPointsDefaultValue;
         objectNode.GameObject.IsContainer = updated.IsContainer;
@@ -8801,9 +8947,12 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.HeadingDirection = updated.HeadingDirection;
         objectNode.GameObject.ObjectHeightUnits = updated.ObjectHeightUnits;
         objectNode.GameObject.HeightInRoom = updated.HeightInRoom;
-        objectNode.GameObject.StackScaleStepOverride = updated.StackScaleStepOverride;
-        objectNode.GameObject.MinStackScaleOverride = updated.MinStackScaleOverride;
-        objectNode.GameObject.MovementRestrictions = CloneMovementRestrictions(updated.MovementRestrictions);
+        if (linkedDefinition is null)
+        {
+            objectNode.GameObject.StackScaleStepOverride = updated.StackScaleStepOverride;
+            objectNode.GameObject.MinStackScaleOverride = updated.MinStackScaleOverride;
+            objectNode.GameObject.MovementRestrictions = CloneMovementRestrictions(updated.MovementRestrictions);
+        }
         objectNode.GameObject.IsCompositeTarget = updated.IsCompositeTarget;
         objectNode.GameObject.IsCompositeReversible = updated.IsCompositeReversible;
         objectNode.GameObject.CompositePartRequirementMode = updated.CompositePartRequirementMode;
@@ -8828,7 +8977,7 @@ public sealed partial class MainWindowViewModel
             {
                 var instance = CloneTemplateObject(objectNode.GameObject);
                 instance.Quantity = 1;
-                ConfigureAsLinkedRoomInstance(instance, objectNode.GameObject.ObjectId);
+                ConfigureAsLinkedRoomInstance(instance, objectNode.GameObject, objectNode.GameObject.ObjectId);
                 instance.Name = normalizedName;
 
                 var addedToModel = parentObjectNode is not null
@@ -8919,54 +9068,55 @@ public sealed partial class MainWindowViewModel
         return definitionValue ?? string.Empty;
     }
 
-    private static ObjectBasicPropertiesEditRequest EnforceLinkedInstanceEditableFieldPolicy(GameObject instance, ObjectBasicPropertiesEditRequest updated)
+    private static ObjectBasicPropertiesEditRequest EnforceLinkedInstanceEditableFieldPolicy(GameObject instance, GameObject definition, ObjectBasicPropertiesEditRequest updated)
     {
+        var settings = definition;
         return updated with
         {
-            ProducerNotes = instance.ProducerNotes,
-            IsInventoriable = instance.IsInventoriable,
-            InventoryPointsDefaultValue = instance.InventoryPointsDefaultValue,
-            IsContainer = instance.IsContainer,
-            HideContainedObjects = instance.HideContainedObjects,
-            ShowWhenContained = instance.ShowWhenContained,
-            ContainerPointsDefaultValue = instance.ContainerPointsDefaultValue,
-            IsCapacityPointShareDividerEnabled = instance.IsCapacityPointShareDividerEnabled,
-            CapacityPointShareDividerDefaultValue = instance.CapacityPointShareDividerDefaultValue,
-            IsOpenable = instance.IsOpenable,
-            IsOpenDefaultValue = instance.IsOpenDefaultValue,
-            IsLockable = instance.IsLockable,
-            IsLockedDefaultValue = instance.IsLockedDefaultValue,
-            IsActivatable = instance.IsActivatable,
-            IsActiveDefaultValue = instance.IsActiveDefaultValue,
-            IsHidable = instance.IsHidable,
-            IsHiddenDefaultValue = instance.IsHiddenDefaultValue,
-            IsQuantifiable = instance.IsQuantifiable,
-            QuantifiablePlacementDistributionMode = instance.QuantifiablePlacementDistributionMode,
-            IsMovable = instance.IsMovable,
-            IsMovableDefaultValue = instance.IsMovableDefaultValue,
-            SpatialType = instance.SpatialType,
-            StackGroup = instance.StackGroup,
-            FootprintWidthCells = instance.FootprintWidthCells,
-            FootprintHeightCells = instance.FootprintHeightCells,
-            FootprintOrientation = instance.FootprintOrientation,
-            FootprintCornerStyle = instance.FootprintCornerStyle,
-            HeadingDirection = instance.HeadingDirection,
-            ObjectHeightUnits = instance.ObjectHeightUnits,
-            HeightInRoom = instance.HeightInRoom,
-            StackScaleStepOverride = instance.StackScaleStepOverride,
-            MinStackScaleOverride = instance.MinStackScaleOverride,
-            MovementRestrictions = CloneMovementRestrictions(instance.MovementRestrictions),
-            IsCompositeTarget = instance.IsCompositeTarget,
-            IsCompositeReversible = instance.IsCompositeReversible,
-            CompositePartRequirementMode = instance.CompositePartRequirementMode,
-            CompositeMinimumRequiredPartCount = instance.CompositeMinimumRequiredPartCount,
-            CompositeRequiredPartObjectIds = ExpandCompositePartObjectIds(instance.CompositeRequiredParts),
-            CompositeRequiredParts = CloneCompositePartRequirements(instance.CompositeRequiredParts),
-            FullImagePath = instance.ResolveDefaultImagePath(),
+            ProducerNotes = settings.ProducerNotes,
+            IsInventoriable = settings.IsInventoriable,
+            InventoryPointsDefaultValue = settings.InventoryPointsDefaultValue,
+            IsContainer = settings.IsContainer,
+            HideContainedObjects = settings.HideContainedObjects,
+            ShowWhenContained = settings.ShowWhenContained,
+            ContainerPointsDefaultValue = settings.ContainerPointsDefaultValue,
+            IsCapacityPointShareDividerEnabled = settings.IsCapacityPointShareDividerEnabled,
+            CapacityPointShareDividerDefaultValue = settings.CapacityPointShareDividerDefaultValue,
+            IsOpenable = settings.IsOpenable,
+            IsOpenDefaultValue = settings.IsOpenDefaultValue,
+            IsLockable = settings.IsLockable,
+            IsLockedDefaultValue = settings.IsLockedDefaultValue,
+            IsActivatable = settings.IsActivatable,
+            IsActiveDefaultValue = settings.IsActiveDefaultValue,
+            IsHidable = settings.IsHidable,
+            IsHiddenDefaultValue = settings.IsHiddenDefaultValue,
+            IsQuantifiable = settings.IsQuantifiable,
+            QuantifiablePlacementDistributionMode = settings.QuantifiablePlacementDistributionMode,
+            IsMovable = settings.IsMovable,
+            IsMovableDefaultValue = settings.IsMovableDefaultValue,
+            SpatialType = settings.SpatialType,
+            StackGroup = settings.StackGroup,
+            FootprintWidthCells = settings.FootprintWidthCells,
+            FootprintHeightCells = settings.FootprintHeightCells,
+            FootprintOrientation = settings.FootprintOrientation,
+            FootprintCornerStyle = settings.FootprintCornerStyle,
+            HeadingDirection = settings.HeadingDirection,
+            ObjectHeightUnits = settings.ObjectHeightUnits,
+            HeightInRoom = settings.HeightInRoom,
+            StackScaleStepOverride = settings.StackScaleStepOverride,
+            MinStackScaleOverride = settings.MinStackScaleOverride,
+            MovementRestrictions = CloneMovementRestrictions(settings.MovementRestrictions),
+            IsCompositeTarget = settings.IsCompositeTarget,
+            IsCompositeReversible = settings.IsCompositeReversible,
+            CompositePartRequirementMode = settings.CompositePartRequirementMode,
+            CompositeMinimumRequiredPartCount = settings.CompositeMinimumRequiredPartCount,
+            CompositeRequiredPartObjectIds = ExpandCompositePartObjectIds(settings.CompositeRequiredParts),
+            CompositeRequiredParts = CloneCompositePartRequirements(settings.CompositeRequiredParts),
+            FullImagePath = settings.ResolveDefaultImagePath(),
             ImageRotationDegrees = instance.ImageRotationDegrees,
-            ImageVariants = instance.ImageVariants,
-            ImageVariantChooserScript = instance.ImageVariantChooserScript,
-            LockOperationRequirements = CloneLockOperationRequirements(instance.LockOperationRequirements)
+            ImageVariants = settings.ImageVariants,
+            ImageVariantChooserScript = settings.ImageVariantChooserScript,
+            LockOperationRequirements = CloneLockOperationRequirements(settings.LockOperationRequirements)
         };
     }
 
@@ -9357,10 +9507,10 @@ public sealed partial class MainWindowViewModel
     {
         if (!TryResolveLinkedBaseObjectScopePath(gameObject, out var basePath))
         {
-            return "Linked instance: base-owned fields write through to the base object.";
+            return "Linked instance: name, synonyms, and copied game properties belong to this placement. Appearance and feature settings come from its Base Object.";
         }
 
-        return $"Linked instance: base-owned fields write through to the base object. Base item path: {basePath}";
+        return $"Linked instance: name, synonyms, and copied game properties belong to this placement. Appearance and feature settings come from its Base Object. Base item path: {basePath}";
     }
 
     public bool EditObjectBasicProperties(GlobalObjectNodeViewModel objectNode)
@@ -9386,6 +9536,7 @@ public sealed partial class MainWindowViewModel
 
         if (linkedDefinition is not null)
         {
+            current = EnforceLinkedInstanceEditableFieldPolicy(objectNode.GameObject, linkedDefinition, current);
             current = current with
             {
                 LinkedEditNotice = BuildLinkedInstanceEditNotice(objectNode.GameObject),
@@ -9400,7 +9551,7 @@ public sealed partial class MainWindowViewModel
 
         if (linkedDefinition is not null)
         {
-            updated = EnforceLinkedInstanceEditableFieldPolicy(objectNode.GameObject, updated);
+            updated = EnforceLinkedInstanceEditableFieldPolicy(objectNode.GameObject, linkedDefinition!, updated);
         }
 
         var scopedObjects = GetScopedObjectSiblings(objectNode);
@@ -9426,7 +9577,7 @@ public sealed partial class MainWindowViewModel
                          || hasNameInGameOverrideChange
                          || !objectNode.GameObject.NameSynonyms.SequenceEqual(updatedNameSynonyms, StringComparer.OrdinalIgnoreCase)
                          || hasNameSynonymsOverrideChange
-                         || !string.Equals(objectNode.GameObject.ProducerNotes, updated.ProducerNotes, StringComparison.Ordinal)
+                         || (linkedDefinition is null && !string.Equals(objectNode.GameObject.ProducerNotes, updated.ProducerNotes, StringComparison.Ordinal))
                          || objectNode.GameObject.IsInventoriable != updated.IsInventoriable
                          || objectNode.GameObject.InventoryPointsDefaultValue != updated.InventoryPointsDefaultValue
                          || objectNode.GameObject.IsContainer != updated.IsContainer
@@ -9457,9 +9608,10 @@ public sealed partial class MainWindowViewModel
                          || !string.Equals(objectNode.GameObject.HeadingDirection, updated.HeadingDirection, StringComparison.Ordinal)
                          || objectNode.GameObject.ObjectHeightUnits != updated.ObjectHeightUnits
                          || objectNode.GameObject.HeightInRoom != updated.HeightInRoom
-                         || !Nullable.Equals(objectNode.GameObject.StackScaleStepOverride, updated.StackScaleStepOverride)
-                         || !Nullable.Equals(objectNode.GameObject.MinStackScaleOverride, updated.MinStackScaleOverride)
-                         || !AreEquivalentMovementRestrictions(objectNode.GameObject.MovementRestrictions, updated.MovementRestrictions)
+                         || (linkedDefinition is null
+                             && (!Nullable.Equals(objectNode.GameObject.StackScaleStepOverride, updated.StackScaleStepOverride)
+                                 || !Nullable.Equals(objectNode.GameObject.MinStackScaleOverride, updated.MinStackScaleOverride)
+                                 || !AreEquivalentMovementRestrictions(objectNode.GameObject.MovementRestrictions, updated.MovementRestrictions)))
                          || objectNode.GameObject.IsCompositeTarget != updated.IsCompositeTarget
                          || objectNode.GameObject.IsCompositeReversible != updated.IsCompositeReversible
                          || !string.Equals(objectNode.GameObject.CompositePartRequirementMode, updated.CompositePartRequirementMode, StringComparison.Ordinal)
@@ -9483,7 +9635,10 @@ public sealed partial class MainWindowViewModel
         }
         objectNode.GameObject.NameInGame = updated.NameInGame;
         objectNode.GameObject.NameSynonyms = updatedNameSynonyms;
-        objectNode.GameObject.ProducerNotes = updated.ProducerNotes;
+        if (linkedDefinition is null)
+        {
+            objectNode.GameObject.ProducerNotes = updated.ProducerNotes;
+        }
         objectNode.GameObject.IsInventoriable = updated.IsInventoriable;
         objectNode.GameObject.InventoryPointsDefaultValue = updated.InventoryPointsDefaultValue;
         objectNode.GameObject.IsContainer = updated.IsContainer;
@@ -9514,9 +9669,12 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.HeadingDirection = updated.HeadingDirection;
         objectNode.GameObject.ObjectHeightUnits = updated.ObjectHeightUnits;
         objectNode.GameObject.HeightInRoom = updated.HeightInRoom;
-        objectNode.GameObject.StackScaleStepOverride = updated.StackScaleStepOverride;
-        objectNode.GameObject.MinStackScaleOverride = updated.MinStackScaleOverride;
-        objectNode.GameObject.MovementRestrictions = CloneMovementRestrictions(updated.MovementRestrictions);
+        if (linkedDefinition is null)
+        {
+            objectNode.GameObject.StackScaleStepOverride = updated.StackScaleStepOverride;
+            objectNode.GameObject.MinStackScaleOverride = updated.MinStackScaleOverride;
+            objectNode.GameObject.MovementRestrictions = CloneMovementRestrictions(updated.MovementRestrictions);
+        }
         objectNode.GameObject.IsCompositeTarget = updated.IsCompositeTarget;
         objectNode.GameObject.IsCompositeReversible = updated.IsCompositeReversible;
         objectNode.GameObject.CompositePartRequirementMode = updated.CompositePartRequirementMode;
@@ -9624,6 +9782,7 @@ public sealed partial class MainWindowViewModel
 
         if (linkedDefinition is not null)
         {
+            current = EnforceLinkedInstanceEditableFieldPolicy(objectNode.GameObject, linkedDefinition, current);
             current = current with
             {
                 LinkedEditNotice = BuildLinkedInstanceEditNotice(objectNode.GameObject),
@@ -9638,7 +9797,7 @@ public sealed partial class MainWindowViewModel
 
         if (linkedDefinition is not null)
         {
-            updated = EnforceLinkedInstanceEditableFieldPolicy(objectNode.GameObject, updated);
+            updated = EnforceLinkedInstanceEditableFieldPolicy(objectNode.GameObject, linkedDefinition!, updated);
         }
 
         var scopedObjects = GetScopedObjectSiblings(objectNode);
@@ -9664,7 +9823,7 @@ public sealed partial class MainWindowViewModel
                          || hasNameInGameOverrideChange
                          || !objectNode.GameObject.NameSynonyms.SequenceEqual(updatedNameSynonyms, StringComparer.OrdinalIgnoreCase)
                          || hasNameSynonymsOverrideChange
-                         || !string.Equals(objectNode.GameObject.ProducerNotes, updated.ProducerNotes, StringComparison.Ordinal)
+                         || (linkedDefinition is null && !string.Equals(objectNode.GameObject.ProducerNotes, updated.ProducerNotes, StringComparison.Ordinal))
                          || objectNode.GameObject.IsInventoriable != updated.IsInventoriable
                          || objectNode.GameObject.InventoryPointsDefaultValue != updated.InventoryPointsDefaultValue
                          || objectNode.GameObject.IsContainer != updated.IsContainer
@@ -9695,9 +9854,10 @@ public sealed partial class MainWindowViewModel
                          || !string.Equals(objectNode.GameObject.HeadingDirection, updated.HeadingDirection, StringComparison.Ordinal)
                          || objectNode.GameObject.ObjectHeightUnits != updated.ObjectHeightUnits
                          || objectNode.GameObject.HeightInRoom != updated.HeightInRoom
-                         || !Nullable.Equals(objectNode.GameObject.StackScaleStepOverride, updated.StackScaleStepOverride)
-                         || !Nullable.Equals(objectNode.GameObject.MinStackScaleOverride, updated.MinStackScaleOverride)
-                         || !AreEquivalentMovementRestrictions(objectNode.GameObject.MovementRestrictions, updated.MovementRestrictions)
+                         || (linkedDefinition is null
+                             && (!Nullable.Equals(objectNode.GameObject.StackScaleStepOverride, updated.StackScaleStepOverride)
+                                 || !Nullable.Equals(objectNode.GameObject.MinStackScaleOverride, updated.MinStackScaleOverride)
+                                 || !AreEquivalentMovementRestrictions(objectNode.GameObject.MovementRestrictions, updated.MovementRestrictions)))
                          || objectNode.GameObject.IsCompositeTarget != updated.IsCompositeTarget
                          || objectNode.GameObject.IsCompositeReversible != updated.IsCompositeReversible
                          || !string.Equals(objectNode.GameObject.CompositePartRequirementMode, updated.CompositePartRequirementMode, StringComparison.Ordinal)
@@ -9725,7 +9885,10 @@ public sealed partial class MainWindowViewModel
         }
         objectNode.GameObject.NameInGame = updated.NameInGame;
         objectNode.GameObject.NameSynonyms = updatedNameSynonyms;
-        objectNode.GameObject.ProducerNotes = updated.ProducerNotes;
+        if (linkedDefinition is null)
+        {
+            objectNode.GameObject.ProducerNotes = updated.ProducerNotes;
+        }
         objectNode.GameObject.IsInventoriable = updated.IsInventoriable;
         objectNode.GameObject.InventoryPointsDefaultValue = updated.InventoryPointsDefaultValue;
         objectNode.GameObject.IsContainer = updated.IsContainer;
@@ -9756,9 +9919,12 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.HeadingDirection = updated.HeadingDirection;
         objectNode.GameObject.ObjectHeightUnits = updated.ObjectHeightUnits;
         objectNode.GameObject.HeightInRoom = updated.HeightInRoom;
-        objectNode.GameObject.StackScaleStepOverride = updated.StackScaleStepOverride;
-        objectNode.GameObject.MinStackScaleOverride = updated.MinStackScaleOverride;
-        objectNode.GameObject.MovementRestrictions = CloneMovementRestrictions(updated.MovementRestrictions);
+        if (linkedDefinition is null)
+        {
+            objectNode.GameObject.StackScaleStepOverride = updated.StackScaleStepOverride;
+            objectNode.GameObject.MinStackScaleOverride = updated.MinStackScaleOverride;
+            objectNode.GameObject.MovementRestrictions = CloneMovementRestrictions(updated.MovementRestrictions);
+        }
         objectNode.GameObject.IsCompositeTarget = updated.IsCompositeTarget;
         objectNode.GameObject.IsCompositeReversible = updated.IsCompositeReversible;
         objectNode.GameObject.CompositePartRequirementMode = updated.CompositePartRequirementMode;
@@ -10575,7 +10741,7 @@ public sealed partial class MainWindowViewModel
         cloned.Quantity = quantity;
         cloned.QuantifiablePlacementDistributionMode = distributionMode;
         var linkedBaseObjectId = sourceObject.LinkedBaseObjectId ?? sourceObject.ObjectId;
-        ConfigureAsLinkedRoomInstance(cloned, linkedBaseObjectId);
+        ConfigureAsLinkedRoomInstance(cloned, sourceObject, linkedBaseObjectId);
         cloned.Name = MakeUniqueScopedEntityName(roomNode.Room.GameObjects, static obj => obj.Name, sourceObject.Name, cloned);
 
         if (!roomNode.Room.AddChildScope(cloned))
@@ -10608,7 +10774,7 @@ public sealed partial class MainWindowViewModel
         cloned.Quantity = quantity;
         cloned.QuantifiablePlacementDistributionMode = distributionMode;
         var linkedBaseObjectId = sourceObject.LinkedBaseObjectId ?? sourceObject.ObjectId;
-        ConfigureAsLinkedRoomInstance(cloned, linkedBaseObjectId);
+        ConfigureAsLinkedRoomInstance(cloned, sourceObject, linkedBaseObjectId);
         cloned.Name = MakeUniqueScopedEntityName(templateRoomNode.Room.GameObjects, static obj => obj.Name, sourceObject.Name, cloned);
         ApplyDesignerTemplateScope(cloned);
 
@@ -11506,7 +11672,7 @@ public sealed partial class MainWindowViewModel
                 instance.Quantity = 1;
                 if (index > 0)
                 {
-                    ConfigureAsLinkedRoomInstance(instance, interactiveObject.ObjectId);
+                    ConfigureAsLinkedRoomInstance(instance, interactiveObject, interactiveObject.ObjectId);
                 }
 
                 instance.Name = MakeUniqueScopedEntityName(gameObjects, static obj => obj.Name, objectName, instance);
@@ -11650,7 +11816,7 @@ public sealed partial class MainWindowViewModel
                 instance.Quantity = 1;
                 if (index > 0)
                 {
-                    ConfigureAsLinkedRoomInstance(instance, interactiveObject.ObjectId);
+                    ConfigureAsLinkedRoomInstance(instance, interactiveObject, interactiveObject.ObjectId);
                 }
 
                 instance.Name = MakeUniqueScopedEntityName(siblings, static obj => obj.Name, objectName, instance);
@@ -11977,6 +12143,7 @@ public sealed partial class MainWindowViewModel
         clone.DesignerPersistenceScopeKind = template.DesignerPersistenceScopeKind;
         BuildObjectCloneReferenceMaps(template, clone, out var actionIds, out var soundEffectIds);
         clone.SequenceDefinitions = CloneSequenceDefinitionsWithMaps(template.SequenceDefinitions, actionIds, soundEffectIds);
+        RemapClonedObjectTargets(template, clone);
 
         clone.InitializeFeatureFlagsFromKnownVariables();
         clone.ApplyFeatureVariableContract();
@@ -12013,6 +12180,67 @@ public sealed partial class MainWindowViewModel
         Map(source, clone);
         actionIds = mappedActionIds;
         soundEffectIds = mappedSoundEffectIds;
+    }
+
+    private static void RemapClonedObjectTargets(GameObject source, GameObject clone)
+    {
+        var objectIds = new Dictionary<Guid, Guid>();
+        void Map(GameObject original, GameObject copy)
+        {
+            objectIds[original.ObjectId] = copy.ObjectId;
+            for (var index = 0; index < Math.Min(original.ContainedObjects.Count, copy.ContainedObjects.Count); index++)
+            {
+                Map(original.ContainedObjects[index], copy.ContainedObjects[index]);
+            }
+        }
+
+        void Remap(GameObject copy)
+        {
+            foreach (var action in copy.AvailableActions)
+            {
+                RemapAction(action);
+            }
+
+            foreach (var sequence in copy.SequenceDefinitions)
+            {
+                foreach (var step in sequence.Steps ?? [])
+                {
+                    if (step.InlineAction is null)
+                    {
+                        continue;
+                    }
+
+                    var action = JsonExportService.ToCommandActionModel(step.InlineAction);
+                    RemapAction(action);
+                    step.InlineAction = JsonExportService.ToCommandActionDtoForSequence(action, copy.AvailableActions);
+                }
+            }
+
+            foreach (var child in copy.ContainedObjects)
+            {
+                Remap(child);
+            }
+        }
+
+        void RemapAction(CommandAction action)
+        {
+            if (action.MoveTargetObjectId is { } moveId && objectIds.TryGetValue(moveId, out var mappedMoveId))
+            {
+                action.MoveTargetObjectId = mappedMoveId;
+            }
+            if (action.RotateTargetObjectId is { } rotateId && objectIds.TryGetValue(rotateId, out var mappedRotateId))
+            {
+                action.RotateTargetObjectId = mappedRotateId;
+            }
+            if (action.ObjectPresentationCueObjectId is { } cueId && objectIds.TryGetValue(cueId, out var mappedCueId))
+            {
+                action.ObjectPresentationCueObjectId = mappedCueId;
+            }
+            action.Payload = action.CreatePayloadSnapshot();
+        }
+
+        Map(source, clone);
+        Remap(clone);
     }
 
     private static void ApplyDesignerTemplateScope(IEnumerable<GameObject> objects)
@@ -12056,19 +12284,38 @@ public sealed partial class MainWindowViewModel
         }
     }
 
-    private static void ConfigureAsLinkedRoomInstance(GameObject instance, Guid linkedBaseObjectId)
+    private void ConfigureAsLinkedRoomInstance(GameObject instance, GameObject source, Guid linkedBaseObjectId)
     {
         instance.LinkedBaseObjectId = linkedBaseObjectId;
         instance.LinkActionsToBaseObject = true;
-        ClearActionsRecursively(instance);
+        instance.ProducerNotes = string.Empty;
+        instance.StackScaleStepOverride = null;
+        instance.MinStackScaleOverride = null;
+        instance.MovementRestrictions = null;
+        LinkChildren(instance, source);
+        ClearBehaviorRecursively(instance);
+        LinkedBaseObjectSharedVariableCloner.PreserveAuthoredMemberships(_project, source, instance);
+
+        static void LinkChildren(GameObject copy, GameObject original)
+        {
+            for (var index = 0; index < Math.Min(copy.ContainedObjects.Count, original.ContainedObjects.Count); index++)
+            {
+                var sourceChild = original.ContainedObjects[index];
+                var placedChild = copy.ContainedObjects[index];
+                placedChild.LinkedBaseObjectId = sourceChild.LinkedBaseObjectId ?? sourceChild.ObjectId;
+                placedChild.LinkActionsToBaseObject = true;
+                LinkChildren(placedChild, sourceChild);
+            }
+        }
     }
 
-    private static void ClearActionsRecursively(GameObject obj)
+    private static void ClearBehaviorRecursively(GameObject obj)
     {
         obj.AvailableActions.Clear();
+        obj.SequenceDefinitions.Clear();
         foreach (var child in obj.ContainedObjects)
         {
-            ClearActionsRecursively(child);
+            ClearBehaviorRecursively(child);
         }
     }
 
@@ -12485,11 +12732,15 @@ public sealed partial class MainWindowViewModel
                 MoveAllowJumpOver = movePayload.AllowJumpOver,
                 MoveVisualTransitionHint = movePayload.VisualTransitionHint,
                 MoveTravelVisualizationMode = movePayload.TravelVisualizationMode,
+                MoveTargetObjectId = movePayload.TargetObjectId,
                 RotateMode = rotatePayload.Mode,
                 RotateTurnDegrees = rotatePayload.TurnDegrees,
                 RotateFacingDirectionToken = rotatePayload.FacingDirectionToken,
                 RotateVisualTransitionHint = rotatePayload.VisualTransitionHint,
+                RotateTargetObjectId = rotatePayload.TargetObjectId,
                 StackVisualTransitionHint = stackPayload.VisualTransitionHint,
+                ObjectPresentationCueObjectId = action.ObjectPresentationCueObjectId,
+                ObjectPresentationCueEffectKey = action.ObjectPresentationCueEffectKey,
                 SynonymTargetActionId = synonymTargetActionId,
                 CompositeTargetObjectId = compositeTargetObjectId,
                 CompositeRecipeId = compositeRecipeId,

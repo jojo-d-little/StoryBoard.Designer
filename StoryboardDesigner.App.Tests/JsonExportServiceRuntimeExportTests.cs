@@ -250,6 +250,9 @@ public class JsonExportServiceRuntimeExportTests
                 Assert.True(gameProperties.ValueKind == JsonValueKind.Array);
                 Assert.True(link.TryGetProperty("openStateBindingMode", out _));
             });
+            Assert.Contains(links.EnumerateArray(), link => link.GetProperty("gameProperties")
+                .EnumerateArray().Any(property => property.TryGetProperty("sharedVariableId", out var id)
+                    && id.GetGuid() == connection.TraversalStateFromA.SharedVariableId));
         }
         finally
         {
@@ -1392,6 +1395,7 @@ public class JsonExportServiceRuntimeExportTests
             var baseObject = new GameObject
             {
                 Name = "marbles",
+                ProducerNotes = "Base notes",
                 IsQuantifiable = true,
                 Quantity = 1,
                 QuantifiablePlacementDistributionMode = "GroupedStack",
@@ -1401,6 +1405,7 @@ public class JsonExportServiceRuntimeExportTests
             var roomInstance = new GameObject
             {
                 Name = "marbles",
+                ProducerNotes = "Stale placement notes",
                 IsQuantifiable = true,
                 Quantity = 2,
                 QuantifiablePlacementDistributionMode = "GroupedStack",
@@ -1438,6 +1443,7 @@ public class JsonExportServiceRuntimeExportTests
             Assert.Equal(baseObject.ObjectId, linkedBaseId.GetGuid());
             Assert.True(exportedRoomObject.TryGetProperty("linkActionsToBaseObject", out var linkActionsFlag));
             Assert.True(linkActionsFlag.GetBoolean());
+            Assert.Equal(string.Empty, exportedRoomObject.GetProperty("productionName").GetString());
 
             using var projectDoc = JsonDocument.Parse(projectJson);
             var projectBaseObjectIds = projectDoc.RootElement.GetProperty("baseObjectIds").EnumerateArray().Select(id => id.GetGuid()).ToList();
@@ -1447,6 +1453,7 @@ public class JsonExportServiceRuntimeExportTests
 
             using var baseObjectDoc = JsonDocument.Parse(File.ReadAllText(BuildScopeKindGameObjectNodePath(projectFilePath, baseObject.ObjectId), Encoding.UTF8));
             var exportedBaseObject = baseObjectDoc.RootElement;
+            Assert.Equal("Base notes", exportedBaseObject.GetProperty("productionName").GetString());
             var exportedBaseActions = exportedBaseObject.GetProperty("availableGameActions");
             Assert.Equal(JsonValueKind.Array, exportedBaseActions.ValueKind);
             Assert.Single(exportedBaseActions.EnumerateArray());
@@ -1486,6 +1493,8 @@ public class JsonExportServiceRuntimeExportTests
                 FootprintHeightCells = 2,
                 FootprintOrientation = "W",
                 ObjectHeightUnits = 4,
+                IsContainer = true,
+                HideContainedObjects = false,
                 StackScaleStepOverride = 0.15,
                 MinStackScaleOverride = 0.55
             };
@@ -1505,6 +1514,8 @@ public class JsonExportServiceRuntimeExportTests
                 FootprintHeightCells = 1,
                 FootprintOrientation = "N",
                 ObjectHeightUnits = 1,
+                IsContainer = false,
+                HideContainedObjects = true,
                 StackScaleStepOverride = 0.01,
                 MinStackScaleOverride = 0.10
             };
@@ -1548,6 +1559,8 @@ public class JsonExportServiceRuntimeExportTests
             Assert.True(exportedBaseObject.TryGetProperty("imageVariants", out _));
             Assert.True(exportedBaseObject.TryGetProperty("imageVariantChooserScript", out _));
             Assert.True(exportedBaseObject.TryGetProperty("appearance", out _));
+            Assert.True(exportedBaseObject.GetProperty("isContainer").GetBoolean());
+            Assert.False(exportedBaseObject.GetProperty("hideContainedObjects").GetBoolean());
         }
         finally
         {

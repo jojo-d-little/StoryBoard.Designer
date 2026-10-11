@@ -187,7 +187,7 @@ public class EffectiveObjectFieldResolverTests
     }
 
     [Fact]
-    public void GetEffectiveNameSynonyms_UsesDefinitionByDefault_WhenLinked()
+    public void GetEffectiveNameSynonyms_UsesInstanceCopy_WhenLinked()
     {
         var linkedBaseObjectId = Guid.NewGuid();
         var definition = new GameObject
@@ -206,7 +206,7 @@ public class EffectiveObjectFieldResolverTests
             instance,
             id => id == linkedBaseObjectId ? definition : null);
 
-        Assert.Equal(["blade", "knife"], synonyms);
+        Assert.Equal(["stale"], synonyms);
     }
 
     [Fact]

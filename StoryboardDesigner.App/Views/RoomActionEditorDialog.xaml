@@ -754,12 +754,12 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,10"
                                Foreground="#4B5563" TextWrapping="Wrap"
-                               Text="Changes the active presentation cue list on a current-room object or a direct child of this action's current object. Leave Object Id blank to use the command's primary target." />
+                               Text="Choose this object or one of its child objects for a local target. Room objects are absolute targets. Select Command primary target explicitly to clear a saved target." />
                     <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Object Id" />
                     <ComboBox x:Name="ObjectPresentationCueObjectIdComboBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10"
                               DisplayMemberPath="DisplayName" SelectedValuePath="ObjectId"
                               SelectedValue="{Binding ObjectPresentationCueObjectId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              ToolTip="Choose an object in the current room, or leave blank to use the command's primary target." />
+                              ToolTip="This object and its children are local targets. Room objects and saved absolute choices keep their exact IDs." />
                     <TextBlock x:Name="ObjectPresentationCueEffectLabel" Grid.Row="2" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Effect" />
                     <ComboBox x:Name="ObjectPresentationCueEffectKeyComboBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,10"
                               IsEditable="False" IsTextSearchEnabled="True"

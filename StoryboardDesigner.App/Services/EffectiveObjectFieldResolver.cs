@@ -64,12 +64,6 @@ public static class EffectiveObjectFieldResolver
             return localSynonyms;
         }
 
-        var definition = ResolveDefinition(instance, resolveDefinition);
-        if (definition is not null)
-        {
-            return NormalizeNameSynonyms(definition.NameSynonyms);
-        }
-
         return NormalizeNameSynonyms(instance.NameSynonyms);
     }
 
@@ -101,11 +95,6 @@ public static class EffectiveObjectFieldResolver
             return DefinitionOwnedOverridePlan.Unlinked;
         }
 
-        var normalizedNameSynonyms = NormalizeNameSynonyms(updatedNameSynonyms);
-        var desiredNameSynonymsOverride = normalizedNameSynonyms.Count == 0
-            || AreEquivalentNameSynonyms(normalizedNameSynonyms, definition.NameSynonyms)
-            ? null
-            : SerializeNameSynonymsOverride(normalizedNameSynonyms);
         var desiredDescriptionOverride = string.Equals(updatedDescription, definition.Description, StringComparison.Ordinal)
             ? null
             : updatedDescription;
@@ -113,10 +102,10 @@ public static class EffectiveObjectFieldResolver
         return new DefinitionOwnedOverridePlan(
             IsLinkedInstance: true,
             NameInGameOverride: null,
-            NameSynonymsOverride: desiredNameSynonymsOverride,
+            NameSynonymsOverride: null,
             DescriptionOverride: desiredDescriptionOverride,
             HasNameInGameOverrideChange: false,
-            HasNameSynonymsOverrideChange: HasOverrideChange(instance, NameSynonymsField, desiredNameSynonymsOverride),
+            HasNameSynonymsOverrideChange: HasOverrideChange(instance, NameSynonymsField, null),
             HasDescriptionOverrideChange: HasOverrideChange(instance, DescriptionField, desiredDescriptionOverride));
     }
 
@@ -188,12 +177,8 @@ public static class EffectiveObjectFieldResolver
 
     private static GameObject? ResolveDefinition(GameObject instance, Func<Guid, GameObject?> resolveDefinition)
     {
-        if (!instance.LinkedBaseObjectId.HasValue)
-        {
-            return null;
-        }
-
-        return resolveDefinition(instance.LinkedBaseObjectId.Value);
+        var source = instance.ResolveEffectiveDefinitionOwnedSource(resolveDefinition);
+        return ReferenceEquals(source, instance) ? null : source;
     }
 }
 

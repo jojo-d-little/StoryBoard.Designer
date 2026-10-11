@@ -1115,7 +1115,6 @@ public sealed class JsonExportService : IJsonExportService
             }
 
             NormalizeDefinitionCatalogObjectLinkMetadata(loadedProject);
-            HydrateLinkedInstanceDefinitionOwnedFieldsFromDefinitions(loadedProject);
             RefreshRoomDerivedOccupancyCaches(loadedProject);
             SharedVariableReconciliationService.ReconcileInPlace(loadedProject);
             return loadedProject;
@@ -4535,7 +4534,11 @@ public sealed class JsonExportService : IJsonExportService
         IReadOnlyDictionary<Guid, CommandAction>? linkedActionLookup = null)
     {
         var persistedLinkedBaseObjectId = NormalizePersistedLinkedBaseObjectId(obj);
-        var normalizedVariants = NormalizeObjectImageVariants(obj.ImageVariants);
+        var isLinkedInstance = persistedLinkedBaseObjectId.HasValue;
+        // A linked placement persists its own identity, labels, placement, editable game
+        // properties, and explicit overrides. Definition settings are re-resolved from its
+        // Base Object after load instead of writing the CloneTemplateObject snapshot back.
+        var normalizedVariants = isLinkedInstance ? new List<ObjectImageVariant>() : NormalizeObjectImageVariants(obj.ImageVariants);
         return new ProjectGameObjectDto
         {
             Id = obj.ObjectId,
@@ -4543,32 +4546,32 @@ public sealed class JsonExportService : IJsonExportService
             DesignTimeParentObjectId = designTimeParentObjectId,
             Name = obj.Name,
             HideEmptyConfiguration = obj.HideEmptyConfiguration,
-            ObjectType = string.IsNullOrWhiteSpace(obj.ObjectType) ? null : obj.ObjectType,
-            ProductionName = obj.ProducerNotes ?? string.Empty,
+            ObjectType = isLinkedInstance || string.IsNullOrWhiteSpace(obj.ObjectType) ? null : obj.ObjectType,
+            ProductionName = isLinkedInstance ? string.Empty : obj.ProducerNotes ?? string.Empty,
             NameInGame = string.IsNullOrWhiteSpace(obj.NameInGame) ? string.Empty : obj.NameInGame,
             NameSynonyms = NormalizeNameSynonyms(obj.NameSynonyms),
             ValidationErrors = obj.ValidationErrors.ToList(),
-            IsInventoriable = obj.IsInventoriable,
-            InventoryPointsDefaultValue = obj.InventoryPointsDefaultValue,
-            IsContainer = obj.IsContainer,
-            HideContainedObjects = obj.HideContainedObjects,
-            ShowWhenContained = obj.ShowWhenContained,
-            ContainerPointsDefaultValue = obj.ContainerPointsDefaultValue,
-            IsOpenable = obj.IsOpenable,
-            IsOpenDefaultValue = obj.IsOpenDefaultValue,
-            IsLockable = obj.IsLockable,
-            IsLockedDefaultValue = obj.IsLockedDefaultValue,
-            IsActivatable = obj.IsActivatable,
-            IsActiveDefaultValue = obj.IsActiveDefaultValue,
-            IsHidable = obj.IsHidable,
-            IsHiddenDefaultValue = obj.IsHiddenDefaultValue,
-            IsQuantifiable = obj.IsQuantifiable,
-            Quantity = obj.Quantity,
-            QuantifiablePlacementDistributionMode = ParseQuantifiablePlacementDistributionMode(obj.QuantifiablePlacementDistributionMode),
+            IsInventoriable = !isLinkedInstance && obj.IsInventoriable,
+            InventoryPointsDefaultValue = isLinkedInstance ? 1 : obj.InventoryPointsDefaultValue,
+            IsContainer = !isLinkedInstance && obj.IsContainer,
+            HideContainedObjects = isLinkedInstance || obj.HideContainedObjects,
+            ShowWhenContained = isLinkedInstance ? null : obj.ShowWhenContained,
+            ContainerPointsDefaultValue = isLinkedInstance ? 1 : obj.ContainerPointsDefaultValue,
+            IsOpenable = !isLinkedInstance && obj.IsOpenable,
+            IsOpenDefaultValue = !isLinkedInstance && obj.IsOpenDefaultValue,
+            IsLockable = !isLinkedInstance && obj.IsLockable,
+            IsLockedDefaultValue = !isLinkedInstance && obj.IsLockedDefaultValue,
+            IsActivatable = !isLinkedInstance && obj.IsActivatable,
+            IsActiveDefaultValue = !isLinkedInstance && obj.IsActiveDefaultValue,
+            IsHidable = !isLinkedInstance && obj.IsHidable,
+            IsHiddenDefaultValue = !isLinkedInstance && obj.IsHiddenDefaultValue,
+            IsQuantifiable = !isLinkedInstance && obj.IsQuantifiable,
+            Quantity = isLinkedInstance ? 1 : obj.Quantity,
+            QuantifiablePlacementDistributionMode = isLinkedInstance ? null : ParseQuantifiablePlacementDistributionMode(obj.QuantifiablePlacementDistributionMode),
             LinkedBaseObjectId = persistedLinkedBaseObjectId,
             LinkActionsToBaseObject = obj.LinkActionsToBaseObject,
-            CompositeRecipe = ToProjectCompositeRecipeDto(obj),
-            LockOperationRequirements = ToProjectLockOperationRequirementsDto(obj.LockOperationRequirements),
+            CompositeRecipe = isLinkedInstance ? null : ToProjectCompositeRecipeDto(obj),
+            LockOperationRequirements = isLinkedInstance ? null : ToProjectLockOperationRequirementsDto(obj.LockOperationRequirements),
             ImageVariants = normalizedVariants
                 .Select(static variant => new ProjectObjectImageVariantDto
                 {
@@ -4581,32 +4584,34 @@ public sealed class JsonExportService : IJsonExportService
                     IsDefault = variant.IsDefault
                 })
                 .ToList(),
-            ImageVariantChooserScript = string.IsNullOrWhiteSpace(obj.ImageVariantChooserScript)
+            ImageVariantChooserScript = isLinkedInstance || string.IsNullOrWhiteSpace(obj.ImageVariantChooserScript)
                 ? null
                 : obj.ImageVariantChooserScript,
-            Appearance = ToProjectGameObjectAppearanceDto(obj),
-            PointLight = LightingContractMapper.ToProjectPointLightDto(obj.PointLight),
-            LightOcclusion = LightingContractMapper.ToProjectLightOcclusionDto(ResolveDefaultLightOcclusion(obj)),
-            IsPointLightEnabledDefaultValue = obj.IsPointLightEnabledDefaultValue,
+            Appearance = isLinkedInstance ? null : ToProjectGameObjectAppearanceDto(obj),
+            PointLight = isLinkedInstance ? null : LightingContractMapper.ToProjectPointLightDto(obj.PointLight),
+            LightOcclusion = isLinkedInstance ? null : LightingContractMapper.ToProjectLightOcclusionDto(ResolveDefaultLightOcclusion(obj)),
+            IsPointLightEnabledDefaultValue = !isLinkedInstance && obj.IsPointLightEnabledDefaultValue,
             ImageRotationDegrees = obj.ImageRotationDegrees,
             PositionX = SanitizeCoordinateForPersistence(obj.PositionX),
             PositionY = SanitizeCoordinateForPersistence(obj.PositionY),
             RenderZOrder = renderZOrderOverride ?? (obj.RenderZOrder == 0 ? null : obj.RenderZOrder),
             AuthoredRenderOrder = obj.AuthoredRenderOrder == 0 ? null : obj.AuthoredRenderOrder,
-            IncludeInPreview = obj.IncludeInPreview,
-            Description = obj.Description,
-            AdditionalVerbs = (obj.AdditionalVerbs ?? new List<string>()).ToList(),
-            AdditionalDirectionals = (obj.AdditionalDirectionals ?? new List<string>()).ToList(),
+            IncludeInPreview = !isLinkedInstance && obj.IncludeInPreview,
+            Description = isLinkedInstance ? string.Empty : obj.Description,
+            AdditionalVerbs = isLinkedInstance ? new List<string>() : (obj.AdditionalVerbs ?? new List<string>()).ToList(),
+            AdditionalDirectionals = isLinkedInstance ? new List<string>() : (obj.AdditionalDirectionals ?? new List<string>()).ToList(),
             IgnoredValidationRuleIds = obj.IgnoredValidationRuleIds.ToList(),
             ProcedureIds = (obj.ProcedureIds ?? new List<Guid>())
                 .Where(static id => id != Guid.Empty)
                 .Distinct()
                 .ToList(),
-            AdditionalDirectionalTraversalMappings = ToDirectionalTraversalMappingDtos(obj.AdditionalDirectionalTraversalMappings),
-            SoundEffectLibraryEntries = obj.SoundEffectLibraryEntries.Select(ToSoundEffectLibraryEntryDto).ToList(),
-            EventSubscriptions = obj.EventSubscriptions.Select(ToProjectEventSubscriptionDto).ToList(),
-            TimerDefinitions = obj.TimerDefinitions.Select(ToProjectTimerDefinitionDto).ToList(),
-            SequenceDefinitions = obj.SequenceDefinitions.ToList(),
+            AdditionalDirectionalTraversalMappings = isLinkedInstance ? new List<DirectionalTraversalMappingDto>() : ToDirectionalTraversalMappingDtos(obj.AdditionalDirectionalTraversalMappings),
+            SoundEffectLibraryEntries = isLinkedInstance ? new List<SoundEffectLibraryEntryDto>() : obj.SoundEffectLibraryEntries.Select(ToSoundEffectLibraryEntryDto).ToList(),
+            EventSubscriptions = isLinkedInstance ? new List<ProjectEventSubscriptionDto>() : obj.EventSubscriptions.Select(ToProjectEventSubscriptionDto).ToList(),
+            TimerDefinitions = isLinkedInstance ? new List<ProjectTimerDefinitionDto>() : obj.TimerDefinitions.Select(ToProjectTimerDefinitionDto).ToList(),
+            SequenceDefinitions = persistedLinkedBaseObjectId.HasValue
+                ? new List<ProjectSequenceDefinitionDto>()
+                : obj.SequenceDefinitions.ToList(),
             AvailableGameActions = persistedLinkedBaseObjectId.HasValue
                 ? new List<CommandActionDto>()
                 : ToCommandActionDtos(obj.AvailableActions, linkedActionLookup),
@@ -4793,7 +4798,7 @@ public sealed class JsonExportService : IJsonExportService
             gameObject.LinkActionsToBaseObject = false;
         }
 
-        StripLinkedRoomInstanceActionsRecursively(gameObject);
+        StripLinkedRoomInstanceBehaviorRecursively(gameObject);
 
         gameObject.InitializeFeatureFlagsFromKnownVariables();
         gameObject.ApplyFeatureVariableContract();
@@ -4939,76 +4944,34 @@ public sealed class JsonExportService : IJsonExportService
 
     private static HashSet<Guid> BuildDefinitionCatalogObjectIds(ProjectModel project)
     {
-        var ids = new HashSet<Guid>();
-
-        void AddRecursive(GameObject obj)
-        {
-            if (obj.ObjectId != Guid.Empty)
-            {
-                ids.Add(obj.ObjectId);
-            }
-
-            foreach (var child in obj.ContainedObjects)
-            {
-                AddRecursive(child);
-            }
-        }
-
-        void AddCatalog(IEnumerable<GameObject> objects)
-        {
-            foreach (var obj in objects)
-            {
-                AddRecursive(obj);
-            }
-        }
-
-        AddCatalog(project.EnumerateAllObjectTemplateRoots());
-        AddCatalog(project.BaseObjects);
-
-        foreach (var planet in project.Planets)
-        {
-            AddCatalog(planet.BaseObjects);
-            foreach (var country in planet.Countries)
-            {
-                AddCatalog(country.BaseObjects);
-                foreach (var area in country.Areas)
-                {
-                    AddCatalog(area.BaseObjects);
-                }
-            }
-        }
-
-        return ids;
+        return EnumerateDefinitionCatalogObjects(project)
+            .Where(static obj => obj.ObjectId != Guid.Empty)
+            .Select(static obj => obj.ObjectId)
+            .ToHashSet();
     }
 
     private static IEnumerable<GameObject> EnumerateDefinitionCatalogObjects(ProjectModel project)
     {
-        foreach (var obj in EnumerateGameObjectsRecursive(project.EnumerateAllObjectTemplateRoots()))
+        foreach (var obj in project.EnumerateAllObjectTemplateRoots())
         {
             yield return obj;
         }
 
-        foreach (var obj in EnumerateGameObjectsRecursive(project.BaseObjects))
+        foreach (var obj in project.BaseObjects)
         {
             yield return obj;
         }
 
         foreach (var obj in project.Planets.SelectMany(static planet => planet.BaseObjects))
         {
-            foreach (var nested in EnumerateGameObjectsRecursive([obj]))
-            {
-                yield return nested;
-            }
+            yield return obj;
         }
 
         foreach (var obj in project.Planets
                      .SelectMany(static planet => planet.Countries)
                      .SelectMany(static country => country.BaseObjects))
         {
-            foreach (var nested in EnumerateGameObjectsRecursive([obj]))
-            {
-                yield return nested;
-            }
+            yield return obj;
         }
 
         foreach (var obj in project.Planets
@@ -5016,10 +4979,7 @@ public sealed class JsonExportService : IJsonExportService
                      .SelectMany(static country => country.Areas)
                      .SelectMany(static area => area.BaseObjects))
         {
-            foreach (var nested in EnumerateGameObjectsRecursive([obj]))
-            {
-                yield return nested;
-            }
+            yield return obj;
         }
     }
 
@@ -5289,8 +5249,8 @@ public sealed class JsonExportService : IJsonExportService
         var appearance = new RuntimeGameObjectAppearanceDto
         {
             SpatialType = ToRuntimeSpatialType(normalizedSpatialType),
-            IsMovable = obj.IsMovable,
-            IsMovableDefaultValue = obj.IsMovableDefaultValue,
+            IsMovable = effectiveDefinitionOwnedSource.IsMovable,
+            IsMovableDefaultValue = effectiveDefinitionOwnedSource.IsMovableDefaultValue,
             StackGroup = effectiveDefinitionOwnedSource.StackGroup,
             FootprintWidthCells = effectiveDefinitionOwnedSource.FootprintWidthCells,
             FootprintHeightCells = effectiveDefinitionOwnedSource.FootprintHeightCells,
@@ -5298,13 +5258,13 @@ public sealed class JsonExportService : IJsonExportService
             FootprintCornerStyle = NormalizeFootprintCornerStyle(effectiveDefinitionOwnedSource.FootprintCornerStyle),
             HeadingDirection = ToHeadingDirection(effectiveDefinitionOwnedSource.HeadingDirection),
             ObjectHeightUnits = effectiveDefinitionOwnedSource.ObjectHeightUnits,
-            HeightInRoom = obj.HeightInRoom,
-            AuthoredBaseHeightInRoom = obj.AuthoredBaseHeightInRoom,
-            IsHeightPinned = obj.AuthoredBaseHeightInRoom == 0 ? null : obj.IsHeightPinned,
-            OccupiedCellIds = NullIfEmpty(NormalizeOccupiedCellIds(obj.OccupiedCellIds)),
-            OccupancyDerivationSourceEcho = string.IsNullOrWhiteSpace(obj.OccupancyDerivationSourceEcho)
+            HeightInRoom = effectiveDefinitionOwnedSource.HeightInRoom,
+            AuthoredBaseHeightInRoom = effectiveDefinitionOwnedSource.AuthoredBaseHeightInRoom,
+            IsHeightPinned = effectiveDefinitionOwnedSource.AuthoredBaseHeightInRoom == 0 ? null : effectiveDefinitionOwnedSource.IsHeightPinned,
+            OccupiedCellIds = NullIfEmpty(NormalizeOccupiedCellIds(effectiveDefinitionOwnedSource.OccupiedCellIds)),
+            OccupancyDerivationSourceEcho = string.IsNullOrWhiteSpace(effectiveDefinitionOwnedSource.OccupancyDerivationSourceEcho)
                 ? null
-                : obj.OccupancyDerivationSourceEcho,
+                : effectiveDefinitionOwnedSource.OccupancyDerivationSourceEcho,
             StackScaleStepOverride = SanitizeOptionalFinite(effectiveDefinitionOwnedSource.StackScaleStepOverride),
             MinStackScaleOverride = SanitizeOptionalFinite(effectiveDefinitionOwnedSource.MinStackScaleOverride),
             MovementRestrictions = ToCleanObjectMovementRestrictionsDto(effectiveDefinitionOwnedSource.MovementRestrictions)
@@ -5795,21 +5755,6 @@ public sealed class JsonExportService : IJsonExportService
         return lookup;
     }
 
-    private static GameObject ResolveEffectiveDefinitionOwnedSource(
-        GameObject obj,
-        Func<Guid, GameObject?> resolveDefinition)
-    {
-        if (!obj.LinkedBaseObjectId.HasValue)
-        {
-            return obj;
-        }
-
-        var definition = resolveDefinition(obj.LinkedBaseObjectId.Value);
-        return definition is not null && !ReferenceEquals(definition, obj)
-            ? definition
-            : obj;
-    }
-
     private static ProjectCompositeRecipeDto? ToProjectCompositeRecipeDto(GameObject obj)
     {
         if (!obj.IsCompositeTarget)
@@ -6108,16 +6053,17 @@ public sealed class JsonExportService : IJsonExportService
         return double.IsFinite(value) ? value : 0;
     }
 
-    private static void StripLinkedRoomInstanceActionsRecursively(GameObject obj)
+    private static void StripLinkedRoomInstanceBehaviorRecursively(GameObject obj)
     {
         if (IsLinkedRoomInstance(obj))
         {
             obj.AvailableActions.Clear();
+            obj.SequenceDefinitions.Clear();
         }
 
         foreach (var child in obj.ContainedObjects)
         {
-            StripLinkedRoomInstanceActionsRecursively(child);
+            StripLinkedRoomInstanceBehaviorRecursively(child);
         }
     }
 
@@ -6137,7 +6083,7 @@ public sealed class JsonExportService : IJsonExportService
         var effectiveNameInGame = EffectiveObjectFieldResolver.GetEffectiveNameInGame(obj, definitionResolver);
         var effectiveNameSynonyms = EffectiveObjectFieldResolver.GetEffectiveNameSynonyms(obj, definitionResolver);
         var effectiveDescription = EffectiveObjectFieldResolver.GetEffectiveDescription(obj, definitionResolver);
-        var effectiveDefinitionOwnedSource = ResolveEffectiveDefinitionOwnedSource(obj, definitionResolver);
+        var effectiveDefinitionOwnedSource = obj.ResolveEffectiveDefinitionOwnedSource(definitionResolver);
         var normalizedVariants = NormalizeObjectImageVariants(effectiveDefinitionOwnedSource.ImageVariants);
 
         return new RuntimeGameObjectDto
@@ -6147,37 +6093,37 @@ public sealed class JsonExportService : IJsonExportService
             LinkedBaseObjectId = persistedLinkedBaseObjectId,
             LinkActionsToBaseObject = obj.LinkActionsToBaseObject || persistedLinkedBaseObjectId.HasValue,
             Name = effectiveName ?? string.Empty,
-            ProductionName = obj.ProducerNotes ?? string.Empty,
+            ProductionName = persistedLinkedBaseObjectId.HasValue ? string.Empty : obj.ProducerNotes ?? string.Empty,
             NameInGame = string.IsNullOrWhiteSpace(effectiveNameInGame) ? string.Empty : effectiveNameInGame,
             NameSynonyms = NullIfEmpty(NormalizeNameSynonyms(effectiveNameSynonyms)),
-            IsInventoriable = obj.IsInventoriable,
-            InventoryPointsDefaultValue = obj.InventoryPointsDefaultValue,
-            IsContainer = obj.IsContainer,
-            HideContainedObjects = obj.HideContainedObjects,
-            ShowWhenContained = obj.ShowWhenContained,
-            ContainerPointsDefaultValue = obj.ContainerPointsDefaultValue,
-            IsOpenable = obj.IsOpenable,
-            IsOpenDefaultValue = obj.IsOpenDefaultValue,
-            IsLockable = obj.IsLockable,
-            IsLockedDefaultValue = obj.IsLockedDefaultValue,
-            IsActivatable = obj.IsActivatable,
-            IsActiveDefaultValue = obj.IsActiveDefaultValue,
-            IsHidable = obj.IsHidable,
-            IsHiddenDefaultValue = obj.IsHiddenDefaultValue,
-            IsQuantifiable = obj.IsQuantifiable,
-            Quantity = obj.Quantity,
-            QuantifiablePlacementDistributionMode = ParseQuantifiablePlacementDistributionMode(obj.QuantifiablePlacementDistributionMode),
-            CompositeRecipe = obj.IsCompositeTarget
+            IsInventoriable = effectiveDefinitionOwnedSource.IsInventoriable,
+            InventoryPointsDefaultValue = effectiveDefinitionOwnedSource.InventoryPointsDefaultValue,
+            IsContainer = effectiveDefinitionOwnedSource.IsContainer,
+            HideContainedObjects = effectiveDefinitionOwnedSource.HideContainedObjects,
+            ShowWhenContained = effectiveDefinitionOwnedSource.ShowWhenContained,
+            ContainerPointsDefaultValue = effectiveDefinitionOwnedSource.ContainerPointsDefaultValue,
+            IsOpenable = effectiveDefinitionOwnedSource.IsOpenable,
+            IsOpenDefaultValue = effectiveDefinitionOwnedSource.IsOpenDefaultValue,
+            IsLockable = effectiveDefinitionOwnedSource.IsLockable,
+            IsLockedDefaultValue = effectiveDefinitionOwnedSource.IsLockedDefaultValue,
+            IsActivatable = effectiveDefinitionOwnedSource.IsActivatable,
+            IsActiveDefaultValue = effectiveDefinitionOwnedSource.IsActiveDefaultValue,
+            IsHidable = effectiveDefinitionOwnedSource.IsHidable,
+            IsHiddenDefaultValue = effectiveDefinitionOwnedSource.IsHiddenDefaultValue,
+            IsQuantifiable = effectiveDefinitionOwnedSource.IsQuantifiable,
+            Quantity = effectiveDefinitionOwnedSource.Quantity,
+            QuantifiablePlacementDistributionMode = ParseQuantifiablePlacementDistributionMode(effectiveDefinitionOwnedSource.QuantifiablePlacementDistributionMode),
+            CompositeRecipe = effectiveDefinitionOwnedSource.IsCompositeTarget
                 ? new RuntimeCompositeRecipeDto
                 {
-                    RecipeId = obj.CompositeRecipeId,
+                    RecipeId = effectiveDefinitionOwnedSource.CompositeRecipeId,
                     TargetObjectId = Guid.Empty,
-                    IsReversible = obj.IsCompositeReversible,
-                    PartRequirementMode = ParseCompositePartRequirementMode(obj.CompositePartRequirementMode),
-                    MinimumRequiredPartCount = string.Equals(obj.CompositePartRequirementMode, "MinimumCount", StringComparison.OrdinalIgnoreCase)
-                        ? obj.CompositeMinimumRequiredPartCount
+                    IsReversible = effectiveDefinitionOwnedSource.IsCompositeReversible,
+                    PartRequirementMode = ParseCompositePartRequirementMode(effectiveDefinitionOwnedSource.CompositePartRequirementMode),
+                    MinimumRequiredPartCount = string.Equals(effectiveDefinitionOwnedSource.CompositePartRequirementMode, "MinimumCount", StringComparison.OrdinalIgnoreCase)
+                        ? effectiveDefinitionOwnedSource.CompositeMinimumRequiredPartCount
                         : null,
-                    RequiredParts = obj.CompositeRequiredParts
+                    RequiredParts = effectiveDefinitionOwnedSource.CompositeRequiredParts
                         .Where(part => part.PartObjectId != Guid.Empty)
                         .Select(part => new RuntimeCompositePartRequirementDto
                         {
@@ -6201,7 +6147,7 @@ public sealed class JsonExportService : IJsonExportService
                         }).ToList()
                 }
                 : null,
-            LockOperationRequirements = ToCleanLockOperationRequirementsDto(obj.LockOperationRequirements),
+            LockOperationRequirements = ToCleanLockOperationRequirementsDto(effectiveDefinitionOwnedSource.LockOperationRequirements),
             ImageVariants = normalizedVariants.Count == 0
                 ? null
                 : normalizedVariants
@@ -6230,14 +6176,16 @@ public sealed class JsonExportService : IJsonExportService
             Appearance = ToCleanGameObjectAppearanceDto(obj, effectiveDefinitionOwnedSource),
             PointLight = LightingContractMapper.ToRuntimePointLightDto(effectiveDefinitionOwnedSource.PointLight),
             LightOcclusion = LightingContractMapper.ToRuntimeLightOcclusionDto(ResolveDefaultLightOcclusion(effectiveDefinitionOwnedSource)),
-            IsPointLightEnabledDefaultValue = obj.IsPointLightEnabledDefaultValue,
+            IsPointLightEnabledDefaultValue = effectiveDefinitionOwnedSource.IsPointLightEnabledDefaultValue,
             Description = effectiveDescription ?? string.Empty,
             AdditionalVerbs = NullIfEmpty(obj.AdditionalVerbs.OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToList()),
             AdditionalDirectionals = NullIfEmpty(obj.AdditionalDirectionals.OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToList()),
             AdditionalDirectionalTraversalMappings = NullIfEmpty(ToRuntimeDirectionalTraversalMappings(obj.AdditionalDirectionalTraversalMappings)),
             EventSubscriptions = NullIfEmpty(obj.EventSubscriptions.Select(ToRuntimeEventSubscriptionDto).ToList()),
             TimerDefinitions = NullIfEmpty(obj.TimerDefinitions.Select(ToRuntimeTimerDefinitionDto).ToList()),
-            SequenceDefinitions = ToRuntimeSequenceDefinitions(obj.SequenceDefinitions),
+            SequenceDefinitions = persistedLinkedBaseObjectId.HasValue
+                ? null
+                : ToRuntimeSequenceDefinitions(obj.SequenceDefinitions),
             SoundEffectLibraryEntries = NullIfEmpty(obj.SoundEffectLibraryEntries
                 .Select(entry => ToCleanSoundEffectLibraryEntryDto(
                     entry,

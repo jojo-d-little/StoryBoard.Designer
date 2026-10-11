@@ -1882,6 +1882,7 @@ public sealed partial class MainWindowViewModel
         registry.Register(new MaterializeSourceObjectReferenceExistsRule());
         registry.Register(new OutcomeSoundEffectReferenceExistsRule());
         registry.Register(new ObjectPresentationCueTargetReferenceExistsRule());
+        registry.Register(new BaseActionAbsolutePlacementTargetRule());
         registry.Register(new ActionObjectTargetReachabilityRule());
         registry.Register(new ScopedSoundEffectReferenceRule());
         registry.Register(new SequenceActionTargetExistsRule());

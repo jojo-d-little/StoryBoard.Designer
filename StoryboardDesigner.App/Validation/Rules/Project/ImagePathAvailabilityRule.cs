@@ -66,7 +66,7 @@ public sealed class ImagePathAvailabilityRule : IValidationRule
             var objectLookup = context.SharedState.GetOrAdd(
                 "IMG:ProjectObjectsById",
                 () => BuildObjectLookup(context.Project));
-            var effectiveDefinitionOwnedSource = ResolveEffectiveDefinitionOwnedSource(gameObject, objectLookup);
+            var effectiveDefinitionOwnedSource = gameObject.ResolveEffectiveDefinitionOwnedSource(id => objectLookup.GetValueOrDefault(id));
             var requireExportFallback = !IsObjectTemplateGameObject(context.Project, gameObject);
             foreach (var variant in effectiveDefinitionOwnedSource.ImageVariants.Where(static variant => !string.IsNullOrWhiteSpace(variant.VariantName)))
             {
@@ -154,21 +154,6 @@ public sealed class ImagePathAvailabilityRule : IValidationRule
         }
 
         return false;
-    }
-
-    private static GameObject ResolveEffectiveDefinitionOwnedSource(
-        GameObject gameObject,
-        IReadOnlyDictionary<Guid, GameObject> objectLookup)
-    {
-        if (!gameObject.LinkedBaseObjectId.HasValue)
-        {
-            return gameObject;
-        }
-
-        return objectLookup.TryGetValue(gameObject.LinkedBaseObjectId.Value, out var definition)
-            && !ReferenceEquals(definition, gameObject)
-            ? definition
-            : gameObject;
     }
 
     private static bool ContainsGameObjectRecursive(GameObject current, GameObject target)

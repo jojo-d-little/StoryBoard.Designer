@@ -226,6 +226,8 @@ public partial class VariableChooserDialog : Window
 
         if (isObjectScope)
         {
+            IncludeChildrenCheckBox.IsChecked = true;
+            IncludeDescendantsCheckBox.IsChecked = true;
             IncludeParentCheckBox.IsChecked = false;
             IncludeAncestorsCheckBox.IsChecked = false;
             IncludeSiblingsCheckBox.IsChecked = false;
@@ -236,6 +238,8 @@ public partial class VariableChooserDialog : Window
         IncludeParentCheckBox.IsChecked = true;
         IncludeAncestorsCheckBox.IsChecked = true;
         IncludeSiblingsCheckBox.IsChecked = true;
+        IncludeChildrenCheckBox.IsChecked = true;
+        IncludeDescendantsCheckBox.IsChecked = true;
         IncludeTraversalLegsCheckBox.IsChecked = true;
     }
 
@@ -244,10 +248,10 @@ public partial class VariableChooserDialog : Window
         return relation switch
         {
             GamePropertyChoiceRelation.Self => true,
+            GamePropertyChoiceRelation.Child => IncludeChildrenCheckBox.IsChecked == true,
+            GamePropertyChoiceRelation.Descendant => IncludeDescendantsCheckBox.IsChecked == true,
             GamePropertyChoiceRelation.Parent => IncludeParentCheckBox.IsChecked == true,
             GamePropertyChoiceRelation.Ancestor => IncludeAncestorsCheckBox.IsChecked == true,
-            GamePropertyChoiceRelation.Child => true,
-            GamePropertyChoiceRelation.Descendant => true,
             GamePropertyChoiceRelation.Sibling => IncludeSiblingsCheckBox.IsChecked == true,
             GamePropertyChoiceRelation.TraversalLeg => IncludeTraversalLegsCheckBox.IsChecked == true,
             _ => true

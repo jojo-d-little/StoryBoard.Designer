@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.Windows.Input;
 using Storyboard.Shared.GameManager;
@@ -16,6 +17,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
     private readonly Func<Guid, GameObject?>? _definitionResolver;
     private readonly Func<GameObject, bool>? _editRoomChildObjectImageAction;
     private readonly Stack<RoomChildMoveUndoEntry> _roomChildMoveUndoStack = new();
+    private readonly HashSet<GameObject> _definitionSettingsSubscriptions = new();
     private int _designerCanvasWidth;
     private int _designerCanvasHeight;
     private int _roomGridCellSize;
@@ -436,6 +438,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
 
     public void BuildRoomChildObjects()
     {
+        RefreshDefinitionSettingsSubscriptions();
         var selectedObjectId = SelectedRoomChildObject?.GameObject.ObjectId;
 
         RoomChildObjects.Clear();
@@ -484,13 +487,52 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         RaiseRoomChildCommandStates();
     }
 
+    private void RefreshDefinitionSettingsSubscriptions()
+    {
+        var activeSources = new HashSet<GameObject>();
+        void Visit(GameObject current)
+        {
+            activeSources.Add(current.ResolveEffectiveDefinitionOwnedSource(_definitionResolver));
+            foreach (var child in current.ContainedObjects)
+            {
+                Visit(child);
+            }
+        }
+
+        foreach (var root in Room.GameObjects)
+        {
+            Visit(root);
+        }
+
+        foreach (var obsolete in _definitionSettingsSubscriptions.Except(activeSources).ToList())
+        {
+            obsolete.PropertyChanged -= OnDefinitionSettingsPropertyChanged;
+            _definitionSettingsSubscriptions.Remove(obsolete);
+        }
+
+        foreach (var source in activeSources.Except(_definitionSettingsSubscriptions))
+        {
+            source.PropertyChanged += OnDefinitionSettingsPropertyChanged;
+            _definitionSettingsSubscriptions.Add(source);
+        }
+    }
+
+    private void OnDefinitionSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(e.PropertyName)
+            || string.Equals(e.PropertyName, nameof(GameObject.HideContainedObjects), StringComparison.Ordinal))
+        {
+            BuildRoomChildObjects();
+        }
+    }
+
     private void AddVisibleContainedObjectPreviews(GameObject parent, int rootDrawOrder, int depth)
     {
         foreach (var child in parent.ContainedObjects)
         {
             var isVisibleWhileContained = child.IsInventoriable && child.ShowWhenContained.HasValue
                 ? child.ShowWhenContained.Value
-                : !parent.HideContainedObjects;
+                : !parent.ResolveEffectiveDefinitionOwnedSource(_definitionResolver).HideContainedObjects;
             if (!isVisibleWhileContained)
             {
                 continue;

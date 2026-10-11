@@ -54,6 +54,16 @@
                         Orientation="Horizontal"
                         Visibility="Collapsed">
                     <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" Foreground="#4B5563" Text="Include:" />
+                    <CheckBox x:Name="IncludeChildrenCheckBox"
+                          Margin="0,0,12,0"
+                          Content="Child variables"
+                          Checked="ScopeOptions_OnChanged"
+                          Unchecked="ScopeOptions_OnChanged" />
+                    <CheckBox x:Name="IncludeDescendantsCheckBox"
+                          Margin="0,0,12,0"
+                          Content="Descendant variables"
+                          Checked="ScopeOptions_OnChanged"
+                          Unchecked="ScopeOptions_OnChanged" />
                     <CheckBox x:Name="IncludeParentCheckBox"
                           Margin="0,0,12,0"
                           Content="Parent variables"

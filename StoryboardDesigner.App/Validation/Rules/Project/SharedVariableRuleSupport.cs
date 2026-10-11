@@ -29,21 +29,31 @@ internal static class SharedVariableRuleSupport
         AddRange(map, project.GlobalScope.GameProperties);
         AddObjectRanges(map, project.GlobalScope.GameObjects);
         AddObjectRanges(map, project.EnumerateAllObjectTemplateRoots());
+        AddObjectRanges(map, project.BaseObjects);
+
+        foreach (var roomTemplate in project.EnumerateAllRoomTemplateRoots())
+        {
+            AddRange(map, roomTemplate.Variables);
+            AddObjectRanges(map, roomTemplate.GameObjects);
+        }
 
         foreach (var planet in project.Planets)
         {
             AddRange(map, planet.Variables);
             AddObjectRanges(map, planet.GameObjects);
+            AddObjectRanges(map, planet.BaseObjects);
 
             foreach (var country in planet.Countries)
             {
                 AddRange(map, country.Variables);
                 AddObjectRanges(map, country.GameObjects);
+                AddObjectRanges(map, country.BaseObjects);
 
                 foreach (var area in country.Areas)
                 {
                     AddRange(map, area.Variables);
                     AddObjectRanges(map, area.GameObjects);
+                    AddObjectRanges(map, area.BaseObjects);
                     AddRange(map, area.TraversalConnections.SelectMany(static connection => connection.Variables));
 
                     foreach (var connection in area.TraversalConnections)
