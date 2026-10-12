@@ -8,6 +8,7 @@ public sealed class CountryGameObjectsNodeViewModel : GameObjectsNodeViewModel
         : base("Game Objects", countryNode)
     {
         CountryNode = countryNode;
+        ScopeOwner = countryNode.Country;
     }
 
     public CountryNodeViewModel CountryNode { get; }

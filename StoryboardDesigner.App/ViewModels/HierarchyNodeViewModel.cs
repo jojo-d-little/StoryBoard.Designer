@@ -65,10 +65,15 @@ public abstract class HierarchyNodeViewModel : ViewModelBase
         OnPropertyChanged(nameof(EditableName));
     }
 
-    public HierarchyNodeViewModel? Parent { get; }
+    public HierarchyNodeViewModel? Parent { get; private set; }
     /// <summary>The model scope that owns this node's authored data, independent of its visual tree parent.</summary>
     public ScopeNodeBase? ScopeOwner { get; internal set; }
     public ObservableCollection<HierarchyNodeViewModel> Children { get; } = new();
+
+    internal void SetVisualParent(HierarchyNodeViewModel? parent)
+    {
+        Parent = parent;
+    }
 
     private bool _isExpanded;
 

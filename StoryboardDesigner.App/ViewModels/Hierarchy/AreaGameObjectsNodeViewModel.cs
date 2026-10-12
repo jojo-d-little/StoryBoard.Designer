@@ -8,6 +8,7 @@ public sealed class AreaGameObjectsNodeViewModel : GameObjectsNodeViewModel
         : base("Game Objects", areaNode)
     {
         AreaNode = areaNode;
+        ScopeOwner = areaNode.Area;
     }
 
     public AreaNodeViewModel AreaNode { get; }

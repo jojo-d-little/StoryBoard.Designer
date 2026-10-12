@@ -100,7 +100,7 @@ public sealed class PromoteToRoomTemplateWorkflowTests
 
         var templateCatalogNode = EnumerateNodes(viewModel.HierarchyRoots)
             .OfType<RoomTemplatesNodeViewModel>()
-            .Single(node => node.Parent is ProjectRootNodeViewModel);
+            .Single(node => node.CatalogParentScope is RoomTemplatesScopeNode);
         Assert.True(viewModel.ExecuteTreeContextAction("clone-template-to-room-templates", templateCatalogNode));
 
         var clonedRoom = Assert.Single(project.RoomTemplates);
@@ -283,7 +283,7 @@ public sealed class PromoteToRoomTemplateWorkflowTests
         var promotedDefinition = Assert.Single(project.RoomTemplates);
         var templateCatalogNode = EnumerateNodes(viewModel.HierarchyRoots)
             .OfType<RoomTemplatesNodeViewModel>()
-            .Single(node => node.Parent is ProjectRootNodeViewModel);
+            .Single(node => node.CatalogParentScope is RoomTemplatesScopeNode);
 
         Assert.Contains(
             templateCatalogNode.Children.OfType<TemplateRoomNodeViewModel>(),
@@ -318,7 +318,7 @@ public sealed class PromoteToRoomTemplateWorkflowTests
         Assert.True(viewModel.ExecuteTreeContextAction("clone-template-from-room", sourceNode));
         var templatesNode = EnumerateNodes(viewModel.HierarchyRoots)
             .OfType<RoomTemplatesNodeViewModel>()
-            .Single(node => node.Parent is ProjectRootNodeViewModel);
+            .Single(node => node.CatalogParentScope is RoomTemplatesScopeNode);
         var handled = viewModel.ExecuteTreeContextAction("clone-template-to-room-templates", templatesNode);
 
         Assert.False(handled);
@@ -347,7 +347,7 @@ public sealed class PromoteToRoomTemplateWorkflowTests
         Assert.True(viewModel.ExecuteTreeContextAction("clone-template-from-room", roomNode));
         var templatesNode = EnumerateNodes(viewModel.HierarchyRoots)
             .OfType<RoomTemplatesNodeViewModel>()
-            .Single(node => node.Parent is ProjectRootNodeViewModel);
+            .Single(node => node.CatalogParentScope is RoomTemplatesScopeNode);
         var handled = viewModel.ExecuteTreeContextAction("clone-template-to-room-templates", templatesNode);
 
         Assert.False(handled);
@@ -369,7 +369,7 @@ public sealed class PromoteToRoomTemplateWorkflowTests
 
         var templatesNode = EnumerateNodes(viewModel.HierarchyRoots)
             .OfType<RoomTemplatesNodeViewModel>()
-            .Single(node => node.Parent is ProjectRootNodeViewModel);
+            .Single(node => node.CatalogParentScope is RoomTemplatesScopeNode);
 
         var actions = viewModel.GetTreeContextActions(templatesNode);
 
@@ -396,7 +396,7 @@ public sealed class PromoteToRoomTemplateWorkflowTests
 
         var templatesNode = EnumerateNodes(viewModel.HierarchyRoots)
             .OfType<RoomTemplatesNodeViewModel>()
-            .Single(node => node.Parent is ProjectRootNodeViewModel);
+            .Single(node => node.CatalogParentScope is RoomTemplatesScopeNode);
 
         var handled = viewModel.ExecuteTreeContextAction("add-new-room-template", templatesNode);
 
@@ -493,7 +493,7 @@ public sealed class PromoteToRoomTemplateWorkflowTests
 
         var templateObjectsNode = EnumerateNodes(viewModel.HierarchyRoots)
             .OfType<ObjectTemplatesNodeViewModel>()
-            .Single(node => node.Parent is TemplateRoomNodeViewModel parent && ReferenceEquals(parent.Room, templateRoom));
+            .Single(node => ReferenceEquals(node.CatalogParentScope, templateRoom));
         var projectedObject = Assert.Single(templateObjectsNode.Children.OfType<TemplateGameObjectNodeViewModel>());
         Assert.Equal("Template Lever", projectedObject.GameObject.Name);
         Assert.Same(projectedObject, viewModel.SelectedNode);
@@ -528,7 +528,7 @@ public sealed class PromoteToRoomTemplateWorkflowTests
 
         var templateVariablesNode = EnumerateNodes(viewModel.HierarchyRoots)
             .OfType<GamePropertiesContainerNodeViewModel>()
-            .Single(node => node.Parent is TemplateRoomNodeViewModel parent && ReferenceEquals(parent.Room, templateRoom));
+            .Single(node => ReferenceEquals(node.ScopeOwner, templateRoom));
 
         var handled = viewModel.ExecuteTreeContextAction("review-game-properties", templateVariablesNode);
 
@@ -921,7 +921,7 @@ public sealed class PromoteToRoomTemplateWorkflowTests
 
         var templatesNode = EnumerateNodes(viewModel.HierarchyRoots)
             .OfType<RoomTemplatesNodeViewModel>()
-            .Single(node => node.Parent is ProjectRootNodeViewModel);
+            .Single(node => node.CatalogParentScope is RoomTemplatesScopeNode);
         return viewModel.ExecuteTreeContextAction("clone-template-to-room-templates", templatesNode);
     }
 

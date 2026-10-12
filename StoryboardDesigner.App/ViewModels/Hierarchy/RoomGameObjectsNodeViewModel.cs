@@ -8,6 +8,7 @@ public sealed class RoomGameObjectsNodeViewModel : GameObjectsNodeViewModel
         : base("Game Objects", roomNode)
     {
         RoomNode = roomNode;
+        ScopeOwner = roomNode.Room;
     }
 
     public RoomNodeViewModel RoomNode { get; }

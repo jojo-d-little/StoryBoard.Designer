@@ -48,13 +48,13 @@ public sealed class HideEmptyConfigurationContextActionsTests
         var roomNode = EnumerateNodes(hierarchy).OfType<RoomNodeViewModel>().Single();
 
         Assert.DoesNotContain(roomNode.Children, child => child is GamePropertiesContainerNodeViewModel);
-        Assert.DoesNotContain(roomNode.Children, child => child is ScopedActionsNodeViewModel);
+        Assert.DoesNotContain(roomNode.Children.OfType<ConstructsNodeViewModel>().SelectMany(node => node.Children), child => child is ScopedActionsNodeViewModel);
         Assert.DoesNotContain(roomNode.Children, child => child is ScopedVerbsNodeViewModel);
         Assert.DoesNotContain(roomNode.Children, child => child is ScopedDirectionalsNodeViewModel);
         Assert.DoesNotContain(roomNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
         Assert.DoesNotContain(roomNode.Children, child => child is ScopedTimerDefinitionsNodeViewModel);
         Assert.DoesNotContain(roomNode.Children, child => child is RoomTraversalLegsNodeViewModel);
-        Assert.DoesNotContain(roomNode.Children, child => child is RoomGameObjectsNodeViewModel);
+        Assert.DoesNotContain(roomNode.Children.OfType<ConstructsNodeViewModel>().SelectMany(node => node.Children), child => child is RoomGameObjectsNodeViewModel);
 
         var initialAction = viewModel.GetTreeContextActions(roomNode)
             .Single(action => action.ActionId == "toggle-hide-empty-configuration");
@@ -64,14 +64,19 @@ public sealed class HideEmptyConfigurationContextActionsTests
 
         Assert.True(handledShow);
         Assert.False(roomModel.HideEmptyConfiguration);
-        Assert.Contains(roomNode.Children, child => child is GamePropertiesContainerNodeViewModel);
-        Assert.Contains(roomNode.Children, child => child is ScopedActionsNodeViewModel);
-        Assert.Contains(roomNode.Children, child => child is ScopedVerbsNodeViewModel);
-        Assert.Contains(roomNode.Children, child => child is ScopedDirectionalsNodeViewModel);
-        Assert.Contains(roomNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
-        Assert.Contains(roomNode.Children, child => child is ScopedTimerDefinitionsNodeViewModel);
+        var roomConstructs = Assert.Single(roomNode.Children.OfType<ConstructsNodeViewModel>());
+        var roomSettings = Assert.Single(roomNode.Children.OfType<RoomSettingsNodeViewModel>());
+        var roomProperties = Assert.Single(roomNode.Children.OfType<GamePropertiesContainerNodeViewModel>());
+        Assert.Same(roomNode, roomProperties.Parent);
+        Assert.Equal(roomNode.Children.IndexOf(roomSettings) + 1, roomNode.Children.IndexOf(roomProperties));
+        Assert.Contains(roomConstructs.Children, child => child is ScopedActionsNodeViewModel);
+        Assert.Contains(roomConstructs.Children, child => child is ScopedVerbsNodeViewModel);
+        Assert.Contains(roomConstructs.Children, child => child is ScopedDirectionalsNodeViewModel);
+        Assert.Contains(roomConstructs.Children, child => child is ScopedSoundEffectsNodeViewModel);
+        Assert.Contains(roomConstructs.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
+        Assert.Contains(roomConstructs.Children, child => child is ScopedTimerDefinitionsNodeViewModel);
         Assert.Contains(roomNode.Children, child => child is RoomTraversalLegsNodeViewModel);
-        Assert.Contains(roomNode.Children, child => child is RoomGameObjectsNodeViewModel);
+        Assert.Contains(roomConstructs.Children, child => child is RoomGameObjectsNodeViewModel);
 
         var postShowAction = viewModel.GetTreeContextActions(roomNode)
             .Single(action => action.ActionId == "toggle-hide-empty-configuration");
@@ -81,8 +86,8 @@ public sealed class HideEmptyConfigurationContextActionsTests
 
         Assert.True(handledHide);
         Assert.True(roomModel.HideEmptyConfiguration);
-        Assert.DoesNotContain(roomNode.Children, child => child is GamePropertiesContainerNodeViewModel);
-        Assert.DoesNotContain(roomNode.Children, child => child is ScopedActionsNodeViewModel);
+        Assert.DoesNotContain(roomNode.Children.OfType<RoomSettingsNodeViewModel>().SelectMany(node => node.Children), child => child is GamePropertiesContainerNodeViewModel);
+        Assert.DoesNotContain(roomNode.Children.OfType<ConstructsNodeViewModel>().SelectMany(node => node.Children), child => child is ScopedActionsNodeViewModel);
         Assert.DoesNotContain(roomNode.Children, child => child is ScopedVerbsNodeViewModel);
         Assert.DoesNotContain(roomNode.Children, child => child is ScopedDirectionalsNodeViewModel);
         Assert.DoesNotContain(roomNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
@@ -95,6 +100,7 @@ public sealed class HideEmptyConfigurationContextActionsTests
         var project = BuildProject();
         var areaModel = project.Planets[0].Countries[0].Areas[0];
         areaModel.GameObjects.Add(new GameObject { Name = "Area Object" });
+        areaModel.Variables.Add(new GamePropertyDefinition { Name = "areaMood", DefaultValue = "quiet" });
         areaModel.BaseObjects.Add(new GameObject { Name = "Area Base Object" });
         areaModel.ObjectTemplates.Add(new GameObject { Name = "Area Object Template" });
         areaModel.RoomTemplates.Add(new Room { Name = "Area Room Template" });
@@ -110,26 +116,36 @@ public sealed class HideEmptyConfigurationContextActionsTests
             new ProjectUiServiceStub());
         var hierarchy = BuildHierarchy(project);
         var areaNode = EnumerateNodes(hierarchy).OfType<AreaNodeViewModel>().Single();
-        var objectTemplatesNode = areaNode.Children.OfType<ObjectTemplatesNodeViewModel>()
+        var constructsNode = areaNode.Children.OfType<ConstructsNodeViewModel>().Single();
+        var settingsNode = Assert.Single(areaNode.Children.OfType<AreaSettingsNodeViewModel>());
+        var variablesNode = Assert.Single(areaNode.Children.OfType<GamePropertiesContainerNodeViewModel>());
+        var objectTemplatesNode = constructsNode.Children.OfType<ObjectTemplatesNodeViewModel>()
             .Single(node => !node.IsBaseCatalog);
-        var roomTemplatesNode = areaNode.Children.OfType<RoomTemplatesNodeViewModel>().Single();
-        var sequencesNode = areaNode.Children.OfType<SequencesNodeViewModel>().Single();
+        var roomTemplatesNode = constructsNode.Children.OfType<RoomTemplatesNodeViewModel>().Single();
+        var sequencesNode = constructsNode.Children.OfType<SequencesNodeViewModel>().Single();
         var sequenceNode = Assert.IsType<SequenceDefinitionNodeViewModel>(Assert.Single(sequencesNode.Children));
 
         Assert.IsType<AreaSettingsNodeViewModel>(areaNode.Children[0]);
-        Assert.IsType<ChildrenGroupNodeViewModel>(areaNode.Children[1]);
-        Assert.IsType<AreaGameObjectsNodeViewModel>(areaNode.Children[2]);
-        Assert.True(Assert.IsType<ObjectTemplatesNodeViewModel>(areaNode.Children[3]).IsBaseCatalog);
+        Assert.Same(areaNode, variablesNode.Parent);
+        Assert.Equal(areaNode.Children.IndexOf(settingsNode) + 1, areaNode.Children.IndexOf(variablesNode));
+        Assert.Same(areaModel, variablesNode.ScopeOwner);
+        Assert.Same(constructsNode, areaNode.Children[2]);
+        Assert.IsType<ChildrenGroupNodeViewModel>(areaNode.Children[3]);
+        Assert.Contains(constructsNode.Children, child => child is AreaGameObjectsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ObjectTemplatesNodeViewModel templates && templates.IsBaseCatalog);
 
         Assert.True(viewModel.ExecuteTreeContextAction("toggle-hide-empty-configuration", areaNode));
 
         Assert.IsType<AreaSettingsNodeViewModel>(areaNode.Children[0]);
-        Assert.IsType<ChildrenGroupNodeViewModel>(areaNode.Children[1]);
-        Assert.IsType<AreaGameObjectsNodeViewModel>(areaNode.Children[2]);
-        Assert.True(Assert.IsType<ObjectTemplatesNodeViewModel>(areaNode.Children[3]).IsBaseCatalog);
-        Assert.Same(objectTemplatesNode, areaNode.Children.OfType<ObjectTemplatesNodeViewModel>().Single(node => !node.IsBaseCatalog));
-        Assert.Same(roomTemplatesNode, Assert.Single(areaNode.Children.OfType<RoomTemplatesNodeViewModel>()));
-        Assert.Same(sequencesNode, Assert.Single(areaNode.Children.OfType<SequencesNodeViewModel>()));
+        Assert.Same(settingsNode, Assert.Single(areaNode.Children.OfType<AreaSettingsNodeViewModel>()));
+        Assert.Same(variablesNode, Assert.Single(areaNode.Children.OfType<GamePropertiesContainerNodeViewModel>()));
+        Assert.Same(constructsNode, areaNode.Children[2]);
+        Assert.IsType<ChildrenGroupNodeViewModel>(areaNode.Children[3]);
+        Assert.Contains(constructsNode.Children, child => child is AreaGameObjectsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ObjectTemplatesNodeViewModel templates && templates.IsBaseCatalog);
+        Assert.Same(objectTemplatesNode, constructsNode.Children.OfType<ObjectTemplatesNodeViewModel>().Single(node => !node.IsBaseCatalog));
+        Assert.Same(roomTemplatesNode, Assert.Single(constructsNode.Children.OfType<RoomTemplatesNodeViewModel>()));
+        Assert.Same(sequencesNode, Assert.Single(constructsNode.Children.OfType<SequencesNodeViewModel>()));
         Assert.Same(sequenceNode, Assert.Single(sequencesNode.Children));
     }
 
@@ -311,23 +327,25 @@ public sealed class HideEmptyConfigurationContextActionsTests
 
         Assert.True(hiddenAreaNode.Area.HideEmptyConfiguration);
         Assert.DoesNotContain(hiddenAreaNode.Children, child => child is GamePropertiesContainerNodeViewModel);
-        Assert.DoesNotContain(hiddenAreaNode.Children, child => child is ScopedActionsNodeViewModel);
+        Assert.DoesNotContain(hiddenAreaNode.Children.OfType<ConstructsNodeViewModel>().SelectMany(node => node.Children), child => child is ScopedActionsNodeViewModel);
         Assert.DoesNotContain(hiddenAreaNode.Children, child => child is ScopedVerbsNodeViewModel);
         Assert.DoesNotContain(hiddenAreaNode.Children, child => child is ScopedDirectionalsNodeViewModel);
         Assert.DoesNotContain(hiddenAreaNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
         Assert.DoesNotContain(hiddenAreaNode.Children, child => child is ScopedTimerDefinitionsNodeViewModel);
-        Assert.DoesNotContain(hiddenAreaNode.Children, child => child is AreaGameObjectsNodeViewModel);
+        Assert.DoesNotContain(hiddenAreaNode.Children.OfType<ConstructsNodeViewModel>().SelectMany(node => node.Children), child => child is AreaGameObjectsNodeViewModel);
 
         Assert.True(viewModel.ExecuteTreeContextAction("toggle-hide-empty-configuration", hiddenAreaNode));
 
         Assert.False(hiddenAreaNode.Area.HideEmptyConfiguration);
+        var shownAreaConstructs = Assert.Single(hiddenAreaNode.Children.OfType<ConstructsNodeViewModel>());
         Assert.Contains(hiddenAreaNode.Children, child => child is GamePropertiesContainerNodeViewModel);
-        Assert.Contains(hiddenAreaNode.Children, child => child is ScopedActionsNodeViewModel);
-        Assert.Contains(hiddenAreaNode.Children, child => child is ScopedVerbsNodeViewModel);
-        Assert.Contains(hiddenAreaNode.Children, child => child is ScopedDirectionalsNodeViewModel);
-        Assert.Contains(hiddenAreaNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
-        Assert.Contains(hiddenAreaNode.Children, child => child is ScopedTimerDefinitionsNodeViewModel);
-        Assert.Contains(hiddenAreaNode.Children, child => child is AreaGameObjectsNodeViewModel);
+        Assert.Contains(shownAreaConstructs.Children, child => child is ScopedActionsNodeViewModel);
+        Assert.Contains(shownAreaConstructs.Children, child => child is ScopedVerbsNodeViewModel);
+        Assert.Contains(shownAreaConstructs.Children, child => child is ScopedDirectionalsNodeViewModel);
+        Assert.Contains(shownAreaConstructs.Children, child => child is ScopedSoundEffectsNodeViewModel);
+        Assert.Contains(shownAreaConstructs.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
+        Assert.Contains(shownAreaConstructs.Children, child => child is ScopedTimerDefinitionsNodeViewModel);
+        Assert.Contains(shownAreaConstructs.Children, child => child is AreaGameObjectsNodeViewModel);
     }
 
     private static IReadOnlyList<HierarchyNodeViewModel> BuildHierarchy(ProjectModel project)

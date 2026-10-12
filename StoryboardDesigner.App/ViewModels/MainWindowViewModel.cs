@@ -535,7 +535,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         if (objectNode is null && SelectedRoom is not null)
         {
             var roomNode = FindRoomNode(SelectedRoom);
-            objectNode = roomNode?.Children
+            objectNode = roomNode is null ? null : EnumerateHierarchyNodes(roomNode.Children)
                 .OfType<RoomGameObjectsNodeViewModel>()
                 .SelectMany(node => node.Children.OfType<GameObjectNodeViewModel>())
                 .FirstOrDefault(node => ReferenceEquals(node.GameObject, SelectedGameObject));
@@ -544,7 +544,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             {
                 objectNode = HierarchyRoots
                     .OfType<ProjectRootNodeViewModel>()
-                    .SelectMany(root => root.Children.OfType<GlobalObjectsNodeViewModel>())
+                    .SelectMany(root => EnumerateHierarchyNodes(root.Children).OfType<GlobalObjectsNodeViewModel>())
                     .SelectMany(playerNode => EnumerateHierarchyNodes(playerNode.Children).OfType<GlobalObjectNodeViewModel>())
                     .FirstOrDefault(node => ReferenceEquals(node.GameObject, SelectedGameObject));
             }
@@ -562,7 +562,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        var variablesContainer = objectNode.Children
+        var variablesContainer = EnumerateHierarchyNodes(objectNode.Children)
             .OfType<GamePropertiesContainerNodeViewModel>()
             .FirstOrDefault(node => node.Scope == PropertyResolutionScope.Object);
 
@@ -3561,6 +3561,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             AreaNodeViewModel areaNode => $"area:{areaNode.Area.Id:N}",
             RoomNodeViewModel roomNode => $"room:{roomNode.Room.Id:N}",
             ConfigurationGroupNodeViewModel => "group:configuration",
+            ConstructsNodeViewModel => "group:constructs",
             ChildrenGroupNodeViewModel => "group:children",
             RoomGameObjectsNodeViewModel objectsNode => $"room-objects:{objectsNode.RoomNode.Room.Id:N}",
             PlanetGameObjectsNodeViewModel objectsNode => $"planet-objects:{objectsNode.PlanetNode.Planet.Id:N}",
@@ -4472,14 +4473,33 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         foreach (var hierarchyNode in EnumerateHierarchyNodes(projectRootNode).ToList())
         {
+            // Sequence folders and definitions are visual descendants of their model scope.
+            // They resolve back to that scope for selection, but must not be treated as
+            // owners when projecting missing sequence folders into the hierarchy.
+            if (hierarchyNode is SequencesNodeViewModel or SequenceDefinitionNodeViewModel or ConstructsNodeViewModel)
+            {
+                continue;
+            }
+
             var owner = ResolveSequenceScopeOwner(hierarchyNode);
-            if (owner is null || hierarchyNode.Children.OfType<SequencesNodeViewModel>().Any()) continue;
-            var sequencesNode = new SequencesNodeViewModel(owner, hierarchyNode);
+            if (owner is null
+                || FindChildConstructsNode(hierarchyNode)?.Children.OfType<SequencesNodeViewModel>().Any() == true)
+            {
+                continue;
+            }
+
+            var constructsNode = GetOrCreateConstructsNode(hierarchyNode);
+            var sequencesNode = new SequencesNodeViewModel(owner, constructsNode);
             foreach (var definition in owner.SequenceDefinitions)
             {
                 sequencesNode.Children.Add(new SequenceDefinitionNodeViewModel(owner, definition, sequencesNode));
             }
-            hierarchyNode.Children.Add(sequencesNode);
+            constructsNode.Children.Add(sequencesNode);
+            ApplyScopeChildOrder(hierarchyNode);
+        }
+
+        foreach (var hierarchyNode in EnumerateHierarchyNodes(projectRootNode).ToList())
+        {
             ApplyScopeChildOrder(hierarchyNode);
         }
 

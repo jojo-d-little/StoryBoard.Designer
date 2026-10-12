@@ -1163,9 +1163,10 @@ public sealed partial class MainWindowViewModel
         }
     }
 
-    private static ScopeNodeBase? ResolveSequenceScopeOwner(HierarchyNodeViewModel node) => node.ScopeOwner ?? node switch
+    private static ScopeNodeBase? ResolveSequenceScopeOwner(HierarchyNodeViewModel node) => node switch
     {
-        PhaseNodeViewModel phase => phase.PhaseNode,
+        SequenceDefinitionNodeViewModel sequence => sequence.Owner,
+        SequencesNodeViewModel sequences => sequences.Owner,
         GameObjectNodeViewModel gameObject when !gameObject.GameObject.IsRoomInstance => gameObject.GameObject,
         GlobalObjectNodeViewModel globalObject => globalObject.GameObject,
         TemplateGameObjectNodeViewModel templateObject => templateObject.GameObject,
@@ -1830,15 +1831,13 @@ public sealed partial class MainWindowViewModel
         var ownerNode = GetAncestry(SelectedNode!).FirstOrDefault(node => ReferenceEquals(ResolveSequenceScopeOwner(node), SelectedSequenceScope));
         if (ownerNode is not null)
         {
-            var sequencesNode = ownerNode.Children.OfType<SequencesNodeViewModel>().FirstOrDefault();
-            if (sequencesNode is null)
+            var sequencesNode = FindOrCreateSequencesNode(SelectedSequenceScope);
+            if (sequencesNode is not null)
             {
-                sequencesNode = new SequencesNodeViewModel(SelectedSequenceScope, ownerNode);
-                ownerNode.Children.Add(sequencesNode);
+                var sequenceNode = new SequenceDefinitionNodeViewModel(SelectedSequenceScope, definition, sequencesNode);
+                sequencesNode.Children.Add(sequenceNode);
+                SelectedNode = sequenceNode;
             }
-            var sequenceNode = new SequenceDefinitionNodeViewModel(SelectedSequenceScope, definition, sequencesNode);
-            sequencesNode.Children.Add(sequenceNode);
-            SelectedNode = sequenceNode;
         }
         NotifySequenceProjectEdited();
     }

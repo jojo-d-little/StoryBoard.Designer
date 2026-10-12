@@ -1,4 +1,5 @@
 using System.Reflection;
+using Storyboard.Shared.DesignerContracts;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
@@ -8,7 +9,7 @@ namespace StoryboardDesigner.App.Tests;
 public sealed class RoomTreeTraversalProjectionTests
 {
     [Fact]
-    public void BuildHierarchy_PlanetNode_ProjectsConfigurationAndChildrenDirectly()
+    public void BuildHierarchy_PlanetNode_PlacesPropertiesBesideSettingsAndConstructsBeforeChildren()
     {
         var project = CreateBasicProject();
 
@@ -16,18 +17,84 @@ public sealed class RoomTreeTraversalProjectionTests
         var planetNode = EnumerateNodes(hierarchy)
             .OfType<PlanetNodeViewModel>()
             .Single();
+        var constructsNode = Assert.Single(planetNode.Children.OfType<ConstructsNodeViewModel>());
+        var actionsNode = Assert.Single(constructsNode.Children.OfType<ScopedActionsNodeViewModel>());
 
-        Assert.Contains(planetNode.Children, child => child is PlanetSettingsNodeViewModel);
-        Assert.Contains(planetNode.Children, child => child is GamePropertiesContainerNodeViewModel);
-        Assert.Contains(planetNode.Children, child => child is ScopedActionsNodeViewModel);
-        Assert.Contains(planetNode.Children, child => child is ScopedVerbsNodeViewModel);
-        Assert.Contains(planetNode.Children, child => child is ScopedDirectionalsNodeViewModel);
-        Assert.Contains(planetNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
-        Assert.Contains(planetNode.Children, child => child is ScopedTimerDefinitionsNodeViewModel);
-        Assert.Contains(planetNode.Children, child => child is ObjectTemplatesNodeViewModel templatesNode && templatesNode.EditableName == "Base Objects");
+        var settingsNode = Assert.Single(planetNode.Children.OfType<PlanetSettingsNodeViewModel>());
+        var variablesNode = Assert.Single(planetNode.Children.OfType<GamePropertiesContainerNodeViewModel>());
+        Assert.Same(planetNode, variablesNode.Parent);
+        Assert.Equal(1, planetNode.Children.IndexOf(variablesNode));
+        Assert.Same(planetNode.Planet, variablesNode.ScopeOwner);
+        Assert.Equal("Constructs", constructsNode.EditableName);
+        Assert.Equal("Actions", actionsNode.EditableName);
+        Assert.Same(planetNode, constructsNode.Parent);
+        Assert.Same(planetNode.Planet, constructsNode.ScopeOwner);
+        Assert.Same(constructsNode, actionsNode.Parent);
+        Assert.Same(planetNode.Planet, actionsNode.ScopeOwner);
+        Assert.Contains(constructsNode.Children, child => child is SequencesNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ScopedVerbsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ScopedDirectionalsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ScopedSoundEffectsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ScopedTimerDefinitionsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ObjectTemplatesNodeViewModel templatesNode && templatesNode.EditableName == "Base Objects");
+        Assert.Contains(constructsNode.Children, child => child is ObjectTemplatesNodeViewModel templatesNode && templatesNode.EditableName == "Object Templates");
+        Assert.Contains(constructsNode.Children, child => child is RoomTemplatesNodeViewModel);
+        var objectsNode = Assert.Single(constructsNode.Children.OfType<PlanetGameObjectsNodeViewModel>());
+        Assert.Same(constructsNode, objectsNode.Parent);
+        Assert.Same(planetNode.Planet, objectsNode.ScopeOwner);
 
         var planetGroup = planetNode.Children.OfType<ChildrenGroupNodeViewModel>().Single();
         Assert.Equal("Countries", planetGroup.EditableName);
+    }
+
+    [Fact]
+    public void BuildHierarchy_SequenceFolders_DoNotBecomeModelScopeOwners()
+    {
+        var project = CreateBasicProject();
+        var area = project.Planets[0].Countries[0].Areas[0];
+        area.SequenceDefinitions.Add(new ProjectSequenceDefinitionDto
+        {
+            SequenceId = Guid.NewGuid(),
+            DisplayName = "Area Sequence"
+        });
+
+        var hierarchy = BuildHierarchy(project);
+        var areaNode = EnumerateNodes(hierarchy).OfType<AreaNodeViewModel>().Single();
+        var constructsNode = Assert.Single(areaNode.Children.OfType<ConstructsNodeViewModel>());
+        var sequencesNode = Assert.Single(constructsNode.Children.OfType<SequencesNodeViewModel>());
+
+        Assert.Same(area, sequencesNode.Owner);
+        Assert.Same(constructsNode, sequencesNode.Parent);
+        Assert.Single(sequencesNode.Children.OfType<SequenceDefinitionNodeViewModel>());
+        Assert.DoesNotContain(
+            EnumerateNodes([sequencesNode]),
+            node => node is ConstructsNodeViewModel);
+    }
+
+    [Fact]
+    public void BuildHierarchy_PhasesRemainBookChapterPageOnly()
+    {
+        var page = new PhaseNode { Tier = PhaseTier.Page, PhaseKey = "page-one", DisplayName = "Page One" };
+        var chapter = new PhaseNode { Tier = PhaseTier.Chapter, PhaseKey = "chapter-one", DisplayName = "Chapter One" };
+        chapter.Children.Add(page);
+        var book = new PhaseNode { Tier = PhaseTier.Book, PhaseKey = "book-one", DisplayName = "Book One" };
+        book.Children.Add(chapter);
+        var project = CreateBasicProject();
+        project.PhaseBooks.Add(book);
+
+        var hierarchy = BuildHierarchy(project);
+        var phaseBooks = Assert.Single(EnumerateNodes(hierarchy).OfType<PhaseBooksNodeViewModel>());
+        var bookNode = Assert.Single(phaseBooks.Children.OfType<PhaseNodeViewModel>());
+        var chapterNode = Assert.Single(bookNode.Children.OfType<PhaseNodeViewModel>());
+        var pageNode = Assert.Single(chapterNode.Children.OfType<PhaseNodeViewModel>());
+
+        Assert.Equal(PhaseTier.Book, bookNode.PhaseNode.Tier);
+        Assert.Equal(PhaseTier.Chapter, chapterNode.PhaseNode.Tier);
+        Assert.Equal(PhaseTier.Page, pageNode.PhaseNode.Tier);
+        Assert.DoesNotContain(
+            EnumerateNodes([phaseBooks]),
+            node => node is ConstructsNodeViewModel or SequencesNodeViewModel);
     }
 
     [Fact]
@@ -48,13 +115,22 @@ public sealed class RoomTreeTraversalProjectionTests
 
         if (roomObjectNode is not null)
         {
+            var constructsNode = Assert.Single(roomObjectNode.Children.OfType<ConstructsNodeViewModel>());
             Assert.Contains(roomObjectNode.Children, child => child is GameObjectSettingsNodeViewModel);
-            Assert.Contains(roomObjectNode.Children, child => child is GamePropertiesContainerNodeViewModel);
-            Assert.Contains(roomObjectNode.Children, child => child is ScopedActionsNodeViewModel);
-            Assert.Contains(roomObjectNode.Children, child => child is ScopedVerbsNodeViewModel);
-            Assert.Contains(roomObjectNode.Children, child => child is ScopedDirectionalsNodeViewModel);
-            Assert.Contains(roomObjectNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
-            Assert.Contains(roomObjectNode.Children, child => child is ScopedTimerDefinitionsNodeViewModel);
+            var objectSettings = Assert.Single(roomObjectNode.Children.OfType<GameObjectSettingsNodeViewModel>());
+            var objectProperties = Assert.Single(roomObjectNode.Children.OfType<GamePropertiesContainerNodeViewModel>());
+            Assert.Same(roomObjectNode, objectProperties.Parent);
+            Assert.Equal(roomObjectNode.Children.IndexOf(objectSettings) + 1, roomObjectNode.Children.IndexOf(objectProperties));
+            var actionsNode = Assert.Single(constructsNode.Children.OfType<ScopedActionsNodeViewModel>());
+            Assert.Equal("Actions", actionsNode.EditableName);
+            Assert.Same(constructsNode, actionsNode.Parent);
+            Assert.Same(roomObjectNode.GameObject, actionsNode.ScopeOwner);
+            Assert.Contains(constructsNode.Children, child => child is ScopedVerbsNodeViewModel);
+            Assert.Contains(constructsNode.Children, child => child is ScopedDirectionalsNodeViewModel);
+            Assert.Contains(constructsNode.Children, child => child is ScopedSoundEffectsNodeViewModel);
+            Assert.Contains(constructsNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
+            Assert.Contains(constructsNode.Children, child => child is ScopedTimerDefinitionsNodeViewModel);
+            Assert.Contains(constructsNode.Children, child => child is ScopedProceduresNodeViewModel);
             var objectGroup = roomObjectNode.Children.OfType<ChildrenGroupNodeViewModel>().Single();
             Assert.Equal("Contained Objects", objectGroup.EditableName);
         }
@@ -81,30 +157,47 @@ public sealed class RoomTreeTraversalProjectionTests
         var globalNode = Assert.IsType<ProjectRootNodeViewModel>(Assert.Single(hierarchy));
         var planetNode = globalNode.Children.OfType<PlanetNodeViewModel>()
             .Single(node => node.EditableName == "Zulu Planet");
-        var countriesFolder = Assert.IsType<ChildrenGroupNodeViewModel>(planetNode.Children[1]);
+        var countriesFolder = Assert.IsType<ChildrenGroupNodeViewModel>(planetNode.Children[3]);
         var countryNode = countriesFolder.Children.OfType<CountryNodeViewModel>()
             .Single(node => node.EditableName == "Zulu Country");
-        var areasFolder = Assert.IsType<ChildrenGroupNodeViewModel>(countryNode.Children[1]);
+        var areasFolder = Assert.IsType<ChildrenGroupNodeViewModel>(countryNode.Children[3]);
         var areaNode = Assert.IsType<AreaNodeViewModel>(areasFolder.Children[1]);
-        var roomsFolder = Assert.IsType<ChildrenGroupNodeViewModel>(areaNode.Children[1]);
+        var roomsFolder = Assert.IsType<ChildrenGroupNodeViewModel>(areaNode.Children[3]);
 
         Assert.IsType<GlobalSettingsNodeViewModel>(globalNode.Children[0]);
-        Assert.Equal("Alpha Planet", Assert.IsType<PlanetNodeViewModel>(globalNode.Children[1]).EditableName);
-        Assert.Equal("Zulu Planet", Assert.IsType<PlanetNodeViewModel>(globalNode.Children[2]).EditableName);
-        Assert.IsType<GlobalObjectsNodeViewModel>(globalNode.Children[3]);
-        Assert.True(Assert.IsType<ObjectTemplatesNodeViewModel>(globalNode.Children[4]).IsBaseCatalog);
+        Assert.IsType<GamePropertiesContainerNodeViewModel>(globalNode.Children[1]);
+        Assert.IsType<ConstructsNodeViewModel>(globalNode.Children[2]);
+        Assert.Equal("Alpha Planet", Assert.IsType<PlanetNodeViewModel>(globalNode.Children[3]).EditableName);
+        Assert.Equal("Zulu Planet", Assert.IsType<PlanetNodeViewModel>(globalNode.Children[4]).EditableName);
+        var globalConstructs = Assert.IsType<ConstructsNodeViewModel>(globalNode.Children[2]);
+        Assert.Contains(globalConstructs.Children, child => child is GlobalObjectsNodeViewModel);
+        Assert.Contains(globalConstructs.Children, child => child is ObjectTemplatesNodeViewModel templatesNode && templatesNode.IsBaseCatalog);
+        Assert.Contains(globalConstructs.Children, child => child is ObjectTemplatesNodeViewModel templatesNode && !templatesNode.IsBaseCatalog);
+        Assert.Contains(globalConstructs.Children, child => child is RoomTemplatesNodeViewModel);
         Assert.Equal("Countries", countriesFolder.EditableName);
         Assert.IsType<PlanetSettingsNodeViewModel>(planetNode.Children[0]);
-        Assert.IsType<PlanetGameObjectsNodeViewModel>(planetNode.Children[2]);
-        Assert.True(Assert.IsType<ObjectTemplatesNodeViewModel>(planetNode.Children[3]).IsBaseCatalog);
+        Assert.IsType<GamePropertiesContainerNodeViewModel>(planetNode.Children[1]);
+        Assert.IsType<ConstructsNodeViewModel>(planetNode.Children[2]);
+        Assert.Contains(Assert.IsType<ConstructsNodeViewModel>(planetNode.Children[2]).Children,
+            child => child is PlanetGameObjectsNodeViewModel);
+        Assert.Contains(Assert.IsType<ConstructsNodeViewModel>(planetNode.Children[2]).Children,
+            child => child is ObjectTemplatesNodeViewModel templatesNode && templatesNode.IsBaseCatalog);
         Assert.Equal("Areas", areasFolder.EditableName);
         Assert.IsType<CountrySettingsNodeViewModel>(countryNode.Children[0]);
-        Assert.IsType<CountryGameObjectsNodeViewModel>(countryNode.Children[2]);
-        Assert.True(Assert.IsType<ObjectTemplatesNodeViewModel>(countryNode.Children[3]).IsBaseCatalog);
+        Assert.IsType<GamePropertiesContainerNodeViewModel>(countryNode.Children[1]);
+        Assert.IsType<ConstructsNodeViewModel>(countryNode.Children[2]);
+        Assert.Contains(Assert.IsType<ConstructsNodeViewModel>(countryNode.Children[2]).Children,
+            child => child is CountryGameObjectsNodeViewModel);
+        Assert.Contains(Assert.IsType<ConstructsNodeViewModel>(countryNode.Children[2]).Children,
+            child => child is ObjectTemplatesNodeViewModel templatesNode && templatesNode.IsBaseCatalog);
         Assert.Equal("Rooms", roomsFolder.EditableName);
         Assert.IsType<AreaSettingsNodeViewModel>(areaNode.Children[0]);
-        Assert.IsType<AreaGameObjectsNodeViewModel>(areaNode.Children[2]);
-        Assert.True(Assert.IsType<ObjectTemplatesNodeViewModel>(areaNode.Children[3]).IsBaseCatalog);
+        Assert.IsType<GamePropertiesContainerNodeViewModel>(areaNode.Children[1]);
+        Assert.IsType<ConstructsNodeViewModel>(areaNode.Children[2]);
+        Assert.Contains(Assert.IsType<ConstructsNodeViewModel>(areaNode.Children[2]).Children,
+            child => child is AreaGameObjectsNodeViewModel);
+        Assert.Contains(Assert.IsType<ConstructsNodeViewModel>(areaNode.Children[2]).Children,
+            child => child is ObjectTemplatesNodeViewModel templatesNode && templatesNode.IsBaseCatalog);
         Assert.Equal(["Alpha Country", "Zulu Country"], countriesFolder.Children.Select(node => node.EditableName));
         Assert.Equal(["Alpha Area", "Zulu Area"], areasFolder.Children.Select(node => node.EditableName));
         Assert.Equal(["Alpha Room", "Zulu Room"], roomsFolder.Children.Select(node => node.EditableName));
@@ -125,7 +218,7 @@ public sealed class RoomTreeTraversalProjectionTests
     }
 
     [Fact]
-    public void BuildHierarchy_ScopedBaseObjectCatalogs_AppearAsDirectScopeChildren_NotChildrenGroups()
+    public void BuildHierarchy_ScopedBaseObjectCatalogs_AppearUnderConstructs_NotChildrenGroups()
     {
         var project = CreateBasicProject();
         var country = project.Planets[0].Countries[0];
@@ -140,17 +233,29 @@ public sealed class RoomTreeTraversalProjectionTests
 
         var countryChildrenGroup = countryNode.Children.OfType<ChildrenGroupNodeViewModel>().Single();
         var areaChildrenGroup = areaNode.Children.OfType<ChildrenGroupNodeViewModel>().Single();
+        var countryConstructs = Assert.Single(countryNode.Children.OfType<ConstructsNodeViewModel>());
+        var areaConstructs = Assert.Single(areaNode.Children.OfType<ConstructsNodeViewModel>());
+        Assert.Same(country, countryConstructs.ScopeOwner);
+        Assert.Same(area, areaConstructs.ScopeOwner);
 
-        Assert.Contains(countryNode.Children, child =>
+        var countryBaseCatalog = Assert.Single(
+            countryConstructs.Children.OfType<ObjectTemplatesNodeViewModel>(),
+            templatesNode => templatesNode.IsBaseCatalog);
+        Assert.Same(countryConstructs, countryBaseCatalog.Parent);
+        Assert.Same(country, countryBaseCatalog.ScopeOwner);
+
+        Assert.Contains(countryConstructs.Children, child =>
             child is ObjectTemplatesNodeViewModel templatesNode
             && templatesNode.IsBaseCatalog
-            && templatesNode.EditableName == "Base Objects");
+            && templatesNode.EditableName == "Base Objects"
+            && ReferenceEquals(templatesNode.CatalogParentScope, country));
         Assert.DoesNotContain(countryChildrenGroup.Children, child => child is ObjectTemplatesNodeViewModel);
 
-        Assert.Contains(areaNode.Children, child =>
+        Assert.Contains(areaConstructs.Children, child =>
             child is ObjectTemplatesNodeViewModel templatesNode
             && templatesNode.IsBaseCatalog
-            && templatesNode.EditableName == "Base Objects");
+            && templatesNode.EditableName == "Base Objects"
+            && ReferenceEquals(templatesNode.CatalogParentScope, area));
         Assert.DoesNotContain(areaChildrenGroup.Children, child => child is ObjectTemplatesNodeViewModel);
     }
 
@@ -158,13 +263,18 @@ public sealed class RoomTreeTraversalProjectionTests
     public void BuildHierarchy_GlobalRoot_RemainsDirectConfigurationLayout()
     {
         var project = CreateBasicProject();
+        project.ProcedureIds.Add(Guid.NewGuid());
 
         var hierarchy = BuildHierarchy(project);
         var root = Assert.IsType<ProjectRootNodeViewModel>(Assert.Single(hierarchy));
+        var constructsNode = Assert.Single(root.Children.OfType<ConstructsNodeViewModel>());
 
         Assert.DoesNotContain(root.Children, child => child is ConfigurationGroupNodeViewModel);
         Assert.DoesNotContain(root.Children, child => child is ChildrenGroupNodeViewModel);
         Assert.Contains(root.Children, child => child is GlobalSettingsNodeViewModel);
+        var proceduresNode = Assert.Single(constructsNode.Children.OfType<ScopedProceduresNodeViewModel>());
+        Assert.Same(constructsNode, proceduresNode.Parent);
+        Assert.Same(project, proceduresNode.ScopeOwner);
     }
 
     [Fact]
@@ -175,12 +285,15 @@ public sealed class RoomTreeTraversalProjectionTests
 
         var hierarchy = BuildHierarchy(project);
         var root = Assert.IsType<ProjectRootNodeViewModel>(Assert.Single(hierarchy));
-        var globalCollectionNode = Assert.IsType<GlobalObjectsNodeViewModel>(root.Children.Single(child => child is GlobalObjectsNodeViewModel));
+        var constructsNode = Assert.Single(root.Children.OfType<ConstructsNodeViewModel>());
+        var globalCollectionNode = Assert.IsType<GlobalObjectsNodeViewModel>(constructsNode.Children.Single(child => child is GlobalObjectsNodeViewModel));
         var authoredNode = Assert.IsAssignableFrom<GameObjectsNodeViewModel>(globalCollectionNode);
 
         var scopeNode = Assert.IsAssignableFrom<ScopeNodeBase>(authoredNode.ScopeNode);
         Assert.Equal(ScopeNodeKind.Global, scopeNode.ScopeKind);
         Assert.Equal("Global", scopeNode.ScopeName);
+        Assert.Same(constructsNode, globalCollectionNode.Parent);
+        Assert.Same(project, globalCollectionNode.ScopeOwner);
         Assert.Single(authoredNode.GameObjects);
         Assert.Equal("Global Coin", authoredNode.GameObjects[0].Name);
     }
@@ -201,12 +314,13 @@ public sealed class RoomTreeTraversalProjectionTests
         var roomNode = EnumerateNodes(hierarchy)
             .OfType<RoomNodeViewModel>()
             .Single(node => node.Room.Id == room.Id);
-        var roomObjectsNode = roomNode.Children
-            .OfType<RoomGameObjectsNodeViewModel>()
-            .Single();
+        var constructsNode = Assert.Single(roomNode.Children.OfType<ConstructsNodeViewModel>());
+        var roomObjectsNode = constructsNode.Children.OfType<RoomGameObjectsNodeViewModel>().Single();
         var authoredNode = Assert.IsAssignableFrom<GameObjectsNodeViewModel>(roomObjectsNode);
 
         Assert.Same(room, authoredNode.ScopeNode);
+        Assert.Same(constructsNode, roomObjectsNode.Parent);
+        Assert.Same(room, roomObjectsNode.ScopeOwner);
         Assert.Single(authoredNode.GameObjects);
         Assert.Equal("Room Key", authoredNode.GameObjects[0].Name);
     }
@@ -229,9 +343,9 @@ public sealed class RoomTreeTraversalProjectionTests
         var countryNode = EnumerateNodes(hierarchy).OfType<CountryNodeViewModel>().Single();
         var areaNode = EnumerateNodes(hierarchy).OfType<AreaNodeViewModel>().Single();
 
-        var planetObjectsNode = planetNode.Children.OfType<PlanetGameObjectsNodeViewModel>().Single();
-        var countryObjectsNode = countryNode.Children.OfType<CountryGameObjectsNodeViewModel>().Single();
-        var areaObjectsNode = areaNode.Children.OfType<AreaGameObjectsNodeViewModel>().Single();
+        var planetObjectsNode = Assert.Single(planetNode.Children.OfType<ConstructsNodeViewModel>().Single().Children.OfType<PlanetGameObjectsNodeViewModel>());
+        var countryObjectsNode = Assert.Single(countryNode.Children.OfType<ConstructsNodeViewModel>().Single().Children.OfType<CountryGameObjectsNodeViewModel>());
+        var areaObjectsNode = Assert.Single(areaNode.Children.OfType<ConstructsNodeViewModel>().Single().Children.OfType<AreaGameObjectsNodeViewModel>());
 
         var planetAuthoredNode = Assert.IsAssignableFrom<GameObjectsNodeViewModel>(planetObjectsNode);
         var countryAuthoredNode = Assert.IsAssignableFrom<GameObjectsNodeViewModel>(countryObjectsNode);
@@ -254,22 +368,36 @@ public sealed class RoomTreeTraversalProjectionTests
 
         var hierarchy = BuildHierarchy(project);
         var root = Assert.IsType<ProjectRootNodeViewModel>(Assert.Single(hierarchy));
+        var rootConstructsNode = Assert.Single(root.Children.OfType<ConstructsNodeViewModel>());
         var templatesNode = Assert.IsType<RoomTemplatesNodeViewModel>(
-            root.Children.Single(child => child is RoomTemplatesNodeViewModel));
+            rootConstructsNode.Children.Single(child => child is RoomTemplatesNodeViewModel));
 
         var templateRoomNode = Assert.IsType<TemplateRoomNodeViewModel>(Assert.Single(templatesNode.Children));
         Assert.Equal("Template Room", templateRoomNode.EditableName);
 
         Assert.Contains(templateRoomNode.Children, child => child is RoomSettingsNodeViewModel);
-        Assert.Contains(templateRoomNode.Children, child => child is GamePropertiesContainerNodeViewModel);
-        Assert.Contains(templateRoomNode.Children, child => child is ScopedActionsNodeViewModel);
-        Assert.Contains(templateRoomNode.Children, child => child is ScopedVerbsNodeViewModel);
-        Assert.Contains(templateRoomNode.Children, child => child is ScopedDirectionalsNodeViewModel);
-        Assert.Contains(templateRoomNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
-        Assert.Contains(templateRoomNode.Children, child => child is ScopedTimerDefinitionsNodeViewModel);
+        var roomSettings = Assert.Single(templateRoomNode.Children.OfType<RoomSettingsNodeViewModel>());
+        var templateVariables = Assert.Single(templateRoomNode.Children.OfType<GamePropertiesContainerNodeViewModel>());
+        Assert.Same(templateRoomNode, templateVariables.Parent);
+        Assert.Equal(1, templateRoomNode.Children.IndexOf(templateVariables));
+        Assert.Same(templateRoomNode.Room, templateVariables.ScopeOwner);
+        var constructsNode = Assert.Single(templateRoomNode.Children.OfType<ConstructsNodeViewModel>());
+        Assert.Contains(constructsNode.Children, child => child is ScopedActionsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is SequencesNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ScopedVerbsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ScopedDirectionalsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ScopedSoundEffectsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ScopedTimerDefinitionsNodeViewModel);
 
-        var templateObjectsNode = templateRoomNode.Children.OfType<ObjectTemplatesNodeViewModel>().Single();
+        var templateObjectsNode = constructsNode.Children.OfType<ObjectTemplatesNodeViewModel>().Single();
         Assert.Equal("Game Objects", templateObjectsNode.EditableName);
+        var getOrCreateObjectsNode = typeof(MainWindowViewModel).GetMethod(
+            "GetOrCreateTemplateRoomObjectsNode",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(getOrCreateObjectsNode);
+        Assert.Same(templateObjectsNode, getOrCreateObjectsNode!.Invoke(null, [templateRoomNode]));
+        Assert.Single(constructsNode.Children.OfType<ObjectTemplatesNodeViewModel>());
     }
 
     [Fact]
@@ -305,24 +433,32 @@ public sealed class RoomTreeTraversalProjectionTests
             .Single(node => node.Room.Id == roomA.Id);
 
         Assert.Contains(roomNode.Children, child => child is RoomSettingsNodeViewModel);
-        Assert.Contains(roomNode.Children, child => child is GamePropertiesContainerNodeViewModel);
-        Assert.Contains(roomNode.Children, child => child is ScopedActionsNodeViewModel);
-        Assert.Contains(roomNode.Children, child => child is ScopedVerbsNodeViewModel);
-        Assert.Contains(roomNode.Children, child => child is ScopedDirectionalsNodeViewModel);
-        Assert.Contains(roomNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
-        Assert.Contains(roomNode.Children, child => child is ScopedTimerDefinitionsNodeViewModel);
+        var roomSettings = Assert.Single(roomNode.Children.OfType<RoomSettingsNodeViewModel>());
+        var roomVariables = Assert.Single(roomNode.Children.OfType<GamePropertiesContainerNodeViewModel>());
+        Assert.Same(roomNode, roomVariables.Parent);
+        Assert.Equal(1, roomNode.Children.IndexOf(roomVariables));
+        Assert.Same(roomNode.Room, roomVariables.ScopeOwner);
+        var constructsNode = Assert.Single(roomNode.Children.OfType<ConstructsNodeViewModel>());
+        Assert.Contains(constructsNode.Children, child => child is ScopedActionsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is SequencesNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ScopedVerbsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ScopedDirectionalsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ScopedSoundEffectsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is ScopedTimerDefinitionsNodeViewModel);
         Assert.Contains(roomNode.Children, child => child is RoomTraversalLegsNodeViewModel);
-        Assert.Contains(roomNode.Children, child => child is RoomGameObjectsNodeViewModel);
+        Assert.Contains(constructsNode.Children, child => child is RoomGameObjectsNodeViewModel);
 
         var traversalLegsFolder = roomNode.Children.OfType<RoomTraversalLegsNodeViewModel>().Single();
-        var objectsFolder = roomNode.Children.OfType<RoomGameObjectsNodeViewModel>().Single();
+        var objectsFolder = constructsNode.Children.OfType<RoomGameObjectsNodeViewModel>().Single();
 
         Assert.NotNull(objectsFolder);
 
         var legNode = Assert.IsType<TraversalLegNodeViewModel>(Assert.Single(traversalLegsFolder.Children));
         Assert.Equal(Direction10.East, legNode.Direction);
         Assert.Equal("Room B", legNode.DestinationRoomName);
-        Assert.Contains(legNode.Children, child => child is ScopedActionsNodeViewModel);
+        var legConstructsNode = Assert.Single(legNode.Children.OfType<ConstructsNodeViewModel>());
+        Assert.Contains(legConstructsNode.Children, child => child is ScopedActionsNodeViewModel);
         Assert.Contains(legNode.Children, child => child is GamePropertiesContainerNodeViewModel);
     }
 
@@ -408,6 +544,7 @@ public sealed class RoomTreeTraversalProjectionTests
 
         Assert.DoesNotContain(planetNode.Children, child => child is GamePropertiesContainerNodeViewModel);
         Assert.DoesNotContain(planetNode.Children, child => child is ScopedActionsNodeViewModel);
+        Assert.DoesNotContain(planetNode.Children.OfType<ConstructsNodeViewModel>().SelectMany(node => node.Children), child => child is ScopedActionsNodeViewModel);
         Assert.DoesNotContain(planetNode.Children, child => child is ScopedVerbsNodeViewModel);
         Assert.DoesNotContain(planetNode.Children, child => child is ScopedDirectionalsNodeViewModel);
         Assert.DoesNotContain(planetNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
@@ -432,6 +569,7 @@ public sealed class RoomTreeTraversalProjectionTests
         Assert.Contains(areaNode.Children, child => child is AreaSettingsNodeViewModel);
         Assert.DoesNotContain(areaNode.Children, child => child is GamePropertiesContainerNodeViewModel);
         Assert.DoesNotContain(areaNode.Children, child => child is ScopedActionsNodeViewModel);
+        Assert.DoesNotContain(areaNode.Children.OfType<ConstructsNodeViewModel>().SelectMany(node => node.Children), child => child is ScopedActionsNodeViewModel);
         Assert.DoesNotContain(areaNode.Children, child => child is ScopedVerbsNodeViewModel);
         Assert.DoesNotContain(areaNode.Children, child => child is ScopedDirectionalsNodeViewModel);
         Assert.DoesNotContain(areaNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
@@ -476,6 +614,7 @@ public sealed class RoomTreeTraversalProjectionTests
         Assert.Contains(objectNode.Children, child => child is GameObjectSettingsNodeViewModel);
         Assert.DoesNotContain(objectNode.Children, child => child is GamePropertiesContainerNodeViewModel);
         Assert.DoesNotContain(objectNode.Children, child => child is ScopedActionsNodeViewModel);
+        Assert.DoesNotContain(objectNode.Children.OfType<ConstructsNodeViewModel>().SelectMany(node => node.Children), child => child is ScopedActionsNodeViewModel);
         Assert.DoesNotContain(objectNode.Children, child => child is ScopedVerbsNodeViewModel);
         Assert.DoesNotContain(objectNode.Children, child => child is ScopedDirectionalsNodeViewModel);
         Assert.DoesNotContain(objectNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
@@ -498,7 +637,8 @@ public sealed class RoomTreeTraversalProjectionTests
         {
             ObjectId = Guid.NewGuid(),
             Name = "Stale Room Name",
-            LinkedBaseObjectId = baseObjectId
+            LinkedBaseObjectId = baseObjectId,
+            Variables = [new GamePropertyDefinition { Name = "instanceState", DefaultValue = "ready" }]
         };
 
         var playerLinked = new GameObject
@@ -554,6 +694,9 @@ public sealed class RoomTreeTraversalProjectionTests
         Assert.Equal("Stale Player Name", playerNode.EditableName);
         Assert.Equal("Stale Template Name", templateNode.EditableName);
         Assert.Equal(string.Empty, roomNode.EffectiveNameInGameDisplay);
+        Assert.DoesNotContain(roomNode.Children, child => child is GameObjectSettingsNodeViewModel);
+        var roomProperties = Assert.Single(roomNode.Children.OfType<GamePropertiesContainerNodeViewModel>());
+        Assert.Same(roomNode, roomProperties.Parent);
         Assert.Equal(string.Empty, playerNode.EffectiveNameInGameDisplay);
         Assert.Equal(string.Empty, templateNode.EffectiveNameInGameDisplay);
     }

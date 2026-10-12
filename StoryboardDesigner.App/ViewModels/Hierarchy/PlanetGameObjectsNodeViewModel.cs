@@ -8,6 +8,7 @@ public sealed class PlanetGameObjectsNodeViewModel : GameObjectsNodeViewModel
         : base("Game Objects", planetNode)
     {
         PlanetNode = planetNode;
+        ScopeOwner = planetNode.Planet;
     }
 
     public PlanetNodeViewModel PlanetNode { get; }
