@@ -1481,6 +1481,7 @@ public sealed partial class MainWindowViewModel
 
     private void RebuildProjectRootBranch(ProjectRootNodeViewModel projectRootNode)
     {
+        var sequencesNode = PrepareSequencesNodeForScopeRebuild(projectRootNode);
         var globalSettingsNode = projectRootNode.Children.OfType<GlobalSettingsNodeViewModel>().FirstOrDefault()
             ?? CreateGlobalSettingsNode(projectRootNode);
         var globalVariablesNode = projectRootNode.Children.OfType<GamePropertiesContainerNodeViewModel>()
@@ -1557,6 +1558,15 @@ public sealed partial class MainWindowViewModel
         var planetNodes = projectRootNode.Children.OfType<PlanetNodeViewModel>().ToList();
         projectRootNode.Children.Clear();
         projectRootNode.Children.Add(globalSettingsNode);
+        foreach (var planetNode in planetNodes
+                     .OrderBy(planetNode => planetNode.EditableName, StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(planetNode => planetNode.EditableName, StringComparer.Ordinal))
+        {
+            projectRootNode.Children.Add(planetNode);
+        }
+
+        projectRootNode.Children.Add(globalObjectsNode);
+        projectRootNode.Children.Add(baseObjectsNode);
         projectRootNode.Children.Add(globalVariablesNode);
         projectRootNode.Children.Add(globalActionsNode);
         projectRootNode.Children.Add(globalVerbsNode);
@@ -1565,14 +1575,12 @@ public sealed partial class MainWindowViewModel
         projectRootNode.Children.Add(globalEventSubscriptionsNode);
         projectRootNode.Children.Add(globalTimerDefinitionsNode);
         projectRootNode.Children.Add(globalProceduresNode);
-        projectRootNode.Children.Add(phaseBooksNode);
-        projectRootNode.Children.Add(globalObjectsNode);
         projectRootNode.Children.Add(objectTemplatesNode);
         projectRootNode.Children.Add(roomTemplatesNode);
-        projectRootNode.Children.Add(baseObjectsNode);
-        foreach (var planetNode in planetNodes)
+        projectRootNode.Children.Add(phaseBooksNode);
+        if (sequencesNode is not null)
         {
-            projectRootNode.Children.Add(planetNode);
+            projectRootNode.Children.Add(sequencesNode);
         }
 
         ApplyHideEmptyConfiguration(projectRootNode);
@@ -1580,6 +1588,7 @@ public sealed partial class MainWindowViewModel
 
     private void RebuildPlanetBranch(PlanetNodeViewModel planetNode)
     {
+        var sequencesNode = PrepareSequencesNodeForScopeRebuild(planetNode);
         var settingsNode = planetNode.Children.OfType<PlanetSettingsNodeViewModel>().FirstOrDefault()
             ?? CreatePlanetSettingsNode(planetNode);
         var variablesNode = planetNode.Children.OfType<GamePropertiesContainerNodeViewModel>()
@@ -1607,7 +1616,7 @@ public sealed partial class MainWindowViewModel
             ?? new ChildrenGroupNodeViewModel(planetNode);
 
         var baseObjectsNode = planetNode.Children.OfType<ObjectTemplatesNodeViewModel>()
-            .FirstOrDefault(node => node.IsBaseCatalog && node.EditableName == "Base Objects");
+            .FirstOrDefault(node => node.IsBaseCatalog && node.Parent == planetNode);
         if (baseObjectsNode is null)
         {
             baseObjectsNode = new ObjectTemplatesNodeViewModel(
@@ -1624,11 +1633,27 @@ public sealed partial class MainWindowViewModel
             }
         }
 
+        var objectTemplatesNode = planetNode.Children.OfType<ObjectTemplatesNodeViewModel>()
+            .FirstOrDefault(node => !node.IsBaseCatalog && node.Parent == planetNode)
+            ?? CreateScopedObjectTemplatesNode(
+                planetNode,
+                planetNode.Planet.ObjectTemplates,
+                planetNode.Planet);
+        var roomTemplatesNode = planetNode.Children.OfType<RoomTemplatesNodeViewModel>()
+            .FirstOrDefault(node => node.Parent == planetNode)
+            ?? CreateScopedRoomTemplatesNode(
+                planetNode,
+                planetNode.Planet.RoomTemplates,
+                planetNode.Planet);
+
         var objectsNode = planetNode.Children.OfType<PlanetGameObjectsNodeViewModel>().FirstOrDefault()
             ?? CreateObjectsNode(planetNode);
 
         planetNode.Children.Clear();
         planetNode.Children.Add(settingsNode);
+        planetNode.Children.Add(childrenNode);
+        planetNode.Children.Add(objectsNode);
+        planetNode.Children.Add(baseObjectsNode);
         planetNode.Children.Add(variablesNode);
         planetNode.Children.Add(actionsNode);
         planetNode.Children.Add(verbsNode);
@@ -1636,15 +1661,18 @@ public sealed partial class MainWindowViewModel
         planetNode.Children.Add(soundEffectsNode);
         planetNode.Children.Add(eventSubscriptionsNode);
         planetNode.Children.Add(timerDefinitionsNode);
-        planetNode.Children.Add(childrenNode);
-        planetNode.Children.Add(baseObjectsNode);
-        planetNode.Children.Add(objectsNode);
-
+        planetNode.Children.Add(objectTemplatesNode);
+        planetNode.Children.Add(roomTemplatesNode);
+        if (sequencesNode is not null)
+        {
+            planetNode.Children.Add(sequencesNode);
+        }
         ApplyHideEmptyConfiguration(planetNode);
     }
 
     private void RebuildCountryBranch(CountryNodeViewModel countryNode)
     {
+        var sequencesNode = PrepareSequencesNodeForScopeRebuild(countryNode);
         var settingsNode = countryNode.Children.OfType<CountrySettingsNodeViewModel>().FirstOrDefault()
             ?? CreateCountrySettingsNode(countryNode);
         var variablesNode = countryNode.Children.OfType<GamePropertiesContainerNodeViewModel>()
@@ -1672,7 +1700,7 @@ public sealed partial class MainWindowViewModel
             ?? new ChildrenGroupNodeViewModel(countryNode);
 
         var baseObjectsNode = countryNode.Children.OfType<ObjectTemplatesNodeViewModel>()
-            .FirstOrDefault(node => node.IsBaseCatalog && node.EditableName == "Base Objects");
+            .FirstOrDefault(node => node.IsBaseCatalog && node.Parent == countryNode);
         if (baseObjectsNode is null)
         {
             baseObjectsNode = new ObjectTemplatesNodeViewModel(
@@ -1689,11 +1717,27 @@ public sealed partial class MainWindowViewModel
             }
         }
 
+        var objectTemplatesNode = countryNode.Children.OfType<ObjectTemplatesNodeViewModel>()
+            .FirstOrDefault(node => !node.IsBaseCatalog && node.Parent == countryNode)
+            ?? CreateScopedObjectTemplatesNode(
+                countryNode,
+                countryNode.Country.ObjectTemplates,
+                countryNode.Country);
+        var roomTemplatesNode = countryNode.Children.OfType<RoomTemplatesNodeViewModel>()
+            .FirstOrDefault(node => node.Parent == countryNode)
+            ?? CreateScopedRoomTemplatesNode(
+                countryNode,
+                countryNode.Country.RoomTemplates,
+                countryNode.Country);
+
         var objectsNode = countryNode.Children.OfType<CountryGameObjectsNodeViewModel>().FirstOrDefault()
             ?? CreateObjectsNode(countryNode);
 
         countryNode.Children.Clear();
         countryNode.Children.Add(settingsNode);
+        countryNode.Children.Add(childrenNode);
+        countryNode.Children.Add(objectsNode);
+        countryNode.Children.Add(baseObjectsNode);
         countryNode.Children.Add(variablesNode);
         countryNode.Children.Add(actionsNode);
         countryNode.Children.Add(verbsNode);
@@ -1701,15 +1745,18 @@ public sealed partial class MainWindowViewModel
         countryNode.Children.Add(soundEffectsNode);
         countryNode.Children.Add(eventSubscriptionsNode);
         countryNode.Children.Add(timerDefinitionsNode);
-        countryNode.Children.Add(childrenNode);
-        countryNode.Children.Add(baseObjectsNode);
-        countryNode.Children.Add(objectsNode);
-
+        countryNode.Children.Add(objectTemplatesNode);
+        countryNode.Children.Add(roomTemplatesNode);
+        if (sequencesNode is not null)
+        {
+            countryNode.Children.Add(sequencesNode);
+        }
         ApplyHideEmptyConfiguration(countryNode);
     }
 
     private void RebuildAreaBranch(AreaNodeViewModel areaNode)
     {
+        var sequencesNode = PrepareSequencesNodeForScopeRebuild(areaNode);
         var settingsNode = areaNode.Children.OfType<AreaSettingsNodeViewModel>().FirstOrDefault()
             ?? CreateAreaSettingsNode(areaNode);
         var variablesNode = areaNode.Children.OfType<GamePropertiesContainerNodeViewModel>()
@@ -1737,7 +1784,7 @@ public sealed partial class MainWindowViewModel
             ?? new ChildrenGroupNodeViewModel(areaNode);
 
         var baseObjectsNode = areaNode.Children.OfType<ObjectTemplatesNodeViewModel>()
-            .FirstOrDefault(node => node.IsBaseCatalog && node.EditableName == "Base Objects");
+            .FirstOrDefault(node => node.IsBaseCatalog && node.Parent == areaNode);
         if (baseObjectsNode is null)
         {
             baseObjectsNode = new ObjectTemplatesNodeViewModel(
@@ -1754,11 +1801,27 @@ public sealed partial class MainWindowViewModel
             }
         }
 
+        var objectTemplatesNode = areaNode.Children.OfType<ObjectTemplatesNodeViewModel>()
+            .FirstOrDefault(node => !node.IsBaseCatalog && node.Parent == areaNode)
+            ?? CreateScopedObjectTemplatesNode(
+                areaNode,
+                areaNode.Area.ObjectTemplates,
+                areaNode.Area);
+        var roomTemplatesNode = areaNode.Children.OfType<RoomTemplatesNodeViewModel>()
+            .FirstOrDefault(node => node.Parent == areaNode)
+            ?? CreateScopedRoomTemplatesNode(
+                areaNode,
+                areaNode.Area.RoomTemplates,
+                areaNode.Area);
+
         var objectsNode = areaNode.Children.OfType<AreaGameObjectsNodeViewModel>().FirstOrDefault()
             ?? CreateObjectsNode(areaNode);
 
         areaNode.Children.Clear();
         areaNode.Children.Add(settingsNode);
+        areaNode.Children.Add(childrenNode);
+        areaNode.Children.Add(objectsNode);
+        areaNode.Children.Add(baseObjectsNode);
         areaNode.Children.Add(variablesNode);
         areaNode.Children.Add(actionsNode);
         areaNode.Children.Add(verbsNode);
@@ -1766,15 +1829,18 @@ public sealed partial class MainWindowViewModel
         areaNode.Children.Add(soundEffectsNode);
         areaNode.Children.Add(eventSubscriptionsNode);
         areaNode.Children.Add(timerDefinitionsNode);
-        areaNode.Children.Add(childrenNode);
-        areaNode.Children.Add(baseObjectsNode);
-        areaNode.Children.Add(objectsNode);
-
+        areaNode.Children.Add(objectTemplatesNode);
+        areaNode.Children.Add(roomTemplatesNode);
+        if (sequencesNode is not null)
+        {
+            areaNode.Children.Add(sequencesNode);
+        }
         ApplyHideEmptyConfiguration(areaNode);
     }
 
     private void RebuildRoomBranch(RoomNodeViewModel roomNode)
     {
+        var sequencesNode = PrepareSequencesNodeForScopeRebuild(roomNode);
         var settingsNode = roomNode.Children.OfType<RoomSettingsNodeViewModel>().FirstOrDefault(node => node.RoomNode is not null)
             ?? CreateRoomSettingsNode(roomNode);
         var variablesNode = roomNode.Children.OfType<GamePropertiesContainerNodeViewModel>()
@@ -1814,12 +1880,17 @@ public sealed partial class MainWindowViewModel
         roomNode.Children.Add(timerDefinitionsNode);
         roomNode.Children.Add(traversalLegsNode);
         roomNode.Children.Add(objectsNode);
+        if (sequencesNode is not null)
+        {
+            roomNode.Children.Add(sequencesNode);
+        }
 
         ApplyHideEmptyConfiguration(roomNode);
     }
 
     private void RebuildTemplateRoomBranch(TemplateRoomNodeViewModel templateRoomNode)
     {
+        var sequencesNode = PrepareSequencesNodeForScopeRebuild(templateRoomNode);
         var settingsNode = templateRoomNode.Children.OfType<RoomSettingsNodeViewModel>().FirstOrDefault(node => node.TemplateRoomNode is not null)
             ?? CreateRoomSettingsNode(templateRoomNode);
         var variablesNode = templateRoomNode.Children.OfType<GamePropertiesContainerNodeViewModel>()
@@ -1856,6 +1927,10 @@ public sealed partial class MainWindowViewModel
         templateRoomNode.Children.Add(eventSubscriptionsNode);
         templateRoomNode.Children.Add(timerDefinitionsNode);
         templateRoomNode.Children.Add(objectsNode);
+        if (sequencesNode is not null)
+        {
+            templateRoomNode.Children.Add(sequencesNode);
+        }
 
         ApplyHideEmptyConfiguration(templateRoomNode);
     }
@@ -10118,7 +10193,7 @@ public sealed partial class MainWindowViewModel
         if (areaChildrenGroup is null)
         {
             areaChildrenGroup = new ChildrenGroupNodeViewModel(areaNode);
-            areaNode.Children.Add(areaChildrenGroup);
+            areaNode.Children.Insert(0, areaChildrenGroup);
         }
 
         areaChildrenGroup.Children.Add(roomNode);
@@ -13266,6 +13341,47 @@ public sealed partial class MainWindowViewModel
         return roomNodes;
     }
 
+    private ObjectTemplatesNodeViewModel CreateScopedObjectTemplatesNode(
+        HierarchyNodeViewModel parent,
+        List<GameObject> catalogObjects,
+        ScopeNodeBase catalogParentScope)
+    {
+        var templatesNode = new ObjectTemplatesNodeViewModel(
+            _project,
+            parent,
+            "Object Templates",
+            catalogObjects,
+            _project.ObjectTemplatesIgnoredValidationRuleIds,
+            isBaseCatalog: false,
+            catalogParentScope: catalogParentScope);
+        foreach (var objectNode in CreateTemplateObjectNodes(templatesNode))
+        {
+            templatesNode.Children.Add(objectNode);
+        }
+
+        return templatesNode;
+    }
+
+    private RoomTemplatesNodeViewModel CreateScopedRoomTemplatesNode(
+        HierarchyNodeViewModel parent,
+        List<Room> roomTemplates,
+        ScopeNodeBase catalogParentScope)
+    {
+        var templatesNode = new RoomTemplatesNodeViewModel(
+            _project,
+            parent,
+            "Room Templates",
+            roomTemplates,
+            _project.RoomTemplatesIgnoredValidationRuleIds,
+            catalogParentScope);
+        foreach (var roomNode in CreateTemplateRoomNodes(templatesNode))
+        {
+            templatesNode.Children.Add(roomNode);
+        }
+
+        return templatesNode;
+    }
+
     private static PhaseBooksNodeViewModel CreatePhaseBooksNode(ProjectRootNodeViewModel projectRootNode)
     {
         var node = new PhaseBooksNodeViewModel(projectRootNode.Project, projectRootNode);
@@ -13441,6 +13557,41 @@ public sealed partial class MainWindowViewModel
         hierarchyNode.Children.Add(sequencesNode);
     }
 
+    private static SequencesNodeViewModel? PrepareSequencesNodeForScopeRebuild(HierarchyNodeViewModel hierarchyNode)
+    {
+        var owner = ResolveSequenceScopeOwner(hierarchyNode);
+        if (owner is null)
+        {
+            return null;
+        }
+
+        var sequencesNode = hierarchyNode.Children.OfType<SequencesNodeViewModel>().FirstOrDefault()
+            ?? new SequencesNodeViewModel(owner, hierarchyNode);
+        var definitionIds = owner.SequenceDefinitions
+            .Select(definition => definition.SequenceId)
+            .ToHashSet();
+
+        foreach (var staleNode in sequencesNode.Children.OfType<SequenceDefinitionNodeViewModel>()
+                     .Where(node => !definitionIds.Contains(node.Definition.SequenceId))
+                     .ToList())
+        {
+            sequencesNode.Children.Remove(staleNode);
+        }
+
+        foreach (var definition in owner.SequenceDefinitions)
+        {
+            if (sequencesNode.Children.OfType<SequenceDefinitionNodeViewModel>()
+                .Any(node => node.Definition.SequenceId == definition.SequenceId))
+            {
+                continue;
+            }
+
+            sequencesNode.Children.Add(new SequenceDefinitionNodeViewModel(owner, definition, sequencesNode));
+        }
+
+        return sequencesNode;
+    }
+
     private static void PopulateObjectNodeCommonChildren(GameObjectNodeViewModel objectNode, GameObject interactiveObject)
     {
         if (interactiveObject.IsRoomInstance)
@@ -13512,6 +13663,8 @@ public sealed partial class MainWindowViewModel
 
     private static void ApplyHideEmptyConfiguration(HierarchyNodeViewModel ownerNode)
     {
+        SortPrimaryHierarchyChildren(ownerNode);
+
         if (!IsHideEmptyConfigurationEnabled(ownerNode))
         {
             return;
@@ -13523,6 +13676,58 @@ public sealed partial class MainWindowViewModel
             if (ShouldSuppressEmptyConfigurationChild(ownerNode, childNode))
             {
                 ownerNode.Children.RemoveAt(index);
+            }
+        }
+    }
+
+    private static void SortPrimaryHierarchyChildren(HierarchyNodeViewModel ownerNode)
+    {
+        if (ownerNode is ProjectRootNodeViewModel)
+        {
+            SortNodesWithinExistingSlots(
+                ownerNode.Children,
+                ownerNode.Children.OfType<PlanetNodeViewModel>()
+                    .OrderBy(node => node.EditableName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(node => node.EditableName, StringComparer.Ordinal));
+
+            return;
+        }
+
+        if (ownerNode is not (PlanetNodeViewModel or CountryNodeViewModel or AreaNodeViewModel))
+        {
+            return;
+        }
+
+        var primaryChildren = ownerNode.Children.OfType<ChildrenGroupNodeViewModel>().FirstOrDefault();
+        if (primaryChildren is null)
+        {
+            return;
+        }
+
+        SortNodesWithinExistingSlots(
+            primaryChildren.Children,
+            primaryChildren.Children
+                .OrderBy(node => node.EditableName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(node => node.EditableName, StringComparer.Ordinal));
+    }
+
+    private static void SortNodesWithinExistingSlots(
+        System.Collections.ObjectModel.ObservableCollection<HierarchyNodeViewModel> collection,
+        IEnumerable<HierarchyNodeViewModel> nodesInNameOrder)
+    {
+        var sortedNodes = nodesInNameOrder.ToList();
+        var targetSlots = sortedNodes
+            .Select(collection.IndexOf)
+            .OrderBy(index => index)
+            .ToList();
+
+        for (var index = 0; index < sortedNodes.Count; index++)
+        {
+            var currentIndex = collection.IndexOf(sortedNodes[index]);
+            var targetIndex = targetSlots[index];
+            if (currentIndex != targetIndex)
+            {
+                collection.Move(currentIndex, targetIndex);
             }
         }
     }

@@ -61,6 +61,56 @@ public sealed class RoomTreeTraversalProjectionTests
     }
 
     [Fact]
+    public void BuildHierarchy_PrimaryWorldChildren_AppearBeforeConfigurationFolders()
+    {
+        var project = CreateBasicProject();
+        var primaryPlanet = project.Planets[0];
+        primaryPlanet.Name = "Zulu Planet";
+        primaryPlanet.Countries[0].Name = "Zulu Country";
+        primaryPlanet.Countries[0].Areas[0].Name = "Zulu Area";
+        primaryPlanet.Countries[0].Areas[0].Rooms =
+        [
+            new Room { Name = "Zulu Room" },
+            new Room { Name = "Alpha Room" }
+        ];
+        primaryPlanet.Countries[0].Areas.Add(new Area { Name = "Alpha Area" });
+        primaryPlanet.Countries.Add(new Country { Name = "Alpha Country" });
+        project.Planets.Add(new Planet { Name = "Alpha Planet" });
+
+        var hierarchy = BuildHierarchy(project);
+        var globalNode = Assert.IsType<ProjectRootNodeViewModel>(Assert.Single(hierarchy));
+        var planetNode = globalNode.Children.OfType<PlanetNodeViewModel>()
+            .Single(node => node.EditableName == "Zulu Planet");
+        var countriesFolder = Assert.IsType<ChildrenGroupNodeViewModel>(planetNode.Children[1]);
+        var countryNode = countriesFolder.Children.OfType<CountryNodeViewModel>()
+            .Single(node => node.EditableName == "Zulu Country");
+        var areasFolder = Assert.IsType<ChildrenGroupNodeViewModel>(countryNode.Children[1]);
+        var areaNode = Assert.IsType<AreaNodeViewModel>(areasFolder.Children[1]);
+        var roomsFolder = Assert.IsType<ChildrenGroupNodeViewModel>(areaNode.Children[1]);
+
+        Assert.IsType<GlobalSettingsNodeViewModel>(globalNode.Children[0]);
+        Assert.Equal("Alpha Planet", Assert.IsType<PlanetNodeViewModel>(globalNode.Children[1]).EditableName);
+        Assert.Equal("Zulu Planet", Assert.IsType<PlanetNodeViewModel>(globalNode.Children[2]).EditableName);
+        Assert.IsType<GlobalObjectsNodeViewModel>(globalNode.Children[3]);
+        Assert.True(Assert.IsType<ObjectTemplatesNodeViewModel>(globalNode.Children[4]).IsBaseCatalog);
+        Assert.Equal("Countries", countriesFolder.EditableName);
+        Assert.IsType<PlanetSettingsNodeViewModel>(planetNode.Children[0]);
+        Assert.IsType<PlanetGameObjectsNodeViewModel>(planetNode.Children[2]);
+        Assert.True(Assert.IsType<ObjectTemplatesNodeViewModel>(planetNode.Children[3]).IsBaseCatalog);
+        Assert.Equal("Areas", areasFolder.EditableName);
+        Assert.IsType<CountrySettingsNodeViewModel>(countryNode.Children[0]);
+        Assert.IsType<CountryGameObjectsNodeViewModel>(countryNode.Children[2]);
+        Assert.True(Assert.IsType<ObjectTemplatesNodeViewModel>(countryNode.Children[3]).IsBaseCatalog);
+        Assert.Equal("Rooms", roomsFolder.EditableName);
+        Assert.IsType<AreaSettingsNodeViewModel>(areaNode.Children[0]);
+        Assert.IsType<AreaGameObjectsNodeViewModel>(areaNode.Children[2]);
+        Assert.True(Assert.IsType<ObjectTemplatesNodeViewModel>(areaNode.Children[3]).IsBaseCatalog);
+        Assert.Equal(["Alpha Country", "Zulu Country"], countriesFolder.Children.Select(node => node.EditableName));
+        Assert.Equal(["Alpha Area", "Zulu Area"], areasFolder.Children.Select(node => node.EditableName));
+        Assert.Equal(["Alpha Room", "Zulu Room"], roomsFolder.Children.Select(node => node.EditableName));
+    }
+
+    [Fact]
     public void BuildHierarchy_ScopedActionsNodes_DefaultToCollapsed()
     {
         var project = CreateBasicProject();

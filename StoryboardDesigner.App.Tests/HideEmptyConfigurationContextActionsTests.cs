@@ -1,4 +1,5 @@
 using System.Reflection;
+using Storyboard.Shared.DesignerContracts;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.ViewModels;
 
@@ -86,6 +87,39 @@ public sealed class HideEmptyConfigurationContextActionsTests
         Assert.DoesNotContain(roomNode.Children, child => child is ScopedDirectionalsNodeViewModel);
         Assert.DoesNotContain(roomNode.Children, child => child is ScopedEventSubscriptionsNodeViewModel);
         Assert.DoesNotContain(roomNode.Children, child => child is ScopedTimerDefinitionsNodeViewModel);
+    }
+
+    [Fact]
+    public void ExecuteTreeContextAction_ToggleHideEmptyConfiguration_AreaPreservesTemplateAndSequenceFolders()
+    {
+        var project = BuildProject();
+        var areaModel = project.Planets[0].Countries[0].Areas[0];
+        areaModel.ObjectTemplates.Add(new GameObject { Name = "Area Object Template" });
+        areaModel.RoomTemplates.Add(new Room { Name = "Area Room Template" });
+        areaModel.SequenceDefinitions.Add(new ProjectSequenceDefinitionDto
+        {
+            SequenceId = Guid.NewGuid(),
+            DisplayName = "Area Sequence"
+        });
+
+        var viewModel = MainWindowViewModelTestHarness.CreateViewModel(
+            project,
+            new TreeContextInteractionServiceStub(),
+            new ProjectUiServiceStub());
+        var hierarchy = BuildHierarchy(project);
+        var areaNode = EnumerateNodes(hierarchy).OfType<AreaNodeViewModel>().Single();
+        var objectTemplatesNode = areaNode.Children.OfType<ObjectTemplatesNodeViewModel>()
+            .Single(node => !node.IsBaseCatalog);
+        var roomTemplatesNode = areaNode.Children.OfType<RoomTemplatesNodeViewModel>().Single();
+        var sequencesNode = areaNode.Children.OfType<SequencesNodeViewModel>().Single();
+        var sequenceNode = Assert.IsType<SequenceDefinitionNodeViewModel>(Assert.Single(sequencesNode.Children));
+
+        Assert.True(viewModel.ExecuteTreeContextAction("toggle-hide-empty-configuration", areaNode));
+
+        Assert.Same(objectTemplatesNode, areaNode.Children.OfType<ObjectTemplatesNodeViewModel>().Single(node => !node.IsBaseCatalog));
+        Assert.Same(roomTemplatesNode, Assert.Single(areaNode.Children.OfType<RoomTemplatesNodeViewModel>()));
+        Assert.Same(sequencesNode, Assert.Single(areaNode.Children.OfType<SequencesNodeViewModel>()));
+        Assert.Same(sequenceNode, Assert.Single(sequencesNode.Children));
     }
 
     [Fact]

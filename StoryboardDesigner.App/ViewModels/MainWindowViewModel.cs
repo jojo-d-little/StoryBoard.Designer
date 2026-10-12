@@ -4194,7 +4194,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             globalVariablesNode.Children.Add(new GamePropertyNodeViewModel(variable, PropertyResolutionScope.Global, globalVariablesNode));
         }
 
-        projectRootNode.Children.Add(CreateGlobalSettingsNode(projectRootNode));
         projectRootNode.Children.Add(globalVariablesNode);
         projectRootNode.Children.Add(CreateActionsNode(projectRootNode, PropertyResolutionScope.Global, project.GlobalScope.AvailableActions));
         projectRootNode.Children.Add(CreateVerbsNode(projectRootNode, PropertyResolutionScope.Global, project.CommandVerbs));
@@ -4209,8 +4208,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         {
             playerNode.Children.Add(objectNode);
         }
-        projectRootNode.Children.Add(playerNode);
-
         var templatesNode = new ObjectTemplatesNodeViewModel(project, projectRootNode);
         foreach (var objectNode in CreateTemplateObjectNodes(templatesNode))
         {
@@ -4230,22 +4227,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         {
             baseObjectsNode.Children.Add(objectNode);
         }
-        projectRootNode.Children.Add(baseObjectsNode);
         projectRootNode.Children.Add(CreatePhaseBooksNode(projectRootNode));
 
-        foreach (var planet in project.Planets)
+        foreach (var planet in project.Planets
+                     .OrderByDescending(planet => planet.Name, StringComparer.OrdinalIgnoreCase)
+                     .ThenByDescending(planet => planet.Name, StringComparer.Ordinal))
         {
             var planetNode = new PlanetNodeViewModel(project, planet, projectRootNode);
             var planetChildrenGroup = new ChildrenGroupNodeViewModel(planetNode);
             planetNode.Children.Add(CreatePlanetSettingsNode(planetNode));
-            planetNode.Children.Add(CreateVariablesNode(planetNode, planet.Variables, PropertyResolutionScope.Planet));
-            planetNode.Children.Add(CreateActionsNode(planetNode, PropertyResolutionScope.Planet, planet.AvailableActions));
-            planetNode.Children.Add(CreateVerbsNode(planetNode, PropertyResolutionScope.Planet, planet.AdditionalVerbs));
-            planetNode.Children.Add(CreateDirectionalsNode(planetNode, PropertyResolutionScope.Planet, planet.AdditionalDirectionals));
-            planetNode.Children.Add(CreateSoundEffectsNode(planetNode, PropertyResolutionScope.Planet, planet.SoundEffectLibraryEntries));
-            planetNode.Children.Add(CreateEventSubscriptionsNode(planetNode, PropertyResolutionScope.Planet, planet.EventSubscriptions));
-            planetNode.Children.Add(CreateTimerDefinitionsNode(planetNode, PropertyResolutionScope.Planet, planet.TimerDefinitions));
             planetNode.Children.Add(planetChildrenGroup);
+            planetNode.Children.Add(CreateObjectsNode(planetNode));
 
             var planetBaseObjectsNode = new ObjectTemplatesNodeViewModel(
                 project,
@@ -4260,6 +4252,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 planetBaseObjectsNode.Children.Add(objectNode);
             }
             planetNode.Children.Add(planetBaseObjectsNode);
+
+            planetNode.Children.Add(CreateVariablesNode(planetNode, planet.Variables, PropertyResolutionScope.Planet));
+            planetNode.Children.Add(CreateActionsNode(planetNode, PropertyResolutionScope.Planet, planet.AvailableActions));
+            planetNode.Children.Add(CreateVerbsNode(planetNode, PropertyResolutionScope.Planet, planet.AdditionalVerbs));
+            planetNode.Children.Add(CreateDirectionalsNode(planetNode, PropertyResolutionScope.Planet, planet.AdditionalDirectionals));
+            planetNode.Children.Add(CreateSoundEffectsNode(planetNode, PropertyResolutionScope.Planet, planet.SoundEffectLibraryEntries));
+            planetNode.Children.Add(CreateEventSubscriptionsNode(planetNode, PropertyResolutionScope.Planet, planet.EventSubscriptions));
+            planetNode.Children.Add(CreateTimerDefinitionsNode(planetNode, PropertyResolutionScope.Planet, planet.TimerDefinitions));
 
             var planetObjectTemplatesNode = new ObjectTemplatesNodeViewModel(
                 project, planetNode, "Object Templates", planet.ObjectTemplates,
@@ -4278,21 +4278,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 planetRoomTemplatesNode.Children.Add(roomNode);
             }
             planetNode.Children.Add(planetRoomTemplatesNode);
-            planetNode.Children.Add(CreateObjectsNode(planetNode));
 
             foreach (var country in planet.Countries)
             {
                 var countryNode = new CountryNodeViewModel(country, planetNode);
                 var countryChildrenGroup = new ChildrenGroupNodeViewModel(countryNode);
                 countryNode.Children.Add(CreateCountrySettingsNode(countryNode));
-                countryNode.Children.Add(CreateVariablesNode(countryNode, country.Variables, PropertyResolutionScope.Country));
-                countryNode.Children.Add(CreateActionsNode(countryNode, PropertyResolutionScope.Country, country.AvailableActions));
-                countryNode.Children.Add(CreateVerbsNode(countryNode, PropertyResolutionScope.Country, country.AdditionalVerbs));
-                countryNode.Children.Add(CreateDirectionalsNode(countryNode, PropertyResolutionScope.Country, country.AdditionalDirectionals));
-                countryNode.Children.Add(CreateSoundEffectsNode(countryNode, PropertyResolutionScope.Country, country.SoundEffectLibraryEntries));
-                countryNode.Children.Add(CreateEventSubscriptionsNode(countryNode, PropertyResolutionScope.Country, country.EventSubscriptions));
-                countryNode.Children.Add(CreateTimerDefinitionsNode(countryNode, PropertyResolutionScope.Country, country.TimerDefinitions));
                 countryNode.Children.Add(countryChildrenGroup);
+                countryNode.Children.Add(CreateObjectsNode(countryNode));
 
                 var countryBaseObjectsNode = new ObjectTemplatesNodeViewModel(
                     project,
@@ -4307,6 +4300,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                     countryBaseObjectsNode.Children.Add(objectNode);
                 }
                 countryNode.Children.Add(countryBaseObjectsNode);
+
+                countryNode.Children.Add(CreateVariablesNode(countryNode, country.Variables, PropertyResolutionScope.Country));
+                countryNode.Children.Add(CreateActionsNode(countryNode, PropertyResolutionScope.Country, country.AvailableActions));
+                countryNode.Children.Add(CreateVerbsNode(countryNode, PropertyResolutionScope.Country, country.AdditionalVerbs));
+                countryNode.Children.Add(CreateDirectionalsNode(countryNode, PropertyResolutionScope.Country, country.AdditionalDirectionals));
+                countryNode.Children.Add(CreateSoundEffectsNode(countryNode, PropertyResolutionScope.Country, country.SoundEffectLibraryEntries));
+                countryNode.Children.Add(CreateEventSubscriptionsNode(countryNode, PropertyResolutionScope.Country, country.EventSubscriptions));
+                countryNode.Children.Add(CreateTimerDefinitionsNode(countryNode, PropertyResolutionScope.Country, country.TimerDefinitions));
 
                 var countryObjectTemplatesNode = new ObjectTemplatesNodeViewModel(
                     project, countryNode, "Object Templates", country.ObjectTemplates,
@@ -4325,21 +4326,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                     countryRoomTemplatesNode.Children.Add(roomNode);
                 }
                 countryNode.Children.Add(countryRoomTemplatesNode);
-                countryNode.Children.Add(CreateObjectsNode(countryNode));
 
                 foreach (var area in country.Areas)
                 {
                     var areaNode = new AreaNodeViewModel(area, countryNode);
                     var areaChildrenGroup = new ChildrenGroupNodeViewModel(areaNode);
                     areaNode.Children.Add(CreateAreaSettingsNode(areaNode));
-                    areaNode.Children.Add(CreateVariablesNode(areaNode, area.Variables, PropertyResolutionScope.Area));
-                    areaNode.Children.Add(CreateActionsNode(areaNode, PropertyResolutionScope.Area, area.AvailableActions));
-                    areaNode.Children.Add(CreateVerbsNode(areaNode, PropertyResolutionScope.Area, area.AdditionalVerbs));
-                    areaNode.Children.Add(CreateDirectionalsNode(areaNode, PropertyResolutionScope.Area, area.AdditionalDirectionals));
-                    areaNode.Children.Add(CreateSoundEffectsNode(areaNode, PropertyResolutionScope.Area, area.SoundEffectLibraryEntries));
-                    areaNode.Children.Add(CreateEventSubscriptionsNode(areaNode, PropertyResolutionScope.Area, area.EventSubscriptions));
-                    areaNode.Children.Add(CreateTimerDefinitionsNode(areaNode, PropertyResolutionScope.Area, area.TimerDefinitions));
                     areaNode.Children.Add(areaChildrenGroup);
+                    areaNode.Children.Add(CreateObjectsNode(areaNode));
 
                     var areaBaseObjectsNode = new ObjectTemplatesNodeViewModel(
                         project,
@@ -4354,6 +4348,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                         areaBaseObjectsNode.Children.Add(objectNode);
                     }
                     areaNode.Children.Add(areaBaseObjectsNode);
+
+                    areaNode.Children.Add(CreateVariablesNode(areaNode, area.Variables, PropertyResolutionScope.Area));
+                    areaNode.Children.Add(CreateActionsNode(areaNode, PropertyResolutionScope.Area, area.AvailableActions));
+                    areaNode.Children.Add(CreateVerbsNode(areaNode, PropertyResolutionScope.Area, area.AdditionalVerbs));
+                    areaNode.Children.Add(CreateDirectionalsNode(areaNode, PropertyResolutionScope.Area, area.AdditionalDirectionals));
+                    areaNode.Children.Add(CreateSoundEffectsNode(areaNode, PropertyResolutionScope.Area, area.SoundEffectLibraryEntries));
+                    areaNode.Children.Add(CreateEventSubscriptionsNode(areaNode, PropertyResolutionScope.Area, area.EventSubscriptions));
+                    areaNode.Children.Add(CreateTimerDefinitionsNode(areaNode, PropertyResolutionScope.Area, area.TimerDefinitions));
 
                     var areaObjectTemplatesNode = new ObjectTemplatesNodeViewModel(
                         project, areaNode, "Object Templates", area.ObjectTemplates,
@@ -4372,7 +4374,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                         areaRoomTemplatesNode.Children.Add(roomNode);
                     }
                     areaNode.Children.Add(areaRoomTemplatesNode);
-                    areaNode.Children.Add(CreateObjectsNode(areaNode));
 
                     var areaRoomLookup = area.Rooms.ToDictionary(room => room.Id, room => room.ScopeName);
 
@@ -4455,8 +4456,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
             ApplyHideEmptyConfiguration(planetNode);
 
-            projectRootNode.Children.Add(planetNode);
+            projectRootNode.Children.Insert(0, planetNode);
         }
+
+        projectRootNode.Children.Insert(project.Planets.Count, playerNode);
+        projectRootNode.Children.Insert(project.Planets.Count + 1, baseObjectsNode);
+        projectRootNode.Children.Insert(0, CreateGlobalSettingsNode(projectRootNode));
 
         ApplyHideEmptyConfiguration(projectRootNode);
 
