@@ -1,12 +1,184 @@
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
+using Storyboard.Shared.DesignerContracts;
 using System.Reflection;
 
 namespace StoryboardDesigner.App.Tests;
 
 public sealed class PromoteToRoomTemplateWorkflowTests
 {
+    [Fact]
+    public void CloneTemplateFromRoom_PreservesLinkedBaseObjectAndChildRelationships()
+    {
+        var project = BuildProjectModel(out var sourceRoomId);
+        var area = project.Planets.Single().Countries.Single().Areas.Single();
+        var sourceRoom = area.Rooms.Single(room => room.Id == sourceRoomId);
+        var sourceObject = sourceRoom.GameObjects.Single();
+
+        var authoredShareId = Guid.NewGuid();
+        var firstPlacementShareId = Guid.NewGuid();
+        var baseLeft = new GameObject
+        {
+            Name = "Base Elevator",
+            IsContainer = true,
+            HideContainedObjects = false,
+            Variables = [new GamePropertyDefinition { Name = "IsMoving", SharedVariableId = authoredShareId }]
+        };
+        var baseDoorA = new GameObject
+        {
+            Name = "Door A",
+            Variables = [new GamePropertyDefinition { Name = "isHidden", SharedVariableId = authoredShareId }]
+        };
+        var baseDoorB = new GameObject
+        {
+            Name = "Door B",
+            Variables = [new GamePropertyDefinition { Name = "isHidden", SharedVariableId = authoredShareId }]
+        };
+        baseLeft.ContainedObjects = [baseDoorA, baseDoorB];
+        project.BaseObjects.Add(baseLeft);
+        project.SharedVariables.Add(new SharedVariableDefinition
+        {
+            Id = authoredShareId,
+            Name = "Elevator state",
+            DefaultValue = "false",
+            ValueRestriction = GamePropertyValueRestriction.TrueFalse,
+            Participants =
+            [
+                new SharedVariableParticipant { Kind = "object", OwnerId = baseLeft.ObjectId, VariableName = "IsMoving" },
+                new SharedVariableParticipant { Kind = "object", OwnerId = baseDoorA.ObjectId, VariableName = "isHidden" },
+                new SharedVariableParticipant { Kind = "object", OwnerId = baseDoorB.ObjectId, VariableName = "isHidden" }
+            ]
+        });
+
+        sourceObject.LinkedBaseObjectId = baseLeft.ObjectId;
+        sourceObject.LinkActionsToBaseObject = true;
+        sourceObject.Variables = [new GamePropertyDefinition { Name = "IsMoving", SharedVariableId = firstPlacementShareId }];
+        sourceObject.ContainedObjects =
+        [
+            new GameObject
+            {
+                Name = "Placed Door A",
+                LinkedBaseObjectId = baseDoorA.ObjectId,
+                LinkActionsToBaseObject = true,
+                Variables = [new GamePropertyDefinition { Name = "isHidden", SharedVariableId = firstPlacementShareId }]
+            },
+            new GameObject
+            {
+                Name = "Placed Door B",
+                LinkedBaseObjectId = baseDoorB.ObjectId,
+                LinkActionsToBaseObject = true,
+                Variables = [new GamePropertyDefinition { Name = "isHidden", SharedVariableId = firstPlacementShareId }]
+            }
+        ];
+        ScopeHierarchy.AttachParents(project);
+
+        var treeContext = new TreeContextInteractionServiceStub
+        {
+            TemplateNameFromObjectHandler = _ => "Foyer Template",
+            RoomTemplateSelectionHandler = templates => (true, templates.Single(room => room.Name == "Foyer Template")),
+            EditRoomSettingsHandler = initial => initial with { Name = "Foyer Second Floor" }
+        };
+        sourceRoom.RoomImageCanvasWidth = 1420;
+        sourceRoom.RoomImageCanvasHeight = 940;
+        var sourceSequenceId = Guid.NewGuid();
+        var startSequenceAction = new CommandAction { Name = "Begin elevator sequence", ActionType = CommandActionType.StartSequence };
+        ActionPayloadAccessors.SetStartSequenceId(startSequenceAction, sourceSequenceId);
+        sourceRoom.AvailableActions.Add(startSequenceAction);
+        sourceRoom.SequenceDefinitions.Add(new ProjectSequenceDefinitionDto
+        {
+            SequenceId = sourceSequenceId,
+            DisplayName = "Elevator sequence"
+        });
+        var viewModel = MainWindowViewModelTestHarness.CreateViewModel(project, treeContext, new ProjectUiServiceStub());
+        InvokeLoadProjectIntoHierarchy(viewModel);
+
+        var roomNode = EnumerateNodes(viewModel.HierarchyRoots)
+            .OfType<RoomNodeViewModel>()
+            .Single(node => node.Room.Id == sourceRoomId);
+        Assert.True(viewModel.ExecuteTreeContextAction("clone-template-from-room", roomNode));
+
+        var templateCatalogNode = EnumerateNodes(viewModel.HierarchyRoots)
+            .OfType<RoomTemplatesNodeViewModel>()
+            .Single(node => node.Parent is ProjectRootNodeViewModel);
+        Assert.True(viewModel.ExecuteTreeContextAction("clone-template-to-room-templates", templateCatalogNode));
+
+        var clonedRoom = Assert.Single(project.RoomTemplates);
+        Assert.Equal(1420, clonedRoom.RoomImageCanvasWidth);
+        Assert.Equal(940, clonedRoom.RoomImageCanvasHeight);
+        var clonedSequence = Assert.Single(clonedRoom.SequenceDefinitions);
+        Assert.NotEqual(sourceSequenceId, clonedSequence.SequenceId);
+        Assert.Equal(clonedSequence.SequenceId, ActionPayloadAccessors.GetStartSequenceId(Assert.Single(clonedRoom.AvailableActions)));
+        var clonedInstance = Assert.Single(clonedRoom.GameObjects);
+        Assert.NotEqual(sourceObject.ObjectId, clonedInstance.ObjectId);
+        Assert.Equal(baseLeft.ObjectId, clonedInstance.LinkedBaseObjectId);
+        Assert.True(clonedInstance.LinkActionsToBaseObject);
+        Assert.NotEqual(sourceObject.ContainedObjects[0].ObjectId, clonedInstance.ContainedObjects[0].ObjectId);
+        Assert.Equal(baseDoorA.ObjectId, clonedInstance.ContainedObjects[0].LinkedBaseObjectId);
+        Assert.Equal(baseDoorB.ObjectId, clonedInstance.ContainedObjects[1].LinkedBaseObjectId);
+        Assert.Empty(clonedInstance.AvailableActions);
+
+        var clonedShareIds = new[]
+        {
+            Assert.Single(clonedInstance.Variables, variable => variable.Name == "IsMoving").SharedVariableId,
+            Assert.Single(clonedInstance.ContainedObjects[0].Variables, variable => variable.Name == "isHidden").SharedVariableId,
+            Assert.Single(clonedInstance.ContainedObjects[1].Variables, variable => variable.Name == "isHidden").SharedVariableId
+        };
+        Assert.All(clonedShareIds, id => Assert.Equal(clonedShareIds[0], id));
+        Assert.NotEqual(authoredShareId, clonedShareIds[0]);
+        Assert.NotEqual(firstPlacementShareId, clonedShareIds[0]);
+        Assert.Same(baseLeft, clonedInstance.ResolveEffectiveDefinitionOwnedSource(id => id == baseLeft.ObjectId ? baseLeft : null));
+
+        var areaNode = EnumerateNodes(viewModel.HierarchyRoots)
+            .OfType<AreaNodeViewModel>()
+            .Single(node => ReferenceEquals(node.Area, area));
+        Assert.True(viewModel.ExecuteTreeContextAction("add-new-room", areaNode));
+        var secondFloorRoom = area.Rooms.Single(room => room.Name == "Foyer Second Floor");
+        Assert.Equal(clonedRoom.RoomImageCanvasWidth, secondFloorRoom.RoomImageCanvasWidth);
+        Assert.Equal(clonedRoom.RoomImageCanvasHeight, secondFloorRoom.RoomImageCanvasHeight);
+        var secondFloorSequence = Assert.Single(secondFloorRoom.SequenceDefinitions);
+        Assert.NotEqual(clonedSequence.SequenceId, secondFloorSequence.SequenceId);
+        Assert.Equal(secondFloorSequence.SequenceId, ActionPayloadAccessors.GetStartSequenceId(Assert.Single(secondFloorRoom.AvailableActions)));
+        var secondFloorElevator = Assert.Single(secondFloorRoom.GameObjects);
+        Assert.NotEqual(clonedInstance.ObjectId, secondFloorElevator.ObjectId);
+        Assert.Equal(baseLeft.ObjectId, secondFloorElevator.LinkedBaseObjectId);
+        Assert.True(secondFloorElevator.LinkActionsToBaseObject);
+        Assert.Equal(baseDoorA.ObjectId, secondFloorElevator.ContainedObjects[0].LinkedBaseObjectId);
+        Assert.Equal(baseDoorB.ObjectId, secondFloorElevator.ContainedObjects[1].LinkedBaseObjectId);
+        var secondFloorShareIds = new[]
+        {
+            Assert.Single(secondFloorElevator.Variables, variable => variable.Name == "IsMoving").SharedVariableId,
+            Assert.Single(secondFloorElevator.ContainedObjects[0].Variables, variable => variable.Name == "isHidden").SharedVariableId,
+            Assert.Single(secondFloorElevator.ContainedObjects[1].Variables, variable => variable.Name == "isHidden").SharedVariableId
+        };
+        Assert.All(secondFloorShareIds, id => Assert.Equal(secondFloorShareIds[0], id));
+        Assert.NotEqual(clonedShareIds[0], secondFloorShareIds[0]);
+
+        var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+        try
+        {
+            var projectPath = Path.Combine(tempRoot, "LinkedRoomTemplate.sbe.json");
+            var exportService = new JsonExportService();
+            exportService.SaveProjectModel(projectPath, project);
+            var reopened = Assert.IsType<ProjectModel>(exportService.TryLoadProjectModel(projectPath));
+            var reopenedTemplateInstance = Assert.Single(Assert.Single(reopened.RoomTemplates).GameObjects);
+            var reopenedTemplate = Assert.Single(reopened.RoomTemplates);
+            var reopenedSequence = Assert.Single(reopenedTemplate.SequenceDefinitions);
+            Assert.Equal(reopenedSequence.SequenceId, ActionPayloadAccessors.GetStartSequenceId(Assert.Single(reopenedTemplate.AvailableActions)));
+            Assert.Equal(baseLeft.ObjectId, reopenedTemplateInstance.LinkedBaseObjectId);
+            Assert.Equal(baseDoorA.ObjectId, reopenedTemplateInstance.ContainedObjects[0].LinkedBaseObjectId);
+            Assert.Equal(baseDoorB.ObjectId, reopenedTemplateInstance.ContainedObjects[1].LinkedBaseObjectId);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
     [Fact]
     public void GetTreeContextActions_Room_IncludesCreateTemplateFrom()
     {
@@ -18,7 +190,7 @@ public sealed class PromoteToRoomTemplateWorkflowTests
 
         var actions = viewModel.GetTreeContextActions(roomNode);
 
-        Assert.Contains(actions, action => string.Equals(action.ActionId, "create-template-from-room", StringComparison.Ordinal));
+        Assert.Contains(actions, action => string.Equals(action.ActionId, "clone-template-from-room", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -38,13 +210,17 @@ public sealed class PromoteToRoomTemplateWorkflowTests
     [Fact]
     public void ExecuteTreeContextAction_CreateTemplateFromRoom_CreatesRoomTemplateDefinition()
     {
-        var project = BuildProject(out var roomNode);
+        var project = BuildProjectModel(out var sourceRoomId);
         var viewModel = MainWindowViewModelTestHarness.CreateViewModel(
             project,
             new TreeContextInteractionServiceStub(),
             new ProjectUiServiceStub());
+        InvokeLoadProjectIntoHierarchy(viewModel);
 
-        var handled = viewModel.ExecuteTreeContextAction("create-template-from-room", roomNode);
+        var roomNode = EnumerateNodes(viewModel.HierarchyRoots)
+            .OfType<RoomNodeViewModel>()
+            .Single(node => node.Room.Id == sourceRoomId);
+        var handled = BeginAndCompleteRoomTemplateClone(viewModel, roomNode);
 
         Assert.True(handled);
         var definition = Assert.Single(project.RoomTemplates);
@@ -100,7 +276,7 @@ public sealed class PromoteToRoomTemplateWorkflowTests
             .OfType<RoomNodeViewModel>()
             .Single(node => node.Room.Id == sourceRoomId);
 
-        var handled = viewModel.ExecuteTreeContextAction("create-template-from-room", sourceNode);
+        var handled = BeginAndCompleteRoomTemplateClone(viewModel, sourceNode);
 
         Assert.True(handled);
 
@@ -139,7 +315,11 @@ public sealed class PromoteToRoomTemplateWorkflowTests
             .OfType<RoomNodeViewModel>()
             .Single(node => node.Room.Id == sourceRoomId);
 
-        var handled = viewModel.ExecuteTreeContextAction("create-template-from-room", sourceNode);
+        Assert.True(viewModel.ExecuteTreeContextAction("clone-template-from-room", sourceNode));
+        var templatesNode = EnumerateNodes(viewModel.HierarchyRoots)
+            .OfType<RoomTemplatesNodeViewModel>()
+            .Single(node => node.Parent is ProjectRootNodeViewModel);
+        var handled = viewModel.ExecuteTreeContextAction("clone-template-to-room-templates", templatesNode);
 
         Assert.False(handled);
         Assert.Single(project.RoomTemplates);
@@ -149,7 +329,7 @@ public sealed class PromoteToRoomTemplateWorkflowTests
     [Fact]
     public void ExecuteTreeContextAction_CreateTemplateFromRoom_WhenNamePromptCanceled_DoesNotCreate()
     {
-        var project = BuildProject(out var roomNode);
+        var project = BuildProjectModel(out var sourceRoomId);
         var treeContext = new TreeContextInteractionServiceStub
         {
             TemplateNameFromObjectHandler = _ => null
@@ -159,8 +339,16 @@ public sealed class PromoteToRoomTemplateWorkflowTests
             project,
             treeContext,
             new ProjectUiServiceStub());
+        InvokeLoadProjectIntoHierarchy(viewModel);
 
-        var handled = viewModel.ExecuteTreeContextAction("create-template-from-room", roomNode);
+        var roomNode = EnumerateNodes(viewModel.HierarchyRoots)
+            .OfType<RoomNodeViewModel>()
+            .Single(node => node.Room.Id == sourceRoomId);
+        Assert.True(viewModel.ExecuteTreeContextAction("clone-template-from-room", roomNode));
+        var templatesNode = EnumerateNodes(viewModel.HierarchyRoots)
+            .OfType<RoomTemplatesNodeViewModel>()
+            .Single(node => node.Parent is ProjectRootNodeViewModel);
+        var handled = viewModel.ExecuteTreeContextAction("clone-template-to-room-templates", templatesNode);
 
         Assert.False(handled);
         Assert.Empty(project.RoomTemplates);
@@ -590,7 +778,7 @@ public sealed class PromoteToRoomTemplateWorkflowTests
             .OfType<RoomNodeViewModel>()
             .Single(node => node.Room.Name == "Source Room");
 
-        var handled = viewModel.ExecuteTreeContextAction("create-template-from-room", sourceNode);
+        var handled = BeginAndCompleteRoomTemplateClone(viewModel, sourceNode);
 
         Assert.True(handled);
         var template = Assert.Single(project.RoomTemplates);
@@ -722,6 +910,19 @@ public sealed class PromoteToRoomTemplateWorkflowTests
         roomNode = new RoomNodeViewModel(room, area, areaNode);
 
         return project;
+    }
+
+    private static bool BeginAndCompleteRoomTemplateClone(MainWindowViewModel viewModel, RoomNodeViewModel sourceNode)
+    {
+        if (!viewModel.ExecuteTreeContextAction("clone-template-from-room", sourceNode))
+        {
+            return false;
+        }
+
+        var templatesNode = EnumerateNodes(viewModel.HierarchyRoots)
+            .OfType<RoomTemplatesNodeViewModel>()
+            .Single(node => node.Parent is ProjectRootNodeViewModel);
+        return viewModel.ExecuteTreeContextAction("clone-template-to-room-templates", templatesNode);
     }
 
     private static ProjectModel BuildProjectModel(out Guid sourceRoomId)

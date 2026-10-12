@@ -245,7 +245,7 @@ public sealed class BaseActionDesignerSupportTests
             {
                 Name = "Elevator",
                 ContainedObjects = [baseChildA, baseChildB],
-                AvailableActions = [Cue("CueSelf", null)],
+                AvailableActions = [Cue("CueBaseRoot", null), Cue("CueBaseChild", null), Cue("CueAbsolutePlacement", null)],
                 Variables = [new GamePropertyDefinition { Name = "BoundarySignal", DefaultValue = "false", SharedVariableId = crossBoundaryId }]
             };
             baseObject.SequenceDefinitions.Add(new ProjectSequenceDefinitionDto
@@ -254,6 +254,8 @@ public sealed class BaseActionDesignerSupportTests
                 DisplayName = "Use Elevator",
                 Branches = [new ProjectSequenceBranchDto { BranchId = "main", DisplayName = "Main", DisplayColor = "#64748B" }]
             });
+            var project = new ProjectModel { Name = "TwoElevators", ObjectTemplates = [doorTemplate], BaseObjects = [baseObject] };
+            var viewModel = MainWindowViewModelTestHarness.CreateViewModel(project, new TreeContextInteractionServiceStub(), new ProjectUiServiceStub());
 
             GameObject Place()
             {
@@ -261,8 +263,8 @@ public sealed class BaseActionDesignerSupportTests
                     .GetMethod("CloneTemplateObject", BindingFlags.Static | BindingFlags.NonPublic)!
                     .Invoke(null, [baseObject])!;
                 typeof(MainWindowViewModel)
-                    .GetMethod("ConfigureAsLinkedRoomInstance", BindingFlags.Static | BindingFlags.NonPublic)!
-                    .Invoke(null, [clone, baseObject, baseObject.ObjectId]);
+                    .GetMethod("ConfigureAsLinkedRoomInstance", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .Invoke(viewModel, [clone, baseObject, baseObject.ObjectId]);
                 Assert.Empty(clone.AvailableActions);
                 Assert.Empty(clone.SequenceDefinitions);
                 Assert.All(clone.ContainedObjects, child => Assert.True(child.LinkedBaseObjectId.HasValue));
@@ -276,12 +278,28 @@ public sealed class BaseActionDesignerSupportTests
             var first = Place();
             var second = Place();
             baseObject.AvailableActions[0].ObjectPresentationCueObjectId = baseObject.ObjectId;
+            baseObject.AvailableActions[1].ObjectPresentationCueObjectId = baseChildA.ObjectId;
+            baseObject.AvailableActions[2].ObjectPresentationCueObjectId = first.ObjectId;
             baseObject.SequenceDefinitions[0].Steps.Add(new ProjectSequenceStepDto
             {
                 StepId = Guid.NewGuid(),
                 BranchId = "main",
                 StepType = SequenceStepType.Action,
-                InlineAction = JsonExportService.ToCommandActionDtoForSequence(Cue("GrowElevator", first.ObjectId), [])
+                InlineAction = JsonExportService.ToCommandActionDtoForSequence(Cue("CueInlineBaseRoot", baseObject.ObjectId), [])
+            });
+            baseObject.SequenceDefinitions[0].Steps.Add(new ProjectSequenceStepDto
+            {
+                StepId = Guid.NewGuid(),
+                BranchId = "main",
+                StepType = SequenceStepType.Action,
+                InlineAction = JsonExportService.ToCommandActionDtoForSequence(Cue("CueInlineBaseChild", baseChildB.ObjectId), [])
+            });
+            baseObject.SequenceDefinitions[0].Steps.Add(new ProjectSequenceStepDto
+            {
+                StepId = Guid.NewGuid(),
+                BranchId = "main",
+                StepType = SequenceStepType.Action,
+                InlineAction = JsonExportService.ToCommandActionDtoForSequence(Cue("CueInlineAbsolutePlacement", first.ObjectId), [])
             });
             var room = new Room
             {
@@ -289,13 +307,8 @@ public sealed class BaseActionDesignerSupportTests
                 GameObjects = [first, second],
                 Variables = [new GamePropertyDefinition { Name = "BoundarySignal", DefaultValue = "false", SharedVariableId = crossBoundaryId }]
             };
-            var project = new ProjectModel
-            {
-                Name = "TwoElevators",
-                ObjectTemplates = [doorTemplate],
-                BaseObjects = [baseObject],
-                Planets = [new Planet { Countries = [new Country { Areas = [new Area { Rooms = [room] }] }] }]
-            };
+            project.Planets.Add(new Planet { Countries = [new Country { Areas = [new Area { Rooms = [room] }] }] });
+            ScopeHierarchy.AttachParents(project);
             var path = Path.Combine(tempRoot, "TwoElevators.sbe.json");
             var service = new JsonExportService();
             service.SaveProjectModel(path, project);
@@ -309,7 +322,7 @@ public sealed class BaseActionDesignerSupportTests
                 Assert.Empty(placement.AvailableActions);
                 Assert.Empty(placement.SequenceDefinitions);
             });
-            Assert.Single(Assert.Single(reopened.BaseObjects).AvailableActions);
+            Assert.Equal(3, Assert.Single(reopened.BaseObjects).AvailableActions.Count);
             Assert.Single(Assert.Single(reopened.BaseObjects).SequenceDefinitions);
             service.ExportCleanProjectV1(path, reopened);
 
@@ -335,11 +348,17 @@ public sealed class BaseActionDesignerSupportTests
             using var baseDoc = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempRoot, "GameRuntimeJson", "GameObject", baseObject.ObjectId.ToString("D").ToUpperInvariant() + ".runtime.json")));
             Assert.True(baseDoc.RootElement.TryGetProperty("availableGameActions", out _));
             Assert.True(baseDoc.RootElement.TryGetProperty("sequenceDefinitions", out _));
-            Assert.Equal(baseObject.ObjectId, baseDoc.RootElement.GetProperty("availableGameActions")[0]
-                .GetProperty("payload").GetProperty("objectId").GetGuid());
-            Assert.Equal(first.ObjectId, baseDoc.RootElement.GetProperty("sequenceDefinitions")[0]
-                .GetProperty("steps")[0].GetProperty("inlineAction")
-                .GetProperty("payload").GetProperty("objectId").GetGuid());
+            var exportedActions = baseDoc.RootElement.GetProperty("availableGameActions").EnumerateArray().ToDictionary(
+                action => action.GetProperty("name").GetString()!,
+                action => action.GetProperty("payload").GetProperty("objectId").GetGuid());
+            Assert.Equal(baseObject.ObjectId, exportedActions["CueBaseRoot"]);
+            Assert.Equal(baseChildA.ObjectId, exportedActions["CueBaseChild"]);
+            Assert.Equal(first.ObjectId, exportedActions["CueAbsolutePlacement"]);
+            var exportedInlineTargets = baseDoc.RootElement.GetProperty("sequenceDefinitions")[0]
+                .GetProperty("steps").EnumerateArray()
+                .Select(step => step.GetProperty("inlineAction").GetProperty("payload").GetProperty("objectId").GetGuid())
+                .ToArray();
+            Assert.Equal([baseObject.ObjectId, baseChildB.ObjectId, first.ObjectId], exportedInlineTargets);
             Assert.Equal(crossBoundaryId, baseDoc.RootElement.GetProperty("gameProperties").EnumerateArray()
                 .Single(property => property.GetProperty("name").GetString() == "BoundarySignal")
                 .GetProperty("sharedVariableId").GetGuid());

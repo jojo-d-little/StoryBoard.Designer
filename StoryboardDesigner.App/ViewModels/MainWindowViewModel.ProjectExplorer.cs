@@ -10074,7 +10074,14 @@ public sealed partial class MainWindowViewModel
         }
 
         var defaultRoomName = MakeUniqueScopedEntityName(areaNode.Area.Rooms, static templateRoom => templateRoom.Name, "New Room");
-        if (!TryConfigureNewRoomBeforeInsert(areaNode, defaultRoomName, room.NameInGame, SerializeObjectNameSynonyms(room.NameSynonyms), out var roomSettings))
+        if (!TryConfigureNewRoomBeforeInsert(
+                areaNode,
+                defaultRoomName,
+                room.NameInGame,
+                SerializeObjectNameSynonyms(room.NameSynonyms),
+                room.RoomImageCanvasWidth,
+                room.RoomImageCanvasHeight,
+                out var roomSettings))
         {
             return false;
         }
@@ -10275,6 +10282,7 @@ public sealed partial class MainWindowViewModel
             room = CloneTemplateRoom(selectedTemplate);
             ResetHideEmptyConfigurationForNewRoom(room);
             var normalizationWarnings = NormalizeSharedVariableLinksToRoomBoundary(selectedTemplate, room, "Add New Room");
+            RestoreLinkedBaseObjectRelationships(selectedTemplate, room);
             if (normalizationWarnings.Count > 0)
             {
                 var message = string.Join(Environment.NewLine, normalizationWarnings);
@@ -10736,6 +10744,7 @@ public sealed partial class MainWindowViewModel
         addedNode = null!;
 
         var cloned = CloneTemplateObject(sourceObject);
+        MoveObjectSubtreeToRoomOrigin(cloned, sourceObject);
         ResetHideEmptyConfigurationForNewObject(cloned);
         cloned.IsQuantifiable = true;
         cloned.Quantity = quantity;
@@ -10769,6 +10778,7 @@ public sealed partial class MainWindowViewModel
         addedNode = null!;
 
         var cloned = CloneTemplateObject(sourceObject);
+        MoveObjectSubtreeToRoomOrigin(cloned, sourceObject);
         ResetHideEmptyConfigurationForNewObject(cloned);
         cloned.IsQuantifiable = true;
         cloned.Quantity = quantity;
@@ -10804,6 +10814,17 @@ public sealed partial class MainWindowViewModel
         var created = CreateObjectsNode(roomNode);
         roomNode.Children.Add(created);
         return created;
+    }
+
+    private static void MoveObjectSubtreeToRoomOrigin(GameObject clone, GameObject source)
+    {
+        var deltaX = -source.PositionX;
+        var deltaY = -source.PositionY;
+        foreach (var gameObject in EnumerateGameObjectsRecursive([clone]))
+        {
+            gameObject.PositionX += deltaX;
+            gameObject.PositionY += deltaY;
+        }
     }
 
     private static PlanetGameObjectsNodeViewModel GetOrCreatePlanetObjectsNode(PlanetNodeViewModel planetNode)
@@ -11231,6 +11252,7 @@ public sealed partial class MainWindowViewModel
         ResetHideEmptyConfigurationForNewRoom(definition);
         definition.Name = templateName;
         var normalizationWarnings = NormalizeSharedVariableLinksToRoomBoundary(source, definition, "Clone Template From Room");
+        RestoreLinkedBaseObjectRelationships(source, definition);
 
         try
         {
@@ -11276,19 +11298,56 @@ public sealed partial class MainWindowViewModel
         }
     }
 
+    private void RestoreLinkedBaseObjectRelationships(Room sourceRoom, Room clonedRoom)
+    {
+        var baseObjectLookup = EnumerateGameObjectsRecursive(_project.BaseObjects
+                .Concat(_project.Planets.SelectMany(static planet => planet.BaseObjects))
+                .Concat(_project.Planets.SelectMany(static planet => planet.Countries).SelectMany(static country => country.BaseObjects))
+                .Concat(_project.Planets.SelectMany(static planet => planet.Countries).SelectMany(static country => country.Areas).SelectMany(static area => area.BaseObjects)))
+            .Where(static gameObject => gameObject.ObjectId != Guid.Empty)
+            .GroupBy(static gameObject => gameObject.ObjectId)
+            .ToDictionary(static group => group.Key, static group => group.First());
+
+        var rootCount = Math.Min(sourceRoom.GameObjects.Count, clonedRoom.GameObjects.Count);
+        for (var index = 0; index < rootCount; index++)
+        {
+            RestoreObject(sourceRoom.GameObjects[index], clonedRoom.GameObjects[index]);
+        }
+
+        void RestoreObject(GameObject source, GameObject clone)
+        {
+            if (source.LinkedBaseObjectId is Guid linkedBaseObjectId)
+            {
+                ConfigureAsLinkedRoomInstance(clone, source, linkedBaseObjectId);
+                if (baseObjectLookup.TryGetValue(linkedBaseObjectId, out var baseObject))
+                {
+                    LinkedBaseObjectSharedVariableCloner.PreserveAuthoredMemberships(_project, baseObject, clone);
+                }
+
+                return;
+            }
+
+            var childCount = Math.Min(source.ContainedObjects.Count, clone.ContainedObjects.Count);
+            for (var childIndex = 0; childIndex < childCount; childIndex++)
+            {
+                RestoreObject(source.ContainedObjects[childIndex], clone.ContainedObjects[childIndex]);
+            }
+        }
+    }
+
     private List<string> NormalizeSharedVariableLinksToRoomBoundary(Room sourceRoom, Room clonedRoom, string operationLabel)
     {
         var warnings = new List<string>();
         var ownerIdMap = BuildRoomCloneOwnerIdMap(sourceRoom, clonedRoom);
         var boundaryOwnerIds = ownerIdMap.Keys.ToHashSet();
-        var sourceSharedIds = EnumerateRoomVariables(sourceRoom)
+        var sourceSharedIds = EnumerateRoomBoundaryVariables(sourceRoom)
             .Where(static entry => entry.Variable.SharedVariableId.HasValue && entry.Variable.SharedVariableId.Value != Guid.Empty)
             .Select(static entry => entry.Variable.SharedVariableId!.Value)
             .Distinct()
             .ToList();
 
         // Reset clone-side links first, then rehydrate only boundary-safe links.
-        foreach (var entry in EnumerateRoomVariables(clonedRoom))
+        foreach (var entry in EnumerateRoomBoundaryVariables(clonedRoom))
         {
             entry.Variable.SharedVariableId = null;
         }
@@ -11397,18 +11456,39 @@ public sealed partial class MainWindowViewModel
         }
     }
 
-    private static IEnumerable<(Guid OwnerId, GamePropertyDefinition Variable)> EnumerateRoomVariables(Room room)
+    private static IEnumerable<(Guid OwnerId, GamePropertyDefinition Variable)> EnumerateRoomBoundaryVariables(Room room)
     {
         foreach (var variable in room.Variables)
         {
             yield return (room.Id, variable);
         }
 
-        foreach (var obj in EnumerateGameObjectsRecursive(room.GameObjects))
+        foreach (var root in room.GameObjects)
         {
-            foreach (var variable in obj.Variables)
+            foreach (var entry in EnumerateAuthoredRoomObjectVariables(root))
             {
-                yield return (obj.ObjectId, variable);
+                yield return entry;
+            }
+        }
+
+        static IEnumerable<(Guid OwnerId, GamePropertyDefinition Variable)> EnumerateAuthoredRoomObjectVariables(GameObject gameObject)
+        {
+            if (gameObject.LinkedBaseObjectId.HasValue)
+            {
+                yield break;
+            }
+
+            foreach (var variable in gameObject.Variables)
+            {
+                yield return (gameObject.ObjectId, variable);
+            }
+
+            foreach (var child in gameObject.ContainedObjects)
+            {
+                foreach (var entry in EnumerateAuthoredRoomObjectVariables(child))
+                {
+                    yield return entry;
+                }
             }
         }
     }
@@ -12142,7 +12222,8 @@ public sealed partial class MainWindowViewModel
 
         clone.DesignerPersistenceScopeKind = template.DesignerPersistenceScopeKind;
         BuildObjectCloneReferenceMaps(template, clone, out var actionIds, out var soundEffectIds);
-        clone.SequenceDefinitions = CloneSequenceDefinitionsWithMaps(template.SequenceDefinitions, actionIds, soundEffectIds);
+        clone.SequenceDefinitions = CloneSequenceDefinitionsWithMaps(template.SequenceDefinitions, actionIds, soundEffectIds, out var sequenceIds);
+        RemapSequenceTargets(clone, sequenceIds);
         RemapClonedObjectTargets(template, clone);
 
         clone.InitializeFeatureFlagsFromKnownVariables();
@@ -12324,14 +12405,16 @@ public sealed partial class MainWindowViewModel
         string defaultName,
         string defaultNameInGame,
         string defaultNameSynonyms,
+        int roomCanvasWidth,
+        int roomCanvasHeight,
         out RoomSettingsEditRequest configured)
     {
         var initial = new RoomSettingsEditRequest(
             defaultName,
             string.Empty,
             defaultNameInGame,
-            RoomCanvasWidth: _project.RoomImageCanvasWidth,
-            RoomCanvasHeight: _project.RoomImageCanvasHeight,
+            RoomCanvasWidth: roomCanvasWidth > 0 ? roomCanvasWidth : _project.RoomImageCanvasWidth,
+            RoomCanvasHeight: roomCanvasHeight > 0 ? roomCanvasHeight : _project.RoomImageCanvasHeight,
             ProjectRoomGridCellSize: _project.RoomDesignerGridCellSize,
             NameSynonyms: defaultNameSynonyms);
         if (!_treeContextInteractionService.TryEditRoomSettings(initial, out var updated))
@@ -12761,6 +12844,15 @@ public sealed partial class MainWindowViewModel
             };
 
             ActionPayloadAccessors.SetEchoMessage(cloned, ActionPayloadAccessors.GetEchoMessage(action));
+
+            if (action.ActionType == CommandActionType.StartSequence)
+            {
+                ActionPayloadAccessors.SetStartSequenceId(cloned, ActionPayloadAccessors.GetStartSequenceId(action));
+            }
+            else if (action.ActionType == CommandActionType.CancelSequence)
+            {
+                ActionPayloadAccessors.SetCancelSequenceId(cloned, ActionPayloadAccessors.GetCancelSequenceId(action));
+            }
 
             map[action.Id] = cloned.Id;
             clones.Add(cloned);

@@ -403,9 +403,11 @@ internal sealed class TreeContextInteractionServiceStub : ITreeContextInteractio
     public Func<string, string, IList<string>, IReadOnlyList<string>, IList<DirectionalTraversalMapping>?, bool>? EditScopedTokenListHandler { get; init; }
     public Func<IReadOnlyList<BaseObjectPromotionScopeOption>, BaseObjectPromotionScopeKind?>? BaseObjectPromotionScopeSelectionHandler { get; init; }
     public Func<IReadOnlyList<QuantifiableObjectPlacementCandidate>, QuantifiableObjectPlacementSelection?>? QuantifiablePlacementSelectionHandler { get; init; }
+    public Func<IReadOnlyList<GamePropertyChoiceItem>, PropertyResolutionScope, string, string?, (bool Accepted, string SelectedValue)>? ChooseVariableHandler { get; init; }
     public ObjectBasicPropertiesEditRequest? LastObjectBasicPropertiesRequest { get; private set; }
     public IReadOnlyList<BaseObjectPromotionScopeOption> LastBaseObjectPromotionScopeOptions { get; private set; } = Array.Empty<BaseObjectPromotionScopeOption>();
     public IReadOnlyList<QuantifiableObjectPlacementCandidate> LastQuantifiablePlacementCandidates { get; private set; } = Array.Empty<QuantifiableObjectPlacementCandidate>();
+    public IReadOnlyList<GamePropertyChoiceItem> LastVariableChoices { get; private set; } = Array.Empty<GamePropertyChoiceItem>();
     public string? LastSharedPropertyPath { get; private set; }
     public IReadOnlyList<SharedPropertyRelationshipReviewItem> LastSharedPropertyRelationships { get; private set; } = Array.Empty<SharedPropertyRelationshipReviewItem>();
     public string? LastSharedPropertyCallout { get; private set; }
@@ -478,8 +480,10 @@ internal sealed class TreeContextInteractionServiceStub : ITreeContextInteractio
         out string selectedValue,
         string? initialSelectedValue = null)
     {
-        selectedValue = string.Empty;
-        return false;
+        LastVariableChoices = choices.ToList();
+        var result = ChooseVariableHandler?.Invoke(choices, initializationScope, title, initialSelectedValue);
+        selectedValue = result?.SelectedValue ?? string.Empty;
+        return result?.Accepted == true;
     }
 
     public bool EditScopedTokenList(

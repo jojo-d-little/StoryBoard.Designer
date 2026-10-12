@@ -14,20 +14,41 @@ internal static class PresentationCueTargetChoices
             new(null, "(Command primary target)")
         };
         var seen = new HashSet<Guid>();
-        var currentObject = currentObjectId.HasValue
+        var currentObjectChoice = currentObjectId.HasValue
             ? availableObjects
                 .Where(choice => choice.ObjectId == currentObjectId.Value && choice.SourceObject is not null)
                 .OrderByDescending(choice => choice.SourceCategory.EndsWith("Base Objects", StringComparison.OrdinalIgnoreCase))
-                .Select(choice => choice.SourceObject)
                 .FirstOrDefault()
             : null;
+        var currentObject = currentObjectChoice?.SourceObject;
 
         if (currentObject is not null)
         {
-            Add(currentObject.ObjectId, $"This object (local): {currentObject.Name}");
-            foreach (var child in EnumerateDescendants(currentObject))
+            if (currentObjectChoice!.SourceCategory.EndsWith("Base Objects", StringComparison.OrdinalIgnoreCase))
             {
-                Add(child.ObjectId, $"Child object (local): {child.Name}");
+                var baseObjectChoices = availableObjects
+                    .Where(choice => choice.SourceObject is not null
+                        && choice.SourceCategory.EndsWith("Base Objects", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                var baseRoots = baseObjectChoices.Where(candidate => !baseObjectChoices.Any(other =>
+                    !ReferenceEquals(other, candidate)
+                    && EnumerateDescendants(other.SourceObject!).Any(descendant => descendant.ObjectId == candidate.ObjectId)));
+                var baseRoot = baseRoots.FirstOrDefault(candidate => candidate.ObjectId == currentObjectId
+                    || EnumerateDescendants(candidate.SourceObject!).Any(descendant => descendant.ObjectId == currentObjectId))
+                    ?.SourceObject ?? currentObject;
+                Add(baseRoot.ObjectId, $"This base object (local): {baseRoot.Name}");
+                foreach (var child in EnumerateDescendants(baseRoot))
+                {
+                    Add(child.ObjectId, $"Base child (local): {child.Name}");
+                }
+            }
+            else
+            {
+                Add(currentObject.ObjectId, $"This object (local): {currentObject.Name}");
+                foreach (var child in EnumerateDescendants(currentObject))
+                {
+                    Add(child.ObjectId, $"Child object (local): {child.Name}");
+                }
             }
         }
 

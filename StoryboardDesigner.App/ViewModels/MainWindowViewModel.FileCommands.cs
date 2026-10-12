@@ -1283,11 +1283,49 @@ public sealed partial class MainWindowViewModel
             }).ToList()
         };
 
-        clone.SequenceDefinitions = CloneSequenceDefinitionsForRoom(source, clone);
+        clone.SequenceDefinitions = CloneSequenceDefinitionsForRoom(source, clone, out var sequenceIds);
+        RemapSequenceTargets(clone, sequenceIds);
         return clone;
     }
 
-    private static List<ProjectSequenceDefinitionDto> CloneSequenceDefinitionsForRoom(Room source, Room clone)
+    private static void RemapSequenceTargets(Room room, IReadOnlyDictionary<Guid, Guid> sequenceIds)
+    {
+        RemapSequenceTargets(room.AvailableActions, sequenceIds);
+        foreach (var gameObject in EnumerateGameObjectsRecursive(room.GameObjects))
+        {
+            RemapSequenceTargets(gameObject.AvailableActions, sequenceIds);
+        }
+    }
+
+    private static void RemapSequenceTargets(GameObject gameObject, IReadOnlyDictionary<Guid, Guid> sequenceIds)
+    {
+        foreach (var nestedObject in EnumerateGameObjectsRecursive([gameObject]))
+        {
+            RemapSequenceTargets(nestedObject.AvailableActions, sequenceIds);
+        }
+    }
+
+    private static void RemapSequenceTargets(IEnumerable<CommandAction> actions, IReadOnlyDictionary<Guid, Guid> sequenceIds)
+    {
+        foreach (var action in actions)
+        {
+            if (action.ActionType == CommandActionType.StartSequence
+                && sequenceIds.TryGetValue(ActionPayloadAccessors.GetStartSequenceId(action), out var startSequenceId))
+            {
+                ActionPayloadAccessors.SetStartSequenceId(action, startSequenceId);
+            }
+            else if (action.ActionType == CommandActionType.CancelSequence
+                && sequenceIds.TryGetValue(ActionPayloadAccessors.GetCancelSequenceId(action), out var cancelSequenceId))
+            {
+                ActionPayloadAccessors.SetCancelSequenceId(action, cancelSequenceId);
+            }
+        }
+    }
+
+    private static List<ProjectSequenceDefinitionDto> CloneSequenceDefinitionsForRoom(
+        Room source,
+        Room clone,
+        out Dictionary<Guid, Guid> sequenceIds)
     {
         var actionIds = new Dictionary<Guid, Guid>();
         var soundEffectIds = new Dictionary<Guid, Guid>();
@@ -1325,20 +1363,29 @@ public sealed partial class MainWindowViewModel
             MapObject(source.GameObjects[index], clone.GameObjects[index]);
         }
 
-        return CloneSequenceDefinitionsWithMaps(source.SequenceDefinitions, actionIds, soundEffectIds);
+        return CloneSequenceDefinitionsWithMaps(source.SequenceDefinitions, actionIds, soundEffectIds, out sequenceIds);
     }
 
     private static List<ProjectSequenceDefinitionDto> CloneSequenceDefinitionsWithMaps(
         IEnumerable<ProjectSequenceDefinitionDto>? sourceDefinitions,
         IReadOnlyDictionary<Guid, Guid> actionIds,
-        IReadOnlyDictionary<Guid, Guid> soundEffectIds)
+        IReadOnlyDictionary<Guid, Guid> soundEffectIds,
+        out Dictionary<Guid, Guid> sequenceIds)
     {
-        return (sourceDefinitions ?? Array.Empty<ProjectSequenceDefinitionDto>())
+        var definitions = (sourceDefinitions ?? Array.Empty<ProjectSequenceDefinitionDto>()).ToList();
+        sequenceIds = new Dictionary<Guid, Guid>();
+        foreach (var sequence in definitions)
+        {
+            sequenceIds.TryAdd(sequence.SequenceId, Guid.NewGuid());
+        }
+        var clonedSequenceIds = sequenceIds;
+
+        return definitions
             .Select(sequence =>
             {
                 var copy = JsonSerializer.Deserialize<ProjectSequenceDefinitionDto>(JsonSerializer.Serialize(sequence, SequenceCloneJsonOptions), SequenceCloneJsonOptions)
                     ?? throw new InvalidOperationException("A sequence definition could not be cloned.");
-                copy.SequenceId = Guid.NewGuid();
+                copy.SequenceId = clonedSequenceIds[sequence.SequenceId];
 
                 var branchIds = new Dictionary<string, string>(StringComparer.Ordinal);
                 foreach (var branch in sequence.Branches ?? new List<ProjectSequenceBranchDto>())

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
@@ -6,6 +7,92 @@ namespace StoryboardDesigner.App.Tests;
 
 public sealed class BaseObjectPlacementCandidatePolicyTests
 {
+    [Fact]
+    public void AddInstanceFromBaseObject_UsesRoomOriginAndPreservesContainedLayoutThroughExport()
+    {
+        var root = new GameObject
+        {
+            Name = "Base Elevator",
+            IsQuantifiable = true,
+            PositionX = 640,
+            PositionY = 120,
+            ContainedObjects =
+            [
+                new GameObject
+                {
+                    Name = "Left Door",
+                    PositionX = 668,
+                    PositionY = 155,
+                    ContainedObjects = [new GameObject { Name = "Door Handle", PositionX = 680, PositionY = 160 }]
+                },
+                new GameObject { Name = "Right Door", PositionX = 599, PositionY = 85 }
+            ]
+        };
+        var room = new Room { Name = "Destination", GameObjects = [] };
+        var area = new Area { Name = "Area", BaseObjects = [root], Rooms = [room] };
+        var country = new Country { Name = "Country", Areas = [area] };
+        var planet = new Planet { Name = "Planet", Countries = [country] };
+        var project = new ProjectModel { Name = "BaseObjectPlacement", Planets = [planet] };
+        ScopeHierarchy.AttachParents(project);
+
+        var treeContext = new TreeContextInteractionServiceStub
+        {
+            QuantifiablePlacementSelectionHandler = candidates => new QuantifiableObjectPlacementSelection(
+                Assert.Single(candidates, candidate => candidate.SourceObject == root).SourceObject,
+                1)
+        };
+        var viewModel = MainWindowViewModelTestHarness.CreateViewModel(project, treeContext, new ProjectUiServiceStub());
+        var roomNode = BuildRoomNode(project, room);
+
+        Assert.True(viewModel.ExecuteTreeContextAction("add-existing-quantifiable-object", roomNode));
+
+        var placed = Assert.Single(room.GameObjects);
+        Assert.Equal(0, placed.PositionX);
+        Assert.Equal(0, placed.PositionY);
+        Assert.NotEqual(root.ObjectId, placed.ObjectId);
+        Assert.Equal(root.ObjectId, placed.LinkedBaseObjectId);
+        Assert.Equal((28d, 35d), (placed.ContainedObjects[0].PositionX, placed.ContainedObjects[0].PositionY));
+        Assert.Equal((40d, 40d), (placed.ContainedObjects[0].ContainedObjects[0].PositionX, placed.ContainedObjects[0].ContainedObjects[0].PositionY));
+        Assert.Equal((-41d, -35d), (placed.ContainedObjects[1].PositionX, placed.ContainedObjects[1].PositionY));
+
+        var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+        try
+        {
+            var projectPath = Path.Combine(tempRoot, "BaseObjectPlacement.sbe.json");
+            var export = new JsonExportService();
+            export.SaveProjectModel(projectPath, project);
+            var reopened = Assert.IsType<ProjectModel>(export.TryLoadProjectModel(projectPath));
+            var reopenedPlacement = Assert.Single(reopened.Planets.Single().Countries.Single().Areas.Single().Rooms.Single().GameObjects);
+            Assert.Equal(placed.PositionX, reopenedPlacement.PositionX);
+            Assert.Equal(placed.PositionY, reopenedPlacement.PositionY);
+            Assert.Equal(placed.ContainedObjects[0].PositionX, reopenedPlacement.ContainedObjects[0].PositionX);
+            Assert.Equal(placed.ContainedObjects[0].ContainedObjects[0].PositionY, reopenedPlacement.ContainedObjects[0].ContainedObjects[0].PositionY);
+
+            export.ExportCleanProjectV1(projectPath, reopened);
+            using var runtime = JsonDocument.Parse(File.ReadAllText(Path.Combine(
+                tempRoot,
+                "GameRuntimeJson",
+                "GameObject",
+                placed.ObjectId.ToString("D").ToUpperInvariant() + ".runtime.json")));
+            Assert.Equal("0", RuntimeDefault(runtime.RootElement, "positionX"));
+            Assert.Equal("0", RuntimeDefault(runtime.RootElement, "positionY"));
+            Assert.Equal("28", RuntimeDefault(runtime.RootElement.GetProperty("containedObjects")[0], "positionX"));
+            Assert.Equal("35", RuntimeDefault(runtime.RootElement.GetProperty("containedObjects")[0], "positionY"));
+            Assert.Equal("40", RuntimeDefault(runtime.RootElement.GetProperty("containedObjects")[0].GetProperty("containedObjects")[0], "positionX"));
+            Assert.Equal("40", RuntimeDefault(runtime.RootElement.GetProperty("containedObjects")[0].GetProperty("containedObjects")[0], "positionY"));
+            Assert.Equal(root.PositionX, Assert.Single(project.Planets.Single().Countries.Single().Areas.Single().BaseObjects).PositionX);
+        }
+        finally
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+
+        static string RuntimeDefault(JsonElement obj, string propertyName) => obj.GetProperty("gameProperties").EnumerateArray()
+            .Single(property => string.Equals(property.GetProperty("name").GetString(), propertyName, StringComparison.OrdinalIgnoreCase))
+            .GetProperty("defaultValue").GetString()!;
+    }
+
     [Fact]
     public void AddInstanceCandidates_UseBaseObjectsOnly()
     {
