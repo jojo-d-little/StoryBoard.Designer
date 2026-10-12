@@ -4475,6 +4475,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 sequencesNode.Children.Add(new SequenceDefinitionNodeViewModel(owner, definition, sequencesNode));
             }
             hierarchyNode.Children.Add(sequencesNode);
+            ApplyScopeChildOrder(hierarchyNode);
         }
 
         nodes.Add(projectRootNode);

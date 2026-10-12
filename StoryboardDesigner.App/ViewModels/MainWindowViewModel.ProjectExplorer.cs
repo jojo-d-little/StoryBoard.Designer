@@ -13663,7 +13663,7 @@ public sealed partial class MainWindowViewModel
 
     private static void ApplyHideEmptyConfiguration(HierarchyNodeViewModel ownerNode)
     {
-        SortPrimaryHierarchyChildren(ownerNode);
+        ApplyScopeChildOrder(ownerNode);
 
         if (!IsHideEmptyConfigurationEnabled(ownerNode))
         {
@@ -13680,55 +13680,157 @@ public sealed partial class MainWindowViewModel
         }
     }
 
-    private static void SortPrimaryHierarchyChildren(HierarchyNodeViewModel ownerNode)
+    private static void ApplyScopeChildOrder(HierarchyNodeViewModel ownerNode)
     {
-        if (ownerNode is ProjectRootNodeViewModel)
+        var orderedChildren = new List<HierarchyNodeViewModel>();
+
+        void Append<T>(Func<T, bool>? predicate = null, bool alphabetical = false)
+            where T : HierarchyNodeViewModel
         {
-            SortNodesWithinExistingSlots(
-                ownerNode.Children,
-                ownerNode.Children.OfType<PlanetNodeViewModel>()
+            IEnumerable<T> matchingNodes = ownerNode.Children.OfType<T>();
+            if (predicate is not null)
+            {
+                matchingNodes = matchingNodes.Where(predicate);
+            }
+
+            if (alphabetical)
+            {
+                matchingNodes = matchingNodes
                     .OrderBy(node => node.EditableName, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(node => node.EditableName, StringComparer.Ordinal));
+                    .ThenBy(node => node.EditableName, StringComparer.Ordinal);
+            }
 
-            return;
+            orderedChildren.AddRange(matchingNodes);
         }
 
-        if (ownerNode is not (PlanetNodeViewModel or CountryNodeViewModel or AreaNodeViewModel))
+        switch (ownerNode)
         {
-            return;
+            case ProjectRootNodeViewModel:
+                Append<GlobalSettingsNodeViewModel>();
+                Append<PlanetNodeViewModel>(alphabetical: true);
+                Append<GlobalObjectsNodeViewModel>();
+                Append<ObjectTemplatesNodeViewModel>(node => node.IsBaseCatalog);
+                Append<GamePropertiesContainerNodeViewModel>(node => node.Scope == PropertyResolutionScope.Global);
+                Append<ScopedActionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Global);
+                Append<ScopedVerbsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Global);
+                Append<ScopedDirectionalsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Global);
+                Append<ScopedSoundEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Global);
+                Append<ScopedEventSubscriptionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Global);
+                Append<ScopedTimerDefinitionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Global);
+                Append<ScopedProceduresNodeViewModel>(node => node.Scope == PropertyResolutionScope.Global);
+                Append<ObjectTemplatesNodeViewModel>(node => !node.IsBaseCatalog);
+                Append<RoomTemplatesNodeViewModel>();
+                Append<PhaseBooksNodeViewModel>();
+                Append<SequencesNodeViewModel>();
+                break;
+            case PlanetNodeViewModel:
+                Append<PlanetSettingsNodeViewModel>();
+                Append<ChildrenGroupNodeViewModel>();
+                Append<PlanetGameObjectsNodeViewModel>();
+                Append<ObjectTemplatesNodeViewModel>(node => node.IsBaseCatalog);
+                Append<GamePropertiesContainerNodeViewModel>(node => node.Scope == PropertyResolutionScope.Planet);
+                Append<ScopedActionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Planet);
+                Append<ScopedVerbsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Planet);
+                Append<ScopedDirectionalsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Planet);
+                Append<ScopedSoundEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Planet);
+                Append<ScopedEventSubscriptionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Planet);
+                Append<ScopedTimerDefinitionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Planet);
+                Append<ObjectTemplatesNodeViewModel>(node => !node.IsBaseCatalog);
+                Append<RoomTemplatesNodeViewModel>();
+                Append<SequencesNodeViewModel>();
+                break;
+            case CountryNodeViewModel:
+                Append<CountrySettingsNodeViewModel>();
+                Append<ChildrenGroupNodeViewModel>();
+                Append<CountryGameObjectsNodeViewModel>();
+                Append<ObjectTemplatesNodeViewModel>(node => node.IsBaseCatalog);
+                Append<GamePropertiesContainerNodeViewModel>(node => node.Scope == PropertyResolutionScope.Country);
+                Append<ScopedActionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Country);
+                Append<ScopedVerbsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Country);
+                Append<ScopedDirectionalsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Country);
+                Append<ScopedSoundEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Country);
+                Append<ScopedEventSubscriptionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Country);
+                Append<ScopedTimerDefinitionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Country);
+                Append<ObjectTemplatesNodeViewModel>(node => !node.IsBaseCatalog);
+                Append<RoomTemplatesNodeViewModel>();
+                Append<SequencesNodeViewModel>();
+                break;
+            case AreaNodeViewModel:
+                Append<AreaSettingsNodeViewModel>();
+                Append<ChildrenGroupNodeViewModel>();
+                Append<AreaGameObjectsNodeViewModel>();
+                Append<ObjectTemplatesNodeViewModel>(node => node.IsBaseCatalog);
+                Append<GamePropertiesContainerNodeViewModel>(node => node.Scope == PropertyResolutionScope.Area);
+                Append<ScopedActionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Area);
+                Append<ScopedVerbsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Area);
+                Append<ScopedDirectionalsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Area);
+                Append<ScopedSoundEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Area);
+                Append<ScopedEventSubscriptionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Area);
+                Append<ScopedTimerDefinitionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Area);
+                Append<ObjectTemplatesNodeViewModel>(node => !node.IsBaseCatalog);
+                Append<RoomTemplatesNodeViewModel>();
+                Append<SequencesNodeViewModel>();
+                break;
+            case RoomNodeViewModel:
+                Append<RoomSettingsNodeViewModel>();
+                Append<GamePropertiesContainerNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
+                Append<ScopedActionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
+                Append<ScopedVerbsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
+                Append<ScopedDirectionalsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
+                Append<ScopedSoundEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
+                Append<ScopedEventSubscriptionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
+                Append<ScopedTimerDefinitionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
+                Append<RoomTraversalLegsNodeViewModel>();
+                Append<RoomGameObjectsNodeViewModel>();
+                Append<SequencesNodeViewModel>();
+                break;
+            case TemplateRoomNodeViewModel:
+                Append<RoomSettingsNodeViewModel>();
+                Append<GamePropertiesContainerNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
+                Append<ScopedActionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
+                Append<ScopedVerbsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
+                Append<ScopedDirectionalsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
+                Append<ScopedSoundEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
+                Append<ScopedEventSubscriptionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
+                Append<ScopedTimerDefinitionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
+                Append<ObjectTemplatesNodeViewModel>();
+                Append<SequencesNodeViewModel>();
+                break;
+            default:
+                return;
         }
 
-        var primaryChildren = ownerNode.Children.OfType<ChildrenGroupNodeViewModel>().FirstOrDefault();
-        if (primaryChildren is null)
+        var included = orderedChildren.ToHashSet();
+        orderedChildren.AddRange(ownerNode.Children.Where(node => !included.Contains(node)));
+        ReplaceChildrenInOrder(ownerNode.Children, orderedChildren);
+
+        if (ownerNode is PlanetNodeViewModel or CountryNodeViewModel or AreaNodeViewModel)
         {
-            return;
+            var primaryChildren = ownerNode.Children.OfType<ChildrenGroupNodeViewModel>().FirstOrDefault();
+            if (primaryChildren is not null)
+            {
+                var sortedPrimaryChildren = primaryChildren.Children
+                    .OrderBy(node => node.EditableName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(node => node.EditableName, StringComparer.Ordinal)
+                    .ToList();
+                ReplaceChildrenInOrder(primaryChildren.Children, sortedPrimaryChildren);
+            }
         }
-
-        SortNodesWithinExistingSlots(
-            primaryChildren.Children,
-            primaryChildren.Children
-                .OrderBy(node => node.EditableName, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(node => node.EditableName, StringComparer.Ordinal));
     }
 
-    private static void SortNodesWithinExistingSlots(
+    private static void ReplaceChildrenInOrder(
         System.Collections.ObjectModel.ObservableCollection<HierarchyNodeViewModel> collection,
-        IEnumerable<HierarchyNodeViewModel> nodesInNameOrder)
+        IReadOnlyList<HierarchyNodeViewModel> orderedChildren)
     {
-        var sortedNodes = nodesInNameOrder.ToList();
-        var targetSlots = sortedNodes
-            .Select(collection.IndexOf)
-            .OrderBy(index => index)
-            .ToList();
-
-        for (var index = 0; index < sortedNodes.Count; index++)
+        if (collection.SequenceEqual(orderedChildren))
         {
-            var currentIndex = collection.IndexOf(sortedNodes[index]);
-            var targetIndex = targetSlots[index];
-            if (currentIndex != targetIndex)
-            {
-                collection.Move(currentIndex, targetIndex);
-            }
+            return;
+        }
+
+        collection.Clear();
+        foreach (var child in orderedChildren)
+        {
+            collection.Add(child);
         }
     }
 

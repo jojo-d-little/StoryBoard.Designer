@@ -94,6 +94,8 @@ public sealed class HideEmptyConfigurationContextActionsTests
     {
         var project = BuildProject();
         var areaModel = project.Planets[0].Countries[0].Areas[0];
+        areaModel.GameObjects.Add(new GameObject { Name = "Area Object" });
+        areaModel.BaseObjects.Add(new GameObject { Name = "Area Base Object" });
         areaModel.ObjectTemplates.Add(new GameObject { Name = "Area Object Template" });
         areaModel.RoomTemplates.Add(new Room { Name = "Area Room Template" });
         areaModel.SequenceDefinitions.Add(new ProjectSequenceDefinitionDto
@@ -114,8 +116,17 @@ public sealed class HideEmptyConfigurationContextActionsTests
         var sequencesNode = areaNode.Children.OfType<SequencesNodeViewModel>().Single();
         var sequenceNode = Assert.IsType<SequenceDefinitionNodeViewModel>(Assert.Single(sequencesNode.Children));
 
+        Assert.IsType<AreaSettingsNodeViewModel>(areaNode.Children[0]);
+        Assert.IsType<ChildrenGroupNodeViewModel>(areaNode.Children[1]);
+        Assert.IsType<AreaGameObjectsNodeViewModel>(areaNode.Children[2]);
+        Assert.True(Assert.IsType<ObjectTemplatesNodeViewModel>(areaNode.Children[3]).IsBaseCatalog);
+
         Assert.True(viewModel.ExecuteTreeContextAction("toggle-hide-empty-configuration", areaNode));
 
+        Assert.IsType<AreaSettingsNodeViewModel>(areaNode.Children[0]);
+        Assert.IsType<ChildrenGroupNodeViewModel>(areaNode.Children[1]);
+        Assert.IsType<AreaGameObjectsNodeViewModel>(areaNode.Children[2]);
+        Assert.True(Assert.IsType<ObjectTemplatesNodeViewModel>(areaNode.Children[3]).IsBaseCatalog);
         Assert.Same(objectTemplatesNode, areaNode.Children.OfType<ObjectTemplatesNodeViewModel>().Single(node => !node.IsBaseCatalog));
         Assert.Same(roomTemplatesNode, Assert.Single(areaNode.Children.OfType<RoomTemplatesNodeViewModel>()));
         Assert.Same(sequencesNode, Assert.Single(areaNode.Children.OfType<SequencesNodeViewModel>()));
