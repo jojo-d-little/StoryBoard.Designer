@@ -10,9 +10,10 @@ public sealed class PromoteToObjectTemplateWorkflowTests
     [Fact]
     public void GetTreeContextActions_RoomObject_IncludesCreateTemplateFrom()
     {
-        var project = BuildProject(out _, out var sourceNode);
-        var viewModel = MainWindowViewModelTestHarness.CreateViewModel(
+        var project = BuildProjectModel(out var sourceObjectId);
+        var (viewModel, sourceNode) = LoadSourceObject(
             project,
+            sourceObjectId,
             new TreeContextInteractionServiceStub(),
             new ProjectUiServiceStub());
 
@@ -24,9 +25,10 @@ public sealed class PromoteToObjectTemplateWorkflowTests
     [Fact]
     public void ExecuteTreeContextAction_CreateTemplateFromObject_CreatesTemplateWithoutLinkingSource()
     {
-        var project = BuildProject(out _, out var sourceNode);
-        var viewModel = MainWindowViewModelTestHarness.CreateViewModel(
+        var project = BuildProjectModel(out var sourceObjectId);
+        var (viewModel, sourceNode) = LoadSourceObject(
             project,
+            sourceObjectId,
             new TreeContextInteractionServiceStub(),
             new ProjectUiServiceStub());
 
@@ -43,7 +45,7 @@ public sealed class PromoteToObjectTemplateWorkflowTests
         Assert.False(source.LinkActionsToBaseObject);
         Assert.Equal(previousActionCount, source.AvailableActions.Count);
 
-        var definition = Assert.Single(project.ObjectTemplates);
+        var definition = Assert.Single(project.Planets[0].Countries[0].Areas[0].ObjectTemplates);
         Assert.NotEqual(source.ObjectId, definition.ObjectId);
         Assert.Equal(source.Name, definition.Name);
         Assert.Equal(previousActionCount, definition.AvailableActions.Count);
@@ -76,11 +78,13 @@ public sealed class PromoteToObjectTemplateWorkflowTests
 
         Assert.True(handled);
 
-        var promotedDefinition = Assert.Single(project.ObjectTemplates);
+        var area = project.Planets[0].Countries[0].Areas[0];
+        var promotedDefinition = Assert.Single(area.ObjectTemplates);
 
         var templateCatalogNode = EnumerateNodes(viewModel.HierarchyRoots)
             .OfType<ObjectTemplatesNodeViewModel>()
-            .Single(node => !node.IsBaseCatalog && node.Parent is ProjectRootNodeViewModel);
+            .Single(node => !node.IsBaseCatalog && ReferenceEquals(node.CatalogParentScope, area));
+        Assert.IsType<ConstructsNodeViewModel>(templateCatalogNode.Parent);
 
         Assert.Contains(
             templateCatalogNode.Children.OfType<TemplateGameObjectNodeViewModel>(),
@@ -98,7 +102,8 @@ public sealed class PromoteToObjectTemplateWorkflowTests
             .SelectMany(room => room.GameObjects)
             .Single(node => node.ObjectId == sourceObjectId);
 
-        project.ObjectTemplates.Add(new GameObject
+        var area = project.Planets[0].Countries[0].Areas[0];
+        area.ObjectTemplates.Add(new GameObject
         {
             Name = source.Name,
             IsQuantifiable = true,
@@ -124,28 +129,29 @@ public sealed class PromoteToObjectTemplateWorkflowTests
 
         Assert.False(handled);
         Assert.False(sourceNode.GameObject.LinkedBaseObjectId.HasValue);
-        Assert.Single(project.ObjectTemplates);
+        Assert.Single(area.ObjectTemplates);
         Assert.Contains(projectUi.WarningMessages, message => message.Contains("already exists", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
     public void ExecuteTreeContextAction_CreateTemplateFromObject_UsesPromptedTemplateName()
     {
-        var project = BuildProject(out _, out var sourceNode);
+        var project = BuildProjectModel(out var sourceObjectId);
         var treeContext = new TreeContextInteractionServiceStub
         {
             TemplateNameFromObjectHandler = _ => "Reusable Marble Pattern"
         };
 
-        var viewModel = MainWindowViewModelTestHarness.CreateViewModel(
+        var (viewModel, sourceNode) = LoadSourceObject(
             project,
+            sourceObjectId,
             treeContext,
             new ProjectUiServiceStub());
 
         var handled = viewModel.ExecuteTreeContextAction("create-template-from-object", sourceNode);
 
         Assert.True(handled);
-        var definition = Assert.Single(project.ObjectTemplates);
+        var definition = Assert.Single(project.Planets[0].Countries[0].Areas[0].ObjectTemplates);
         Assert.Equal("Reusable Marble Pattern", definition.Name);
         Assert.Equal("Marble Pile", sourceNode.GameObject.Name);
     }
@@ -153,21 +159,22 @@ public sealed class PromoteToObjectTemplateWorkflowTests
     [Fact]
     public void ExecuteTreeContextAction_CreateTemplateFromObject_WhenNamePromptCanceled_DoesNotCreate()
     {
-        var project = BuildProject(out _, out var sourceNode);
+        var project = BuildProjectModel(out var sourceObjectId);
         var treeContext = new TreeContextInteractionServiceStub
         {
             TemplateNameFromObjectHandler = _ => null
         };
 
-        var viewModel = MainWindowViewModelTestHarness.CreateViewModel(
+        var (viewModel, sourceNode) = LoadSourceObject(
             project,
+            sourceObjectId,
             treeContext,
             new ProjectUiServiceStub());
 
         var handled = viewModel.ExecuteTreeContextAction("create-template-from-object", sourceNode);
 
         Assert.False(handled);
-        Assert.Empty(project.ObjectTemplates);
+        Assert.Empty(project.Planets[0].Countries[0].Areas[0].ObjectTemplates);
     }
 
     [Fact]
@@ -309,6 +316,21 @@ public sealed class PromoteToObjectTemplateWorkflowTests
             GlobalObjectScopeName = "Global Objects",
             Planets = [planet]
         };
+    }
+
+    private static (MainWindowViewModel ViewModel, GameObjectNodeViewModel SourceNode) LoadSourceObject(
+        ProjectModel project,
+        Guid sourceObjectId,
+        TreeContextInteractionServiceStub treeContext,
+        ProjectUiServiceStub projectUi)
+    {
+        ScopeHierarchy.AttachParents(project);
+        var viewModel = MainWindowViewModelTestHarness.CreateViewModel(project, treeContext, projectUi);
+        InvokeLoadProjectIntoHierarchy(viewModel);
+        var sourceNode = EnumerateNodes(viewModel.HierarchyRoots)
+            .OfType<GameObjectNodeViewModel>()
+            .Single(node => node.GameObject.ObjectId == sourceObjectId);
+        return (viewModel, sourceNode);
     }
 
     private static void InvokeLoadProjectIntoHierarchy(MainWindowViewModel vm)

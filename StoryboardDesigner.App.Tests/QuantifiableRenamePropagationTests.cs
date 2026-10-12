@@ -1065,8 +1065,8 @@ public sealed class QuantifiableRenamePropagationTests
         Assert.False(linkedInstance.IsContainer);
         Assert.False(linkedInstance.IsOpenable);
         Assert.False(linkedInstance.InstanceOverrides.ContainsKey("Name"));
-        Assert.True(linkedInstance.InstanceOverrides.TryGetValue("NameSynonyms", out var nameSynonymsOverride));
-        Assert.Equal("petals, bloom", nameSynonymsOverride);
+        Assert.Equal(new[] { "petals", "bloom" }, linkedInstance.NameSynonyms);
+        Assert.False(linkedInstance.InstanceOverrides.ContainsKey("NameSynonyms"));
         Assert.True(linkedInstance.InstanceOverrides.TryGetValue("Description", out var descriptionOverride));
         Assert.Equal("Room-specific description", descriptionOverride);
     }

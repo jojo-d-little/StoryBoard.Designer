@@ -1892,6 +1892,7 @@ public class JsonExportServiceProjectStateTests
                 LinkedBaseObjectId = baseObjectId,
                 LinkActionsToBaseObject = true
             };
+            var roomInstanceObjectId = roomInstanceObject.ObjectId;
 
             var room = new Room
             {
@@ -1923,7 +1924,7 @@ public class JsonExportServiceProjectStateTests
                 .SelectMany(c => c.Areas)
                 .SelectMany(a => a.Rooms)
                 .SelectMany(r => r.GameObjects)
-                .Single(obj => string.Equals(obj.ProducerNotes, "marbles", StringComparison.OrdinalIgnoreCase));
+                .Single(obj => obj.ObjectId == roomInstanceObjectId);
 
             Assert.NotEqual(Guid.Empty, loadedRoomObject.ObjectId);
             Assert.Equal(baseObjectId, loadedRoomObject.LinkedBaseObjectId);
@@ -1963,6 +1964,7 @@ public class JsonExportServiceProjectStateTests
                     ["Description"] = "Leads into the lab"
                 }
             };
+            var roomInstanceObjectId = roomInstanceObject.ObjectId;
 
             var room = new Room
             {
@@ -2005,7 +2007,7 @@ public class JsonExportServiceProjectStateTests
                 .SelectMany(c => c.Areas)
                 .SelectMany(a => a.Rooms)
                 .SelectMany(r => r.GameObjects)
-                .Single(obj => string.Equals(obj.ProducerNotes, "door-instance", StringComparison.OrdinalIgnoreCase));
+                .Single(obj => obj.ObjectId == roomInstanceObjectId);
 
             Assert.Equal("Standard Door", loadedRoomObject.ObjectType);
             Assert.Equal(linkedBaseObjectId, loadedRoomObject.LinkedBaseObjectId);
@@ -2607,6 +2609,7 @@ public class JsonExportServiceProjectStateTests
                 LinkedBaseObjectId = baseObjectId,
                 LinkActionsToBaseObject = true
             };
+            var linkedCopyId = linkedCopy.ObjectId;
 
             var sourceRoom = new Room
             {
@@ -2648,7 +2651,7 @@ public class JsonExportServiceProjectStateTests
                 .Single(r => string.Equals(r.Name, "Target Room", StringComparison.Ordinal));
 
             var loadedLinkedCopy = loadedTargetRoom.GameObjects
-                .Single(obj => string.Equals(obj.ProducerNotes, "marbles-linked-room-b", StringComparison.OrdinalIgnoreCase));
+                .Single(obj => obj.ObjectId == linkedCopyId);
 
             Assert.Equal(baseObjectId, loadedLinkedCopy.LinkedBaseObjectId);
             Assert.True(loadedLinkedCopy.LinkActionsToBaseObject);
@@ -2712,6 +2715,7 @@ public class JsonExportServiceProjectStateTests
                 LinkActionsToBaseObject = true,
                 AvailableActions = new List<CommandAction> { staleLinkedAction }
             };
+            var linkedCopyId = linkedCopy.ObjectId;
 
             var sourceRoom = new Room
             {
@@ -2761,7 +2765,7 @@ public class JsonExportServiceProjectStateTests
             var loadedBase = loadedSourceRoom.GameObjects
                 .Single(obj => string.Equals(obj.ProducerNotes, "marbles-base", StringComparison.OrdinalIgnoreCase));
             var loadedLinked = loadedTargetRoom.GameObjects
-                .Single(obj => string.Equals(obj.ProducerNotes, "marbles-linked-room-b", StringComparison.OrdinalIgnoreCase));
+                .Single(obj => obj.ObjectId == linkedCopyId);
 
             Assert.Single(loadedBase.AvailableActions);
             Assert.Empty(loadedLinked.AvailableActions);
@@ -2822,6 +2826,7 @@ public class JsonExportServiceProjectStateTests
                 LinkedBaseObjectId = containedBaseId,
                 LinkActionsToBaseObject = true
             };
+            var linkedContainedIds = new HashSet<Guid> { linkedContainedOne.ObjectId, linkedContainedTwo.ObjectId };
 
             var container = new GameObject
             {
@@ -2868,9 +2873,8 @@ public class JsonExportServiceProjectStateTests
             var loadedContainedBase = loadedContainer.ContainedObjects
                 .Single(obj => string.Equals(obj.ProducerNotes, "coin-contained-base", StringComparison.OrdinalIgnoreCase));
             var loadedLinkedContained = loadedContainer.ContainedObjects
-                .Where(obj => string.Equals(obj.Name, "Coin", StringComparison.OrdinalIgnoreCase)
-                              && obj.ProducerNotes.StartsWith("coin-contained-linked", StringComparison.OrdinalIgnoreCase))
-                .OrderBy(obj => obj.ProducerNotes, StringComparer.OrdinalIgnoreCase)
+                .Where(obj => linkedContainedIds.Contains(obj.ObjectId))
+                .OrderBy(obj => obj.ObjectId)
                 .ToList();
 
             Assert.Equal(2, loadedLinkedContained.Count);

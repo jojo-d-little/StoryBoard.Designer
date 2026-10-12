@@ -125,7 +125,7 @@ public sealed class RoomObjectPreviewPlacementRuleTests
     }
 
     [Fact]
-    public void Execute_WithNestedRoomDescendantPlacementState_ReturnsWarning()
+    public void Execute_WithVisibleNestedRoomDescendantPlacementState_ReturnsWarning()
     {
         var nestedChild = new GameObject
         {
@@ -138,6 +138,7 @@ public sealed class RoomObjectPreviewPlacementRuleTests
         var parent = new GameObject
         {
             Name = "Chest",
+            HideContainedObjects = false,
             ImageVariants =
             [
                 new ObjectImageVariant
@@ -158,10 +159,9 @@ public sealed class RoomObjectPreviewPlacementRuleTests
         var engine = new ValidationEngine(registry);
         var result = engine.Execute(new ValidationExecutionRequest(project));
 
-        var issue = Assert.Single(
-            result.Issues,
-            static item => item.Description.Contains("nested room descendant", StringComparison.OrdinalIgnoreCase));
+        var issue = Assert.Single(result.Issues);
         Assert.Equal("OBJ-005", issue.RuleId);
+        Assert.Contains("Chest / Coin", issue.Path, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public sealed class RoomObjectPreviewPlacementRuleTests
 
         var issue = Assert.Single(result.Issues);
         Assert.Equal("OBJ-005", issue.RuleId);
-        Assert.Contains("non-room scope", issue.Description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("outside a room object hierarchy", issue.Description, StringComparison.OrdinalIgnoreCase);
     }
 
     private static ProjectModel BuildProjectWithRoomObject(GameObject roomObject)

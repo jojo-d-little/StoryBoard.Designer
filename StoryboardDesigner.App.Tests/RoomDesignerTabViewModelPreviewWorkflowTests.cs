@@ -475,8 +475,9 @@ public sealed class RoomDesignerTabViewModelPreviewWorkflowTests
 
             viewModel.MoveRoomChildObjectUpCommand.Execute(second);
 
-            Assert.Equal("Second", room.GameObjects[0].Name);
-            Assert.Equal("First", room.GameObjects[1].Name);
+            Assert.Equal(new[] { "First", "Second" }, room.GameObjects.Select(item => item.Name));
+            Assert.Equal(2, second.GameObject.RenderZOrder);
+            Assert.Equal(1, room.GameObjects.Single(item => item.Name == "First").RenderZOrder);
             Assert.Equal("Second", viewModel.RoomChildObjects[0].DisplayName);
             Assert.True(viewModel.RoomChildObjects[0].DrawOrderZIndex > viewModel.RoomChildObjects[1].DrawOrderZIndex);
         }
@@ -523,8 +524,9 @@ public sealed class RoomDesignerTabViewModelPreviewWorkflowTests
 
             viewModel.MoveRoomChildObjectDownCommand.Execute(first);
 
-            Assert.Equal("Second", room.GameObjects[0].Name);
-            Assert.Equal("First", room.GameObjects[1].Name);
+            Assert.Equal(new[] { "First", "Second" }, room.GameObjects.Select(item => item.Name));
+            Assert.Equal(1, first.GameObject.RenderZOrder);
+            Assert.Equal(2, room.GameObjects.Single(item => item.Name == "Second").RenderZOrder);
             Assert.Equal("Second", viewModel.RoomChildObjects[0].DisplayName);
             Assert.True(viewModel.RoomChildObjects[0].DrawOrderZIndex > viewModel.RoomChildObjects[1].DrawOrderZIndex);
         }

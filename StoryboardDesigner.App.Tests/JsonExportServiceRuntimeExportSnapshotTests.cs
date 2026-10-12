@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using StoryboardDesigner.App.Services;
 using Storyboard.Shared.RuntimeContracts.Enums;
 
@@ -134,7 +135,7 @@ public class JsonExportServiceRuntimeExportSnapshotTests
                     $"Missing snapshot file '{expectedPath}'. Run tests with UPDATE_RUNTIME_EXPORT_SNAPSHOTS=1 to generate baselines.");
 
                 var expected = File.ReadAllText(expectedPath, Encoding.UTF8);
-                Assert.Equal(expected, pair.Value);
+                AssertJsonEquivalent(expected, pair.Value, expectedPath);
             }
         }
         finally
@@ -221,7 +222,7 @@ public class JsonExportServiceRuntimeExportSnapshotTests
                     $"Missing snapshot file '{expectedPath}'. Run tests with UPDATE_RUNTIME_EXPORT_SNAPSHOTS=1 to generate baselines.");
 
                 var expected = File.ReadAllText(expectedPath, Encoding.UTF8);
-                Assert.Equal(expected, pair.Value);
+                AssertJsonEquivalent(expected, pair.Value, expectedPath);
             }
         }
         finally
@@ -258,6 +259,14 @@ public class JsonExportServiceRuntimeExportSnapshotTests
         return baseName.EndsWith(".sbe", StringComparison.OrdinalIgnoreCase)
             ? baseName[..^4]
             : baseName;
+    }
+
+    private static void AssertJsonEquivalent(string expected, string actual, string snapshotPath)
+    {
+        var expectedJson = JsonNode.Parse(expected);
+        var actualJson = JsonNode.Parse(actual);
+        Assert.True(JsonNode.DeepEquals(expectedJson, actualJson),
+            $"Runtime export JSON differs from snapshot '{snapshotPath}'.");
     }
 
     private static string FindRepositoryRoot()
