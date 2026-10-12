@@ -9,6 +9,7 @@ public sealed class GlobalObjectNodeViewModel : HierarchyNodeViewModel
         : base(interactiveObject.Name, parent)
     {
         GameObject = interactiveObject;
+        ScopeOwner = interactiveObject;
         ParentGlobalObjectsNode = parent;
         ParentObjectNode = null;
         IsNestedObject = false;
@@ -20,6 +21,7 @@ public sealed class GlobalObjectNodeViewModel : HierarchyNodeViewModel
         : base(interactiveObject.Name, parent)
     {
         GameObject = interactiveObject;
+        ScopeOwner = interactiveObject;
         ParentGlobalObjectsNode = parent.ParentGlobalObjectsNode;
         ParentObjectNode = parent;
         IsNestedObject = true;

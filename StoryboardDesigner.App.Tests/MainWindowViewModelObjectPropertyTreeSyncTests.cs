@@ -45,7 +45,7 @@ public sealed class MainWindowViewModelObjectPropertyTreeSyncTests
         var roomNode = new RoomNodeViewModel(room, area, areaNode);
         var roomObjectsNode = new RoomGameObjectsNodeViewModel(roomNode);
         var objectNode = new GameObjectNodeViewModel(objectModel, roomObjectsNode);
-        var variableContainer = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, objectNode);
+        var variableContainer = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, objectModel, objectModel.Variables, objectModel.Name, objectNode);
         objectNode.Children.Add(variableContainer);
 
         var viewModel = MainWindowViewModelTestHarness.CreateViewModel(
@@ -133,7 +133,7 @@ public sealed class MainWindowViewModelObjectPropertyTreeSyncTests
         var roomNode = new RoomNodeViewModel(room, area, areaNode);
         var roomObjectsNode = new RoomGameObjectsNodeViewModel(roomNode);
         var objectNode = new GameObjectNodeViewModel(objectModel, roomObjectsNode);
-        var variableContainer = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, objectNode);
+        var variableContainer = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, objectModel, objectModel.Variables, objectModel.Name, objectNode);
         variableContainer.Children.Add(new GamePropertyNodeViewModel(variable, PropertyResolutionScope.Object, variableContainer));
         objectNode.Children.Add(variableContainer);
 

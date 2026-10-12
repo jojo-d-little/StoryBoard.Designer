@@ -58,7 +58,7 @@ public sealed class MainWindowViewModelSharedCalloutTests
         var roomNode = new RoomNodeViewModel(room, area, areaNode);
         var roomObjectsNode = new RoomGameObjectsNodeViewModel(roomNode);
         var objectNode = new GameObjectNodeViewModel(gameObject, roomObjectsNode);
-        var variableContainer = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, objectNode);
+        var variableContainer = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, gameObject, gameObject.Variables, gameObject.Name, objectNode);
         objectNode.Children.Add(variableContainer);
         var variableNode = new GamePropertyNodeViewModel(variable, PropertyResolutionScope.Object, variableContainer);
         variableContainer.Children.Add(variableNode);
@@ -117,7 +117,7 @@ public sealed class MainWindowViewModelSharedCalloutTests
         var roomNode = new RoomNodeViewModel(room, area, areaNode);
         var roomObjectsNode = new RoomGameObjectsNodeViewModel(roomNode);
         var objectNode = new GameObjectNodeViewModel(gameObject, roomObjectsNode);
-        var variableContainer = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, objectNode);
+        var variableContainer = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, gameObject, gameObject.Variables, gameObject.Name, objectNode);
         objectNode.Children.Add(variableContainer);
         var variableNode = new GamePropertyNodeViewModel(variable, PropertyResolutionScope.Object, variableContainer);
         variableContainer.Children.Add(variableNode);
@@ -184,7 +184,7 @@ public sealed class MainWindowViewModelSharedCalloutTests
         var roomNode = new RoomNodeViewModel(room, area, areaNode);
         var roomObjectsNode = new RoomGameObjectsNodeViewModel(roomNode);
         var objectNode = new GameObjectNodeViewModel(gameObject, roomObjectsNode);
-        var variableContainer = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, objectNode);
+        var variableContainer = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, gameObject, gameObject.Variables, gameObject.Name, objectNode);
         objectNode.Children.Add(variableContainer);
         var variableNode = new GamePropertyNodeViewModel(variable, PropertyResolutionScope.Object, variableContainer);
         variableContainer.Children.Add(variableNode);

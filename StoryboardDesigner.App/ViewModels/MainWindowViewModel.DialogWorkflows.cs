@@ -326,22 +326,22 @@ public sealed partial class MainWindowViewModel
 
         var ancestry = GetAncestry(node);
 
-        if (node is ScopedActionsNodeViewModel { Parent: TraversalLegNodeViewModel traversalLegParent })
+        if (node is ScopedActionsNodeViewModel { TraversalLegOwner: { } traversalLegParent })
         {
             return BuildTraversalLegTarget(traversalLegParent);
         }
 
-        if (node is ScopedActionEntryNodeViewModel { ParentActionsNode.Parent: TraversalLegNodeViewModel traversalLegParentFromEntry })
+        if (node is ScopedActionEntryNodeViewModel { ParentActionsNode.TraversalLegOwner: { } traversalLegParentFromEntry })
         {
             return BuildTraversalLegTarget(traversalLegParentFromEntry);
         }
 
-        if (node is ScopedActionsNodeViewModel { Parent: ProjectRootNodeViewModel })
+        if (node is ScopedActionsNodeViewModel { ScopeOwner: ProjectModel })
         {
             return new ScopedActionEditTarget("Global", PropertyResolutionScope.Global, _project.GlobalScope.AvailableActions, CreateGlobalScopeNodeForDialogWorkflows());
         }
 
-        if (node is ScopedActionEntryNodeViewModel { ParentActionsNode.Parent: ProjectRootNodeViewModel })
+        if (node is ScopedActionEntryNodeViewModel { ParentActionsNode.ScopeOwner: ProjectModel })
         {
             return new ScopedActionEditTarget("Global", PropertyResolutionScope.Global, _project.GlobalScope.AvailableActions, CreateGlobalScopeNodeForDialogWorkflows());
         }

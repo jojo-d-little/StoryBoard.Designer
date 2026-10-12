@@ -9,6 +9,7 @@ public sealed class TemplateGameObjectNodeViewModel : HierarchyNodeViewModel
         : base(interactiveObject.Name, parent)
     {
         GameObject = interactiveObject;
+        ScopeOwner = interactiveObject;
         ParentTemplatesNode = parent;
         ParentObjectNode = null;
         IsNestedObject = false;
@@ -20,6 +21,7 @@ public sealed class TemplateGameObjectNodeViewModel : HierarchyNodeViewModel
         : base(interactiveObject.Name, parent)
     {
         GameObject = interactiveObject;
+        ScopeOwner = interactiveObject;
         ParentTemplatesNode = parent.ParentTemplatesNode;
         ParentObjectNode = parent;
         IsNestedObject = true;

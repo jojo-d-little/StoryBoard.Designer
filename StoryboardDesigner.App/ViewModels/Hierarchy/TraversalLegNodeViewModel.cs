@@ -16,6 +16,7 @@ public sealed class TraversalLegNodeViewModel : HierarchyNodeViewModel
     {
         Connection = connection;
         RoomNode = roomNode;
+        ScopeOwner = roomNode.Room;
         IsFromRoomA = isFromRoomA;
         Direction = direction;
         DestinationRoomId = destinationRoomId;

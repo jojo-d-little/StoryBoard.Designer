@@ -11,6 +11,7 @@ public sealed class GlobalObjectsNodeViewModel : GameObjectsNodeViewModel
     {
         Project = project ?? throw new ArgumentNullException(nameof(project));
         _globalScopeNode = Project;
+        ScopeOwner = Project;
     }
 
     public ProjectModel Project { get; }

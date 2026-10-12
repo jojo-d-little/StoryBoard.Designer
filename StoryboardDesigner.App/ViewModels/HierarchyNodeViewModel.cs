@@ -66,6 +66,8 @@ public abstract class HierarchyNodeViewModel : ViewModelBase
     }
 
     public HierarchyNodeViewModel? Parent { get; }
+    /// <summary>The model scope that owns this node's authored data, independent of its visual tree parent.</summary>
+    public ScopeNodeBase? ScopeOwner { get; internal set; }
     public ObservableCollection<HierarchyNodeViewModel> Children { get; } = new();
 
     private bool _isExpanded;

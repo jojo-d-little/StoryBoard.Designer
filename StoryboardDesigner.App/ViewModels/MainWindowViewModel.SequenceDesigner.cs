@@ -1163,7 +1163,7 @@ public sealed partial class MainWindowViewModel
         }
     }
 
-    private static ScopeNodeBase? ResolveSequenceScopeOwner(HierarchyNodeViewModel node) => node switch
+    private static ScopeNodeBase? ResolveSequenceScopeOwner(HierarchyNodeViewModel node) => node.ScopeOwner ?? node switch
     {
         PhaseNodeViewModel phase => phase.PhaseNode,
         GameObjectNodeViewModel gameObject when !gameObject.GameObject.IsRoomInstance => gameObject.GameObject,

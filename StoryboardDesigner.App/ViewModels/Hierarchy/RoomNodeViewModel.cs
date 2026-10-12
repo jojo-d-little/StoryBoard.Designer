@@ -9,6 +9,7 @@ public sealed class RoomNodeViewModel : HierarchyNodeViewModel
     {
         Room = room;
         Area = area;
+        ScopeOwner = room;
         NodeTypeLabel = "Room";
     }
 

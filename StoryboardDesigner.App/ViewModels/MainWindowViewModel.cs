@@ -4188,7 +4188,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         var nodes = new List<HierarchyNodeViewModel>();
         var projectRootNode = new ProjectRootNodeViewModel(project);
 
-        var globalVariablesNode = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Global, projectRootNode);
+        var globalVariablesNode = new GamePropertiesContainerNodeViewModel(
+            PropertyResolutionScope.Global,
+            project,
+            project.GlobalVariables,
+            project.ScopeName,
+            projectRootNode);
         foreach (var variable in project.GlobalVariables)
         {
             globalVariablesNode.Children.Add(new GamePropertyNodeViewModel(variable, PropertyResolutionScope.Global, globalVariablesNode));
@@ -4253,7 +4258,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             }
             planetNode.Children.Add(planetBaseObjectsNode);
 
-            planetNode.Children.Add(CreateVariablesNode(planetNode, planet.Variables, PropertyResolutionScope.Planet));
+            planetNode.Children.Add(CreateVariablesNode(planetNode, planet, planet.Variables, PropertyResolutionScope.Planet));
             planetNode.Children.Add(CreateActionsNode(planetNode, PropertyResolutionScope.Planet, planet.AvailableActions));
             planetNode.Children.Add(CreateVerbsNode(planetNode, PropertyResolutionScope.Planet, planet.AdditionalVerbs));
             planetNode.Children.Add(CreateDirectionalsNode(planetNode, PropertyResolutionScope.Planet, planet.AdditionalDirectionals));
@@ -4301,7 +4306,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 }
                 countryNode.Children.Add(countryBaseObjectsNode);
 
-                countryNode.Children.Add(CreateVariablesNode(countryNode, country.Variables, PropertyResolutionScope.Country));
+                countryNode.Children.Add(CreateVariablesNode(countryNode, country, country.Variables, PropertyResolutionScope.Country));
                 countryNode.Children.Add(CreateActionsNode(countryNode, PropertyResolutionScope.Country, country.AvailableActions));
                 countryNode.Children.Add(CreateVerbsNode(countryNode, PropertyResolutionScope.Country, country.AdditionalVerbs));
                 countryNode.Children.Add(CreateDirectionalsNode(countryNode, PropertyResolutionScope.Country, country.AdditionalDirectionals));
@@ -4349,7 +4354,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                     }
                     areaNode.Children.Add(areaBaseObjectsNode);
 
-                    areaNode.Children.Add(CreateVariablesNode(areaNode, area.Variables, PropertyResolutionScope.Area));
+                    areaNode.Children.Add(CreateVariablesNode(areaNode, area, area.Variables, PropertyResolutionScope.Area));
                     areaNode.Children.Add(CreateActionsNode(areaNode, PropertyResolutionScope.Area, area.AvailableActions));
                     areaNode.Children.Add(CreateVerbsNode(areaNode, PropertyResolutionScope.Area, area.AdditionalVerbs));
                     areaNode.Children.Add(CreateDirectionalsNode(areaNode, PropertyResolutionScope.Area, area.AdditionalDirectionals));
@@ -4381,7 +4386,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                     {
                         var roomNode = new RoomNodeViewModel(room, area, areaNode);
                         roomNode.Children.Add(CreateRoomSettingsNode(roomNode));
-                        roomNode.Children.Add(CreateVariablesNode(roomNode, room.Variables, PropertyResolutionScope.Room));
+                        roomNode.Children.Add(CreateVariablesNode(roomNode, room, room.Variables, PropertyResolutionScope.Room));
                         roomNode.Children.Add(CreateActionsNode(roomNode, PropertyResolutionScope.Room, room.AvailableActions));
                         roomNode.Children.Add(CreateVerbsNode(roomNode, PropertyResolutionScope.Room, room.AdditionalVerbs));
                         roomNode.Children.Add(CreateDirectionalsNode(roomNode, PropertyResolutionScope.Room, room.AdditionalDirectionals));
@@ -4434,7 +4439,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                         foreach (var leg in traversalLegs)
                         {
                             leg.Children.Add(CreateActionsNode(leg, PropertyResolutionScope.Room, leg.LegState.AvailableActions));
-                            leg.Children.Add(CreateVariablesNode(leg, leg.LegState.Variables, PropertyResolutionScope.Room));
+                            leg.Children.Add(CreateVariablesNode(leg, room, leg.LegState.Variables, PropertyResolutionScope.Room, leg.EditableName, leg));
                             traversalLegsNode.Children.Add(leg);
                         }
 

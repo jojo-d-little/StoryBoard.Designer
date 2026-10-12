@@ -2050,6 +2050,11 @@ public sealed partial class MainWindowViewModel
 
     private ScopeNodeBase? ResolveScopeNodeForHierarchyNode(HierarchyNodeViewModel node)
     {
+        if (node is not ProjectRootNodeViewModel && node.ScopeOwner is not null)
+        {
+            return node.ScopeOwner;
+        }
+
         return node switch
         {
             ProjectRootNodeViewModel => null,
@@ -2057,18 +2062,31 @@ public sealed partial class MainWindowViewModel
             CountryNodeViewModel countryNode => countryNode.Country,
             AreaNodeViewModel areaNode => areaNode.Area,
             RoomNodeViewModel roomNode => roomNode.Room,
-            RoomTemplatesNodeViewModel => new RoomTemplatesScopeNode(_project),
+            RoomTemplatesNodeViewModel templatesNode => templatesNode.CatalogParentScope,
+            ObjectTemplatesNodeViewModel templatesNode => templatesNode.CatalogParentScope,
             TemplateRoomNodeViewModel roomNode => roomNode.Room,
             GameObjectNodeViewModel objectNode => objectNode.GameObject,
             GlobalObjectNodeViewModel objectNode => objectNode.GameObject,
             TemplateGameObjectNodeViewModel objectNode => objectNode.GameObject,
             RoomGameObjectsNodeViewModel objectsNode => objectsNode.RoomNode.Room,
-            ScopedActionsNodeViewModel scopedActionsNode when scopedActionsNode.Parent is not null => ResolveScopeNodeForHierarchyNode(scopedActionsNode.Parent),
+            ScopedActionsNodeViewModel scopedActionsNode => scopedActionsNode.ScopeOwner,
             ScopedActionEntryNodeViewModel scopedActionNode => ResolveScopeNodeForHierarchyNode(scopedActionNode.ParentActionsNode),
-            ScopedVerbsNodeViewModel scopedVerbsNode when scopedVerbsNode.Parent is not null => ResolveScopeNodeForHierarchyNode(scopedVerbsNode.Parent),
-            ScopedDirectionalsNodeViewModel scopedDirectionalsNode when scopedDirectionalsNode.Parent is not null => ResolveScopeNodeForHierarchyNode(scopedDirectionalsNode.Parent),
-            ScopedProceduresNodeViewModel scopedProceduresNode when scopedProceduresNode.Parent is not null => ResolveScopeNodeForHierarchyNode(scopedProceduresNode.Parent),
-            GamePropertiesContainerNodeViewModel variablesNode when variablesNode.Parent is not null => ResolveScopeNodeForHierarchyNode(variablesNode.Parent),
+            ScopedVerbEntryNodeViewModel verbNode => verbNode.ParentVerbsNode.ScopeOwner,
+            ScopedDirectionalEntryNodeViewModel directionalNode => directionalNode.ParentDirectionalsNode.ScopeOwner,
+            ScopedSoundEffectEntryNodeViewModel soundEffectNode => soundEffectNode.ParentSoundEffectsNode.ScopeOwner,
+            ScopedEventSubscriptionEntryNodeViewModel subscriptionNode => subscriptionNode.ParentEventSubscriptionsNode.ScopeOwner,
+            ScopedTimerDefinitionEntryNodeViewModel timerNode => timerNode.ParentTimerDefinitionsNode.ScopeOwner,
+            ScopedProcedureEntryNodeViewModel procedureNode => procedureNode.ParentProceduresNode.ScopeOwner,
+            SequenceDefinitionNodeViewModel sequenceNode => sequenceNode.Owner,
+            SequencesNodeViewModel sequencesNode => sequencesNode.Owner,
+            PhaseNodeViewModel phaseNode => phaseNode.PhaseNode,
+            ScopedVerbsNodeViewModel scopedVerbsNode => scopedVerbsNode.ScopeOwner,
+            ScopedDirectionalsNodeViewModel scopedDirectionalsNode => scopedDirectionalsNode.ScopeOwner,
+            ScopedSoundEffectsNodeViewModel scopedSoundEffectsNode => scopedSoundEffectsNode.ScopeOwner,
+            ScopedEventSubscriptionsNodeViewModel subscriptionsNode => subscriptionsNode.ScopeOwner,
+            ScopedTimerDefinitionsNodeViewModel timersNode => timersNode.ScopeOwner,
+            ScopedProceduresNodeViewModel scopedProceduresNode => scopedProceduresNode.ScopeOwner,
+            GamePropertiesContainerNodeViewModel variablesNode => variablesNode.ScopeOwner,
             GamePropertyNodeViewModel variableNode => ResolveScopeNodeForHierarchyNode(variableNode.VariablesContainer),
             RoomTraversalLegsNodeViewModel traversalLegsNode => traversalLegsNode.RoomNode.Room,
             TraversalLegNodeViewModel traversalLegNode => traversalLegNode.RoomNode.Room,
@@ -2078,8 +2096,7 @@ public sealed partial class MainWindowViewModel
             RoomSettingsNodeViewModel roomSettingsNode => roomSettingsNode.Room,
             GameObjectSettingsNodeViewModel objectSettingsNode => ResolveScopeNodeForHierarchyNode(objectSettingsNode.ObjectNode),
             GroupContainerNodeViewModel groupNode => ResolveScopeNodeForHierarchyNode(groupNode.OwnerNode),
-            _ when node.Parent is not null => ResolveScopeNodeForHierarchyNode(node.Parent),
-            _ => null
+            _ => GetAncestry(node).Select(static ancestor => ancestor.ScopeOwner).FirstOrDefault(static owner => owner is not null)
         };
     }
 

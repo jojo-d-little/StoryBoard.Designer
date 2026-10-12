@@ -8,6 +8,7 @@ public sealed class PhaseNodeViewModel : HierarchyNodeViewModel
         : base(ResolveEditableName(phaseNode), parent)
     {
         PhaseNode = phaseNode;
+        ScopeOwner = phaseNode;
         IsStartPage = isStartPage;
         NodeTypeLabel = isStartPage
             ? $"{phaseNode.Tier} (Start)"

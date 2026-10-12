@@ -8,6 +8,7 @@ public sealed class TemplateRoomNodeViewModel : HierarchyNodeViewModel
         : base(room.Name, parent)
     {
         Room = room;
+        ScopeOwner = room;
         ParentTemplatesNode = parent;
         NodeTypeLabel = "Template Room";
     }

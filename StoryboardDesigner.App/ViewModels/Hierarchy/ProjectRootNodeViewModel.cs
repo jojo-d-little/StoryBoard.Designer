@@ -8,6 +8,7 @@ public sealed class ProjectRootNodeViewModel : HierarchyNodeViewModel
         : base("Global")
     {
         Project = project;
+        ScopeOwner = project;
         NodeTypeLabel = "Global";
     }
 

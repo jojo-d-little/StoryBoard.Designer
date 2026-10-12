@@ -28,6 +28,7 @@ public sealed class RoomTemplatesNodeViewModel : HierarchyNodeViewModel
         RoomTemplates = roomTemplates;
         CatalogIgnoredValidationRuleIds = catalogIgnoredValidationRuleIds;
         CatalogParentScope = catalogParentScope;
+        ScopeOwner = catalogParentScope;
         NodeTypeLabel = displayName;
     }
 

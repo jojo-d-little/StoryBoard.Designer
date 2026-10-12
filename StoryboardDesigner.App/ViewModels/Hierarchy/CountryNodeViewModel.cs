@@ -8,12 +8,13 @@ public sealed class CountryNodeViewModel : HierarchyNodeViewModel
         : base(country.Name, parent)
     {
         Country = country;
+        ScopeOwner = country;
         NodeTypeLabel = "Country";
     }
 
     public Country Country { get; }
-    public bool IsStartingCountry => Parent is PlanetNodeViewModel planetNode
-                                      && string.Equals(planetNode.Planet.StartingCountryName, Country.Name, StringComparison.OrdinalIgnoreCase);
+    public bool IsStartingCountry => Country.ParentScope is Planet planet
+                                      && string.Equals(planet.StartingCountryName, Country.Name, StringComparison.OrdinalIgnoreCase);
 
     public void RefreshStartIndicator()
     {
@@ -25,10 +26,10 @@ public sealed class CountryNodeViewModel : HierarchyNodeViewModel
         var oldName = Country.Name;
         Country.Name = newName;
 
-        if (Parent is PlanetNodeViewModel planetNode
-            && string.Equals(planetNode.Planet.StartingCountryName, oldName, StringComparison.OrdinalIgnoreCase))
+        if (Country.ParentScope is Planet planet
+            && string.Equals(planet.StartingCountryName, oldName, StringComparison.OrdinalIgnoreCase))
         {
-            planetNode.Planet.StartingCountryName = newName;
+            planet.StartingCountryName = newName;
         }
 
         OnPropertyChanged(nameof(IsStartingCountry));

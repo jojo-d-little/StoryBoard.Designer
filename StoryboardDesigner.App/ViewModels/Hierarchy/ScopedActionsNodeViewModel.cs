@@ -14,6 +14,7 @@ public sealed class ScopedActionsNodeViewModel : HierarchyNodeViewModel
 
     public PropertyResolutionScope Scope { get; }
     public IList<CommandAction> Actions { get; }
+    public TraversalLegNodeViewModel? TraversalLegOwner { get; internal set; }
 
     protected override void RenameModel(string newName)
     {

@@ -31,6 +31,7 @@ public sealed class ObjectTemplatesNodeViewModel : HierarchyNodeViewModel
         CatalogIgnoredValidationRuleIds = catalogIgnoredValidationRuleIds;
         IsBaseCatalog = isBaseCatalog;
         CatalogParentScope = catalogParentScope;
+        ScopeOwner = catalogParentScope;
         NodeTypeLabel = displayName;
     }
 

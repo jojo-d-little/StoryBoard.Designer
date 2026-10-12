@@ -44,9 +44,8 @@ public sealed class MainWindowViewModelLeaveShareTests
             ]
         };
 
-        var variableContainer = new GamePropertiesContainerNodeViewModel(
-            PropertyResolutionScope.Object,
-            new GameObjectNodeViewModel(gameObject, new RoomGameObjectsNodeViewModel(new RoomNodeViewModel(new Room(), new Area(), new AreaNodeViewModel(new Area(), new CountryNodeViewModel(new Country(), new PlanetNodeViewModel(project, new Planet(), new ProjectRootNodeViewModel(project))))))));
+        var objectNode = new GameObjectNodeViewModel(gameObject, new RoomGameObjectsNodeViewModel(new RoomNodeViewModel(new Room(), new Area(), new AreaNodeViewModel(new Area(), new CountryNodeViewModel(new Country(), new PlanetNodeViewModel(project, new Planet(), new ProjectRootNodeViewModel(project)))))));
+        var variableContainer = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, gameObject, gameObject.Variables, gameObject.Name, objectNode);
         var variableNode = new GamePropertyNodeViewModel(variable, PropertyResolutionScope.Object, variableContainer);
         variableContainer.Children.Add(variableNode);
 
@@ -111,9 +110,8 @@ public sealed class MainWindowViewModelLeaveShareTests
             ]
         };
 
-        var variableContainer = new GamePropertiesContainerNodeViewModel(
-            PropertyResolutionScope.Object,
-            new GameObjectNodeViewModel(gameObject, new RoomGameObjectsNodeViewModel(new RoomNodeViewModel(new Room(), new Area(), new AreaNodeViewModel(new Area(), new CountryNodeViewModel(new Country(), new PlanetNodeViewModel(project, new Planet(), new ProjectRootNodeViewModel(project))))))));
+        var objectNode = new GameObjectNodeViewModel(gameObject, new RoomGameObjectsNodeViewModel(new RoomNodeViewModel(new Room(), new Area(), new AreaNodeViewModel(new Area(), new CountryNodeViewModel(new Country(), new PlanetNodeViewModel(project, new Planet(), new ProjectRootNodeViewModel(project)))))));
+        var variableContainer = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, gameObject, gameObject.Variables, gameObject.Name, objectNode);
         var variableNode = new GamePropertyNodeViewModel(variable, PropertyResolutionScope.Object, variableContainer);
         variableContainer.Children.Add(variableNode);
 

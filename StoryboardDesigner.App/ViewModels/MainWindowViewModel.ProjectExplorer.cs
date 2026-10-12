@@ -377,8 +377,11 @@ public sealed partial class MainWindowViewModel
             return false;
         }
 
+        var sourceSequencesNode = EnumerateHierarchyNodes(HierarchyRoots)
+            .OfType<SequencesNodeViewModel>()
+            .FirstOrDefault(candidate => ReferenceEquals(candidate.Owner, sourceNode.Owner));
         if (!sourceNode.Owner.SequenceDefinitions.Contains(sourceNode.Definition)
-            || sourceNode.Parent is not SequencesNodeViewModel sourceSequencesNode
+            || sourceSequencesNode is null
             || !sourceSequencesNode.Children.Contains(sourceNode))
         {
             _pendingSequenceRelocationNode = null;
@@ -1250,7 +1253,7 @@ public sealed partial class MainWindowViewModel
 
         if (node is ObjectTemplatesNodeViewModel templatesCatalogNode)
         {
-            if (templatesCatalogNode.Parent is TemplateRoomNodeViewModel)
+            if (templatesCatalogNode.CatalogParentScope is Room)
             {
                 return new List<TreeContextAction>
                 {
@@ -1486,7 +1489,7 @@ public sealed partial class MainWindowViewModel
             ?? CreateGlobalSettingsNode(projectRootNode);
         var globalVariablesNode = projectRootNode.Children.OfType<GamePropertiesContainerNodeViewModel>()
             .FirstOrDefault(node => node.Scope == PropertyResolutionScope.Global)
-            ?? CreateVariablesNode(projectRootNode, _project.GlobalVariables, PropertyResolutionScope.Global);
+            ?? CreateVariablesNode(projectRootNode, _project, _project.GlobalVariables, PropertyResolutionScope.Global);
         var globalActionsNode = projectRootNode.Children.OfType<ScopedActionsNodeViewModel>()
             .FirstOrDefault(node => node.Scope == PropertyResolutionScope.Global)
             ?? CreateActionsNode(projectRootNode, PropertyResolutionScope.Global, _project.GlobalScope.AvailableActions);
@@ -1593,7 +1596,7 @@ public sealed partial class MainWindowViewModel
             ?? CreatePlanetSettingsNode(planetNode);
         var variablesNode = planetNode.Children.OfType<GamePropertiesContainerNodeViewModel>()
             .FirstOrDefault(node => node.Scope == PropertyResolutionScope.Planet)
-            ?? CreateVariablesNode(planetNode, planetNode.Planet.Variables, PropertyResolutionScope.Planet);
+            ?? CreateVariablesNode(planetNode, planetNode.Planet, planetNode.Planet.Variables, PropertyResolutionScope.Planet);
         var actionsNode = planetNode.Children.OfType<ScopedActionsNodeViewModel>()
             .FirstOrDefault(node => node.Scope == PropertyResolutionScope.Planet)
             ?? CreateActionsNode(planetNode, PropertyResolutionScope.Planet, planetNode.Planet.AvailableActions);
@@ -1677,7 +1680,7 @@ public sealed partial class MainWindowViewModel
             ?? CreateCountrySettingsNode(countryNode);
         var variablesNode = countryNode.Children.OfType<GamePropertiesContainerNodeViewModel>()
             .FirstOrDefault(node => node.Scope == PropertyResolutionScope.Country)
-            ?? CreateVariablesNode(countryNode, countryNode.Country.Variables, PropertyResolutionScope.Country);
+            ?? CreateVariablesNode(countryNode, countryNode.Country, countryNode.Country.Variables, PropertyResolutionScope.Country);
         var actionsNode = countryNode.Children.OfType<ScopedActionsNodeViewModel>()
             .FirstOrDefault(node => node.Scope == PropertyResolutionScope.Country)
             ?? CreateActionsNode(countryNode, PropertyResolutionScope.Country, countryNode.Country.AvailableActions);
@@ -1761,7 +1764,7 @@ public sealed partial class MainWindowViewModel
             ?? CreateAreaSettingsNode(areaNode);
         var variablesNode = areaNode.Children.OfType<GamePropertiesContainerNodeViewModel>()
             .FirstOrDefault(node => node.Scope == PropertyResolutionScope.Area)
-            ?? CreateVariablesNode(areaNode, areaNode.Area.Variables, PropertyResolutionScope.Area);
+            ?? CreateVariablesNode(areaNode, areaNode.Area, areaNode.Area.Variables, PropertyResolutionScope.Area);
         var actionsNode = areaNode.Children.OfType<ScopedActionsNodeViewModel>()
             .FirstOrDefault(node => node.Scope == PropertyResolutionScope.Area)
             ?? CreateActionsNode(areaNode, PropertyResolutionScope.Area, areaNode.Area.AvailableActions);
@@ -1845,7 +1848,7 @@ public sealed partial class MainWindowViewModel
             ?? CreateRoomSettingsNode(roomNode);
         var variablesNode = roomNode.Children.OfType<GamePropertiesContainerNodeViewModel>()
             .FirstOrDefault(node => node.Scope == PropertyResolutionScope.Room)
-            ?? CreateVariablesNode(roomNode, roomNode.Room.Variables, PropertyResolutionScope.Room);
+            ?? CreateVariablesNode(roomNode, roomNode.Room, roomNode.Room.Variables, PropertyResolutionScope.Room);
         var actionsNode = roomNode.Children.OfType<ScopedActionsNodeViewModel>()
             .FirstOrDefault(node => node.Scope == PropertyResolutionScope.Room)
             ?? CreateActionsNode(roomNode, PropertyResolutionScope.Room, roomNode.Room.AvailableActions);
@@ -1895,7 +1898,7 @@ public sealed partial class MainWindowViewModel
             ?? CreateRoomSettingsNode(templateRoomNode);
         var variablesNode = templateRoomNode.Children.OfType<GamePropertiesContainerNodeViewModel>()
             .FirstOrDefault(node => node.Scope == PropertyResolutionScope.Room)
-            ?? CreateVariablesNode(templateRoomNode, templateRoomNode.Room.Variables, PropertyResolutionScope.Room);
+            ?? CreateVariablesNode(templateRoomNode, templateRoomNode.Room, templateRoomNode.Room.Variables, PropertyResolutionScope.Room);
         var actionsNode = templateRoomNode.Children.OfType<ScopedActionsNodeViewModel>()
             .FirstOrDefault(node => node.Scope == PropertyResolutionScope.Room)
             ?? CreateActionsNode(templateRoomNode, PropertyResolutionScope.Room, templateRoomNode.Room.AvailableActions);
@@ -1984,7 +1987,7 @@ public sealed partial class MainWindowViewModel
         foreach (var leg in traversalLegs)
         {
             leg.Children.Add(CreateActionsNode(leg, PropertyResolutionScope.Room, leg.LegState.AvailableActions));
-            leg.Children.Add(CreateVariablesNode(leg, leg.LegState.Variables, PropertyResolutionScope.Room));
+            leg.Children.Add(CreateVariablesNode(leg, leg.RoomNode.Room, leg.LegState.Variables, PropertyResolutionScope.Room, leg.EditableName, leg));
             traversalLegsNode.Children.Add(leg);
         }
 
@@ -2342,14 +2345,14 @@ public sealed partial class MainWindowViewModel
             "add-new-object" when node is AreaGameObjectsNodeViewModel objectsNode => AddNewObject(objectsNode.AreaNode),
             "add-new-object" when node is RoomNodeViewModel roomNode => AddNewObject(roomNode),
             "add-new-object" when node is RoomGameObjectsNodeViewModel objectsNode => AddNewObject(objectsNode.RoomNode),
-            "add-new-object" when node is ObjectTemplatesNodeViewModel { Parent: TemplateRoomNodeViewModel templateRoomNode } => AddNewObject(templateRoomNode),
+            "add-new-object" when node is ObjectTemplatesNodeViewModel templatesNode && FindTemplateRoomNode(templatesNode.CatalogParentScope) is { } templateRoomNode => AddNewObject(templateRoomNode),
             "add-new-object" when node is TemplateRoomNodeViewModel templateRoomNode => AddNewObject(templateRoomNode),
             "add-new-object" when node is ChildrenGroupNodeViewModel { OwnerNode: RoomNodeViewModel roomNode } => AddNewObject(roomNode),
             "add-new-object" when node is ChildrenGroupNodeViewModel { OwnerNode: TemplateRoomNodeViewModel templateRoomNode } => AddNewObject(templateRoomNode),
             "add-existing-quantifiable-object" when node is RoomNodeViewModel roomNode => AddExistingQuantifiableObject(roomNode),
             "add-existing-quantifiable-object" when node is RoomGameObjectsNodeViewModel objectsNode => AddExistingQuantifiableObject(objectsNode.RoomNode),
             "add-existing-quantifiable-object" when node is ChildrenGroupNodeViewModel { OwnerNode: RoomNodeViewModel roomNode } => AddExistingQuantifiableObject(roomNode),
-            "add-existing-quantifiable-object" when node is ObjectTemplatesNodeViewModel { Parent: TemplateRoomNodeViewModel templateRoomNode } => AddExistingQuantifiableObject(templateRoomNode),
+            "add-existing-quantifiable-object" when node is ObjectTemplatesNodeViewModel templatesNode && FindTemplateRoomNode(templatesNode.CatalogParentScope) is { } templateRoomNode => AddExistingQuantifiableObject(templateRoomNode),
             "add-existing-quantifiable-object" when node is ChildrenGroupNodeViewModel { OwnerNode: TemplateRoomNodeViewModel templateRoomNode } => AddExistingQuantifiableObject(templateRoomNode),
             "add-new-object" when node is GlobalObjectsNodeViewModel globalObjectsNode => AddNewGlobalGameObject(globalObjectsNode),
             "add-new-object" when node is ChildrenGroupNodeViewModel { OwnerNode: GlobalObjectsNodeViewModel globalObjectsNode } => AddNewGlobalGameObject(globalObjectsNode),
@@ -2636,11 +2639,11 @@ public sealed partial class MainWindowViewModel
     {
         var removed = false;
 
-        if (node.Parent is PhaseNodeViewModel parentNode)
+        if (node.PhaseNode.ParentScope is PhaseNode parentPhase)
         {
-            removed = parentNode.PhaseNode.Children.Remove(node.PhaseNode);
+            removed = parentPhase.Children.Remove(node.PhaseNode);
         }
-        else if (node.Parent is PhaseBooksNodeViewModel)
+        else if (_project.PhaseBooks.Contains(node.PhaseNode))
         {
             removed = _project.PhaseBooks.Remove(node.PhaseNode);
         }
@@ -5303,14 +5306,17 @@ public sealed partial class MainWindowViewModel
                 ownerNode = projectRootNode;
                 return true;
 
-            case ScopedProceduresNodeViewModel proceduresNode when proceduresNode.Scope == PropertyResolutionScope.Global:
+            case ScopedProceduresNodeViewModel proceduresNode when proceduresNode.ScopeOwner is ProjectModel project:
                 scopeLabel = "Global";
-                procedureIds = _project.ProcedureIds;
-                ownerNode = proceduresNode.Parent ?? node;
+                procedureIds = proceduresNode.ProcedureIds;
+                ownerNode = FindHierarchyNodeForScopeOwner(project) ?? node;
                 return true;
 
-            case ScopedProceduresNodeViewModel proceduresNode when proceduresNode.Parent is not null:
-                return TryResolveScopedProcedureOwnershipTarget(proceduresNode.Parent, out scopeLabel, out procedureIds, out ownerNode);
+            case ScopedProceduresNodeViewModel proceduresNode when proceduresNode.ScopeOwner is GameObject objectOwner:
+                scopeLabel = $"Game Object - {GetScopeLabel(objectOwner.Name, "Unnamed Object")}";
+                procedureIds = proceduresNode.ProcedureIds;
+                ownerNode = FindHierarchyNodeForScopeOwner(objectOwner) ?? node;
+                return true;
 
             case ScopedProcedureEntryNodeViewModel procedureEntryNode:
                 return TryResolveScopedProcedureOwnershipTarget(procedureEntryNode.ParentProceduresNode, out scopeLabel, out procedureIds, out ownerNode);
@@ -5485,6 +5491,8 @@ public sealed partial class MainWindowViewModel
 
         switch (node)
         {
+            case ScopedDirectionalEntryNodeViewModel directionalEntryNode:
+                return TryResolveScopedDirectionalMappingTarget(directionalEntryNode.ParentDirectionalsNode, out mappings);
             case ProjectRootNodeViewModel:
                 mappings = _project.DirectionalTraversalMappings;
                 return true;
@@ -5512,14 +5520,67 @@ public sealed partial class MainWindowViewModel
             case TemplateGameObjectNodeViewModel objectNode:
                 mappings = objectNode.GameObject.AdditionalDirectionalTraversalMappings;
                 return true;
-            case ScopedDirectionalsNodeViewModel directionalsNode when directionalsNode.Scope == PropertyResolutionScope.Global:
-                mappings = _project.DirectionalTraversalMappings;
+            case ScopedDirectionalsNodeViewModel directionalsNode when TryResolveDirectionalMappings(directionalsNode.ScopeOwner, out mappings):
                 return true;
-            case ScopedDirectionalsNodeViewModel directionalsNode when directionalsNode.Parent is not null:
-                return TryResolveScopedDirectionalMappingTarget(directionalsNode.Parent, out mappings);
             default:
                 return false;
         }
+    }
+
+    private bool TryResolveDirectionalMappings(ScopeNodeBase? owner, out IList<DirectionalTraversalMapping> mappings)
+    {
+        switch (owner)
+        {
+            case ProjectModel:
+                mappings = _project.DirectionalTraversalMappings;
+                return true;
+            case Planet planet:
+                mappings = planet.AdditionalDirectionalTraversalMappings;
+                return true;
+            case Country country:
+                mappings = country.AdditionalDirectionalTraversalMappings;
+                return true;
+            case Area area:
+                mappings = area.AdditionalDirectionalTraversalMappings;
+                return true;
+            case Room room:
+                mappings = room.AdditionalDirectionalTraversalMappings;
+                return true;
+            case GameObject gameObject:
+                mappings = gameObject.AdditionalDirectionalTraversalMappings;
+                return true;
+            default:
+                mappings = Array.Empty<DirectionalTraversalMapping>();
+                return false;
+        }
+    }
+
+    private static string BuildScopeOwnerLabel(ScopeNodeBase owner) => owner switch
+    {
+        ProjectModel => "Global",
+        Planet planet => $"Planet - {planet.ScopeName}",
+        Country country => $"Country - {country.ScopeName}",
+        Area area => $"Area - {area.ScopeName}",
+        Room room => $"Room - {room.ScopeName}",
+        GameObject gameObject => $"Game Object - {gameObject.ScopeName}",
+        _ => owner.ScopeName
+    };
+
+    private HierarchyNodeViewModel? FindHierarchyNodeForScopeOwner(ScopeNodeBase owner)
+    {
+        return EnumerateHierarchyNodes(HierarchyRoots).FirstOrDefault(node => node switch
+        {
+            ProjectRootNodeViewModel root => ReferenceEquals(root.Project, owner),
+            PlanetNodeViewModel planet => ReferenceEquals(planet.Planet, owner),
+            CountryNodeViewModel country => ReferenceEquals(country.Country, owner),
+            AreaNodeViewModel area => ReferenceEquals(area.Area, owner),
+            RoomNodeViewModel room => ReferenceEquals(room.Room, owner),
+            TemplateRoomNodeViewModel room => ReferenceEquals(room.Room, owner),
+            GameObjectNodeViewModel gameObject => ReferenceEquals(gameObject.GameObject, owner),
+            GlobalObjectNodeViewModel gameObject => ReferenceEquals(gameObject.GameObject, owner),
+            TemplateGameObjectNodeViewModel gameObject => ReferenceEquals(gameObject.GameObject, owner),
+            _ => false
+        });
     }
 
     private bool TryResolveScopedSoundEffectLibraryTarget(
@@ -5568,12 +5629,10 @@ public sealed partial class MainWindowViewModel
                 scopeLabel = $"Template Object - {objectNode.GameObject.Name}";
                 values = objectNode.GameObject.SoundEffectLibraryEntries;
                 return true;
-            case ScopedSoundEffectsNodeViewModel soundEffectsNode when soundEffectsNode.Scope == PropertyResolutionScope.Global:
-                scopeLabel = "Global";
-                values = _project.GlobalScope.SoundEffectLibraryEntries;
+            case ScopedSoundEffectsNodeViewModel soundEffectsNode when soundEffectsNode.ScopeOwner is not null:
+                scopeLabel = BuildScopeOwnerLabel(soundEffectsNode.ScopeOwner);
+                values = soundEffectsNode.SoundEffects;
                 return true;
-            case ScopedSoundEffectsNodeViewModel soundEffectsNode when soundEffectsNode.Parent is not null:
-                return TryResolveScopedSoundEffectLibraryTarget(soundEffectsNode.Parent, out scopeLabel, out values);
             case ScopedSoundEffectEntryNodeViewModel soundEffectEntryNode:
                 return TryResolveScopedSoundEffectLibraryTarget(soundEffectEntryNode.ParentSoundEffectsNode, out scopeLabel, out values);
             default:
@@ -5627,12 +5686,10 @@ public sealed partial class MainWindowViewModel
                 scopeLabel = $"Template Object - {objectNode.GameObject.Name}";
                 values = objectNode.GameObject.EventSubscriptions;
                 return true;
-            case ScopedEventSubscriptionsNodeViewModel eventSubscriptionsNode when eventSubscriptionsNode.Scope == PropertyResolutionScope.Global:
-                scopeLabel = "Global";
-                values = _project.GlobalScope.EventSubscriptions;
+            case ScopedEventSubscriptionsNodeViewModel eventSubscriptionsNode when eventSubscriptionsNode.ScopeOwner is not null:
+                scopeLabel = BuildScopeOwnerLabel(eventSubscriptionsNode.ScopeOwner);
+                values = eventSubscriptionsNode.Subscriptions;
                 return true;
-            case ScopedEventSubscriptionsNodeViewModel eventSubscriptionsNode when eventSubscriptionsNode.Parent is not null:
-                return TryResolveScopedEventSubscriptionTarget(eventSubscriptionsNode.Parent, out scopeLabel, out values);
             case ScopedEventSubscriptionEntryNodeViewModel eventEntryNode:
                 return TryResolveScopedEventSubscriptionTarget(eventEntryNode.ParentEventSubscriptionsNode, out scopeLabel, out values);
             default:
@@ -5686,12 +5743,10 @@ public sealed partial class MainWindowViewModel
                 scopeLabel = $"Template Object - {objectNode.GameObject.Name}";
                 values = objectNode.GameObject.TimerDefinitions;
                 return true;
-            case ScopedTimerDefinitionsNodeViewModel timerDefinitionsNode when timerDefinitionsNode.Scope == PropertyResolutionScope.Global:
-                scopeLabel = "Global";
-                values = _project.GlobalScope.TimerDefinitions;
+            case ScopedTimerDefinitionsNodeViewModel timerDefinitionsNode when timerDefinitionsNode.ScopeOwner is not null:
+                scopeLabel = BuildScopeOwnerLabel(timerDefinitionsNode.ScopeOwner);
+                values = timerDefinitionsNode.TimerDefinitions;
                 return true;
-            case ScopedTimerDefinitionsNodeViewModel timerDefinitionsNode when timerDefinitionsNode.Parent is not null:
-                return TryResolveScopedTimerDefinitionTarget(timerDefinitionsNode.Parent, out scopeLabel, out values);
             case ScopedTimerDefinitionEntryNodeViewModel timerEntryNode:
                 return TryResolveScopedTimerDefinitionTarget(timerEntryNode.ParentTimerDefinitionsNode, out scopeLabel, out values);
             default:
@@ -5712,6 +5767,8 @@ public sealed partial class MainWindowViewModel
         {
             switch (node)
             {
+                case ScopedVerbEntryNodeViewModel verbEntryNode:
+                    return TryResolveScopedTokenListTarget(verbEntryNode.ParentVerbsNode, tokenKind, out scopeLabel, out values);
                 case ProjectRootNodeViewModel:
                     scopeLabel = "Global";
                     values = _project.CommandVerbs;
@@ -5748,18 +5805,18 @@ public sealed partial class MainWindowViewModel
                     scopeLabel = $"Template Object - {objectNode.GameObject.Name}";
                     values = objectNode.GameObject.AdditionalVerbs;
                     return true;
-                case ScopedVerbsNodeViewModel verbsNode when verbsNode.Scope == PropertyResolutionScope.Global:
-                    scopeLabel = "Global";
-                    values = _project.CommandVerbs;
+                case ScopedVerbsNodeViewModel verbsNode when verbsNode.ScopeOwner is not null:
+                    scopeLabel = BuildScopeOwnerLabel(verbsNode.ScopeOwner);
+                    values = verbsNode.Verbs;
                     return true;
-                case ScopedVerbsNodeViewModel verbsNode when verbsNode.Parent is not null:
-                    return TryResolveScopedTokenListTarget(verbsNode.Parent, tokenKind, out scopeLabel, out values);
             }
         }
         else if (tokenKind == "Directionals")
         {
             switch (node)
             {
+                case ScopedDirectionalEntryNodeViewModel directionalEntryNode:
+                    return TryResolveScopedTokenListTarget(directionalEntryNode.ParentDirectionalsNode, tokenKind, out scopeLabel, out values);
                 case ProjectRootNodeViewModel:
                     scopeLabel = "Global";
                     values = _project.Directionals;
@@ -5796,12 +5853,10 @@ public sealed partial class MainWindowViewModel
                     scopeLabel = $"Template Object - {objectNode.GameObject.Name}";
                     values = objectNode.GameObject.AdditionalDirectionals;
                     return true;
-                case ScopedDirectionalsNodeViewModel directionalsNode when directionalsNode.Scope == PropertyResolutionScope.Global:
-                    scopeLabel = "Global";
-                    values = _project.Directionals;
+                case ScopedDirectionalsNodeViewModel directionalsNode when directionalsNode.ScopeOwner is not null:
+                    scopeLabel = BuildScopeOwnerLabel(directionalsNode.ScopeOwner);
+                    values = directionalsNode.Directionals;
                     return true;
-                case ScopedDirectionalsNodeViewModel directionalsNode when directionalsNode.Parent is not null:
-                    return TryResolveScopedTokenListTarget(directionalsNode.Parent, tokenKind, out scopeLabel, out values);
             }
         }
 
@@ -5810,26 +5865,31 @@ public sealed partial class MainWindowViewModel
 
     private IReadOnlyList<string> GetInheritedScopedTokenValues(HierarchyNodeViewModel node, string tokenKind)
     {
-        var targetNode = ResolveScopedTokenTargetNode(node);
-        if (targetNode is null)
+        var scopeOwner = ResolveScopedTokenOwner(node);
+        if (scopeOwner is null)
         {
             return Array.Empty<string>();
         }
 
         var inherited = new List<string>();
 
+        // Global objects are stored directly under ProjectModel, but their designer
+        // scope has its own ignored-rule list. Preserve that scope layer explicitly;
+        // it is not represented in the model ParentScope chain.
         if (string.Equals(tokenKind, "ValidationIgnores", StringComparison.Ordinal)
-            && targetNode is not ProjectRootNodeViewModel)
+            && IsGlobalObjectScopeOwner(scopeOwner))
         {
-            inherited.AddRange(_project.IgnoredValidationRuleIds);
+            inherited.AddRange(_project.GlobalScope.IgnoredValidationRuleIds);
         }
 
-        var cursor = targetNode.Parent;
+        var cursor = node is GlobalObjectsNodeViewModel
+            ? scopeOwner
+            : scopeOwner.ParentScope;
 
         while (cursor is not null)
         {
-            inherited.AddRange(GetTokenValuesFromNode(cursor, tokenKind));
-            cursor = cursor.Parent;
+            inherited.AddRange(GetTokenValuesFromScope(cursor, tokenKind));
+            cursor = cursor.ParentScope;
         }
 
         return inherited
@@ -5839,68 +5899,67 @@ public sealed partial class MainWindowViewModel
             .ToList();
     }
 
-    private static HierarchyNodeViewModel? ResolveScopedTokenTargetNode(HierarchyNodeViewModel node)
+    private static ScopeNodeBase? ResolveScopedTokenOwner(HierarchyNodeViewModel node)
     {
         return node switch
         {
-            ScopedVerbsNodeViewModel verbsNode => verbsNode.Parent,
-            ScopedDirectionalsNodeViewModel directionalsNode => directionalsNode.Parent,
-            _ => node
+            ScopedVerbEntryNodeViewModel verbEntry => verbEntry.ParentVerbsNode.ScopeOwner,
+            ScopedDirectionalEntryNodeViewModel directionalEntry => directionalEntry.ParentDirectionalsNode.ScopeOwner,
+            _ => node.ScopeOwner
         };
     }
 
-    private IEnumerable<string> GetTokenValuesFromNode(HierarchyNodeViewModel node, string tokenKind)
+    private bool IsGlobalObjectScopeOwner(ScopeNodeBase scopeOwner)
+    {
+        return scopeOwner is GameObject gameObject
+            && ReferenceEquals(gameObject.ParentScope, _project)
+            && _project.GlobalScope.GameObjects.Contains(gameObject);
+    }
+
+    private IEnumerable<string> GetTokenValuesFromScope(IScopedAwareNode scope, string tokenKind)
     {
         if (tokenKind == "Verbs")
         {
-            return node switch
+            return scope switch
             {
-                ProjectRootNodeViewModel => _project.CommandVerbs,
-                PlanetNodeViewModel planetNode => planetNode.Planet.AdditionalVerbs,
-                CountryNodeViewModel countryNode => countryNode.Country.AdditionalVerbs,
-                AreaNodeViewModel areaNode => areaNode.Area.AdditionalVerbs,
-                RoomNodeViewModel roomNode => roomNode.Room.AdditionalVerbs,
-                TemplateRoomNodeViewModel roomNode => roomNode.Room.AdditionalVerbs,
-                GameObjectNodeViewModel objectNode => objectNode.GameObject.AdditionalVerbs,
-                GlobalObjectNodeViewModel objectNode => objectNode.GameObject.AdditionalVerbs,
-                TemplateGameObjectNodeViewModel objectNode => objectNode.GameObject.AdditionalVerbs,
+                ProjectModel project => project.CommandVerbs,
+                Planet planet => planet.AdditionalVerbs,
+                Country country => country.AdditionalVerbs,
+                Area area => area.AdditionalVerbs,
+                Room room => room.AdditionalVerbs,
+                GameObject gameObject => gameObject.AdditionalVerbs,
                 _ => Array.Empty<string>()
             };
         }
 
         if (tokenKind == "Directionals")
         {
-            return node switch
+            return scope switch
             {
-                ProjectRootNodeViewModel => _project.Directionals,
-                PlanetNodeViewModel planetNode => planetNode.Planet.AdditionalDirectionals,
-                CountryNodeViewModel countryNode => countryNode.Country.AdditionalDirectionals,
-                AreaNodeViewModel areaNode => areaNode.Area.AdditionalDirectionals,
-                RoomNodeViewModel roomNode => roomNode.Room.AdditionalDirectionals,
-                TemplateRoomNodeViewModel roomNode => roomNode.Room.AdditionalDirectionals,
-                GameObjectNodeViewModel objectNode => objectNode.GameObject.AdditionalDirectionals,
-                GlobalObjectNodeViewModel objectNode => objectNode.GameObject.AdditionalDirectionals,
-                TemplateGameObjectNodeViewModel objectNode => objectNode.GameObject.AdditionalDirectionals,
+                ProjectModel project => project.Directionals,
+                Planet planet => planet.AdditionalDirectionals,
+                Country country => country.AdditionalDirectionals,
+                Area area => area.AdditionalDirectionals,
+                Room room => room.AdditionalDirectionals,
+                GameObject gameObject => gameObject.AdditionalDirectionals,
                 _ => Array.Empty<string>()
             };
         }
 
         if (tokenKind == "ValidationIgnores")
         {
-            return node switch
+            return scope switch
             {
-                ProjectRootNodeViewModel => _project.GlobalIgnoredValidationRuleIds,
-                PlanetNodeViewModel planetNode => planetNode.Planet.IgnoredValidationRuleIds,
-                CountryNodeViewModel countryNode => countryNode.Country.IgnoredValidationRuleIds,
-                AreaNodeViewModel areaNode => areaNode.Area.IgnoredValidationRuleIds,
-                RoomNodeViewModel roomNode => roomNode.Room.IgnoredValidationRuleIds,
-                GlobalObjectsNodeViewModel => _project.GlobalScope.IgnoredValidationRuleIds,
-                ObjectTemplatesNodeViewModel templatesNode => templatesNode.CatalogIgnoredValidationRuleIds,
-                RoomTemplatesNodeViewModel templatesNode => templatesNode.CatalogIgnoredValidationRuleIds,
-                GameObjectNodeViewModel objectNode => objectNode.GameObject.IgnoredValidationRuleIds,
-                GlobalObjectNodeViewModel objectNode => objectNode.GameObject.IgnoredValidationRuleIds,
-                TemplateGameObjectNodeViewModel objectNode => objectNode.GameObject.IgnoredValidationRuleIds,
-                TemplateRoomNodeViewModel roomNode => roomNode.Room.IgnoredValidationRuleIds,
+                ProjectModel project => project.GlobalIgnoredValidationRuleIds,
+                Planet planet => planet.IgnoredValidationRuleIds,
+                Country country => country.IgnoredValidationRuleIds,
+                Area area => area.IgnoredValidationRuleIds,
+                Room room => room.IgnoredValidationRuleIds,
+                ObjectTemplatesScopeNode templates => templates.IgnoredValidationRuleIds,
+                RoomTemplatesScopeNode templates => templates.IgnoredValidationRuleIds,
+                BaseObjectsScopeNode baseObjects => baseObjects.IgnoredValidationRuleIds,
+                GameObject gameObject => gameObject.IgnoredValidationRuleIds,
+                PhaseNode phase => phase.IgnoredValidationRuleIds,
                 _ => Array.Empty<string>()
             };
         }
@@ -5993,7 +6052,7 @@ public sealed partial class MainWindowViewModel
 
         variableNode.Variable.SharedVariableId = null;
 
-        if (variableNode.VariablesContainer.Parent is TraversalLegNodeViewModel traversalLegNode
+        if (variableNode.VariablesContainer.TraversalLegOwner is TraversalLegNodeViewModel traversalLegNode
             && string.Equals(variableNode.Variable.Name, "isPassable", StringComparison.OrdinalIgnoreCase))
         {
             traversalLegNode.LegState.SharedVariableId = null;
@@ -7334,7 +7393,7 @@ public sealed partial class MainWindowViewModel
             foreach (var leg in traversalLegs)
             {
                 leg.Children.Add(CreateActionsNode(leg, PropertyResolutionScope.Room, leg.LegState.AvailableActions));
-                leg.Children.Add(CreateVariablesNode(leg, leg.LegState.Variables, PropertyResolutionScope.Room));
+                leg.Children.Add(CreateVariablesNode(leg, leg.RoomNode.Room, leg.LegState.Variables, PropertyResolutionScope.Room, leg.EditableName, leg));
                 traversalLegsNode.Children.Add(leg);
             }
 
@@ -7433,7 +7492,7 @@ public sealed partial class MainWindowViewModel
             return true;
         }
 
-        if (variableNode.VariablesContainer.Parent is TraversalLegNodeViewModel traversalLegNode)
+        if (variableNode.VariablesContainer.TraversalLegOwner is TraversalLegNodeViewModel traversalLegNode)
         {
             var sourceVariable = traversalLegNode.LegState.Variables.FirstOrDefault(variable => ReferenceEquals(variable, variableNode.Variable))
                                  ?? traversalLegNode.LegState.Variables.FirstOrDefault(variable =>
@@ -7907,7 +7966,7 @@ public sealed partial class MainWindowViewModel
             return $"{ownerObject.Name}.{variableNode.Variable.Name}";
         }
 
-        if (variableNode.VariablesContainer.Parent is TraversalLegNodeViewModel traversalLegNode)
+        if (variableNode.VariablesContainer.TraversalLegOwner is TraversalLegNodeViewModel traversalLegNode)
         {
             var legLabel = traversalLegNode.IsFromRoomA ? "A->B" : "B->A";
             return $"Traversal:{traversalLegNode.Connection.TraversalConnectionId:N}.{legLabel}.{variableNode.Variable.Name}";
@@ -7926,25 +7985,29 @@ public sealed partial class MainWindowViewModel
     private static bool TryResolveVariableOwnerObject(GamePropertyNodeViewModel variableNode, out GameObject ownerObject)
     {
         ownerObject = null!;
-        switch (variableNode.VariablesContainer.Parent)
+        switch (variableNode.VariablesContainer.ScopeOwner)
         {
-            case GameObjectNodeViewModel objectNode:
-                ownerObject = objectNode.GameObject;
-                return true;
-            case GlobalObjectNodeViewModel playerObjectNode:
-                ownerObject = playerObjectNode.GameObject;
-                return true;
-            case TemplateGameObjectNodeViewModel templateObjectNode:
-                ownerObject = templateObjectNode.GameObject;
+            case GameObject objectModel:
+                ownerObject = objectModel;
                 return true;
             default:
                 return false;
         }
     }
 
+    private TemplateRoomNodeViewModel? FindTemplateRoomNode(ScopeNodeBase? scope)
+    {
+        return scope is Room room
+            ? EnumerateHierarchyNodes(HierarchyRoots)
+                .OfType<TemplateRoomNodeViewModel>()
+                .FirstOrDefault(node => ReferenceEquals(node.Room, room))
+            : null;
+    }
+
     public bool AddObjectToCurrentRoom()
     {
-        if (SelectedNode is ObjectTemplatesNodeViewModel { Parent: TemplateRoomNodeViewModel parentTemplateRoomNode })
+        if (SelectedNode is ObjectTemplatesNodeViewModel selectedTemplatesNode
+            && FindTemplateRoomNode(selectedTemplatesNode.CatalogParentScope) is { } parentTemplateRoomNode)
         {
             return AddNewObject(parentTemplateRoomNode);
         }
@@ -8705,12 +8768,12 @@ public sealed partial class MainWindowViewModel
             return false;
         }
 
-        if (countryNode.Parent is not PlanetNodeViewModel planetNode)
+        if (countryNode.Country.ParentScope is not Planet planet)
         {
             return false;
         }
 
-        var uniqueName = MakeUniqueScopedEntityName(planetNode.Planet.Countries, static country => country.Name, updated.Name, countryNode.Country);
+        var uniqueName = MakeUniqueScopedEntityName(planet.Countries, static country => country.Name, updated.Name, countryNode.Country);
         var validStartingAreaName = startingAreaOptions.Contains(updated.StartingAreaName, StringComparer.OrdinalIgnoreCase)
             ? updated.StartingAreaName
             : string.Empty;
@@ -8727,7 +8790,7 @@ public sealed partial class MainWindowViewModel
         countryNode.EditableName = uniqueName;
         countryNode.Country.ProducerNotes = updated.ProducerNotes;
         countryNode.Country.StartingAreaName = validStartingAreaName;
-        RefreshScopedNameIndex(planetNode.Planet.Countries, static country => country.Name);
+        RefreshScopedNameIndex(planet.Countries, static country => country.Name);
 
         NotifyProjectEdited();
         SelectedNode = countryNode;
@@ -8752,12 +8815,8 @@ public sealed partial class MainWindowViewModel
             return false;
         }
 
-        if (roomNode.Parent is not AreaNodeViewModel areaNode)
-        {
-            return false;
-        }
-
-        var uniqueName = MakeUniqueScopedEntityName(areaNode.Area.Rooms, static room => room.Name, updated.Name, roomNode.Room);
+        var area = roomNode.Area;
+        var uniqueName = MakeUniqueScopedEntityName(area.Rooms, static room => room.Name, updated.Name, roomNode.Room);
         var hasChanges = !string.Equals(roomNode.Room.Name, uniqueName, StringComparison.Ordinal)
                          || !string.Equals(roomNode.Room.NameInGame, updated.NameInGame, StringComparison.Ordinal)
                          || !roomNode.Room.NameSynonyms.SequenceEqual(ParseObjectNameSynonyms(updated.NameSynonyms), StringComparer.OrdinalIgnoreCase)
@@ -8778,7 +8837,7 @@ public sealed partial class MainWindowViewModel
         roomNode.Room.RoomImageCanvasWidth = updated.RoomCanvasWidth;
         roomNode.Room.RoomImageCanvasHeight = updated.RoomCanvasHeight;
         roomNode.Room.AmbientLighting = LightingModelCloner.CloneRoomAmbientLighting(updated.AmbientLighting);
-        RefreshScopedNameIndex(areaNode.Area.Rooms, static room => room.Name);
+        RefreshScopedNameIndex(area.Rooms, static room => room.Name);
 
         foreach (var editor in OpenRoomEditors.Where(tab => ReferenceEquals(tab.Room, roomNode.Room) || tab.Room.Id == roomNode.Room.Id))
         {
@@ -8795,7 +8854,7 @@ public sealed partial class MainWindowViewModel
 
     public bool EditRoomSettings(TemplateRoomNodeViewModel templateRoomNode)
     {
-        if (templateRoomNode.Parent is not RoomTemplatesNodeViewModel templatesNode)
+        if (!_project.RoomTemplates.Contains(templateRoomNode.Room))
         {
             return false;
         }
@@ -8815,7 +8874,7 @@ public sealed partial class MainWindowViewModel
             return false;
         }
 
-        var uniqueName = MakeUniqueScopedEntityName(templatesNode.RoomTemplates, static room => room.Name, updated.Name, templateRoomNode.Room);
+        var uniqueName = MakeUniqueScopedEntityName(_project.RoomTemplates, static room => room.Name, updated.Name, templateRoomNode.Room);
         var hasChanges = !string.Equals(templateRoomNode.Room.Name, uniqueName, StringComparison.Ordinal)
                          || !string.Equals(templateRoomNode.Room.NameInGame, updated.NameInGame, StringComparison.Ordinal)
                          || !templateRoomNode.Room.NameSynonyms.SequenceEqual(ParseObjectNameSynonyms(updated.NameSynonyms), StringComparer.OrdinalIgnoreCase)
@@ -8836,7 +8895,7 @@ public sealed partial class MainWindowViewModel
         templateRoomNode.Room.RoomImageCanvasWidth = updated.RoomCanvasWidth;
         templateRoomNode.Room.RoomImageCanvasHeight = updated.RoomCanvasHeight;
         templateRoomNode.Room.AmbientLighting = LightingModelCloner.CloneRoomAmbientLighting(updated.AmbientLighting);
-        RefreshScopedNameIndex(templatesNode.RoomTemplates, static room => room.Name);
+        RefreshScopedNameIndex(_project.RoomTemplates, static room => room.Name);
 
         NotifyProjectEdited();
         SelectedNode = templateRoomNode;
@@ -10041,12 +10100,12 @@ public sealed partial class MainWindowViewModel
             return false;
         }
 
-        if (areaNode.Parent is not CountryNodeViewModel countryNode)
+        if (areaNode.Area.ParentScope is not Country country)
         {
             return false;
         }
 
-        var uniqueName = MakeUniqueScopedEntityName(countryNode.Country.Areas, static area => area.Name, updated.Name, areaNode.Area);
+        var uniqueName = MakeUniqueScopedEntityName(country.Areas, static area => area.Name, updated.Name, areaNode.Area);
         var validStartingRoomId = updated.StartingRoomId.HasValue && areaNode.Area.Rooms.Any(room => room.Id == updated.StartingRoomId.Value)
             ? updated.StartingRoomId
             : null;
@@ -10067,7 +10126,7 @@ public sealed partial class MainWindowViewModel
         areaNode.Area.AdjacencyMode = updated.AdjacencyMode;
         areaNode.Area.RoomDropBehavior = updated.RoomDropBehavior;
         areaNode.Area.StartingRoomId = validStartingRoomId;
-        RefreshScopedNameIndex(countryNode.Country.Areas, static area => area.Name);
+        RefreshScopedNameIndex(country.Areas, static area => area.Name);
 
         NotifyProjectEdited();
         SelectedNode = areaNode;
@@ -10179,7 +10238,7 @@ public sealed partial class MainWindowViewModel
 
         var roomNode = new RoomNodeViewModel(room, areaNode.Area, areaNode);
         roomNode.Children.Add(CreateRoomSettingsNode(roomNode));
-        roomNode.Children.Add(CreateVariablesNode(roomNode, room.Variables, PropertyResolutionScope.Room));
+        roomNode.Children.Add(CreateVariablesNode(roomNode, room, room.Variables, PropertyResolutionScope.Room));
         roomNode.Children.Add(CreateActionsNode(roomNode, PropertyResolutionScope.Room, room.AvailableActions));
         roomNode.Children.Add(CreateVerbsNode(roomNode, PropertyResolutionScope.Room, room.AdditionalVerbs));
         roomNode.Children.Add(CreateDirectionalsNode(roomNode, PropertyResolutionScope.Room, room.AdditionalDirectionals));
@@ -10208,33 +10267,37 @@ public sealed partial class MainWindowViewModel
 
     private bool DeleteRoom(RoomNodeViewModel roomNode)
     {
-        if (roomNode.Parent is not AreaNodeViewModel areaNode)
+        var area = roomNode.Area;
+        var areaNode = EnumerateHierarchyNodes(HierarchyRoots)
+            .OfType<AreaNodeViewModel>()
+            .FirstOrDefault(candidate => ReferenceEquals(candidate.Area, area));
+        if (areaNode is null)
         {
             return false;
         }
 
         var room = roomNode.Room;
         var roomName = room.Name;
-        var deletedConnectionIds = areaNode.Area.TraversalConnections
+        var deletedConnectionIds = area.TraversalConnections
             .Where(connection => connection.RoomAId == room.Id || connection.RoomBId == room.Id)
             .Select(connection => connection.TraversalConnectionId)
             .Distinct()
             .ToList();
 
-        foreach (var areaEditor in OpenAreaEditors.Where(editor => ReferenceEquals(editor.Area, areaNode.Area)).ToList())
+        foreach (var areaEditor in OpenAreaEditors.Where(editor => ReferenceEquals(editor.Area, area)).ToList())
         {
             areaEditor.RemoveRoomFromMap(room);
         }
 
         // Ensure room map artifacts are removed even when no area editor is open.
-        areaNode.Area.RoomPlacements.RemoveAll(placement => placement.RoomId == room.Id);
-        areaNode.Area.TraversalConnections.RemoveAll(connection => connection.RoomAId == room.Id || connection.RoomBId == room.Id);
+        area.RoomPlacements.RemoveAll(placement => placement.RoomId == room.Id);
+        area.TraversalConnections.RemoveAll(connection => connection.RoomAId == room.Id || connection.RoomBId == room.Id);
         RemoveTraversalSharedParticipantsByConnectionIds(deletedConnectionIds);
 
-        areaNode.Area.Rooms.RemoveAll(candidate => candidate.Id == room.Id);
-        if (areaNode.Area.StartingRoomId == room.Id)
+        area.Rooms.RemoveAll(candidate => candidate.Id == room.Id);
+        if (area.StartingRoomId == room.Id)
         {
-            areaNode.Area.StartingRoomId = areaNode.Area.Rooms.FirstOrDefault()?.Id;
+            area.StartingRoomId = area.Rooms.FirstOrDefault()?.Id;
         }
 
         var areaChildrenGroup = areaNode.Children.OfType<ChildrenGroupNodeViewModel>().FirstOrDefault();
@@ -10258,7 +10321,7 @@ public sealed partial class MainWindowViewModel
 
         if (SelectedRoom?.Id == room.Id)
         {
-            SelectedRoom = areaNode.Area.Rooms.FirstOrDefault();
+            SelectedRoom = area.Rooms.FirstOrDefault();
         }
 
         if (_project.UiState.RoomId == room.Id)
@@ -10275,8 +10338,8 @@ public sealed partial class MainWindowViewModel
             }
         }
 
-        RefreshScopedNameIndex(areaNode.Area.Rooms, static candidate => candidate.Name);
-        RefreshTraversalLegNodesForArea(areaNode.Area);
+        RefreshScopedNameIndex(area.Rooms, static candidate => candidate.Name);
+        RefreshTraversalLegNodesForArea(area);
         areaNode.IsExpanded = true;
 
         NotifyProjectEdited();
@@ -10286,15 +10349,18 @@ public sealed partial class MainWindowViewModel
 
     private bool DeleteRoomTemplate(TemplateRoomNodeViewModel templateRoomNode)
     {
-        if (templateRoomNode.Parent is not RoomTemplatesNodeViewModel templatesNode)
+        var templateRoom = templateRoomNode.Room;
+        var templatesNode = EnumerateHierarchyNodes(HierarchyRoots)
+            .OfType<RoomTemplatesNodeViewModel>()
+            .FirstOrDefault(node => node.RoomTemplates.Contains(templateRoom));
+        if (templatesNode is null || !_project.RoomTemplates.Contains(templateRoom))
         {
             return false;
         }
 
-        var templateRoom = templateRoomNode.Room;
         var templateRoomName = templateRoom.Name;
 
-        templatesNode.RoomTemplates.RemoveAll(candidate => candidate.Id == templateRoom.Id);
+        _project.RoomTemplates.RemoveAll(candidate => candidate.Id == templateRoom.Id);
         if (ReferenceEquals(templateRoom.ParentScope, templatesNode.CatalogParentScope))
         {
             templateRoom.ParentScope = null;
@@ -10439,17 +10505,17 @@ public sealed partial class MainWindowViewModel
 
     private bool SetStartingRoom(RoomNodeViewModel roomNode)
     {
-        if (roomNode.Parent is not AreaNodeViewModel areaNode
-            || areaNode.Parent is not CountryNodeViewModel countryNode
-            || countryNode.Parent is not PlanetNodeViewModel planetNode)
+        var area = roomNode.Area;
+        if (area.ParentScope is not Country country
+            || country.ParentScope is not Planet planet)
         {
             return false;
         }
 
-        areaNode.Area.StartingRoomId = roomNode.Room.Id;
-        countryNode.Country.StartingAreaName = areaNode.Area.Name;
-        planetNode.Planet.StartingCountryName = countryNode.Country.Name;
-        _project.StartingPlanetName = planetNode.Planet.Name;
+        area.StartingRoomId = roomNode.Room.Id;
+        country.StartingAreaName = area.Name;
+        planet.StartingCountryName = country.Name;
+        _project.StartingPlanetName = planet.Name;
 
         NotifyProjectEdited();
         SelectedNode = roomNode;
@@ -10945,7 +11011,8 @@ public sealed partial class MainWindowViewModel
     {
         var existing = templateRoomNode.Children
             .OfType<ObjectTemplatesNodeViewModel>()
-            .FirstOrDefault(node => node.Parent is TemplateRoomNodeViewModel && ReferenceEquals(node.CatalogObjects, templateRoomNode.Room.GameObjects));
+            .FirstOrDefault(node => ReferenceEquals(node.CatalogParentScope, templateRoomNode.Room)
+                                    && ReferenceEquals(node.CatalogObjects, templateRoomNode.Room.GameObjects));
         if (existing is not null)
         {
             return existing;
@@ -11279,7 +11346,7 @@ public sealed partial class MainWindowViewModel
 
         return EnumerateHierarchyNodes(HierarchyRoots)
             .OfType<ObjectTemplatesNodeViewModel>()
-            .First(node => !node.IsBaseCatalog && node.Parent is ProjectRootNodeViewModel)
+            .First(node => !node.IsBaseCatalog && node.CatalogParentScope is ObjectTemplatesScopeNode)
             .CatalogParentScope!;
     }
 
@@ -11721,7 +11788,7 @@ public sealed partial class MainWindowViewModel
         {
             BaseObjectPromotionScopeKind.Global => EnumerateHierarchyNodes(HierarchyRoots)
                 .OfType<ObjectTemplatesNodeViewModel>()
-                .FirstOrDefault(node => node.IsBaseCatalog && node.Parent is ProjectRootNodeViewModel),
+                .FirstOrDefault(node => node.IsBaseCatalog && node.CatalogParentScope is BaseObjectsScopeNode),
             _ => EnumerateHierarchyNodes(HierarchyRoots)
                 .OfType<ObjectTemplatesNodeViewModel>()
                 .FirstOrDefault(node => node.IsBaseCatalog && ReferenceEquals(node.CatalogParentScope, target.CatalogParentScope))
@@ -13408,7 +13475,7 @@ public sealed partial class MainWindowViewModel
     {
         var roomNode = new TemplateRoomNodeViewModel(room, templatesNode);
         roomNode.Children.Add(CreateRoomSettingsNode(roomNode));
-        roomNode.Children.Add(CreateVariablesNode(roomNode, room.Variables, PropertyResolutionScope.Room));
+        roomNode.Children.Add(CreateVariablesNode(roomNode, room, room.Variables, PropertyResolutionScope.Room));
         roomNode.Children.Add(CreateActionsNode(roomNode, PropertyResolutionScope.Room, room.AvailableActions));
         roomNode.Children.Add(CreateVerbsNode(roomNode, PropertyResolutionScope.Room, room.AdditionalVerbs));
         roomNode.Children.Add(CreateDirectionalsNode(roomNode, PropertyResolutionScope.Room, room.AdditionalDirectionals));
@@ -13596,7 +13663,7 @@ public sealed partial class MainWindowViewModel
     {
         if (interactiveObject.IsRoomInstance)
         {
-            objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject.Variables, PropertyResolutionScope.Object));
+            objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject, interactiveObject.Variables, PropertyResolutionScope.Object));
             objectNode.Children.Add(new InstanceNamingNodeViewModel(interactiveObject, objectNode));
             objectNode.Children.Add(new GoToBaseObjectNodeViewModel(interactiveObject, objectNode));
             return;
@@ -13604,7 +13671,7 @@ public sealed partial class MainWindowViewModel
 
         var childrenGroup = new ChildrenGroupNodeViewModel(objectNode);
         objectNode.Children.Add(CreateObjectSettingsNode(objectNode));
-        objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject.Variables, PropertyResolutionScope.Object));
+        objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject, interactiveObject.Variables, PropertyResolutionScope.Object));
         objectNode.Children.Add(CreateActionsNode(objectNode, PropertyResolutionScope.Object, interactiveObject.AvailableActions));
         objectNode.Children.Add(CreateVerbsNode(objectNode, PropertyResolutionScope.Object, interactiveObject.AdditionalVerbs));
         objectNode.Children.Add(CreateDirectionalsNode(objectNode, PropertyResolutionScope.Object, interactiveObject.AdditionalDirectionals));
@@ -13619,7 +13686,7 @@ public sealed partial class MainWindowViewModel
     {
         if (interactiveObject.IsRoomInstance)
         {
-            objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject.Variables, PropertyResolutionScope.Object));
+            objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject, interactiveObject.Variables, PropertyResolutionScope.Object));
             objectNode.Children.Add(new InstanceNamingNodeViewModel(interactiveObject, objectNode));
             objectNode.Children.Add(new GoToBaseObjectNodeViewModel(interactiveObject, objectNode));
             return;
@@ -13627,7 +13694,7 @@ public sealed partial class MainWindowViewModel
 
         var childrenGroup = new ChildrenGroupNodeViewModel(objectNode);
         objectNode.Children.Add(CreateObjectSettingsNode(objectNode));
-        objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject.Variables, PropertyResolutionScope.Object));
+        objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject, interactiveObject.Variables, PropertyResolutionScope.Object));
         objectNode.Children.Add(CreateActionsNode(objectNode, PropertyResolutionScope.Object, interactiveObject.AvailableActions));
         objectNode.Children.Add(CreateVerbsNode(objectNode, PropertyResolutionScope.Object, interactiveObject.AdditionalVerbs));
         objectNode.Children.Add(CreateDirectionalsNode(objectNode, PropertyResolutionScope.Object, interactiveObject.AdditionalDirectionals));
@@ -13642,7 +13709,7 @@ public sealed partial class MainWindowViewModel
     {
         if (interactiveObject.IsRoomInstance)
         {
-            objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject.Variables, PropertyResolutionScope.Object));
+            objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject, interactiveObject.Variables, PropertyResolutionScope.Object));
             objectNode.Children.Add(new InstanceNamingNodeViewModel(interactiveObject, objectNode));
             objectNode.Children.Add(new GoToBaseObjectNodeViewModel(interactiveObject, objectNode));
             return;
@@ -13650,7 +13717,7 @@ public sealed partial class MainWindowViewModel
 
         var childrenGroup = new ChildrenGroupNodeViewModel(objectNode);
         objectNode.Children.Add(CreateObjectSettingsNode(objectNode));
-        objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject.Variables, PropertyResolutionScope.Object));
+        objectNode.Children.Add(CreateVariablesNode(objectNode, interactiveObject, interactiveObject.Variables, PropertyResolutionScope.Object));
         objectNode.Children.Add(CreateActionsNode(objectNode, PropertyResolutionScope.Object, interactiveObject.AvailableActions));
         objectNode.Children.Add(CreateVerbsNode(objectNode, PropertyResolutionScope.Object, interactiveObject.AdditionalVerbs));
         objectNode.Children.Add(CreateDirectionalsNode(objectNode, PropertyResolutionScope.Object, interactiveObject.AdditionalDirectionals));
@@ -13952,9 +14019,21 @@ public sealed partial class MainWindowViewModel
         }
     }
 
-    private static GamePropertiesContainerNodeViewModel CreateVariablesNode(HierarchyNodeViewModel parent, List<GamePropertyDefinition> source, PropertyResolutionScope scope)
+    private static GamePropertiesContainerNodeViewModel CreateVariablesNode(
+        HierarchyNodeViewModel parent,
+        ScopeNodeBase scopeOwner,
+        List<GamePropertyDefinition> source,
+        PropertyResolutionScope scope,
+        string? ownerDisplayName = null,
+        TraversalLegNodeViewModel? traversalLegOwner = null)
     {
-        var variablesNode = new GamePropertiesContainerNodeViewModel(scope, parent);
+        var variablesNode = new GamePropertiesContainerNodeViewModel(
+            scope,
+            scopeOwner,
+            source,
+            ownerDisplayName ?? scopeOwner.ScopeName,
+            parent,
+            traversalLegOwner);
         foreach (var variable in source)
         {
             variablesNode.Children.Add(new GamePropertyNodeViewModel(variable, scope, variablesNode));
@@ -13966,6 +14045,8 @@ public sealed partial class MainWindowViewModel
     private static ScopedActionsNodeViewModel CreateActionsNode(HierarchyNodeViewModel parent, PropertyResolutionScope scope, IList<CommandAction> source)
     {
         var actionsNode = new ScopedActionsNodeViewModel(scope, source, parent);
+        actionsNode.ScopeOwner = ResolveTreeScopeOwner(parent);
+        actionsNode.TraversalLegOwner = parent as TraversalLegNodeViewModel;
         RefreshScopedActionNodes(actionsNode);
         return actionsNode;
     }
@@ -13973,6 +14054,7 @@ public sealed partial class MainWindowViewModel
     private static ScopedVerbsNodeViewModel CreateVerbsNode(HierarchyNodeViewModel parent, PropertyResolutionScope scope, IList<string> source)
     {
         var verbsNode = new ScopedVerbsNodeViewModel(scope, source, parent);
+        verbsNode.ScopeOwner = ResolveTreeScopeOwner(parent);
         RefreshScopedVerbNodes(verbsNode);
         return verbsNode;
     }
@@ -13980,6 +14062,7 @@ public sealed partial class MainWindowViewModel
     private static ScopedDirectionalsNodeViewModel CreateDirectionalsNode(HierarchyNodeViewModel parent, PropertyResolutionScope scope, IList<string> source)
     {
         var directionalsNode = new ScopedDirectionalsNodeViewModel(scope, source, parent);
+        directionalsNode.ScopeOwner = ResolveTreeScopeOwner(parent);
         RefreshScopedDirectionalNodes(directionalsNode);
         directionalsNode.IsExpanded = false;
         return directionalsNode;
@@ -13988,6 +14071,7 @@ public sealed partial class MainWindowViewModel
     private static ScopedSoundEffectsNodeViewModel CreateSoundEffectsNode(HierarchyNodeViewModel parent, PropertyResolutionScope scope, IList<SoundEffectLibraryEntry> source)
     {
         var soundEffectsNode = new ScopedSoundEffectsNodeViewModel(scope, source, parent);
+        soundEffectsNode.ScopeOwner = ResolveTreeScopeOwner(parent);
         RefreshScopedSoundEffectNodes(soundEffectsNode);
         soundEffectsNode.IsExpanded = false;
         return soundEffectsNode;
@@ -13996,6 +14080,7 @@ public sealed partial class MainWindowViewModel
     private static ScopedEventSubscriptionsNodeViewModel CreateEventSubscriptionsNode(HierarchyNodeViewModel parent, PropertyResolutionScope scope, IList<EventSubscriptionDefinition> source)
     {
         var eventSubscriptionsNode = new ScopedEventSubscriptionsNodeViewModel(scope, source, parent);
+        eventSubscriptionsNode.ScopeOwner = ResolveTreeScopeOwner(parent);
         RefreshScopedEventSubscriptionNodes(eventSubscriptionsNode);
         eventSubscriptionsNode.IsExpanded = false;
         return eventSubscriptionsNode;
@@ -14004,6 +14089,7 @@ public sealed partial class MainWindowViewModel
     private static ScopedTimerDefinitionsNodeViewModel CreateTimerDefinitionsNode(HierarchyNodeViewModel parent, PropertyResolutionScope scope, IList<RuntimeTimerDefinitionDto> source)
     {
         var timerDefinitionsNode = new ScopedTimerDefinitionsNodeViewModel(scope, source, parent);
+        timerDefinitionsNode.ScopeOwner = ResolveTreeScopeOwner(parent);
         RefreshScopedTimerDefinitionNodes(timerDefinitionsNode);
         timerDefinitionsNode.IsExpanded = false;
         return timerDefinitionsNode;
@@ -14013,10 +14099,26 @@ public sealed partial class MainWindowViewModel
     {
         var proceduresNode = new ScopedProceduresNodeViewModel(scope, source, parent)
         {
-            IsExpanded = false
+            IsExpanded = false,
+            ScopeOwner = ResolveTreeScopeOwner(parent)
         };
 
         return proceduresNode;
+    }
+
+    private static ScopeNodeBase ResolveTreeScopeOwner(HierarchyNodeViewModel node)
+    {
+        if (node.ScopeOwner is not null)
+        {
+            return node.ScopeOwner;
+        }
+
+        if (node is GroupContainerNodeViewModel group)
+        {
+            return ResolveTreeScopeOwner(group.OwnerNode);
+        }
+
+        throw new InvalidOperationException($"Hierarchy node '{node.NodeTypeLabel}' has no explicit model scope owner.");
     }
 
     private static void EnsureScopedProceduresNode(HierarchyNodeViewModel ownerNode, IList<Guid> procedureIds, PropertyResolutionScope scope)
@@ -14334,20 +14436,7 @@ public sealed partial class MainWindowViewModel
 
     private (List<GamePropertyDefinition>? collection, PropertyResolutionScope scope) ResolveVariableCollectionAndScope(GamePropertiesContainerNodeViewModel variablesNode)
     {
-        return variablesNode.Scope switch
-        {
-            PropertyResolutionScope.Global => (_project.GlobalVariables, PropertyResolutionScope.Global),
-            PropertyResolutionScope.Planet when variablesNode.Parent is PlanetNodeViewModel planetNode => (planetNode.Planet.Variables, PropertyResolutionScope.Planet),
-            PropertyResolutionScope.Country when variablesNode.Parent is CountryNodeViewModel countryNode => (countryNode.Country.Variables, PropertyResolutionScope.Country),
-            PropertyResolutionScope.Area when variablesNode.Parent is AreaNodeViewModel areaNode => (areaNode.Area.Variables, PropertyResolutionScope.Area),
-            PropertyResolutionScope.Room when variablesNode.Parent is RoomNodeViewModel roomNode => (roomNode.Room.Variables, PropertyResolutionScope.Room),
-            PropertyResolutionScope.Room when variablesNode.Parent is TemplateRoomNodeViewModel templateRoomNode => (templateRoomNode.Room.Variables, PropertyResolutionScope.Room),
-            PropertyResolutionScope.Room when variablesNode.Parent is TraversalLegNodeViewModel legNode => (legNode.LegState.Variables, PropertyResolutionScope.Room),
-            PropertyResolutionScope.Object when variablesNode.Parent is GameObjectNodeViewModel objectNode => (objectNode.GameObject.Variables, PropertyResolutionScope.Object),
-            PropertyResolutionScope.Object when variablesNode.Parent is GlobalObjectNodeViewModel objectNode => (objectNode.GameObject.Variables, PropertyResolutionScope.Object),
-            PropertyResolutionScope.Object when variablesNode.Parent is TemplateGameObjectNodeViewModel objectNode => (objectNode.GameObject.Variables, PropertyResolutionScope.Object),
-            _ => (null, variablesNode.Scope)
-        };
+        return (variablesNode.Variables, variablesNode.Scope);
     }
 
     private static string MakeUniqueVariableName(IEnumerable<GamePropertyDefinition> variables, string baseName)
@@ -14395,7 +14484,7 @@ public sealed partial class MainWindowViewModel
             }
         }
 
-        var ownerName = variablesNode.Parent?.EditableName ?? "Scope";
+        var ownerName = variablesNode.OwnerDisplayName;
         var scopeLabel = scope switch
         {
             PropertyResolutionScope.Global => "Global",
@@ -14503,27 +14592,27 @@ public sealed partial class MainWindowViewModel
                 break;
             }
 
-            case CountryNodeViewModel countryNode when countryNode.Parent is PlanetNodeViewModel planetNode:
+            case CountryNodeViewModel countryNode when countryNode.Country.ParentScope is Planet planet:
             {
-                var uniqueName = MakeUniqueScopedEntityName(planetNode.Planet.Countries, static country => country.Name, countryNode.EditableName, countryNode.Country);
+                var uniqueName = MakeUniqueScopedEntityName(planet.Countries, static country => country.Name, countryNode.EditableName, countryNode.Country);
                 countryNode.EditableName = uniqueName;
-                RefreshScopedNameIndex(planetNode.Planet.Countries, static country => country.Name);
+                RefreshScopedNameIndex(planet.Countries, static country => country.Name);
                 break;
             }
 
-            case AreaNodeViewModel areaNode when areaNode.Parent is CountryNodeViewModel countryNode:
+            case AreaNodeViewModel areaNode when areaNode.Area.ParentScope is Country country:
             {
-                var uniqueName = MakeUniqueScopedEntityName(countryNode.Country.Areas, static area => area.Name, areaNode.EditableName, areaNode.Area);
+                var uniqueName = MakeUniqueScopedEntityName(country.Areas, static area => area.Name, areaNode.EditableName, areaNode.Area);
                 areaNode.EditableName = uniqueName;
-                RefreshScopedNameIndex(countryNode.Country.Areas, static area => area.Name);
+                RefreshScopedNameIndex(country.Areas, static area => area.Name);
                 break;
             }
 
-            case RoomNodeViewModel roomNode when roomNode.Parent is AreaNodeViewModel areaNode:
+            case RoomNodeViewModel roomNode:
             {
-                var uniqueName = MakeUniqueScopedEntityName(areaNode.Area.Rooms, static room => room.Name, roomNode.EditableName, roomNode.Room);
+                var uniqueName = MakeUniqueScopedEntityName(roomNode.Area.Rooms, static room => room.Name, roomNode.EditableName, roomNode.Room);
                 roomNode.EditableName = uniqueName;
-                RefreshScopedNameIndex(areaNode.Area.Rooms, static room => room.Name);
+                RefreshScopedNameIndex(roomNode.Area.Rooms, static room => room.Name);
                 break;
             }
 

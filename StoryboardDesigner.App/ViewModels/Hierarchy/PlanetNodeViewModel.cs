@@ -10,6 +10,7 @@ public sealed class PlanetNodeViewModel : HierarchyNodeViewModel
     {
         _project = project;
         Planet = planet;
+        ScopeOwner = planet;
         NodeTypeLabel = "Planet";
     }
 

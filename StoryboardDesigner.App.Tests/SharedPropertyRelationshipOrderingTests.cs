@@ -31,7 +31,8 @@ public sealed class SharedPropertyRelationshipOrderingTests
     public void SharedIndicatorToolTip_UsesSharedTerminology()
     {
         var variable = new GamePropertyDefinition { Name = "isOpen" };
-        var container = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object);
+        var owner = new GameObject { Variables = [variable] };
+        var container = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, owner, owner.Variables, owner.Name);
         var node = new GamePropertyNodeViewModel(variable, PropertyResolutionScope.Object, container);
 
         node.SetSharedState(2);

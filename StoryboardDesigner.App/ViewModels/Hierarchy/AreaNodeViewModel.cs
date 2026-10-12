@@ -8,12 +8,13 @@ public sealed class AreaNodeViewModel : HierarchyNodeViewModel
         : base(area.Name, parent)
     {
         Area = area;
+        ScopeOwner = area;
         NodeTypeLabel = "Area";
     }
 
     public Area Area { get; }
-    public bool IsStartingArea => Parent is CountryNodeViewModel countryNode
-                                  && string.Equals(countryNode.Country.StartingAreaName, Area.Name, StringComparison.OrdinalIgnoreCase);
+    public bool IsStartingArea => Area.ParentScope is Country country
+                                  && string.Equals(country.StartingAreaName, Area.Name, StringComparison.OrdinalIgnoreCase);
 
     public void RefreshStartIndicator()
     {
@@ -25,10 +26,10 @@ public sealed class AreaNodeViewModel : HierarchyNodeViewModel
         var oldName = Area.Name;
         Area.Name = newName;
 
-        if (Parent is CountryNodeViewModel countryNode
-            && string.Equals(countryNode.Country.StartingAreaName, oldName, StringComparison.OrdinalIgnoreCase))
+        if (Area.ParentScope is Country country
+            && string.Equals(country.StartingAreaName, oldName, StringComparison.OrdinalIgnoreCase))
         {
-            countryNode.Country.StartingAreaName = newName;
+            country.StartingAreaName = newName;
         }
 
         OnPropertyChanged(nameof(IsStartingArea));

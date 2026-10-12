@@ -67,7 +67,8 @@ public sealed class HierarchyNodeToolTipTests
             DefaultValue = currentValue,
             ValueRestriction = restriction
         };
-        var container = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object);
+        var owner = new GameObject { Variables = [variable] };
+        var container = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, owner, owner.Variables, owner.Name);
         var node = new GamePropertyNodeViewModel(variable, PropertyResolutionScope.Object, container);
 
         var tooltip = node.ValidationSummaryToolTip;
@@ -85,7 +86,8 @@ public sealed class HierarchyNodeToolTipTests
             DefaultValue = "true",
             ValueRestriction = GamePropertyValueRestriction.TrueFalse
         };
-        var container = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object);
+        var owner = new GameObject { Variables = [variable] };
+        var container = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, owner, owner.Variables, owner.Name);
         var node = new GamePropertyNodeViewModel(variable, PropertyResolutionScope.Object, container);
         node.SetValidationCounts(directErrorCount: 1, directWarningCount: 1, descendantErrorCount: 0, descendantWarningCount: 0);
         node.SetDirectValidationIssueMessages(["Value must be true/false"]);

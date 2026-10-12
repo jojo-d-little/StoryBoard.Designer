@@ -195,7 +195,7 @@ public sealed class BaseObjectSharedPropertyAuthoringTests
     private static GamePropertyNodeViewModel BuildPropertyNode(GameObject owner, RoomNodeViewModel roomNode, string propertyName)
     {
         var parentNode = new GameObjectNodeViewModel(owner, new RoomGameObjectsNodeViewModel(roomNode));
-        var propertiesNode = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, parentNode);
+        var propertiesNode = new GamePropertiesContainerNodeViewModel(PropertyResolutionScope.Object, owner, owner.Variables, owner.Name, parentNode);
         parentNode.Children.Add(propertiesNode);
         var node = new GamePropertyNodeViewModel(owner.Variables.Single(variable => variable.Name == propertyName), PropertyResolutionScope.Object, propertiesNode);
         propertiesNode.Children.Add(node);
