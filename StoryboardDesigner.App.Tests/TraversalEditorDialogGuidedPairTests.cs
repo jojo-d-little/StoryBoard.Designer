@@ -100,9 +100,7 @@ public sealed class TraversalEditorDialogGuidedPairTests
                 failure = ex;
             }
         });
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join();
+        StaTestThreadRunner.StartAndWait(thread, nameof(GuidedEditor_ListsEverySouthNeighborAndInfersDirectionFromSelectedPair));
         if (failure is not null) throw failure;
     }
 }

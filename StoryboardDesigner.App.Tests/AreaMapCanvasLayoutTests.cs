@@ -68,9 +68,7 @@ public sealed class AreaMapCanvasLayoutTests
                 failure = ex;
             }
         });
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join();
+        StaTestThreadRunner.StartAndWait(thread, nameof(MapRendersMixedFootprintsAndThreeSouthArrowsAtDefaultZoom));
         if (failure is not null) throw failure;
     }
 }

@@ -102,9 +102,7 @@ public sealed class BaseActionDesignerSupportTests
                 failure = ex;
             }
         });
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join();
+        StaTestThreadRunner.StartAndWait(thread, nameof(CueDialog_LoadNoOpAndExplicitSelections_PreserveIntendedId));
         if (failure is not null) throw failure;
     }
 
@@ -130,9 +128,7 @@ public sealed class BaseActionDesignerSupportTests
                 failure = ex;
             }
         });
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join();
+        StaTestThreadRunner.StartAndWait(thread, nameof(SelfPropertyToken_SurvivesEditorProjectReloadAndRuntimeExport));
         if (failure is not null) throw failure;
         Assert.Equal(propertyName, ActionPayloadAccessors.GetCheckPropertyName(action));
 

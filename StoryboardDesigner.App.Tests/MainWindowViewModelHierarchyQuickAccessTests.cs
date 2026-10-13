@@ -38,9 +38,7 @@ public class MainWindowViewModelHierarchyQuickAccessTests
                 failure = ex;
             }
         });
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join();
+        StaTestThreadRunner.StartAndWait(thread, nameof(QuickAccessPane_MaterializesReadOnlyBookmarkDisplayBindings));
 
         Assert.Null(failure);
     }
