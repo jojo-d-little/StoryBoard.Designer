@@ -117,6 +117,7 @@ public partial class GameObjectSettingsDialog : Window
         CompositableCheckBox.IsChecked = initialValues.IsCompositeTarget;
         ObjectDescriptionTextBox.Text = initialValues.Description;
         _imageVariants = NormalizeImageVariants(initialValues.ImageVariants, initialValues.FullImagePath);
+        ImageTransparencyTextBox.Text = initialValues.ImageTransparency.ToString("0.################", System.Globalization.CultureInfo.InvariantCulture);
         _imageVariantChooserScript = initialValues.ImageVariantChooserScript;
         _imageVariantChooserReferenceTokens = initialValues.ImageVariantChooserReferenceTokens ?? Array.Empty<string>();
         _imageVariantChooserVariableChoices = initialValues.ImageVariantChooserVariableChoices ?? Array.Empty<GamePropertyChoiceItem>();
@@ -184,6 +185,7 @@ public partial class GameObjectSettingsDialog : Window
         ManageCompositeButton.IsEnabled = false;
         ManageLockRequirementsButton.IsEnabled = false;
         ManageImageVariantsButton.IsEnabled = false;
+        ImageTransparencyTextBox.IsEnabled = false;
         _movementRestrictionsLockedByLink = true;
         ManageMovementRestrictionsButton.IsEnabled = false;
     }
@@ -259,7 +261,8 @@ public partial class GameObjectSettingsDialog : Window
                 IsPointLightEnabledDefaultValue: _isPointLightEnabledDefaultValue,
                 PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_pointLightDefaults),
                 HideContainedObjects: HideContainedObjectsCheckBox.IsChecked != false,
-                ShowWhenContained: InventoriableCheckBox.IsChecked == true ? GetShowWhenContained() : null);
+                ShowWhenContained: InventoriableCheckBox.IsChecked == true ? GetShowWhenContained() : null,
+                ImageTransparency: ParseImageTransparencyText());
         }
     }
 
@@ -689,6 +692,17 @@ public partial class GameObjectSettingsDialog : Window
             return;
         }
 
+        if (!TryParseImageTransparencyText(out var imageTransparency)
+            || !double.IsFinite(imageTransparency)
+            || imageTransparency < 0
+            || imageTransparency > 1)
+        {
+            System.Windows.MessageBox.Show(this, "Image transparency must be a finite number between 0 and 1.", "Object Properties", MessageBoxButton.OK, MessageBoxImage.Information);
+            ImageTransparencyTextBox.Focus();
+            ImageTransparencyTextBox.SelectAll();
+            return;
+        }
+
         if (!int.TryParse(InventoryPointsTextBox.Text.Trim(), out var parsedInventoryPoints) || parsedInventoryPoints < 1)
         {
             System.Windows.MessageBox.Show(this, "Inventory points must be a number greater than or equal to 1.", "Object Properties", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -747,6 +761,20 @@ public partial class GameObjectSettingsDialog : Window
         }
 
         DialogResult = true;
+    }
+
+    private double ParseImageTransparencyText()
+    {
+        return TryParseImageTransparencyText(out var value) ? value : 0;
+    }
+
+    private bool TryParseImageTransparencyText(out double value)
+    {
+        return double.TryParse(
+            ImageTransparencyTextBox.Text.Trim(),
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out value);
     }
 
     private void ContainerCheckBox_OnChanged(object sender, RoutedEventArgs e)

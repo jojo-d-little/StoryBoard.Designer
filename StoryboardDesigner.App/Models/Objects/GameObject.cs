@@ -50,6 +50,7 @@ public sealed class GameObject : ScopeNodeBase, INotifyPropertyChanged
     private string _imageVariantChooserScript = string.Empty;
     private List<ObjectImageVariant> _imageVariants = new();
     private double _imageRotationDegrees;
+    private double _imageTransparency;
     private double _positionX;
     private double _positionY;
     private int _renderZOrder;
@@ -800,6 +801,21 @@ public sealed class GameObject : ScopeNodeBase, INotifyPropertyChanged
             }
 
             _imageRotationDegrees = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public double ImageTransparency
+    {
+        get => _imageTransparency;
+        set
+        {
+            if (_imageTransparency.Equals(value))
+            {
+                return;
+            }
+
+            _imageTransparency = value;
             OnPropertyChanged();
         }
     }

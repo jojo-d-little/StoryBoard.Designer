@@ -9040,6 +9040,7 @@ public sealed partial class MainWindowViewModel
                          || objectNode.GameObject.IsMovable != updated.IsMovable
                          || objectNode.GameObject.IsMovableDefaultValue != updated.IsMovableDefaultValue
                          || objectNode.GameObject.SpatialType != NormalizeSpatialType(updated.SpatialType)
+                         || Math.Abs(objectNode.GameObject.ImageTransparency - updated.ImageTransparency) > 0.0000001
                          || objectNode.GameObject.StackGroup != updated.StackGroup
                          || objectNode.GameObject.FootprintWidthCells != updated.FootprintWidthCells
                          || objectNode.GameObject.FootprintHeightCells != updated.FootprintHeightCells
@@ -9113,6 +9114,7 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.IsMovable = updated.IsMovable;
         objectNode.GameObject.IsMovableDefaultValue = updated.IsMovableDefaultValue;
         objectNode.GameObject.SpatialType = NormalizeSpatialType(updated.SpatialType);
+        objectNode.GameObject.ImageTransparency = updated.ImageTransparency;
         objectNode.GameObject.StackGroup = updated.StackGroup;
         objectNode.GameObject.FootprintWidthCells = updated.FootprintWidthCells;
         objectNode.GameObject.FootprintHeightCells = updated.FootprintHeightCells;
@@ -9357,6 +9359,7 @@ public sealed partial class MainWindowViewModel
                 ImageVariantChooserVariableScope: PropertyResolutionScope.Object,
                 ImageVariants: gameObject.ImageVariants,
                 ImageVariantChooserScript: gameObject.ImageVariantChooserScript,
+                ImageTransparency: gameObject.ImageTransparency,
                 LockOperationRequirements: lockOperationRequirements,
                 AvailableLockKeyOptions: BuildAvailableLockKeyOptions(gameObject),
                 CompositeRequiredParts: CloneCompositePartRequirements(gameObject.CompositeRequiredParts),
@@ -9420,6 +9423,7 @@ public sealed partial class MainWindowViewModel
             scopeTag,
             ImageVariants: gameObject.ImageVariants,
             ImageVariantChooserScript: gameObject.ImageVariantChooserScript,
+            ImageTransparency: gameObject.ImageTransparency,
             LockOperationRequirements: lockOperationRequirements,
             AvailableLockKeyOptions: BuildAvailableLockKeyOptions(gameObject),
             CompositeRequiredParts: CloneCompositePartRequirements(gameObject.CompositeRequiredParts),
@@ -9775,6 +9779,7 @@ public sealed partial class MainWindowViewModel
                          || objectNode.GameObject.IsMovableDefaultValue != updated.IsMovableDefaultValue
                          || objectNode.GameObject.SpatialType != NormalizeSpatialType(updated.SpatialType)
                          || objectNode.GameObject.StackGroup != updated.StackGroup
+                         || Math.Abs(objectNode.GameObject.ImageTransparency - updated.ImageTransparency) > 0.0000001
                          || objectNode.GameObject.FootprintWidthCells != updated.FootprintWidthCells
                          || objectNode.GameObject.FootprintHeightCells != updated.FootprintHeightCells
                          || !string.Equals(objectNode.GameObject.FootprintOrientation, updated.FootprintOrientation, StringComparison.Ordinal)
@@ -9836,6 +9841,7 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.IsMovableDefaultValue = updated.IsMovableDefaultValue;
         objectNode.GameObject.SpatialType = NormalizeSpatialType(updated.SpatialType);
         objectNode.GameObject.StackGroup = updated.StackGroup;
+        objectNode.GameObject.ImageTransparency = updated.ImageTransparency;
         objectNode.GameObject.FootprintWidthCells = updated.FootprintWidthCells;
         objectNode.GameObject.FootprintHeightCells = updated.FootprintHeightCells;
         objectNode.GameObject.FootprintOrientation = updated.FootprintOrientation;
@@ -10021,6 +10027,7 @@ public sealed partial class MainWindowViewModel
                          || objectNode.GameObject.IsMovableDefaultValue != updated.IsMovableDefaultValue
                          || objectNode.GameObject.SpatialType != NormalizeSpatialType(updated.SpatialType)
                          || objectNode.GameObject.StackGroup != updated.StackGroup
+                         || Math.Abs(objectNode.GameObject.ImageTransparency - updated.ImageTransparency) > 0.0000001
                          || objectNode.GameObject.FootprintWidthCells != updated.FootprintWidthCells
                          || objectNode.GameObject.FootprintHeightCells != updated.FootprintHeightCells
                          || !string.Equals(objectNode.GameObject.FootprintOrientation, updated.FootprintOrientation, StringComparison.Ordinal)
@@ -10086,6 +10093,7 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.IsMovableDefaultValue = updated.IsMovableDefaultValue;
         objectNode.GameObject.SpatialType = NormalizeSpatialType(updated.SpatialType);
         objectNode.GameObject.StackGroup = updated.StackGroup;
+        objectNode.GameObject.ImageTransparency = updated.ImageTransparency;
         objectNode.GameObject.FootprintWidthCells = updated.FootprintWidthCells;
         objectNode.GameObject.FootprintHeightCells = updated.FootprintHeightCells;
         objectNode.GameObject.FootprintOrientation = updated.FootprintOrientation;
@@ -12339,6 +12347,7 @@ public sealed partial class MainWindowViewModel
             ImageVariantChooserScript = template.ImageVariantChooserScript,
             IsMovable = template.IsMovable,
             IsMovableDefaultValue = template.IsMovableDefaultValue,
+            ImageTransparency = template.ImageTransparency,
             SpatialType = template.SpatialType,
             StackGroup = template.StackGroup,
             FootprintWidthCells = template.FootprintWidthCells,
@@ -12669,6 +12678,7 @@ public sealed partial class MainWindowViewModel
             "objects",
             ImageVariants: target.ImageVariants,
             ImageVariantChooserScript: target.ImageVariantChooserScript,
+            ImageTransparency: target.ImageTransparency,
             LockOperationRequirements: CloneLockOperationRequirements(target.LockOperationRequirements),
             AvailableLockKeyOptions: BuildAvailableLockKeyOptions(target),
             CompositeRequiredParts: CloneCompositePartRequirements(target.CompositeRequiredParts),
@@ -12740,6 +12750,7 @@ public sealed partial class MainWindowViewModel
         target.IsMovable = updated.IsMovable;
         target.IsMovableDefaultValue = updated.IsMovableDefaultValue;
         target.SpatialType = NormalizeSpatialType(updated.SpatialType);
+        target.ImageTransparency = updated.ImageTransparency;
         target.StackGroup = updated.StackGroup;
         target.FootprintWidthCells = updated.FootprintWidthCells;
         target.FootprintHeightCells = updated.FootprintHeightCells;
@@ -12869,6 +12880,7 @@ public sealed partial class MainWindowViewModel
             "objects",
             ImageVariants: effectiveDefinitionOwnedSource.ImageVariants,
             ImageVariantChooserScript: effectiveDefinitionOwnedSource.ImageVariantChooserScript,
+            ImageTransparency: effectiveDefinitionOwnedSource.ImageTransparency,
             LockOperationRequirements: CloneLockOperationRequirements(target.LockOperationRequirements),
             AvailableLockKeyOptions: BuildAvailableLockKeyOptions(target),
             CompositeRequiredParts: CloneCompositePartRequirements(target.CompositeRequiredParts),
@@ -12912,6 +12924,7 @@ public sealed partial class MainWindowViewModel
                          || !target.NameSynonyms.SequenceEqual(ParseObjectNameSynonyms(updated.ObjectNameSynonyms), StringComparer.OrdinalIgnoreCase)
                          || Math.Abs(target.ImageRotationDegrees - updated.ImageRotationDegrees) > 0.0001
                          || !AreEquivalentImageVariants(target.ImageVariants, updated.ImageVariants)
+                         || Math.Abs(effectiveDefinitionOwnedSource.ImageTransparency - updated.ImageTransparency) > 0.0000001
                          || !string.Equals(target.ImageVariantChooserScript, updated.ImageVariantChooserScript, StringComparison.Ordinal)
                          || target.SpatialType != NormalizeSpatialType(updated.SpatialType)
                          || target.StackGroup != updated.StackGroup
@@ -12927,6 +12940,10 @@ public sealed partial class MainWindowViewModel
         target.ImageRotationDegrees = updated.ImageRotationDegrees;
         target.ImageVariants = NormalizeObjectImageVariantsForModel(updated.ImageVariants, updated.FullImagePath);
         target.ImageVariantChooserScript = updated.ImageVariantChooserScript?.Trim() ?? string.Empty;
+        if (linkedDefinition is null)
+        {
+            target.ImageTransparency = updated.ImageTransparency;
+        }
         target.SpatialType = NormalizeSpatialType(updated.SpatialType);
         target.StackGroup = updated.StackGroup;
         target.MovementRestrictions = CloneMovementRestrictions(updated.MovementRestrictions);

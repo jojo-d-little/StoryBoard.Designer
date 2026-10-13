@@ -1496,7 +1496,8 @@ public class JsonExportServiceRuntimeExportTests
                 IsContainer = true,
                 HideContainedObjects = false,
                 StackScaleStepOverride = 0.15,
-                MinStackScaleOverride = 0.55
+                MinStackScaleOverride = 0.55,
+                IsPointLightEnabledDefaultValue = false
             };
 
             var linked = new GameObject
@@ -1541,6 +1542,8 @@ public class JsonExportServiceRuntimeExportTests
             Assert.Equal(baseObjectId, linkedBaseId.GetGuid());
             Assert.True(exported.TryGetProperty("linkActionsToBaseObject", out var linkActionsFlag));
             Assert.True(linkActionsFlag.GetBoolean());
+            Assert.False(exported.GetProperty("isPointLightEnabledDefaultValue").GetBoolean());
+            Assert.False(exported.GetProperty("isPointLightEnabled").GetBoolean());
 
             Assert.False(exported.TryGetProperty("imageVariants", out _));
             Assert.False(exported.TryGetProperty("imageVariantChooserScript", out _));
@@ -1561,6 +1564,8 @@ public class JsonExportServiceRuntimeExportTests
             Assert.True(exportedBaseObject.TryGetProperty("appearance", out _));
             Assert.True(exportedBaseObject.GetProperty("isContainer").GetBoolean());
             Assert.False(exportedBaseObject.GetProperty("hideContainedObjects").GetBoolean());
+            Assert.False(exportedBaseObject.GetProperty("isPointLightEnabledDefaultValue").GetBoolean());
+            Assert.False(exportedBaseObject.GetProperty("isPointLightEnabled").GetBoolean());
         }
         finally
         {

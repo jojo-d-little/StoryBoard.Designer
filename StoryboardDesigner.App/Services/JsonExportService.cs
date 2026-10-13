@@ -4737,6 +4737,7 @@ public sealed class JsonExportService : IJsonExportService
             ImageRotationDegrees = obj.ImageRotationDegrees,
             IsMovable = obj.Appearance?.IsMovable ?? false,
             IsMovableDefaultValue = obj.Appearance?.IsMovableDefaultValue ?? true,
+            ImageTransparency = obj.Appearance?.ImageTransparency ?? 0,
             SpatialType = obj.Appearance?.SpatialType ?? RuntimeObjectSpatialTypes.SolidObject,
             StackGroup = obj.Appearance?.StackGroup ?? obj.Appearance?.LegacyStackOrder ?? 0,
             FootprintWidthCells = obj.Appearance?.FootprintWidthCells > 0 ? obj.Appearance.FootprintWidthCells : 1,
@@ -4906,6 +4907,7 @@ public sealed class JsonExportService : IJsonExportService
             obj.ImageVariantChooserScript = definition.ImageVariantChooserScript;
             obj.IsMovable = definition.IsMovable;
             obj.IsMovableDefaultValue = definition.IsMovableDefaultValue;
+            obj.ImageTransparency = definition.ImageTransparency;
             obj.SpatialType = definition.SpatialType;
             obj.StackGroup = definition.StackGroup;
             obj.FootprintWidthCells = definition.FootprintWidthCells;
@@ -5199,6 +5201,7 @@ public sealed class JsonExportService : IJsonExportService
             SpatialType = ToRuntimeSpatialType(normalizedSpatialType),
             IsMovable = obj.IsMovable,
             IsMovableDefaultValue = obj.IsMovableDefaultValue,
+            ImageTransparency = obj.ImageTransparency,
             StackGroup = obj.StackGroup,
             FootprintWidthCells = obj.FootprintWidthCells,
             FootprintHeightCells = obj.FootprintHeightCells,
@@ -5222,6 +5225,7 @@ public sealed class JsonExportService : IJsonExportService
             appearance.SpatialType,
             appearance.IsMovable,
             appearance.IsMovableDefaultValue,
+            appearance.ImageTransparency,
             appearance.StackGroup,
             appearance.FootprintWidthCells,
             appearance.FootprintHeightCells,
@@ -5251,6 +5255,7 @@ public sealed class JsonExportService : IJsonExportService
             SpatialType = ToRuntimeSpatialType(normalizedSpatialType),
             IsMovable = effectiveDefinitionOwnedSource.IsMovable,
             IsMovableDefaultValue = effectiveDefinitionOwnedSource.IsMovableDefaultValue,
+            ImageTransparency = effectiveDefinitionOwnedSource.ImageTransparency,
             StackGroup = effectiveDefinitionOwnedSource.StackGroup,
             FootprintWidthCells = effectiveDefinitionOwnedSource.FootprintWidthCells,
             FootprintHeightCells = effectiveDefinitionOwnedSource.FootprintHeightCells,
@@ -5274,6 +5279,7 @@ public sealed class JsonExportService : IJsonExportService
             appearance.SpatialType,
             appearance.IsMovable,
             appearance.IsMovableDefaultValue,
+            appearance.ImageTransparency,
             appearance.StackGroup,
             appearance.FootprintWidthCells,
             appearance.FootprintHeightCells,
@@ -5297,6 +5303,7 @@ public sealed class JsonExportService : IJsonExportService
         RuntimeObjectSpatialTypes spatialType,
         bool isMovable,
         bool? isMovableDefaultValue,
+        double imageTransparency,
         int stackGroup,
         int footprintWidthCells,
         int footprintHeightCells,
@@ -5317,6 +5324,7 @@ public sealed class JsonExportService : IJsonExportService
             spatialType,
             isMovable,
             isMovableDefaultValue,
+            imageTransparency,
             stackGroup,
             footprintWidthCells,
             footprintHeightCells,
@@ -5338,6 +5346,7 @@ public sealed class JsonExportService : IJsonExportService
         RuntimeObjectSpatialTypes spatialType,
         bool isMovable,
         bool? isMovableDefaultValue,
+        double imageTransparency,
         int stackGroup,
         int footprintWidthCells,
         int footprintHeightCells,
@@ -5357,6 +5366,7 @@ public sealed class JsonExportService : IJsonExportService
                  return spatialType == RuntimeObjectSpatialTypes.SolidObject
              && isMovable == false
                && (isMovableDefaultValue ?? true) == true
+               && imageTransparency == 0
                && stackGroup == 0
                && footprintWidthCells == 1
                && footprintHeightCells == 1
@@ -6176,6 +6186,7 @@ public sealed class JsonExportService : IJsonExportService
             Appearance = ToCleanGameObjectAppearanceDto(obj, effectiveDefinitionOwnedSource),
             PointLight = LightingContractMapper.ToRuntimePointLightDto(effectiveDefinitionOwnedSource.PointLight),
             LightOcclusion = LightingContractMapper.ToRuntimeLightOcclusionDto(ResolveDefaultLightOcclusion(effectiveDefinitionOwnedSource)),
+            IsPointLightEnabled = effectiveDefinitionOwnedSource.IsPointLightEnabledDefaultValue,
             IsPointLightEnabledDefaultValue = effectiveDefinitionOwnedSource.IsPointLightEnabledDefaultValue,
             Description = effectiveDescription ?? string.Empty,
             AdditionalVerbs = NullIfEmpty(obj.AdditionalVerbs.OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToList()),

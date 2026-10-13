@@ -319,6 +319,12 @@ public sealed class JsonExportServiceLightingPersistenceTests
                 Assert.Equal("#FFFFFF", ambient.GetProperty("ambientColor").GetString());
             }
 
+            var legacyRuntimeObjectPath = Path.Combine(legacyRuntimeRoot, "GameObject", $"{roomObject.ObjectId:D}".ToUpperInvariant() + ".runtime.json");
+            using (var legacyRuntimeObject = JsonDocument.Parse(File.ReadAllText(legacyRuntimeObjectPath)))
+            {
+                Assert.True(legacyRuntimeObject.RootElement.GetProperty("isPointLightEnabled").GetBoolean());
+            }
+
             var loaded = service.TryLoadProjectModel(projectFilePath)!;
             var loadedObject = loaded.Planets.Single().Countries.Single().Areas.Single().Rooms.Single().GameObjects.Single();
 
@@ -488,11 +494,16 @@ public sealed class JsonExportServiceLightingPersistenceTests
                 LightOcclusion = new LightOcclusion { Strength = 0.25 },
                 IsPointLightEnabledDefaultValue = false
             };
+            var enabledObject = new GameObject
+            {
+                Name = "Enabled Lamp",
+                IsPointLightEnabledDefaultValue = true
+            };
             var room = new Room
             {
                 Name = "Runtime Room",
                 AmbientLighting = new RoomAmbientLighting { Ambient = 0.55, AmbientColor = "#101820" },
-                GameObjects = [roomObject]
+                GameObjects = [roomObject, enabledObject]
             };
             var area = new Area { Name = "Area", Rooms = [room] };
             var country = new Country { Name = "Country", Areas = [area] };
@@ -550,6 +561,12 @@ public sealed class JsonExportServiceLightingPersistenceTests
             Assert.False(pointLight.TryGetProperty("y", out _));
             Assert.Equal(0.25, objectDocument.RootElement.GetProperty("lightOcclusion").GetProperty("strength").GetDouble());
             Assert.False(objectDocument.RootElement.GetProperty("isPointLightEnabledDefaultValue").GetBoolean());
+            Assert.False(objectDocument.RootElement.GetProperty("isPointLightEnabled").GetBoolean());
+
+            var enabledObjectPath = Path.Combine(runtimeRoot, "GameObject", $"{enabledObject.ObjectId:D}".ToUpperInvariant() + ".runtime.json");
+            using var enabledObjectDocument = JsonDocument.Parse(File.ReadAllText(enabledObjectPath));
+            Assert.True(enabledObjectDocument.RootElement.GetProperty("isPointLightEnabledDefaultValue").GetBoolean());
+            Assert.True(enabledObjectDocument.RootElement.GetProperty("isPointLightEnabled").GetBoolean());
 
             var phasePath = Path.Combine(runtimeRoot, "Book", $"{page.Id:D}".ToUpperInvariant() + ".runtime.json");
             using var phaseDocument = JsonDocument.Parse(File.ReadAllText(phasePath));

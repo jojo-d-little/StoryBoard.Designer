@@ -315,6 +315,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <StackPanel Grid.Row="0" Orientation="Horizontal">
                             <Button x:Name="ManageImageVariantsButton"
@@ -333,8 +334,13 @@
                                     Click="ManageMovementRestrictionsButton_OnClick" />
                         </StackPanel>
 
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Image transparency (0–1)" />
+                            <TextBox x:Name="ImageTransparencyTextBox" Width="72" MaxLength="16" />
+                        </StackPanel>
+
                         <TextBlock x:Name="ImageVariantValidationHintTextBlock"
-                                   Grid.Row="1"
+                                   Grid.Row="2"
                                    Margin="0,8,0,0"
                                    Foreground="#B45309"
                                    FontSize="11"

@@ -1903,6 +1903,7 @@ public sealed partial class MainWindowViewModel
         registry.Register(new RoomPlacementReferenceIntegrityRule());
         registry.Register(new RoomCanvasDimensionsRule());
         registry.Register(new LightingAuthoringValidationRule());
+        registry.Register(new ObjectImageTransparencyRangeRule());
         if (includeImagePathAvailabilityRule)
         {
             registry.Register(new ImagePathAvailabilityRule());

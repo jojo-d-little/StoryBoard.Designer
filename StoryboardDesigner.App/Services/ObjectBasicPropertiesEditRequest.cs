@@ -69,4 +69,5 @@ public sealed record ObjectBasicPropertiesEditRequest(
     bool IsPointLightEnabledDefaultValue = true,
     PointLightDefaults? PointLightDefaults = null,
     bool HideContainedObjects = true,
-    bool? ShowWhenContained = null);
+    bool? ShowWhenContained = null,
+    double ImageTransparency = 0);
