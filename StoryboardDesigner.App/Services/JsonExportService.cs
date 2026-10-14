@@ -398,6 +398,12 @@ public sealed class JsonExportService : IJsonExportService
             RoomDesignerGridCellSize = project.RoomDesignerGridCellSize,
             PointLightDefaults = LightingContractMapper.ToProjectPointLightDefaultsDto(project.PointLightDefaults),
             DefaultRoomAmbientLighting = LightingContractMapper.ToProjectRoomAmbientLightingDto(project.DefaultRoomAmbientLighting),
+            RoomSoundLossDefaults = project.RoomSoundLossDefaults is null ? null : new ProjectRoomSoundLossDefaultsDto
+            {
+                IndoorSoundLossPercent = project.RoomSoundLossDefaults.IndoorSoundLossPercent,
+                OutdoorSoundLossPercent = project.RoomSoundLossDefaults.OutdoorSoundLossPercent,
+                OpenSpaceSoundLossPercentPerCell = project.RoomSoundLossDefaults.OpenSpaceSoundLossPercentPerCell
+            },
             StackScaleStepDefault = project.StackScaleStepDefault,
             MinStackScaleDefault = project.MinStackScaleDefault,
             SimulatorReplayFilePath = project.SimulatorReplayFilePath,
@@ -592,6 +598,9 @@ public sealed class JsonExportService : IJsonExportService
                 RoomImageCanvasWidth = ResolveEffectiveRoomCanvasWidth(project, room),
                 RoomImageCanvasHeight = ResolveEffectiveRoomCanvasHeight(project, room),
                 AmbientLighting = LightingContractMapper.ToProjectRoomAmbientLightingDto(room.AmbientLighting),
+                SpawnPoint = room.SpawnPoint is null ? null : new RoomSpawnPointDto { X = room.SpawnPoint.X, Y = room.SpawnPoint.Y },
+                EnvironmentType = room.EnvironmentType,
+                SoundLossPercentOverride = NormalizePercent(room.SoundLossPercentOverride),
                 RoomDisplayMode = room.RoomDisplayMode,
                 ValidationErrors = room.ValidationErrors.ToList(),
                 SequenceDefinitions = room.SequenceDefinitions.ToList(),
@@ -1029,6 +1038,12 @@ public sealed class JsonExportService : IJsonExportService
                 RoomImageCanvasHeight = dto.RoomImageCanvasHeight,
                 RoomDesignerGridCellSize = dto.RoomDesignerGridCellSize,
                 PointLightDefaults = LightingContractMapper.ToPointLightDefaultsModel(dto.PointLightDefaults),
+                RoomSoundLossDefaults = dto.RoomSoundLossDefaults is null ? null : new RoomSoundLossDefaults
+                {
+                    IndoorSoundLossPercent = dto.RoomSoundLossDefaults.IndoorSoundLossPercent,
+                    OutdoorSoundLossPercent = dto.RoomSoundLossDefaults.OutdoorSoundLossPercent,
+                    OpenSpaceSoundLossPercentPerCell = dto.RoomSoundLossDefaults.OpenSpaceSoundLossPercentPerCell ?? 0
+                },
                 SequenceDefinitions = (globalNode.SequenceDefinitions ?? new List<ProjectSequenceDefinitionDto>()).ToList(),
                 DefaultRoomAmbientLighting = LightingContractMapper.ToRoomAmbientLightingModel(dto.DefaultRoomAmbientLighting),
                 StackScaleStepDefault = dto.StackScaleStepDefault ?? ProjectModel.DefaultStackScaleStep,
@@ -1380,6 +1395,9 @@ public sealed class JsonExportService : IJsonExportService
             RoomImageCanvasWidth = room.RoomImageCanvasWidth,
             RoomImageCanvasHeight = room.RoomImageCanvasHeight,
             AmbientLighting = LightingContractMapper.ToProjectRoomAmbientLightingDto(room.AmbientLighting),
+            SpawnPoint = room.SpawnPoint is null ? null : new RoomSpawnPointDto { X = room.SpawnPoint.X, Y = room.SpawnPoint.Y },
+            EnvironmentType = room.EnvironmentType,
+            SoundLossPercentOverride = NormalizePercent(room.SoundLossPercentOverride),
             RoomDisplayMode = room.RoomDisplayMode,
             ValidationErrors = room.ValidationErrors.ToList(),
             TraversalModeOverride = room.TraversalModeOverride?.ToString(),
@@ -1508,6 +1526,12 @@ public sealed class JsonExportService : IJsonExportService
             RoomImageCanvasHeight = project.RoomImageCanvasHeight,
             RoomDesignerGridCellSize = project.RoomDesignerGridCellSize,
             PointLightDefaults = LightingContractMapper.ToRuntimePointLightDefaultsDto(project.PointLightDefaults),
+            RoomSoundLossDefaults = new RuntimeRoomSoundLossDefaultsDto
+            {
+                IndoorSoundLossPercent = project.RoomSoundLossDefaults?.IndoorSoundLossPercent ?? 0,
+                OutdoorSoundLossPercent = project.RoomSoundLossDefaults?.OutdoorSoundLossPercent ?? 0,
+                OpenSpaceSoundLossPercentPerCell = project.RoomSoundLossDefaults?.OpenSpaceSoundLossPercentPerCell ?? 0
+            },
             AdditionalVerbs = runtimeGlobalVerbs,
             AdditionalDirectionals = project.Directionals.ToList(),
             AdditionalDirectionalTraversalMappings = NullIfEmpty(ToRuntimeDirectionalTraversalMappings(project.DirectionalTraversalMappings)),
@@ -1803,14 +1827,20 @@ public sealed class JsonExportService : IJsonExportService
                             .ToList(),
                         RoomPlacements = area.RoomPlacements
                             .OrderBy(placement => placement.RoomId)
-                            .Select(placement => new RuntimeRoomPlacementDto
+                            .Select(placement =>
                             {
-                                RoomId = placement.RoomId,
-                                X = placement.X,
-                                Y = placement.Y,
-                                FloorElevation = placement.FloorElevation == 0 ? null : placement.FloorElevation,
-                                ColumnSpan = placement.ColumnSpan == 1 ? null : placement.ColumnSpan,
-                                RowSpan = placement.RowSpan == 1 ? null : placement.RowSpan
+                                var (gridColumn, gridRow) = AreaMapGeometry.ToGridCell(placement.X, placement.Y);
+                                return new RuntimeRoomPlacementDto
+                                {
+                                    RoomId = placement.RoomId,
+                                    X = placement.X,
+                                    Y = placement.Y,
+                                    GridColumn = gridColumn,
+                                    GridRow = gridRow,
+                                    FloorElevation = placement.FloorElevation == 0 ? null : placement.FloorElevation,
+                                    ColumnSpan = placement.ColumnSpan == 1 ? null : placement.ColumnSpan,
+                                    RowSpan = placement.RowSpan == 1 ? null : placement.RowSpan
+                                };
                             })
                             .ToList()
                         })))
@@ -2052,6 +2082,9 @@ public sealed class JsonExportService : IJsonExportService
                     Ambient = room.AmbientLighting?.Ambient ?? project.DefaultRoomAmbientLighting?.Ambient ?? 1d,
                     AmbientColor = room.AmbientLighting?.AmbientColor ?? project.DefaultRoomAmbientLighting?.AmbientColor ?? "#FFFFFF"
                 },
+                SpawnPoint = room.SpawnPoint is null ? null : new RuntimeRoomSpawnPointDto { X = room.SpawnPoint.X, Y = room.SpawnPoint.Y },
+                EnvironmentType = room.EnvironmentType,
+                SoundLossPercentOverride = NormalizePercent(room.SoundLossPercentOverride),
                 RoomDisplayMode = ToRuntimeRoomImageDisplayMode(room.RoomDisplayMode),
                 AvailableGameActions = ToCleanCommandActionDtos(room.AvailableActions, linkedActionLookup).OrderBy(action => action.Name, StringComparer.OrdinalIgnoreCase).ThenBy(action => action.Id).ToList(),
                 GameProperties = NullIfEmpty(room.Variables.Select(ToCleanGamePropertyDto).OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase).ToList()),
@@ -4472,6 +4505,11 @@ public sealed class JsonExportService : IJsonExportService
                 ? room.RoomImageCanvasHeight!.Value
                 : (defaultRoomCanvasHeight > 0 ? defaultRoomCanvasHeight : 600),
             AmbientLighting = LightingContractMapper.ToRoomAmbientLightingModel(room.AmbientLighting),
+            SpawnPoint = room.SpawnPoint is null ? null : new RoomSpawnPoint(room.SpawnPoint.X, room.SpawnPoint.Y),
+            EnvironmentType = room.EnvironmentType is { } environmentType && Enum.IsDefined(environmentType)
+                ? environmentType
+                : RoomEnvironmentType.Indoor,
+            SoundLossPercentOverride = NormalizePercent(room.SoundLossPercentOverride),
             RoomDisplayMode = roomDisplayMode,
             ValidationErrors = (room.ValidationErrors ?? new List<string>())
                 .Where(static value => !string.IsNullOrWhiteSpace(value))
@@ -4607,6 +4645,7 @@ public sealed class JsonExportService : IJsonExportService
                 .ToList(),
             AdditionalDirectionalTraversalMappings = isLinkedInstance ? new List<DirectionalTraversalMappingDto>() : ToDirectionalTraversalMappingDtos(obj.AdditionalDirectionalTraversalMappings),
             SoundEffectLibraryEntries = isLinkedInstance ? new List<SoundEffectLibraryEntryDto>() : obj.SoundEffectLibraryEntries.Select(ToSoundEffectLibraryEntryDto).ToList(),
+            SoundEmitters = isLinkedInstance ? new List<ObjectSoundEmitterDto>() : obj.SoundEmitters.Select(ToObjectSoundEmitterDto).ToList(),
             EventSubscriptions = isLinkedInstance ? new List<ProjectEventSubscriptionDto>() : obj.EventSubscriptions.Select(ToProjectEventSubscriptionDto).ToList(),
             TimerDefinitions = isLinkedInstance ? new List<ProjectTimerDefinitionDto>() : obj.TimerDefinitions.Select(ToProjectTimerDefinitionDto).ToList(),
             SequenceDefinitions = persistedLinkedBaseObjectId.HasValue
@@ -4769,6 +4808,9 @@ public sealed class JsonExportService : IJsonExportService
             IgnoredValidationRuleIds = (obj.IgnoredValidationRuleIds ?? new List<string>()).ToList(),
             SoundEffectLibraryEntries = (obj.SoundEffectLibraryEntries ?? new List<SoundEffectLibraryEntryDto>())
                 .Select(ToSoundEffectLibraryEntryModel)
+                .ToList(),
+            SoundEmitters = (obj.SoundEmitters ?? new List<ObjectSoundEmitterDto>())
+                .Select(ToObjectSoundEmitterModel)
                 .ToList(),
             EventSubscriptions = (obj.EventSubscriptions ?? new List<ProjectEventSubscriptionDto>())
                 .Select(ToEventSubscriptionModel)
@@ -6203,6 +6245,7 @@ public sealed class JsonExportService : IJsonExportService
                     resolveSoundAssetRef,
                     $"object:{objectIdentity}:sound:{(entry.SoundEffectId == Guid.Empty ? entry.SoundEffectKey : entry.SoundEffectId.ToString("D"))}"))
                 .ToList()),
+            SoundEmitters = NullIfEmpty(effectiveDefinitionOwnedSource.SoundEmitters.Select(ToRuntimeObjectSoundEmitterDto).ToList()),
             AvailableGameActions = NullIfEmpty((obj.LinkActionsToBaseObject || obj.LinkedBaseObjectId.HasValue)
                 ? new List<RuntimeCommandActionDto>()
                 : ToCleanCommandActionDtos(obj.AvailableActions, linkedActionLookup)
@@ -6360,6 +6403,9 @@ public sealed class JsonExportService : IJsonExportService
             RepeatCount = repeatCount,
             StartDelayMs = entry.StartDelayMs,
             RepeatIntervalMs = repeatIntervalMs,
+            RepeatIntervalMinMs = entry.RepeatIntervalMinMs,
+            RepeatIntervalMaxMs = entry.RepeatIntervalMaxMs,
+            MaxInRoomDistancePixels = entry.MaxInRoomDistancePixels,
             DurationMs = entry.DurationMs,
             MaxPlayDurationMs = entry.MaxPlayDurationMs,
             RepeatDurationMs = repeatDurationMs,
@@ -6368,6 +6414,38 @@ public sealed class JsonExportService : IJsonExportService
             ConcurrencyGroupImportance = entry.ConcurrencyGroupImportance,
             Importance = entry.Importance
         };
+    }
+
+    private static ObjectSoundEmitterDto ToObjectSoundEmitterDto(ObjectSoundEmitter emitter) => new()
+    {
+        EmitterId = emitter.EmitterId == Guid.Empty ? Guid.NewGuid() : emitter.EmitterId,
+        SoundEffectId = emitter.SoundEffectId,
+        ActivationGamePropertyId = emitter.ActivationGamePropertyId,
+        ActiveInRoom = emitter.ActiveInRoom,
+        ActiveOutOfRoom = emitter.ActiveOutOfRoom
+    };
+
+    private static RuntimeObjectSoundEmitterDto ToRuntimeObjectSoundEmitterDto(ObjectSoundEmitter emitter) => new()
+    {
+        EmitterId = emitter.EmitterId == Guid.Empty ? Guid.NewGuid() : emitter.EmitterId,
+        SoundEffectId = emitter.SoundEffectId,
+        ActivationGamePropertyId = emitter.ActivationGamePropertyId,
+        ActiveInRoom = emitter.ActiveInRoom,
+        ActiveOutOfRoom = emitter.ActiveOutOfRoom
+    };
+
+    private static ObjectSoundEmitter ToObjectSoundEmitterModel(ObjectSoundEmitterDto emitter) => new()
+    {
+        EmitterId = emitter.EmitterId == Guid.Empty ? Guid.NewGuid() : emitter.EmitterId,
+        SoundEffectId = emitter.SoundEffectId,
+        ActivationGamePropertyId = emitter.ActivationGamePropertyId,
+        ActiveInRoom = emitter.ActiveInRoom,
+        ActiveOutOfRoom = emitter.ActiveOutOfRoom
+    };
+
+    private static double? NormalizePercent(double? value)
+    {
+        return value is null ? null : Math.Clamp(double.IsFinite(value.Value) ? value.Value : 0d, 0d, 100d);
     }
 
     private static RuntimeSoundEffectLibraryEntryDto ToCleanSoundEffectLibraryEntryDto(
@@ -6410,6 +6488,9 @@ public sealed class JsonExportService : IJsonExportService
             RepeatCount = repeatCount,
             StartDelayMs = entry.StartDelayMs,
             RepeatIntervalMs = repeatIntervalMs,
+            RepeatIntervalMinMs = entry.RepeatIntervalMinMs,
+            RepeatIntervalMaxMs = entry.RepeatIntervalMaxMs,
+            MaxInRoomDistancePixels = entry.MaxInRoomDistancePixels,
             DurationMs = entry.DurationMs,
             MaxPlayDurationMs = entry.MaxPlayDurationMs,
             RepeatDurationMs = repeatDurationMs,
@@ -7043,6 +7124,9 @@ public sealed class JsonExportService : IJsonExportService
             RepeatCount = dto.RepeatCount,
             StartDelayMs = dto.StartDelayMs,
             RepeatIntervalMs = dto.RepeatIntervalMs,
+            RepeatIntervalMinMs = dto.RepeatIntervalMinMs,
+            RepeatIntervalMaxMs = dto.RepeatIntervalMaxMs,
+            MaxInRoomDistancePixels = dto.MaxInRoomDistancePixels,
             DurationMs = dto.DurationMs,
             MaxPlayDurationMs = dto.MaxPlayDurationMs,
             RepeatDurationMs = dto.RepeatDurationMs,

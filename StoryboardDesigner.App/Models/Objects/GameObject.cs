@@ -1094,6 +1094,7 @@ public sealed class GameObject : ScopeNodeBase, INotifyPropertyChanged
     public List<DirectionalTraversalMapping> AdditionalDirectionalTraversalMappings { get; set; } = new();
     public List<CommandAction> AvailableActions { get; set; } = new();
     public List<SoundEffectLibraryEntry> SoundEffectLibraryEntries { get; set; } = new();
+    public List<ObjectSoundEmitter> SoundEmitters { get; set; } = new();
     public List<Guid> ProcedureIds { get; set; } = new();
     public Guid ObjectId { get; set; } = Guid.NewGuid();
     public Guid CompositeRecipeId { get; set; } = Guid.Empty;

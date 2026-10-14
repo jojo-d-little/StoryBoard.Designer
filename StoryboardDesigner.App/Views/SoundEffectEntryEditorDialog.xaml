@@ -32,6 +32,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="190" />
@@ -127,6 +128,9 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="190" />
@@ -144,14 +148,41 @@
                     <TextBlock x:Name="RepeatCountLabel" Grid.Row="1" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Repeat Count" />
                     <TextBox x:Name="RepeatCountTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" />
 
-                    <TextBlock x:Name="RepeatIntervalLabel" Grid.Row="2" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Repeat Interval (ms)" />
-                    <TextBox x:Name="RepeatIntervalMsTextBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,10" />
+                    <TextBlock x:Name="RepeatTimingTypeLabel" Grid.Row="2" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Repeat Timing" />
+                    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,10">
+                        <RadioButton x:Name="NoRepeatTimingRadioButton"
+                                     GroupName="RepeatTiming"
+                                     Content="No interval"
+                                     Margin="0,0,20,0"
+                                     ToolTip="Do not set an interval between repeats."
+                                     Checked="RepeatTiming_OnChecked" />
+                        <RadioButton x:Name="FixedRepeatTimingRadioButton"
+                                     GroupName="RepeatTiming"
+                                     Content="Fixed delay"
+                                     Margin="0,0,20,0"
+                                     ToolTip="Use the same delay after every repeat."
+                                     Checked="RepeatTiming_OnChecked" />
+                        <RadioButton x:Name="RandomRepeatTimingRadioButton"
+                                     GroupName="RepeatTiming"
+                                     Content="Randomized delay"
+                                     ToolTip="Choose a new delay between the minimum and maximum for each repeat."
+                                     Checked="RepeatTiming_OnChecked" />
+                    </StackPanel>
 
-                    <TextBlock x:Name="RepeatDurationLabel" Grid.Row="3" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Repeat Duration (ms)" />
-                    <TextBox x:Name="RepeatDurationMsTextBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,10" />
+                    <TextBlock x:Name="RepeatIntervalLabel" Grid.Row="3" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Fixed Interval (ms)" />
+                    <TextBox x:Name="RepeatIntervalMsTextBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,10" />
 
-                    <TextBlock x:Name="RepeatCooldownLabel" Grid.Row="4" Grid.Column="0" Margin="0,0,10,0" VerticalAlignment="Center" Text="Repeat Cooldown (ms)" />
-                    <TextBox x:Name="RepeatCooldownMsTextBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,0" />
+                    <TextBlock x:Name="RepeatIntervalMinLabel" Grid.Row="4" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Random Interval Min (ms)" />
+                    <TextBox x:Name="RepeatIntervalMinMsTextBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,10" />
+
+                    <TextBlock x:Name="RepeatIntervalMaxLabel" Grid.Row="5" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Random Interval Max (ms)" />
+                    <TextBox x:Name="RepeatIntervalMaxMsTextBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,10" />
+
+                    <TextBlock x:Name="RepeatDurationLabel" Grid.Row="6" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Repeat Duration (ms)" />
+                    <TextBox x:Name="RepeatDurationMsTextBox" Grid.Row="6" Grid.Column="1" Margin="0,0,0,10" />
+
+                    <TextBlock x:Name="RepeatCooldownLabel" Grid.Row="7" Grid.Column="0" Margin="0,0,10,0" VerticalAlignment="Center" Text="Repeat Cooldown (ms)" />
+                    <TextBox x:Name="RepeatCooldownMsTextBox" Grid.Row="7" Grid.Column="1" Margin="0,0,0,0" />
                 </Grid>
             </Border>
 
@@ -164,7 +195,10 @@
             <TextBlock Grid.Row="19" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Importance" />
             <TextBox x:Name="ImportanceTextBox" Grid.Row="19" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,10" />
 
-            <StackPanel Grid.Row="20" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <TextBlock Grid.Row="20" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Max In-Room Distance (px)" />
+            <TextBox x:Name="MaxInRoomDistancePixelsTextBox" Grid.Row="20" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,10" ToolTip="Optional spatial emitter distance limit. Leave blank for no distance falloff." />
+
+            <StackPanel Grid.Row="21" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
                 <Button Width="100" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
                 <Button Width="100" Content="Cancel" Click="Cancel_OnClick" />
             </StackPanel>

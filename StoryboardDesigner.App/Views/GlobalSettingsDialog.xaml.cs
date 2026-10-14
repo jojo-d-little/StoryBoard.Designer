@@ -42,6 +42,9 @@ public partial class GlobalSettingsDialog : Window
             ?? new RoomAmbientLighting { Ambient = 1, AmbientColor = "#FFFFFF" };
         SetDefaultRoomAmbientIntensity(_defaultRoomAmbientLighting.Ambient ?? 1);
         SetDefaultRoomAmbientColor(_defaultRoomAmbientLighting.AmbientColor ?? "#FFFFFF");
+        IndoorSoundLossPercentTextBox.Text = (initialValues.RoomSoundLossDefaults?.IndoorSoundLossPercent ?? 0).ToString(CultureInfo.InvariantCulture);
+        OutdoorSoundLossPercentTextBox.Text = (initialValues.RoomSoundLossDefaults?.OutdoorSoundLossPercent ?? 0).ToString(CultureInfo.InvariantCulture);
+        OpenSpaceSoundLossPercentPerCellTextBox.Text = (initialValues.RoomSoundLossDefaults?.OpenSpaceSoundLossPercentPerCell ?? 0).ToString(CultureInfo.InvariantCulture);
         RefreshLightingSummary();
         _gameDisplayName = initialValues.GameDisplayName?.Trim() ?? string.Empty;
         _gameSummary = initialValues.GameSummary?.Trim() ?? string.Empty;
@@ -77,6 +80,12 @@ public partial class GlobalSettingsDialog : Window
                 {
                     Ambient = double.TryParse(DefaultRoomAmbientIntensityTextBox.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var ambient) ? ambient : null,
                     AmbientColor = DefaultRoomAmbientColorHexTextBox.Text.Trim()
+                },
+                new RoomSoundLossDefaults
+                {
+                    IndoorSoundLossPercent = TryParseSoundLossPercent(IndoorSoundLossPercentTextBox.Text, out var indoorSoundLoss) ? indoorSoundLoss : -1,
+                    OutdoorSoundLossPercent = TryParseSoundLossPercent(OutdoorSoundLossPercentTextBox.Text, out var outdoorSoundLoss) ? outdoorSoundLoss : -1,
+                    OpenSpaceSoundLossPercentPerCell = TryParseSoundLossPercent(OpenSpaceSoundLossPercentPerCellTextBox.Text, out var openSpaceSoundLoss) ? openSpaceSoundLoss : -1
                 });
         }
     }
@@ -121,6 +130,14 @@ public partial class GlobalSettingsDialog : Window
             return;
         }
 
+        if (!TryParseSoundLossPercent(IndoorSoundLossPercentTextBox.Text, out _)
+            || !TryParseSoundLossPercent(OutdoorSoundLossPercentTextBox.Text, out _)
+            || !TryParseSoundLossPercent(OpenSpaceSoundLossPercentPerCellTextBox.Text, out _))
+        {
+            System.Windows.MessageBox.Show(this, "Indoor, outdoor, and open-space sound loss must each be a number from 0 to 100 percent.", "Global Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         if (!double.TryParse(DefaultRoomAmbientIntensityTextBox.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var roomAmbient)
             || !double.IsFinite(roomAmbient)
             || roomAmbient < 0
@@ -144,6 +161,10 @@ public partial class GlobalSettingsDialog : Window
 
         DialogResult = true;
     }
+
+    private static bool TryParseSoundLossPercent(string? text, out double value) =>
+        double.TryParse(text?.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value)
+        && double.IsFinite(value) && value is >= 0 and <= 100;
 
     private void RoomCanvasDimensionTextBox_OnTextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
@@ -402,6 +423,9 @@ public partial class GlobalSettingsDialog : Window
             RepeatCount = source.RepeatCount,
             StartDelayMs = source.StartDelayMs,
             RepeatIntervalMs = source.RepeatIntervalMs,
+            RepeatIntervalMinMs = source.RepeatIntervalMinMs,
+            RepeatIntervalMaxMs = source.RepeatIntervalMaxMs,
+            MaxInRoomDistancePixels = source.MaxInRoomDistancePixels,
             DurationMs = source.DurationMs,
             MaxPlayDurationMs = source.MaxPlayDurationMs,
             RepeatDurationMs = source.RepeatDurationMs,

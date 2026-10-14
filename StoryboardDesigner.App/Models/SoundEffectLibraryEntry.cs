@@ -16,6 +16,9 @@ public sealed class SoundEffectLibraryEntry
     public int? RepeatCount { get; set; }
     public int? StartDelayMs { get; set; }
     public int? RepeatIntervalMs { get; set; }
+    public int? RepeatIntervalMinMs { get; set; }
+    public int? RepeatIntervalMaxMs { get; set; }
+    public double? MaxInRoomDistancePixels { get; set; }
     public int? DurationMs { get; set; }
     public int? MaxPlayDurationMs { get; set; }
     public int? RepeatDurationMs { get; set; }

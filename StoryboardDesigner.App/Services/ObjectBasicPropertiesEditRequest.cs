@@ -70,4 +70,7 @@ public sealed record ObjectBasicPropertiesEditRequest(
     PointLightDefaults? PointLightDefaults = null,
     bool HideContainedObjects = true,
     bool? ShowWhenContained = null,
-    double ImageTransparency = 0);
+    double ImageTransparency = 0,
+    IReadOnlyList<ObjectSoundEmitter>? SoundEmitters = null,
+    IReadOnlyList<SoundEffectChoiceItem>? SoundEffectChoices = null,
+    IReadOnlyList<GamePropertyDefinition>? SoundEmitterActivationProperties = null);

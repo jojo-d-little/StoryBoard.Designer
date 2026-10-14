@@ -3983,6 +3983,27 @@ public sealed partial class MainWindowViewModel
         return true;
     }
 
+    private static ObjectSoundEmitter CloneObjectSoundEmitter(ObjectSoundEmitter emitter) => new()
+    {
+        EmitterId = emitter.EmitterId,
+        SoundEffectId = emitter.SoundEffectId,
+        ActivationGamePropertyId = emitter.ActivationGamePropertyId,
+        ActiveInRoom = emitter.ActiveInRoom,
+        ActiveOutOfRoom = emitter.ActiveOutOfRoom
+    };
+
+    private static bool AreObjectSoundEmittersEquivalent(
+        IReadOnlyList<ObjectSoundEmitter> left,
+        IReadOnlyList<ObjectSoundEmitter> right)
+    {
+        return left.Count == right.Count && left.Zip(right).All(static pair =>
+            pair.First.EmitterId == pair.Second.EmitterId
+            && pair.First.SoundEffectId == pair.Second.SoundEffectId
+            && pair.First.ActivationGamePropertyId == pair.Second.ActivationGamePropertyId
+            && pair.First.ActiveInRoom == pair.Second.ActiveInRoom
+            && pair.First.ActiveOutOfRoom == pair.Second.ActiveOutOfRoom);
+    }
+
     private bool AddScopedSoundEffectForNode(HierarchyNodeViewModel node)
     {
         if (TryResolveLockedDefinitionOwnedTokenScopeMessage(node, "Sound Effects", out var lockedMessage))
@@ -8206,7 +8227,8 @@ public sealed partial class MainWindowViewModel
             _project.GameSummary,
             _project.GamePreviewImages.ToList(),
             LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults),
-            LightingModelCloner.CloneRoomAmbientLighting(_project.DefaultRoomAmbientLighting));
+            LightingModelCloner.CloneRoomAmbientLighting(_project.DefaultRoomAmbientLighting),
+            CloneRoomSoundLossDefaults(_project.RoomSoundLossDefaults));
 
         var startingPlanetOptions = _project.Planets
             .Select(planet => planet.Name)
@@ -8257,6 +8279,7 @@ public sealed partial class MainWindowViewModel
                          || !AreStringListsEquivalent(_project.GamePreviewImages, updated.GamePreviewImages)
                          || !ArePointLightDefaultsEquivalent(_project.PointLightDefaults, updated.PointLightDefaults)
                          || !AreRoomAmbientLightingEquivalent(_project.DefaultRoomAmbientLighting, updated.DefaultRoomAmbientLighting)
+                         || !AreRoomSoundLossDefaultsEquivalent(_project.RoomSoundLossDefaults, updated.RoomSoundLossDefaults)
                          || !AreSoundEffectLibraryEntriesEquivalent(_project.GlobalScope.SoundEffectLibraryEntries, updatedSoundEffectLibraryEntries);
 
         if (!hasChanges)
@@ -8277,6 +8300,7 @@ public sealed partial class MainWindowViewModel
         _project.GamePreviewImages = NormalizePreviewImagePaths(updated.GamePreviewImages);
         _project.PointLightDefaults = LightingModelCloner.ClonePointLightDefaults(updated.PointLightDefaults);
         _project.DefaultRoomAmbientLighting = LightingModelCloner.CloneRoomAmbientLighting(updated.DefaultRoomAmbientLighting);
+        _project.RoomSoundLossDefaults = CloneRoomSoundLossDefaults(updated.RoomSoundLossDefaults);
         _project.GlobalScope.SoundEffectLibraryEntries = updatedSoundEffectLibraryEntries
             .Select(CloneSoundEffectLibraryEntry)
             .ToList();
@@ -8294,6 +8318,23 @@ public sealed partial class MainWindowViewModel
         SelectedNode = projectNode;
         ExportStatus = "Updated global settings.";
         return true;
+    }
+
+    private static RoomSoundLossDefaults? CloneRoomSoundLossDefaults(RoomSoundLossDefaults? value) => value is null
+        ? null
+        : new RoomSoundLossDefaults
+        {
+            IndoorSoundLossPercent = value.IndoorSoundLossPercent,
+            OutdoorSoundLossPercent = value.OutdoorSoundLossPercent,
+            OpenSpaceSoundLossPercentPerCell = value.OpenSpaceSoundLossPercentPerCell
+        };
+
+    private static bool AreRoomSoundLossDefaultsEquivalent(RoomSoundLossDefaults? left, RoomSoundLossDefaults? right)
+    {
+        if (left is null || right is null) return left is null && right is null;
+        return left.IndoorSoundLossPercent.Equals(right.IndoorSoundLossPercent)
+               && left.OutdoorSoundLossPercent.Equals(right.OutdoorSoundLossPercent)
+               && left.OpenSpaceSoundLossPercentPerCell.Equals(right.OpenSpaceSoundLossPercentPerCell);
     }
 
     private static bool ArePointLightDefaultsEquivalent(PointLightDefaults? left, PointLightDefaults? right)
@@ -8525,6 +8566,9 @@ public sealed partial class MainWindowViewModel
                && left.RepeatCount == right.RepeatCount
                && left.StartDelayMs == right.StartDelayMs
                && left.RepeatIntervalMs == right.RepeatIntervalMs
+               && left.RepeatIntervalMinMs == right.RepeatIntervalMinMs
+               && left.RepeatIntervalMaxMs == right.RepeatIntervalMaxMs
+               && left.MaxInRoomDistancePixels == right.MaxInRoomDistancePixels
                && left.DurationMs == right.DurationMs
                && left.MaxPlayDurationMs == right.MaxPlayDurationMs
                && left.RepeatDurationMs == right.RepeatDurationMs
@@ -8571,6 +8615,9 @@ public sealed partial class MainWindowViewModel
             RepeatCount = source.RepeatCount,
             StartDelayMs = source.StartDelayMs,
             RepeatIntervalMs = source.RepeatIntervalMs,
+            RepeatIntervalMinMs = source.RepeatIntervalMinMs,
+            RepeatIntervalMaxMs = source.RepeatIntervalMaxMs,
+            MaxInRoomDistancePixels = source.MaxInRoomDistancePixels,
             DurationMs = source.DurationMs,
             MaxPlayDurationMs = source.MaxPlayDurationMs,
             RepeatDurationMs = source.RepeatDurationMs,
@@ -8848,7 +8895,10 @@ public sealed partial class MainWindowViewModel
             ResolveEffectiveRoomCanvasHeight(roomNode.Room),
             _project.RoomDesignerGridCellSize,
             LightingModelCloner.CloneRoomAmbientLighting(roomNode.Room.AmbientLighting),
-            SerializeObjectNameSynonyms(roomNode.Room.NameSynonyms));
+            SerializeObjectNameSynonyms(roomNode.Room.NameSynonyms),
+            roomNode.Room.SpawnPoint,
+            roomNode.Room.EnvironmentType,
+            roomNode.Room.SoundLossPercentOverride);
 
         if (!_treeContextInteractionService.TryEditRoomSettings(current, out var updated))
         {
@@ -8863,7 +8913,10 @@ public sealed partial class MainWindowViewModel
                          || !string.Equals(roomNode.Room.ProducerNotes, updated.ProducerNotes, StringComparison.Ordinal)
                          || roomNode.Room.RoomImageCanvasWidth != updated.RoomCanvasWidth
                          || roomNode.Room.RoomImageCanvasHeight != updated.RoomCanvasHeight
-                         || !AreRoomAmbientLightingEquivalent(roomNode.Room.AmbientLighting, updated.AmbientLighting);
+                         || !AreRoomAmbientLightingEquivalent(roomNode.Room.AmbientLighting, updated.AmbientLighting)
+                         || roomNode.Room.SpawnPoint != updated.SpawnPoint
+                         || roomNode.Room.EnvironmentType != updated.EnvironmentType
+                         || roomNode.Room.SoundLossPercentOverride != updated.SoundLossPercentOverride;
 
         if (!hasChanges)
         {
@@ -8877,6 +8930,9 @@ public sealed partial class MainWindowViewModel
         roomNode.Room.RoomImageCanvasWidth = updated.RoomCanvasWidth;
         roomNode.Room.RoomImageCanvasHeight = updated.RoomCanvasHeight;
         roomNode.Room.AmbientLighting = LightingModelCloner.CloneRoomAmbientLighting(updated.AmbientLighting);
+        roomNode.Room.SpawnPoint = updated.SpawnPoint;
+        roomNode.Room.EnvironmentType = updated.EnvironmentType;
+        roomNode.Room.SoundLossPercentOverride = updated.SoundLossPercentOverride;
         RefreshScopedNameIndex(area.Rooms, static room => room.Name);
 
         foreach (var editor in OpenRoomEditors.Where(tab => ReferenceEquals(tab.Room, roomNode.Room) || tab.Room.Id == roomNode.Room.Id))
@@ -8907,7 +8963,10 @@ public sealed partial class MainWindowViewModel
             ResolveEffectiveRoomCanvasHeight(templateRoomNode.Room),
             _project.RoomDesignerGridCellSize,
             LightingModelCloner.CloneRoomAmbientLighting(templateRoomNode.Room.AmbientLighting),
-            SerializeObjectNameSynonyms(templateRoomNode.Room.NameSynonyms));
+            SerializeObjectNameSynonyms(templateRoomNode.Room.NameSynonyms),
+            templateRoomNode.Room.SpawnPoint,
+            templateRoomNode.Room.EnvironmentType,
+            templateRoomNode.Room.SoundLossPercentOverride);
 
         if (!_treeContextInteractionService.TryEditRoomSettings(current, out var updated))
         {
@@ -8921,7 +8980,10 @@ public sealed partial class MainWindowViewModel
                          || !string.Equals(templateRoomNode.Room.ProducerNotes, updated.ProducerNotes, StringComparison.Ordinal)
                          || templateRoomNode.Room.RoomImageCanvasWidth != updated.RoomCanvasWidth
                          || templateRoomNode.Room.RoomImageCanvasHeight != updated.RoomCanvasHeight
-                         || !AreRoomAmbientLightingEquivalent(templateRoomNode.Room.AmbientLighting, updated.AmbientLighting);
+                         || !AreRoomAmbientLightingEquivalent(templateRoomNode.Room.AmbientLighting, updated.AmbientLighting)
+                         || templateRoomNode.Room.SpawnPoint != updated.SpawnPoint
+                         || templateRoomNode.Room.EnvironmentType != updated.EnvironmentType
+                         || templateRoomNode.Room.SoundLossPercentOverride != updated.SoundLossPercentOverride;
 
         if (!hasChanges)
         {
@@ -8935,6 +8997,9 @@ public sealed partial class MainWindowViewModel
         templateRoomNode.Room.RoomImageCanvasWidth = updated.RoomCanvasWidth;
         templateRoomNode.Room.RoomImageCanvasHeight = updated.RoomCanvasHeight;
         templateRoomNode.Room.AmbientLighting = LightingModelCloner.CloneRoomAmbientLighting(updated.AmbientLighting);
+        templateRoomNode.Room.SpawnPoint = updated.SpawnPoint;
+        templateRoomNode.Room.EnvironmentType = updated.EnvironmentType;
+        templateRoomNode.Room.SoundLossPercentOverride = updated.SoundLossPercentOverride;
         RefreshScopedNameIndex(_project.RoomTemplates, static room => room.Name);
 
         NotifyProjectEdited();
@@ -9066,6 +9131,7 @@ public sealed partial class MainWindowViewModel
                          || !AreEquivalentPointLight(objectNode.GameObject.PointLight, updated.PointLight)
                          || !AreEquivalentLightOcclusion(objectNode.GameObject.LightOcclusion, updated.LightOcclusion)
                          || objectNode.GameObject.IsPointLightEnabledDefaultValue != updated.IsPointLightEnabledDefaultValue
+                         || (linkedDefinition is null && !AreObjectSoundEmittersEquivalent(objectNode.GameObject.SoundEmitters, updated.SoundEmitters ?? objectNode.GameObject.SoundEmitters))
                          || hasDescriptionOverrideChange;
 
         if (!hasChanges)
@@ -9142,6 +9208,10 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.PointLight = LightingModelCloner.ClonePointLight(updated.PointLight);
         objectNode.GameObject.LightOcclusion = LightingModelCloner.CloneLightOcclusion(updated.LightOcclusion);
         objectNode.GameObject.IsPointLightEnabledDefaultValue = updated.IsPointLightEnabledDefaultValue;
+        if (linkedDefinition is null && updated.SoundEmitters is not null)
+        {
+            objectNode.GameObject.SoundEmitters = updated.SoundEmitters.Select(CloneObjectSoundEmitter).ToList();
+        }
         var addedInstanceCount = 0;
         if (shouldExpandIndividualInstances)
         {
@@ -9292,6 +9362,7 @@ public sealed partial class MainWindowViewModel
             ImageRotationDegrees = instance.ImageRotationDegrees,
             ImageVariants = settings.ImageVariants,
             ImageVariantChooserScript = settings.ImageVariantChooserScript,
+            SoundEmitters = settings.SoundEmitters.Select(CloneObjectSoundEmitter).ToList(),
             LockOperationRequirements = CloneLockOperationRequirements(settings.LockOperationRequirements)
         };
     }
@@ -9386,7 +9457,10 @@ public sealed partial class MainWindowViewModel
                 IsPointLightEnabledDefaultValue: gameObject.IsPointLightEnabledDefaultValue,
                 PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults),
                 HideContainedObjects: gameObject.HideContainedObjects,
-                ShowWhenContained: gameObject.ShowWhenContained);
+                ShowWhenContained: gameObject.ShowWhenContained,
+                SoundEmitters: gameObject.SoundEmitters.Select(CloneObjectSoundEmitter).ToList(),
+                SoundEffectChoices: GetSoundEffectChoicesForScopeNode(gameObject),
+                SoundEmitterActivationProperties: gameObject.Variables.ToList());
         }
 
         return new ObjectBasicPropertiesEditRequest(
@@ -9450,7 +9524,10 @@ public sealed partial class MainWindowViewModel
             IsPointLightEnabledDefaultValue: gameObject.IsPointLightEnabledDefaultValue,
             PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults),
             HideContainedObjects: gameObject.HideContainedObjects,
-            ShowWhenContained: gameObject.ShowWhenContained);
+            ShowWhenContained: gameObject.ShowWhenContained,
+            SoundEmitters: gameObject.SoundEmitters.Select(CloneObjectSoundEmitter).ToList(),
+            SoundEffectChoices: GetSoundEffectChoicesForScopeNode(gameObject),
+            SoundEmitterActivationProperties: gameObject.Variables.ToList());
     }
 
     private static bool AreEquivalentImageVariants(IReadOnlyList<ObjectImageVariant>? left, IReadOnlyList<ObjectImageVariant>? right)
@@ -9800,6 +9877,7 @@ public sealed partial class MainWindowViewModel
                          || Math.Abs(objectNode.GameObject.ImageRotationDegrees - updated.ImageRotationDegrees) > 0.0001
                          || !AreEquivalentImageVariants(objectNode.GameObject.ImageVariants, updated.ImageVariants)
                          || !string.Equals(objectNode.GameObject.ImageVariantChooserScript, updated.ImageVariantChooserScript, StringComparison.Ordinal)
+                         || (linkedDefinition is null && updated.SoundEmitters is not null && !AreObjectSoundEmittersEquivalent(objectNode.GameObject.SoundEmitters, updated.SoundEmitters))
                          || hasDescriptionOverrideChange;
 
         if (!hasChanges)
@@ -9864,6 +9942,10 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.ImageRotationDegrees = updated.ImageRotationDegrees;
         objectNode.GameObject.ImageVariants = NormalizeObjectImageVariantsForModel(updated.ImageVariants, updated.FullImagePath);
         objectNode.GameObject.ImageVariantChooserScript = updated.ImageVariantChooserScript?.Trim() ?? string.Empty;
+        if (linkedDefinition is null && updated.SoundEmitters is not null)
+        {
+            objectNode.GameObject.SoundEmitters = updated.SoundEmitters.Select(CloneObjectSoundEmitter).ToList();
+        }
         objectNode.GameObject.LockOperationRequirements = CloneLockOperationRequirements(updated.LockOperationRequirements);
         RefreshScopedNameIndex(scopedObjects, static obj => obj.Name);
 
@@ -9958,7 +10040,10 @@ public sealed partial class MainWindowViewModel
             IsPointLightEnabledDefaultValue: objectNode.GameObject.IsPointLightEnabledDefaultValue,
             PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults),
             HideContainedObjects: objectNode.GameObject.HideContainedObjects,
-            ShowWhenContained: objectNode.GameObject.ShowWhenContained);
+            ShowWhenContained: objectNode.GameObject.ShowWhenContained,
+            SoundEmitters: objectNode.GameObject.SoundEmitters.Select(CloneObjectSoundEmitter).ToList(),
+            SoundEffectChoices: GetSoundEffectChoicesForScopeNode(objectNode.GameObject),
+            SoundEmitterActivationProperties: objectNode.GameObject.Variables.ToList());
 
         if (linkedDefinition is not null)
         {
@@ -10052,6 +10137,7 @@ public sealed partial class MainWindowViewModel
                          || !AreEquivalentPointLight(objectNode.GameObject.PointLight, updated.PointLight)
                          || !AreEquivalentLightOcclusion(objectNode.GameObject.LightOcclusion, updated.LightOcclusion)
                          || objectNode.GameObject.IsPointLightEnabledDefaultValue != updated.IsPointLightEnabledDefaultValue
+                         || (linkedDefinition is null && updated.SoundEmitters is not null && !AreObjectSoundEmittersEquivalent(objectNode.GameObject.SoundEmitters, updated.SoundEmitters))
                          || hasDescriptionOverrideChange;
 
         if (!hasChanges)
@@ -10120,6 +10206,10 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.PointLight = LightingModelCloner.ClonePointLight(updated.PointLight);
         objectNode.GameObject.LightOcclusion = LightingModelCloner.CloneLightOcclusion(updated.LightOcclusion);
         objectNode.GameObject.IsPointLightEnabledDefaultValue = updated.IsPointLightEnabledDefaultValue;
+        if (linkedDefinition is null && updated.SoundEmitters is not null)
+        {
+            objectNode.GameObject.SoundEmitters = updated.SoundEmitters.Select(CloneObjectSoundEmitter).ToList();
+        }
         RefreshScopedNameIndex(scopedObjects, static obj => obj.Name);
 
         NotifyProjectEdited();
@@ -12394,6 +12484,7 @@ public sealed partial class MainWindowViewModel
             SoundEffectLibraryEntries = template.SoundEffectLibraryEntries
                 .Select(CloneSoundEffectLibraryEntry)
                 .ToList(),
+            SoundEmitters = template.SoundEmitters.Select(CloneObjectSoundEmitter).ToList(),
             AdditionalDirectionalTraversalMappings = template.AdditionalDirectionalTraversalMappings
                 .Select(mapping => new DirectionalTraversalMapping
                 {
@@ -12427,6 +12518,19 @@ public sealed partial class MainWindowViewModel
         };
 
         clone.DesignerPersistenceScopeKind = template.DesignerPersistenceScopeKind;
+        var variableIdMap = template.Variables
+            .Zip(clone.Variables)
+            .Where(static pair => pair.First.Id != Guid.Empty && pair.Second.Id != Guid.Empty)
+            .ToDictionary(static pair => pair.First.Id, static pair => pair.Second.Id);
+        foreach (var emitter in clone.SoundEmitters)
+        {
+            if (emitter.ActivationGamePropertyId is { } sourcePropertyId
+                && variableIdMap.TryGetValue(sourcePropertyId, out var clonedPropertyId))
+            {
+                emitter.ActivationGamePropertyId = clonedPropertyId;
+            }
+        }
+
         BuildObjectCloneReferenceMaps(template, clone, out var actionIds, out var soundEffectIds);
         clone.SequenceDefinitions = CloneSequenceDefinitionsWithMaps(template.SequenceDefinitions, actionIds, soundEffectIds, out var sequenceIds);
         RemapSequenceTargets(clone, sequenceIds);
@@ -12702,7 +12806,10 @@ public sealed partial class MainWindowViewModel
             ProjectRoomCanvasHeight: _project.RoomImageCanvasHeight,
             PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults),
             HideContainedObjects: target.HideContainedObjects,
-            ShowWhenContained: target.ShowWhenContained);
+                ShowWhenContained: target.ShowWhenContained,
+                SoundEmitters: target.SoundEmitters.Select(CloneObjectSoundEmitter).ToList(),
+                SoundEffectChoices: GetSoundEffectChoicesForScopeNode(target),
+                SoundEmitterActivationProperties: target.Variables.ToList());
 
         if (!_treeContextInteractionService.TryEditObjectBasicProperties(initial, out var updated))
         {
@@ -12788,6 +12895,10 @@ public sealed partial class MainWindowViewModel
         target.ImageVariants = NormalizeObjectImageVariantsForModel(updated.ImageVariants, updated.FullImagePath);
         target.ImageVariantChooserScript = updated.ImageVariantChooserScript?.Trim() ?? string.Empty;
         target.LockOperationRequirements = CloneLockOperationRequirements(updated.LockOperationRequirements);
+        if (updated.SoundEmitters is not null)
+        {
+            target.SoundEmitters = updated.SoundEmitters.Select(CloneObjectSoundEmitter).ToList();
+        }
     }
 
     private static List<ObjectImageVariant> NormalizeObjectImageVariantsForModel(IReadOnlyList<ObjectImageVariant>? variants, string fallbackFullImagePath, double fallbackImageScale = 1)

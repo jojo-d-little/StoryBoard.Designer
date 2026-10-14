@@ -68,6 +68,7 @@ public sealed class ProjectModel : ScopeNodeBase
 
     public PointLightDefaults? PointLightDefaults { get; set; }
     public RoomAmbientLighting? DefaultRoomAmbientLighting { get; set; }
+    public RoomSoundLossDefaults? RoomSoundLossDefaults { get; set; }
 
     public double StackScaleStepDefault
     {

@@ -45,6 +45,10 @@ public partial class RoomSettingsDialog : Window
         UpdateOrientationPresetSelection();
         UpdateEffectiveGridSummary();
         PopulateAmbientLighting(initialValues.AmbientLighting);
+        SpawnPointXTextBox.Text = initialValues.SpawnPoint?.X.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        SpawnPointYTextBox.Text = initialValues.SpawnPoint?.Y.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        EnvironmentTypeComboBox.SelectedItem = initialValues.EnvironmentType.ToString();
+        SoundLossOverrideTextBox.Text = initialValues.SoundLossPercentOverride?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
     }
 
     public RoomSettingsEditRequest Values => new(
@@ -55,7 +59,12 @@ public partial class RoomSettingsDialog : Window
         _roomCanvasHeight,
         _projectGridCellSize,
         ReadAmbientLighting(),
-        NormalizeSynonymsText(RoomNameSynonymsTextBox.Text));
+        NormalizeSynonymsText(RoomNameSynonymsTextBox.Text),
+        TryReadCoordinate(SpawnPointXTextBox.Text, out var spawnX) && TryReadCoordinate(SpawnPointYTextBox.Text, out var spawnY)
+            ? new RoomSpawnPoint(spawnX, spawnY)
+            : null,
+        Enum.TryParse<RoomEnvironmentType>(EnvironmentTypeComboBox.SelectedItem as string, out var environmentType) ? environmentType : RoomEnvironmentType.Indoor,
+        TryReadPercent(SoundLossOverrideTextBox.Text, out var soundLoss) ? soundLoss : null);
 
     private static string NormalizeSynonymsText(string? raw)
     {
@@ -111,11 +120,35 @@ public partial class RoomSettingsDialog : Window
             return;
         }
 
+        if (string.IsNullOrWhiteSpace(SpawnPointXTextBox.Text) != string.IsNullOrWhiteSpace(SpawnPointYTextBox.Text)
+            || (!string.IsNullOrWhiteSpace(SpawnPointXTextBox.Text)
+                && (!TryReadCoordinate(SpawnPointXTextBox.Text, out var spawnX)
+                    || !TryReadCoordinate(SpawnPointYTextBox.Text, out var spawnY)
+                    || spawnX < 0 || spawnX > width || spawnY < 0 || spawnY > height)))
+        {
+            MessageBox.Show(this, "Enter both spawn-point coordinates as pixels within the room bounds, or clear both fields.", "Room Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(SoundLossOverrideTextBox.Text)
+            && !TryReadPercent(SoundLossOverrideTextBox.Text, out _))
+        {
+            MessageBox.Show(this, "Sound loss must be a number from 0 to 100 percent, or left blank to inherit the project default.", "Room Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         _roomCanvasWidth = width;
         _roomCanvasHeight = height;
 
         DialogResult = true;
     }
+
+    private static bool TryReadCoordinate(string? text, out double value) =>
+        double.TryParse(text?.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
+
+    private static bool TryReadPercent(string? text, out double value) =>
+        double.TryParse(text?.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value)
+        && double.IsFinite(value) && value is >= 0 and <= 100;
 
     private void AmbientLightingEnabledCheckBox_OnChanged(object sender, RoutedEventArgs e)
     {

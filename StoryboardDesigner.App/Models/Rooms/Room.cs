@@ -12,6 +12,7 @@ public sealed class Room : ScopeNodeBase, INotifyPropertyChanged
     private string _producerNotes = string.Empty;
     private int _roomImageCanvasWidth = 800;
     private int _roomImageCanvasHeight = 600;
+    private RoomSpawnPoint? _spawnPoint;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -119,6 +120,21 @@ public sealed class Room : ScopeNodeBase, INotifyPropertyChanged
     }
 
     public RoomAmbientLighting? AmbientLighting { get; set; }
+
+    /// <summary>Optional authored pixel location for the single runtime player object.</summary>
+    public RoomSpawnPoint? SpawnPoint
+    {
+        get => _spawnPoint;
+        set
+        {
+            if (Equals(_spawnPoint, value)) return;
+            _spawnPoint = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public RoomEnvironmentType EnvironmentType { get; set; } = RoomEnvironmentType.Indoor;
+    public double? SoundLossPercentOverride { get; set; }
 
     public List<GamePropertyDefinition> Variables { get; set; } = new();
     public RuntimeRoomImageDisplayMode RoomDisplayMode { get; set; } = RuntimeRoomImageDisplayMode.Independent;

@@ -32,6 +32,7 @@ public partial class SoundEffectEntryEditorDialog : Window
     private MediaPlayer? _previewPlayer;
     private string? _previewPlayerPath;
     private readonly Action<string, string>? _previewStatusSink;
+    private bool _isInitializingRepeatTiming;
 
     internal readonly record struct RepeatModeEditorState(
         bool UsesRepeatSettings,
@@ -81,6 +82,9 @@ public partial class SoundEffectEntryEditorDialog : Window
         RepeatCountTextBox.Text = FormatNullableInt(initialEntry.RepeatCount);
         StartDelayMsTextBox.Text = FormatNullableInt(initialEntry.StartDelayMs);
         RepeatIntervalMsTextBox.Text = FormatNullableInt(initialEntry.RepeatIntervalMs);
+        RepeatIntervalMinMsTextBox.Text = FormatNullableInt(initialEntry.RepeatIntervalMinMs);
+        RepeatIntervalMaxMsTextBox.Text = FormatNullableInt(initialEntry.RepeatIntervalMaxMs);
+        MaxInRoomDistancePixelsTextBox.Text = FormatNullableDouble(initialEntry.MaxInRoomDistancePixels);
         MaxPlayDurationMsTextBox.Text = FormatNullableInt(initialEntry.MaxPlayDurationMs);
         RepeatDurationMsTextBox.Text = FormatNullableInt(initialEntry.RepeatDurationMs);
         RepeatCooldownMsTextBox.Text = FormatNullableInt(initialEntry.RepeatCooldownMs);
@@ -88,6 +92,20 @@ public partial class SoundEffectEntryEditorDialog : Window
         ConcurrencyGroupTextBox.Text = initialEntry.ConcurrencyGroup ?? string.Empty;
         ConcurrencyGroupImportanceTextBox.Text = FormatNullableInt(initialEntry.ConcurrencyGroupImportance);
         ImportanceTextBox.Text = FormatNullableInt(initialEntry.Importance);
+        _isInitializingRepeatTiming = true;
+        if (initialEntry.RepeatIntervalMs.HasValue)
+        {
+            FixedRepeatTimingRadioButton.IsChecked = true;
+        }
+        else if (initialEntry.RepeatIntervalMinMs.HasValue || initialEntry.RepeatIntervalMaxMs.HasValue)
+        {
+            RandomRepeatTimingRadioButton.IsChecked = true;
+        }
+        else
+        {
+            NoRepeatTimingRadioButton.IsChecked = true;
+        }
+        _isInitializingRepeatTiming = false;
         RefreshRepeatModeEditorState();
         ResetPreviewProgress();
         _ = RefreshAssetDurationAsync();
@@ -252,7 +270,7 @@ public partial class SoundEffectEntryEditorDialog : Window
             || !TryParseNullableInt(FadeOutMsTextBox.Text, out var fadeOutMs)
             || !TryParseNullableInt(RepeatCountTextBox.Text, out var repeatCount)
             || !TryParseNullableInt(StartDelayMsTextBox.Text, out var startDelayMs)
-            || !TryParseNullableInt(RepeatIntervalMsTextBox.Text, out var repeatIntervalMs)
+            || !TryParseNullableDouble(MaxInRoomDistancePixelsTextBox.Text, out var maxInRoomDistancePixels)
             || !TryParseNullableInt(MaxPlayDurationMsTextBox.Text, out var maxPlayDurationMs)
             || !TryParseNullableInt(RepeatDurationMsTextBox.Text, out var repeatDurationMs)
             || !TryParseNullableInt(RepeatCooldownMsTextBox.Text, out var repeatCooldownMs)
@@ -263,12 +281,53 @@ public partial class SoundEffectEntryEditorDialog : Window
             return;
         }
 
+        int? repeatIntervalMs = null;
+        int? repeatIntervalMinMs = null;
+        int? repeatIntervalMaxMs = null;
+        var usesRepeatTiming = !string.Equals(repeatMode, "None", StringComparison.OrdinalIgnoreCase);
+        if (usesRepeatTiming && FixedRepeatTimingRadioButton.IsChecked == true)
+        {
+            if (!TryParseNullableInt(RepeatIntervalMsTextBox.Text, out repeatIntervalMs) || !repeatIntervalMs.HasValue)
+            {
+                System.Windows.MessageBox.Show(this, "Enter a fixed repeat interval, or choose a different repeat timing option.", "Sound Effect Entry", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+        }
+        else if (usesRepeatTiming && RandomRepeatTimingRadioButton.IsChecked == true)
+        {
+            if (!TryParseNullableInt(RepeatIntervalMinMsTextBox.Text, out repeatIntervalMinMs)
+                || !TryParseNullableInt(RepeatIntervalMaxMsTextBox.Text, out repeatIntervalMaxMs)
+                || !repeatIntervalMinMs.HasValue
+                || !repeatIntervalMaxMs.HasValue)
+            {
+                System.Windows.MessageBox.Show(this, "Enter both minimum and maximum values for randomized repeat timing.", "Sound Effect Entry", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (repeatIntervalMinMs > repeatIntervalMaxMs)
+            {
+                System.Windows.MessageBox.Show(this, "Random interval minimum must be no greater than its maximum.", "Sound Effect Entry", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+        }
+
+        if (maxInRoomDistancePixels is <= 0)
+        {
+            System.Windows.MessageBox.Show(this, "Maximum in-room distance must be greater than zero, or left blank.", "Sound Effect Entry", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         NormalizeRepeatFieldsForSave(
             repeatMode,
             ref repeatCount,
             ref repeatDurationMs,
             ref repeatIntervalMs,
             ref repeatCooldownMs);
+        if (!usesRepeatTiming)
+        {
+            repeatIntervalMinMs = null;
+            repeatIntervalMaxMs = null;
+        }
 
         Entry = new SoundEffectLibraryEntry
         {
@@ -286,6 +345,9 @@ public partial class SoundEffectEntryEditorDialog : Window
             RepeatCount = repeatCount,
             StartDelayMs = startDelayMs,
             RepeatIntervalMs = repeatIntervalMs,
+            RepeatIntervalMinMs = repeatIntervalMinMs,
+            RepeatIntervalMaxMs = repeatIntervalMaxMs,
+            MaxInRoomDistancePixels = maxInRoomDistancePixels,
             DurationMs = ResolveDurationMsForPersistence(assetRef),
             MaxPlayDurationMs = maxPlayDurationMs,
             RepeatDurationMs = repeatDurationMs,
@@ -414,9 +476,31 @@ public partial class SoundEffectEntryEditorDialog : Window
         RepeatSettingsBorder.Opacity = state.UsesRepeatSettings ? 1.0 : 0.65;
 
         SetRepeatFieldState(RepeatCountLabel, RepeatCountTextBox, state.UsesCount);
-        SetRepeatFieldState(RepeatIntervalLabel, RepeatIntervalMsTextBox, state.UsesIntervalAndCooldown);
         SetRepeatFieldState(RepeatDurationLabel, RepeatDurationMsTextBox, state.UsesDuration);
         SetRepeatFieldState(RepeatCooldownLabel, RepeatCooldownMsTextBox, state.UsesIntervalAndCooldown);
+        RepeatTimingTypeLabel.IsEnabled = state.UsesIntervalAndCooldown;
+        NoRepeatTimingRadioButton.IsEnabled = state.UsesIntervalAndCooldown;
+        FixedRepeatTimingRadioButton.IsEnabled = state.UsesIntervalAndCooldown;
+        RandomRepeatTimingRadioButton.IsEnabled = state.UsesIntervalAndCooldown;
+        RefreshRepeatTimingFieldState(state.UsesIntervalAndCooldown);
+    }
+
+    private void RepeatTiming_OnChecked(object sender, RoutedEventArgs e)
+    {
+        if (!_isInitializingRepeatTiming)
+        {
+            var state = ResolveRepeatModeEditorState(RepeatModeComboBox.SelectedItem as string);
+            RefreshRepeatTimingFieldState(state.UsesIntervalAndCooldown);
+        }
+    }
+
+    private void RefreshRepeatTimingFieldState(bool usesRepeatSettings)
+    {
+        var usesFixedInterval = usesRepeatSettings && FixedRepeatTimingRadioButton.IsChecked == true;
+        var usesRandomInterval = usesRepeatSettings && RandomRepeatTimingRadioButton.IsChecked == true;
+        SetRepeatFieldState(RepeatIntervalLabel, RepeatIntervalMsTextBox, usesFixedInterval);
+        SetRepeatFieldState(RepeatIntervalMinLabel, RepeatIntervalMinMsTextBox, usesRandomInterval);
+        SetRepeatFieldState(RepeatIntervalMaxLabel, RepeatIntervalMaxMsTextBox, usesRandomInterval);
     }
 
     internal static RepeatModeEditorState ResolveRepeatModeEditorState(string? repeatMode)

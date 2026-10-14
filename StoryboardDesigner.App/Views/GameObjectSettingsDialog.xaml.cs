@@ -14,6 +14,9 @@ public partial class GameObjectSettingsDialog : Window
 {
     private readonly IReadOnlyList<GameObjectSelectionOption> _availableCompositePartOptions;
     private readonly IReadOnlyList<GameObjectSelectionOption> _availableLockKeyOptions;
+    private readonly IReadOnlyList<SoundEffectChoiceItem> _soundEffectChoices;
+    private readonly IReadOnlyList<GamePropertyDefinition> _soundEmitterActivationProperties;
+    private List<ObjectSoundEmitter> _soundEmitters;
     private string _fullImagePath = string.Empty;
     private double _imageRotationDegrees;
     private List<ObjectImageVariant> _imageVariants = new();
@@ -106,6 +109,10 @@ public partial class GameObjectSettingsDialog : Window
         _projectRoomCanvasHeight = initialValues.ProjectRoomCanvasHeight > 0 ? initialValues.ProjectRoomCanvasHeight : 600;
         _availableCompositePartOptions = initialValues.AvailableCompositePartOptions ?? Array.Empty<GameObjectSelectionOption>();
         _availableLockKeyOptions = initialValues.AvailableLockKeyOptions ?? _availableCompositePartOptions;
+        _soundEffectChoices = initialValues.SoundEffectChoices ?? Array.Empty<SoundEffectChoiceItem>();
+        _soundEmitterActivationProperties = initialValues.SoundEmitterActivationProperties ?? Array.Empty<GamePropertyDefinition>();
+        _soundEmitters = CloneSoundEmitters(initialValues.SoundEmitters);
+        ManageSoundEffectsButton.Visibility = initialValues.SoundEffectChoices is null ? Visibility.Collapsed : Visibility.Visible;
         _compositeSettings = new CompositeObjectSettingsEditRequest(
             initialValues.IsCompositeReversible,
             initialValues.CompositePartRequirementMode,
@@ -185,6 +192,7 @@ public partial class GameObjectSettingsDialog : Window
         ManageCompositeButton.IsEnabled = false;
         ManageLockRequirementsButton.IsEnabled = false;
         ManageImageVariantsButton.IsEnabled = false;
+        ManageSoundEffectsButton.IsEnabled = false;
         ImageTransparencyTextBox.IsEnabled = false;
         _movementRestrictionsLockedByLink = true;
         ManageMovementRestrictionsButton.IsEnabled = false;
@@ -262,7 +270,8 @@ public partial class GameObjectSettingsDialog : Window
                 PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_pointLightDefaults),
                 HideContainedObjects: HideContainedObjectsCheckBox.IsChecked != false,
                 ShowWhenContained: InventoriableCheckBox.IsChecked == true ? GetShowWhenContained() : null,
-                ImageTransparency: ParseImageTransparencyText());
+                ImageTransparency: ParseImageTransparencyText(),
+                SoundEmitters: CloneSoundEmitters(_soundEmitters));
         }
     }
 
@@ -395,6 +404,31 @@ public partial class GameObjectSettingsDialog : Window
         _isPointLightEnabledDefaultValue = dialog.IsPointLightEnabledDefaultValue;
         _fullImagePath = ResolveDefaultVariantPath(_imageVariants, _fullImagePath);
         RefreshImageSummaryAndValidationHint();
+    }
+
+    private void ManageSoundEffectsButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ObjectSoundEmitterDialog(_soundEmitters, _soundEffectChoices, _soundEmitterActivationProperties)
+        {
+            Owner = this
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            _soundEmitters = CloneSoundEmitters(dialog.Emitters);
+        }
+    }
+
+    private static List<ObjectSoundEmitter> CloneSoundEmitters(IEnumerable<ObjectSoundEmitter>? emitters)
+    {
+        return (emitters ?? Array.Empty<ObjectSoundEmitter>()).Select(static emitter => new ObjectSoundEmitter
+        {
+            EmitterId = emitter.EmitterId,
+            SoundEffectId = emitter.SoundEffectId,
+            ActivationGamePropertyId = emitter.ActivationGamePropertyId,
+            ActiveInRoom = emitter.ActiveInRoom,
+            ActiveOutOfRoom = emitter.ActiveOutOfRoom
+        }).ToList();
     }
 
     private static List<ObjectImageVariant> NormalizeImageVariants(IReadOnlyList<ObjectImageVariant>? variants, string legacyFullPath)

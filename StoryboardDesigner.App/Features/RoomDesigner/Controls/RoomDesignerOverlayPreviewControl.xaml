@@ -30,7 +30,8 @@
                         BorderThickness="1"
                         CornerRadius="4"
                         Background="#F9FAFB">
-                    <Grid x:Name="PreviewLayerGrid" ClipToBounds="True">
+                    <Grid x:Name="PreviewLayerGrid" ClipToBounds="True"
+                          PreviewMouseLeftButtonDown="PreviewLayerGrid_OnPreviewMouseLeftButtonDown">
                     <Grid>
                         <Grid.Style>
                             <Style TargetType="Grid">
@@ -201,6 +202,27 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+
+                    <Canvas IsHitTestVisible="False">
+                        <Ellipse Width="18" Height="18"
+                                 Canvas.Left="{Binding Room.SpawnPoint.X}"
+                                 Canvas.Top="{Binding Room.SpawnPoint.Y}"
+                                 Fill="#CC22C55E" Stroke="#14532D" StrokeThickness="2">
+                            <Ellipse.RenderTransform>
+                                <TranslateTransform X="-9" Y="-9" />
+                            </Ellipse.RenderTransform>
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Room.SpawnPoint}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                    </Canvas>
 
                     <TextBlock Text="No Preview Image" Foreground="#6B7280" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <TextBlock.Style>

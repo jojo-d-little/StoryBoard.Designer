@@ -133,6 +133,11 @@
                                                           VerticalAlignment="Center"
                                                           IsChecked="{Binding IsSnapToGridEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                           ToolTip="Snap drag and keyboard movement to project grid cell size." />
+                                                <CheckBox Content="Place Spawn Point"
+                                                          Margin="0,0,10,0"
+                                                          VerticalAlignment="Center"
+                                                          IsChecked="{Binding IsSpawnPointPlacementMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                          ToolTip="Click the room preview to set the room's player spawn point. This is room data, not a player object." />
                                                 <TextBlock VerticalAlignment="Center"
                                                            Foreground="#4B5563"
                                                            FontSize="11"

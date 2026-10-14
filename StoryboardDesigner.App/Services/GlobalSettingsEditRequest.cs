@@ -15,4 +15,5 @@ public sealed record GlobalSettingsEditRequest(
 	string GameSummary,
 	List<string> GamePreviewImages,
 	PointLightDefaults? PointLightDefaults,
-	RoomAmbientLighting? DefaultRoomAmbientLighting = null);
+	RoomAmbientLighting? DefaultRoomAmbientLighting = null,
+	RoomSoundLossDefaults? RoomSoundLossDefaults = null);

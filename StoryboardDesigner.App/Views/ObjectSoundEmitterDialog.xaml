@@ -1,0 +1,31 @@
+<Window x:Class="StoryboardDesigner.App.Views.ObjectSoundEmitterDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Object Sound Emitters"
+        Height="460" Width="920" MinHeight="380" MinWidth="760"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize">
+    <DockPanel Margin="16">
+        <TextBlock DockPanel.Dock="Top" Margin="0,0,0,12" TextWrapping="Wrap"
+                   Text="Each emitter plays a reusable sound definition from this object’s room position. Out-of-room playback is opt-in per emitter." />
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Width="100" Margin="0,0,8,0" Content="Add Emitter" Click="AddEmitter_OnClick" />
+            <Button Width="100" Margin="0,0,8,0" Content="Remove" Click="RemoveEmitter_OnClick" />
+            <Button Width="100" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
+            <Button Width="100" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+        <DataGrid x:Name="EmittersDataGrid" AutoGenerateColumns="False" CanUserAddRows="False"
+                  CanUserDeleteRows="False" SelectionMode="Single" SelectionUnit="FullRow"
+                  HeadersVisibility="Column" GridLinesVisibility="Horizontal">
+            <DataGrid.Columns>
+                <DataGridComboBoxColumn x:Name="SoundDefinitionColumn" Header="Sound Definition" Width="2*"
+                                        SelectedValuePath="SoundEffectId" DisplayMemberPath="DisplayName"
+                                        SelectedValueBinding="{Binding SoundEffectId, UpdateSourceTrigger=PropertyChanged}" />
+                <DataGridComboBoxColumn x:Name="ActivationPropertyColumn" Header="Activation Property" Width="2*"
+                                        SelectedValuePath="Id" DisplayMemberPath="Label"
+                                        SelectedValueBinding="{Binding ActivationGamePropertyId, UpdateSourceTrigger=PropertyChanged}" />
+                <DataGridCheckBoxColumn Header="In Room" Width="Auto" Binding="{Binding ActiveInRoom, UpdateSourceTrigger=PropertyChanged}" />
+                <DataGridCheckBoxColumn Header="Out of Room" Width="Auto" Binding="{Binding ActiveOutOfRoom, UpdateSourceTrigger=PropertyChanged}" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</Window>

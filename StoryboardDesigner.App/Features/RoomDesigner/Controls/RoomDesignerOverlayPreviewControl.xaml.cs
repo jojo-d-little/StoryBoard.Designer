@@ -31,6 +31,25 @@ public partial class RoomDesignerOverlayPreviewControl : System.Windows.Controls
         PreviewLayerGrid.SizeChanged += PreviewLayerGrid_OnSizeChanged;
     }
 
+    private void PreviewLayerGrid_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is not RoomDesignerTabViewModel tab || !tab.IsSpawnPointPlacementMode)
+        {
+            return;
+        }
+
+        if (FindAncestor<Button>(e.OriginalSource as DependencyObject) is not null)
+        {
+            return;
+        }
+
+        var point = e.GetPosition(PreviewLayerGrid);
+        if (tab.TryPlaceRoomSpawnPoint(point.X, point.Y))
+        {
+            e.Handled = true;
+        }
+    }
+
     private void RoomObjectThumb_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         Focus();

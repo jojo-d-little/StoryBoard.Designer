@@ -10,4 +10,7 @@ public sealed record RoomSettingsEditRequest(
 	int RoomCanvasHeight = 600,
 	int ProjectRoomGridCellSize = 40,
 	RoomAmbientLighting? AmbientLighting = null,
-	string NameSynonyms = "");
+	string NameSynonyms = "",
+	RoomSpawnPoint? SpawnPoint = null,
+	RoomEnvironmentType EnvironmentType = RoomEnvironmentType.Indoor,
+	double? SoundLossPercentOverride = null);

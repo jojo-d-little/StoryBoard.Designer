@@ -23,6 +23,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
     private int _roomGridCellSize;
     private bool _isGridVisible;
     private bool _isSnapToGridEnabled = true;
+    private bool _isSpawnPointPlacementMode;
     private RoomDesignerImageSlotViewModel? _selectedDirectionSlot;
     private RoomDesignerPreviewObjectViewModel? _selectedRoomChildObject;
     private string _roomChildObjectFilter = "All";
@@ -384,6 +385,36 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
             OnPropertyChanged();
             _onDesignerPreferencesChanged?.Invoke(this);
         }
+    }
+
+    public bool IsSpawnPointPlacementMode
+    {
+        get => _isSpawnPointPlacementMode;
+        set
+        {
+            if (_isSpawnPointPlacementMode == value) return;
+            _isSpawnPointPlacementMode = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool TryPlaceRoomSpawnPoint(double x, double y)
+    {
+        if (!IsSpawnPointPlacementMode || !double.IsFinite(x) || !double.IsFinite(y)) return false;
+
+        var nextX = Math.Clamp(x, 0, Math.Max(0, DesignerCanvasWidth));
+        var nextY = Math.Clamp(y, 0, Math.Max(0, DesignerCanvasHeight));
+        if (IsSnapToGridEnabled)
+        {
+            nextX = Math.Clamp(SnapCoordinate(nextX), 0, Math.Max(0, DesignerCanvasWidth));
+            nextY = Math.Clamp(SnapCoordinate(nextY), 0, Math.Max(0, DesignerCanvasHeight));
+        }
+
+        Room.SpawnPoint = new RoomSpawnPoint(nextX, nextY);
+        IsSpawnPointPlacementMode = false;
+        OnPropertyChanged(nameof(Room));
+        _onEdited?.Invoke();
+        return true;
     }
 
     public IEnumerable<RoomDesignerImageSlotViewModel> OverlaySlots => RoomImageSlots.Where(slot =>
