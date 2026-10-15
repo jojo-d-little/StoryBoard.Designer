@@ -8569,6 +8569,7 @@ public sealed partial class MainWindowViewModel
                && left.RepeatIntervalMinMs == right.RepeatIntervalMinMs
                && left.RepeatIntervalMaxMs == right.RepeatIntervalMaxMs
                && left.MaxInRoomDistancePixels == right.MaxInRoomDistancePixels
+               && left.DampeningSusceptibility == right.DampeningSusceptibility
                && left.DurationMs == right.DurationMs
                && left.MaxPlayDurationMs == right.MaxPlayDurationMs
                && left.RepeatDurationMs == right.RepeatDurationMs
@@ -8618,6 +8619,7 @@ public sealed partial class MainWindowViewModel
             RepeatIntervalMinMs = source.RepeatIntervalMinMs,
             RepeatIntervalMaxMs = source.RepeatIntervalMaxMs,
             MaxInRoomDistancePixels = source.MaxInRoomDistancePixels,
+            DampeningSusceptibility = source.DampeningSusceptibility,
             DurationMs = source.DurationMs,
             MaxPlayDurationMs = source.MaxPlayDurationMs,
             RepeatDurationMs = source.RepeatDurationMs,

@@ -85,6 +85,7 @@ public partial class SoundEffectEntryEditorDialog : Window
         RepeatIntervalMinMsTextBox.Text = FormatNullableInt(initialEntry.RepeatIntervalMinMs);
         RepeatIntervalMaxMsTextBox.Text = FormatNullableInt(initialEntry.RepeatIntervalMaxMs);
         MaxInRoomDistancePixelsTextBox.Text = FormatNullableDouble(initialEntry.MaxInRoomDistancePixels);
+        DampeningSusceptibilityTextBox.Text = initialEntry.DampeningSusceptibility.ToString(CultureInfo.InvariantCulture);
         MaxPlayDurationMsTextBox.Text = FormatNullableInt(initialEntry.MaxPlayDurationMs);
         RepeatDurationMsTextBox.Text = FormatNullableInt(initialEntry.RepeatDurationMs);
         RepeatCooldownMsTextBox.Text = FormatNullableInt(initialEntry.RepeatCooldownMs);
@@ -281,6 +282,12 @@ public partial class SoundEffectEntryEditorDialog : Window
             return;
         }
 
+        if (!TryParseDampeningSusceptibility(DampeningSusceptibilityTextBox.Text, out var dampeningSusceptibility))
+        {
+            System.Windows.MessageBox.Show(this, "Dampening susceptibility must be a finite, non-negative number.", "Sound Effect Entry", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         int? repeatIntervalMs = null;
         int? repeatIntervalMinMs = null;
         int? repeatIntervalMaxMs = null;
@@ -348,6 +355,7 @@ public partial class SoundEffectEntryEditorDialog : Window
             RepeatIntervalMinMs = repeatIntervalMinMs,
             RepeatIntervalMaxMs = repeatIntervalMaxMs,
             MaxInRoomDistancePixels = maxInRoomDistancePixels,
+            DampeningSusceptibility = dampeningSusceptibility,
             DurationMs = ResolveDurationMsForPersistence(assetRef),
             MaxPlayDurationMs = maxPlayDurationMs,
             RepeatDurationMs = repeatDurationMs,
@@ -420,6 +428,11 @@ public partial class SoundEffectEntryEditorDialog : Window
         value = parsed;
         return true;
     }
+
+    internal static bool TryParseDampeningSusceptibility(string? text, out double value) =>
+        double.TryParse(text?.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value)
+        && double.IsFinite(value)
+        && value >= 0d;
 
     private static string? NormalizeNullableText(string text)
     {

@@ -262,6 +262,7 @@ public partial class SoundEffectLibraryDialog : Window
             RepeatIntervalMinMs = source.RepeatIntervalMinMs,
             RepeatIntervalMaxMs = source.RepeatIntervalMaxMs,
             MaxInRoomDistancePixels = source.MaxInRoomDistancePixels,
+            DampeningSusceptibility = source.DampeningSusceptibility,
             DurationMs = source.DurationMs,
             MaxPlayDurationMs = source.MaxPlayDurationMs,
             RepeatDurationMs = source.RepeatDurationMs,

@@ -5,6 +5,24 @@ namespace StoryboardDesigner.App.Tests;
 public class SoundEffectEntryEditorDialogLogicTests
 {
     [Theory]
+    [InlineData("0", true, 0d)]
+    [InlineData("1", true, 1d)]
+    [InlineData("2.5", true, 2.5d)]
+    [InlineData("-0.1", false, 0d)]
+    [InlineData("NaN", false, 0d)]
+    [InlineData("Infinity", false, 0d)]
+    [InlineData("-Infinity", false, 0d)]
+    [InlineData("", false, 0d)]
+    public void DampeningSusceptibilityParser_AcceptsOnlyFiniteNonnegativeValues(string input, bool expectedValid, double expectedValue)
+    {
+        var actualValid = SoundEffectEntryEditorDialog.TryParseDampeningSusceptibility(input, out var actualValue);
+
+        Assert.Equal(expectedValid, actualValid);
+        if (expectedValid)
+            Assert.Equal(expectedValue, actualValue);
+    }
+
+    [Theory]
     [InlineData("None", "None")]
     [InlineData("RepeatCount", "RepeatCount")]
     [InlineData("RepeatForDuration", "RepeatForDuration")]

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 
@@ -6,6 +7,50 @@ namespace StoryboardDesigner.App.Tests;
 
 public sealed class SpatialAudioAuthoringPersistenceTests
 {
+    [Fact]
+    public void NewAndLegacySoundDefinitions_DefaultDampeningSusceptibilityToOne()
+    {
+        Assert.Equal(1d, new SoundEffectLibraryEntry().DampeningSusceptibility);
+
+        var service = new JsonExportService();
+        var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+        try
+        {
+            var entry = new SoundEffectLibraryEntry
+            {
+                SoundEffectId = Guid.NewGuid(),
+                SoundEffectKey = "legacy.sound",
+                DisplayName = "Legacy Sound",
+                AssetRef = "legacy.wav"
+            };
+            var room = new Room { Name = "Room", GameObjects = [new GameObject { Name = "Emitter", SoundEffectLibraryEntries = [entry] }] };
+            var project = new ProjectModel
+            {
+                Name = "LegacySusceptibility",
+                Planets = [new Planet { Name = "Planet", Countries = [new Country { Name = "Country", Areas = [new Area { Name = "Area", Rooms = [room] }] }] }]
+            };
+            var projectPath = Path.Combine(tempRoot, "LegacySusceptibility.sbe.json");
+            service.SaveProjectModel(projectPath, project);
+
+            foreach (var jsonPath in Directory.EnumerateFiles(tempRoot, "*.json", SearchOption.AllDirectories))
+            {
+                var json = JsonNode.Parse(File.ReadAllText(jsonPath));
+                RemoveDampeningSusceptibility(json);
+                File.WriteAllText(jsonPath, json?.ToJsonString() ?? "{}");
+            }
+
+            var loaded = service.TryLoadProjectModel(projectPath)!;
+            var loadedEntry = loaded.Planets.Single().Countries.Single().Areas.Single().Rooms.Single()
+                .GameObjects.Single().SoundEffectLibraryEntries.Single();
+            Assert.Equal(1d, loadedEntry.DampeningSusceptibility);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
     [Fact]
     public void LoadLegacyProject_DefaultsSpatialAudioFieldsSafely()
     {
@@ -50,7 +95,8 @@ public sealed class SpatialAudioAuthoringPersistenceTests
                         RepeatMode = "UntilCanceled",
                         RepeatIntervalMinMs = 1200,
                         RepeatIntervalMaxMs = 2600,
-                        MaxInRoomDistancePixels = 450
+                        MaxInRoomDistancePixels = 450,
+                        DampeningSusceptibility = 0.4
                     }
                 ],
                 SoundEmitters = [emitter],
@@ -86,6 +132,7 @@ public sealed class SpatialAudioAuthoringPersistenceTests
             Assert.Equal(1200, loadedObject.SoundEffectLibraryEntries.Single().RepeatIntervalMinMs);
             Assert.Equal(2600, loadedObject.SoundEffectLibraryEntries.Single().RepeatIntervalMaxMs);
             Assert.Equal(450, loadedObject.SoundEffectLibraryEntries.Single().MaxInRoomDistancePixels);
+            Assert.Equal(0.4, loadedObject.SoundEffectLibraryEntries.Single().DampeningSusceptibility);
 
             service.ExportCleanProjectV1(projectFilePath, project);
             var runtimeProjectPath = Path.Combine(tempRoot, "GameRuntimeJson", "SpatialAudioRoundTrip.sbr.runtime.json");
@@ -108,10 +155,25 @@ public sealed class SpatialAudioAuthoringPersistenceTests
             Assert.Equal(1200, runtimeSound.GetProperty("repeatIntervalMinMs").GetInt32());
             Assert.Equal(2600, runtimeSound.GetProperty("repeatIntervalMaxMs").GetInt32());
             Assert.Equal(450, runtimeSound.GetProperty("maxInRoomDistancePixels").GetDouble());
+            Assert.Equal(0.4, runtimeSound.GetProperty("dampeningSusceptibility").GetDouble());
         }
         finally
         {
             if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    private static void RemoveDampeningSusceptibility(JsonNode? node)
+    {
+        switch (node)
+        {
+            case JsonObject jsonObject:
+                jsonObject.Remove("dampeningSusceptibility");
+                foreach (var child in jsonObject.ToList()) RemoveDampeningSusceptibility(child.Value);
+                break;
+            case JsonArray jsonArray:
+                foreach (var child in jsonArray) RemoveDampeningSusceptibility(child);
+                break;
         }
     }
 
