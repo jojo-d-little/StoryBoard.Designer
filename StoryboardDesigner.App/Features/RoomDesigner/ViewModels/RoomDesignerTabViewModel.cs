@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Windows.Input;
 using Storyboard.Shared.GameManager;
 using StoryboardDesigner.App.Models;
+using StoryboardDesigner.App.Services;
 
 namespace StoryboardDesigner.App.ViewModels;
 
@@ -16,6 +17,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
     private readonly Func<string?>? _projectFilePathAccessor;
     private readonly Func<Guid, GameObject?>? _definitionResolver;
     private readonly Func<GameObject, bool>? _editRoomChildObjectImageAction;
+    private readonly Area? _area;
     private readonly Stack<RoomChildMoveUndoEntry> _roomChildMoveUndoStack = new();
     private readonly HashSet<GameObject> _definitionSettingsSubscriptions = new();
     private int _designerCanvasWidth;
@@ -43,9 +45,11 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         Func<GameObject, bool>? editRoomChildObjectImageAction = null,
         bool isGridVisible = false,
         bool isSnapToGridEnabled = true,
-        Action<RoomDesignerTabViewModel>? onDesignerPreferencesChanged = null)
+        Action<RoomDesignerTabViewModel>? onDesignerPreferencesChanged = null,
+        Area? area = null)
     {
         Room = room;
+        _area = area ?? room.ParentScope as Area;
         Room.PropertyChanged += Room_OnPropertyChanged;
         _onEdited = onEdited;
         _onDesignerPreferencesChanged = onDesignerPreferencesChanged;
@@ -64,6 +68,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         MoveRoomChildObjectUpCommand = new RelayCommandOfT<object>(MoveRoomChildObjectUp, CanMoveRoomChildObjectUp);
         MoveRoomChildObjectDownCommand = new RelayCommandOfT<object>(MoveRoomChildObjectDown, CanMoveRoomChildObjectDown);
         EditRoomChildObjectImageCommand = new RelayCommandOfT<RoomDesignerPreviewObjectViewModel>(EditRoomChildObjectImage);
+        ToggleDefaultSpawnPointCommand = new RelayCommand(ToggleDefaultSpawnPoint);
         BuildImageSlots();
         BuildRoomChildObjects();
     }
@@ -77,6 +82,37 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
     public ObservableCollection<RoomDesignerRenderOrderItemViewModel> RoomRenderOrderItems { get; }
 
     public IReadOnlyList<string> RoomChildObjectFilterOptions { get; } = ["All", "Visible", "Hidden"];
+
+    public IReadOnlyList<Direction10> SpawnPointFacingOptions { get; } = Enum.GetValues<Direction10>();
+
+    public bool HasDefaultSpawnPoint => Room.SpawnPoints.Any(static point => point.IsDefault);
+
+    public string DefaultSpawnPointButtonText => HasDefaultSpawnPoint ? "Default: On" : "Default: Off";
+
+    public bool IsSelectedSpawnPoint => SelectedRoomRenderOrderItem?.IsSpawnPoint == true;
+
+    public double? SelectedSpawnPointX
+    {
+        get => SelectedRoomRenderOrderItem?.SpawnPoint?.X;
+        set => UpdateSelectedSpawnCoordinate(value, isX: true);
+    }
+
+    public double? SelectedSpawnPointY
+    {
+        get => SelectedRoomRenderOrderItem?.SpawnPoint?.Y;
+        set => UpdateSelectedSpawnCoordinate(value, isX: false);
+    }
+
+    public Direction10? SelectedSpawnPointFacingOverride
+    {
+        get => SelectedRoomRenderOrderItem?.SpawnPoint?.FacingOverride;
+        set
+        {
+            if (SelectedRoomRenderOrderItem?.SpawnPoint is not { } point || point.FacingOverride == value) return;
+            UpdateSpawnPoint(point, point with { FacingOverride = value });
+            _onEdited?.Invoke();
+        }
+    }
 
     public IReadOnlyList<RoomDesignerPreviewPlacementComparisonMode> PreviewPlacementComparisonModeOptions { get; } =
     [
@@ -95,6 +131,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
     public ICommand MoveRoomChildObjectUpCommand { get; }
     public ICommand MoveRoomChildObjectDownCommand { get; }
     public ICommand EditRoomChildObjectImageCommand { get; }
+    public ICommand ToggleDefaultSpawnPointCommand { get; }
 
     public IReadOnlyList<RuntimeRoomImageDisplayMode> DisplayModeOptions { get; } =
     [
@@ -177,6 +214,10 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
 
             _selectedRoomRenderOrderItem = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsSelectedSpawnPoint));
+            OnPropertyChanged(nameof(SelectedSpawnPointFacingOverride));
+            OnPropertyChanged(nameof(SelectedSpawnPointX));
+            OnPropertyChanged(nameof(SelectedSpawnPointY));
             _isUpdatingRenderOrderSelection = true;
             SelectedRoomChildObject = value?.PreviewObject;
             _isUpdatingRenderOrderSelection = false;
@@ -437,9 +478,9 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         }
     }
 
-    public bool TryMoveRoomSpawnPoint(double x, double y)
+    public bool TryMoveRoomSpawnPoint(RoomDesignerRenderOrderItemViewModel item, double x, double y)
     {
-        if (!double.IsFinite(x) || !double.IsFinite(y)) return false;
+        if (item.SpawnPoint is null || !double.IsFinite(x) || !double.IsFinite(y)) return false;
 
         var nextX = Math.Clamp(x, 0, Math.Max(0, DesignerCanvasWidth));
         var nextY = Math.Clamp(y, 0, Math.Max(0, DesignerCanvasHeight));
@@ -449,14 +490,15 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
             nextY = Math.Clamp(SnapCoordinate(nextY), 0, Math.Max(0, DesignerCanvasHeight));
         }
 
-        Room.SpawnPoint = new RoomSpawnPoint(nextX, nextY, Room.SpawnPoint.RenderZOrder);
+        UpdateSpawnPoint(item.SpawnPoint, item.SpawnPoint with { X = nextX, Y = nextY });
         _onEdited?.Invoke();
         return true;
     }
 
     private void Room_OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (!string.Equals(e.PropertyName, nameof(Room.SpawnPoint), StringComparison.Ordinal))
+        if (!string.Equals(e.PropertyName, nameof(Room.SpawnPoints), StringComparison.Ordinal)
+            && !string.Equals(e.PropertyName, nameof(Room.SpawnPoint), StringComparison.Ordinal))
         {
             return;
         }
@@ -473,10 +515,14 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
 
         var selectedObjectId = _selectedRoomRenderOrderItem?.PreviewObject?.GameObject.ObjectId;
         var selectedSpawnPoint = _selectedRoomRenderOrderItem?.IsSpawnPoint == true;
+        var selectedTraversalId = _selectedRoomRenderOrderItem?.SpawnPoint?.TraversalConnectionId;
+        var selectedIsDefaultSpawn = _selectedRoomRenderOrderItem?.SpawnPoint?.IsDefault == true;
         BuildRoomRenderOrderItems();
         if (selectedSpawnPoint)
         {
-            SelectedRoomRenderOrderItem = RoomRenderOrderItems.FirstOrDefault(static item => item.IsSpawnPoint);
+            SelectedRoomRenderOrderItem = RoomRenderOrderItems.FirstOrDefault(item => item.IsSpawnPoint
+                && item.SpawnPoint?.TraversalConnectionId == selectedTraversalId
+                && item.SpawnPoint?.IsDefault == selectedIsDefaultSpawn);
         }
         else if (selectedObjectId.HasValue)
         {
@@ -617,8 +663,27 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         var defaultSpawnPointOrder = RoomRenderOrderItems.Count == 0
             ? 1
             : RoomRenderOrderItems.Max(static item => item.DrawOrderZIndex) + 1;
-        var spawnPointOrder = Room.SpawnPoint.RenderZOrder ?? defaultSpawnPointOrder;
-        RoomRenderOrderItems.Add(new RoomDesignerRenderOrderItemViewModel(Room, spawnPointOrder));
+        var spawnPoints = Room.SpawnPoints;
+        for (var index = 0; index < spawnPoints.Count; index++)
+        {
+            var point = spawnPoints[index];
+            var label = point.IsDefault ? "Player Spawn Point (Default)" : "Player Spawn Point";
+            var markerText = "•";
+            if (point.TraversalConnectionId is Guid traversalId)
+            {
+                var traversal = _area?.TraversalConnections.FirstOrDefault(connection => connection.TraversalConnectionId == traversalId);
+                var sourceName = traversal is null
+                    ? "unknown traversal"
+                    : _area!.Rooms.FirstOrDefault(room => room.Id == (traversal.RoomAId == Room.Id ? traversal.RoomBId : traversal.RoomAId))?.Name ?? "unknown room";
+                var arrival = traversal is null ? "unknown direction" : RoomSpawnPointAuthoringService.DirectionFromRoom(traversal, Room.Id).ToString();
+                label += $" — {arrival} toward {sourceName} (arrives in {Room.Name})";
+                markerText = traversal is null
+                    ? "?"
+                    : GetSpawnPointDirectionMarker(RoomSpawnPointAuthoringService.DirectionFromRoom(traversal, Room.Id));
+            }
+            var spawnOrder = point.RenderZOrder ?? defaultSpawnPointOrder + index;
+            RoomRenderOrderItems.Add(new RoomDesignerRenderOrderItemViewModel(Room, point, label, markerText, spawnOrder));
+        }
 
         var orderedItems = RoomRenderOrderItems
             .OrderByDescending(static item => item.DrawOrderZIndex)
@@ -628,6 +693,64 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         {
             RoomRenderOrderItems.Add(item);
         }
+        OnPropertyChanged(nameof(HasDefaultSpawnPoint));
+        OnPropertyChanged(nameof(DefaultSpawnPointButtonText));
+    }
+
+    private void ToggleDefaultSpawnPoint()
+    {
+        if (HasDefaultSpawnPoint)
+        {
+            Room.SetDefaultSpawnPoint(null);
+        }
+        else
+        {
+            Room.SetDefaultSpawnPoint(new RoomSpawnPoint(
+                DesignerCanvasWidth / 2d,
+                DesignerCanvasHeight / 2d,
+                GetTopSpawnPointRenderOrder(),
+                IsDefault: true));
+        }
+        _onEdited?.Invoke();
+    }
+
+    private int GetTopSpawnPointRenderOrder() => RoomRenderOrderItems.Count == 0
+        ? 1
+        : RoomRenderOrderItems.Max(static item => item.DrawOrderZIndex) + 1;
+
+    private static string GetSpawnPointDirectionMarker(Direction10 direction) => direction switch
+    {
+        Direction10.North => "N",
+        Direction10.NorthEast => "NE",
+        Direction10.East => "E",
+        Direction10.SouthEast => "SE",
+        Direction10.South => "S",
+        Direction10.SouthWest => "SW",
+        Direction10.West => "W",
+        Direction10.NorthWest => "NW",
+        Direction10.Up => "U",
+        Direction10.Down => "D",
+        _ => "?"
+    };
+
+    private void UpdateSpawnPoint(RoomSpawnPoint previous, RoomSpawnPoint next)
+    {
+        if (previous.X != next.X || previous.Y != next.Y)
+            next = next with { IsAutoGeneratedPosition = false, GeneratedPositionX = null, GeneratedPositionY = null };
+        var points = Room.SpawnPoints.ToList();
+        var index = points.FindIndex(point => point == previous);
+        if (index < 0) return;
+        points[index] = next;
+        Room.SpawnPoints = points;
+    }
+
+    private void UpdateSelectedSpawnCoordinate(double? value, bool isX)
+    {
+        if (value is not double coordinate || !double.IsFinite(coordinate)
+            || SelectedRoomRenderOrderItem?.SpawnPoint is not { } point) return;
+        UpdateSpawnPoint(point, point with { X = isX ? Math.Clamp(coordinate, 0, DesignerCanvasWidth) : point.X,
+            Y = isX ? point.Y : Math.Clamp(coordinate, 0, DesignerCanvasHeight) });
+        _onEdited?.Invoke();
     }
 
     private void RefreshDefinitionSettingsSubscriptions()
@@ -945,7 +1068,8 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
                 item.DrawOrderZIndex = zOrder;
                 if (item.IsSpawnPoint)
                 {
-                    Room.SpawnPoint = Room.SpawnPoint with { RenderZOrder = zOrder };
+                    if (item.SpawnPoint is { } point)
+                        UpdateSpawnPoint(point, point with { RenderZOrder = zOrder });
                 }
                 else if (item.PreviewObject is { } preview)
                 {

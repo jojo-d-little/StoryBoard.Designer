@@ -25,6 +25,7 @@ public partial class RoomDesignerOverlayPreviewControl : System.Windows.Controls
     private Point _spawnPointDragStart;
     private double _spawnPointOriginX;
     private double _spawnPointOriginY;
+    private RoomDesignerRenderOrderItemViewModel? _dragSpawnPointItem;
     private Ellipse? _spawnPointMarker;
     private RoomDesignerTabViewModel? _observedTab;
 
@@ -38,16 +39,18 @@ public partial class RoomDesignerOverlayPreviewControl : System.Windows.Controls
 
     private void SpawnPointMarker_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not Ellipse marker || DataContext is not RoomDesignerTabViewModel tab)
+        if (sender is not Ellipse marker || marker.DataContext is not RoomDesignerRenderOrderItemViewModel item || DataContext is not RoomDesignerTabViewModel tab)
         {
             return;
         }
 
         _isDraggingSpawnPoint = true;
         _spawnPointMarker = marker;
+        _dragSpawnPointItem = item;
+        tab.SelectedRoomRenderOrderItem = item;
         _spawnPointDragStart = e.GetPosition(PreviewLayerGrid);
-        _spawnPointOriginX = tab.Room.SpawnPoint.X;
-        _spawnPointOriginY = tab.Room.SpawnPoint.Y;
+        _spawnPointOriginX = item.PositionX;
+        _spawnPointOriginY = item.PositionY;
         marker.CaptureMouse();
         e.Handled = true;
     }
@@ -82,11 +85,13 @@ public partial class RoomDesignerOverlayPreviewControl : System.Windows.Controls
         if ((Math.Abs(dx) > 2 || Math.Abs(dy) > 2)
             && DataContext is RoomDesignerTabViewModel tab)
         {
-            tab.TryMoveRoomSpawnPoint(_spawnPointOriginX + dx, _spawnPointOriginY + dy);
+            if (_dragSpawnPointItem is not null)
+                tab.TryMoveRoomSpawnPoint(_dragSpawnPointItem, _spawnPointOriginX + dx, _spawnPointOriginY + dy);
         }
 
         marker.ReleaseMouseCapture();
         _spawnPointMarker = null;
+        _dragSpawnPointItem = null;
         _isDraggingSpawnPoint = false;
         e.Handled = true;
     }

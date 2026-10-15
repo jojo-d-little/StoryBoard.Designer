@@ -178,6 +178,7 @@
                                                         <ColumnDefinition Width="*" />
                                                         <ColumnDefinition Width="120" />
                                                         <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
 
                                                     <TextBlock Grid.Column="0" Text="Room Render Order" FontWeight="SemiBold" VerticalAlignment="Center" />
@@ -190,6 +191,15 @@
                                                               SelectedItem="{Binding RoomChildObjectFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                                                     <Button Grid.Column="2"
+                                                            Margin="6,0,0,0"
+                                                            Height="24"
+                                                            Padding="6,2"
+                                                            VerticalAlignment="Center"
+                                                            Content="{Binding DefaultSpawnPointButtonText}"
+                                                            ToolTip="Toggle this room's optional default player spawn point."
+                                                            Command="{Binding ToggleDefaultSpawnPointCommand}" />
+
+                                                    <Button Grid.Column="3"
                                                             Margin="8,0,0,0"
                                                             Height="24"
                                                             Padding="10,2"
@@ -346,21 +356,34 @@
                                                             <RowDefinition Height="Auto" />
                                                             <RowDefinition Height="Auto" />
                                                             <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="Auto" />
                                                         </Grid.RowDefinitions>
 
-                                                        <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" FontWeight="SemiBold" Text="Selected Object Transform" />
+                                                        <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" FontWeight="SemiBold" Text="Selected Object / Spawn Transform" />
 
                                                         <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Position X" />
                                                         <TextBox Grid.Row="1"
                                                                  Grid.Column="1"
                                                                  Margin="0,8,0,0"
-                                                                 Text="{Binding SelectedRoomChildObject.PositionX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}" />
+                                                                 Text="{Binding SelectedRoomChildObject.PositionX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}">
+                                                            <TextBox.Style><Style TargetType="TextBox"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding IsSelectedSpawnPoint}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBox.Style>
+                                                        </TextBox>
+                                                        <TextBox Grid.Row="1" Grid.Column="1" Margin="0,8,0,0"
+                                                                 Text="{Binding SelectedSpawnPointX, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=F2}">
+                                                            <TextBox.Style><Style TargetType="TextBox"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsSelectedSpawnPoint}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBox.Style>
+                                                        </TextBox>
 
                                                         <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Position Y" />
                                                         <TextBox Grid.Row="2"
                                                                  Grid.Column="1"
                                                                  Margin="0,8,0,0"
-                                                                 Text="{Binding SelectedRoomChildObject.PositionY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}" />
+                                                                 Text="{Binding SelectedRoomChildObject.PositionY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}">
+                                                            <TextBox.Style><Style TargetType="TextBox"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding IsSelectedSpawnPoint}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBox.Style>
+                                                        </TextBox>
+                                                        <TextBox Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
+                                                                 Text="{Binding SelectedSpawnPointY, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=F2}">
+                                                            <TextBox.Style><Style TargetType="TextBox"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsSelectedSpawnPoint}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBox.Style>
+                                                        </TextBox>
 
                                                         <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Room Rotation" />
                                                         <ComboBox Grid.Row="3"
@@ -372,6 +395,33 @@
                                                             <ComboBoxItem Content="90" Tag="90" />
                                                             <ComboBoxItem Content="180" Tag="180" />
                                                             <ComboBoxItem Content="270" Tag="270" />
+                                                        </ComboBox>
+
+                                                        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Facing Override">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsSelectedSpawnPoint}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                        <ComboBox Grid.Row="4" Grid.Column="1" Margin="0,8,0,0"
+                                                                  ItemsSource="{Binding SpawnPointFacingOptions}"
+                                                                  SelectedItem="{Binding SelectedSpawnPointFacingOverride, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                                                            <ComboBox.Style>
+                                                                <Style TargetType="ComboBox">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsSelectedSpawnPoint}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </ComboBox.Style>
                                                         </ComboBox>
                                                     </Grid>
                                                 </Border>

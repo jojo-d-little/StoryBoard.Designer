@@ -1237,7 +1237,7 @@ public sealed partial class MainWindowViewModel
             ProducerNotes = source.ProducerNotes,
             RoomImageCanvasWidth = source.RoomImageCanvasWidth,
             RoomImageCanvasHeight = source.RoomImageCanvasHeight,
-            SpawnPoint = source.SpawnPoint with { },
+            SpawnPoints = source.SpawnPoints.Select(static point => point with { }).ToList(),
             RoomDisplayMode = source.RoomDisplayMode,
             ValidationErrors = source.ValidationErrors.ToList(),
             TraversalModeOverride = source.TraversalModeOverride,
@@ -1898,6 +1898,7 @@ public sealed partial class MainWindowViewModel
         registry.Register(new SinglePlayerMarkerRule());
         registry.Register(new TraversalRequireOpenSharedIsOpenRule());
         registry.Register(new TraversalConnectionIntegrityRule());
+        registry.Register(new RoomSpawnPointTraversalIntegrityRule());
         registry.Register(new TraversalDirectionalTargetUniquenessRule());
         registry.Register(new TraversalLegPassableContractRule());
         registry.Register(new TraversalDoorLinkIntegrityRule());

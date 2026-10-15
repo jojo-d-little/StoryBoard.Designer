@@ -1509,6 +1509,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public void OpenRoomEditor(Room room)
     {
+        var area = _project.Planets
+            .SelectMany(static planet => planet.Countries)
+            .SelectMany(static country => country.Areas)
+            .FirstOrDefault(candidate => candidate.Rooms.Any(candidateRoom => candidateRoom.Id == room.Id));
+        if (area is not null)
+        {
+            room.ParentScope = area;
+            RoomSpawnPointAuthoringService.EnsureAreaSpawnPoints(area);
+        }
+
         var existing = OpenRoomEditors.FirstOrDefault(tab => tab.Room.Id == room.Id);
         if (existing is not null)
         {
@@ -1526,7 +1536,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             MarkProjectDirty,
             () => _projectFilePath,
             ResolveProjectObjectById,
-            EditRoomChildObjectImageFromRoomDesigner);
+            EditRoomChildObjectImageFromRoomDesigner,
+            area: area);
         created.SelectedRoomDesignerDiagnosticsLevel = SelectedOutputRoomDesignerDiagnosticsLevel;
         OpenRoomEditors.Add(created);
         SelectedRoomEditor = created;

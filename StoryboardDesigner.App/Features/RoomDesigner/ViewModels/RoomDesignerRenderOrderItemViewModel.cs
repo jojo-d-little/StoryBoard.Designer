@@ -17,10 +17,13 @@ public sealed class RoomDesignerRenderOrderItemViewModel : ViewModelBase
         PreviewObject.PropertyChanged += PreviewObject_OnPropertyChanged;
     }
 
-    public RoomDesignerRenderOrderItemViewModel(Room room, int drawOrderZIndex)
+    public RoomDesignerRenderOrderItemViewModel(Room room, RoomSpawnPoint spawnPoint, string spawnPointLabel, string spawnPointMarkerText, int drawOrderZIndex)
     {
         Room = room;
         IsSpawnPoint = true;
+        SpawnPoint = spawnPoint;
+        SpawnPointLabel = spawnPointLabel;
+        SpawnPointMarkerText = spawnPointMarkerText;
         _drawOrderZIndex = drawOrderZIndex;
     }
 
@@ -30,12 +33,20 @@ public sealed class RoomDesignerRenderOrderItemViewModel : ViewModelBase
 
     public bool IsSpawnPoint { get; }
 
+    public RoomSpawnPoint? SpawnPoint { get; }
+
+    public string SpawnPointLabel { get; } = "Player Spawn Point";
+
+    public string SpawnPointMarkerText { get; } = string.Empty;
+
     public bool HasObjectPreview => PreviewObject is not null;
 
-    public string DisplayName => IsSpawnPoint ? "Player Spawn Point" : PreviewObject!.DisplayName;
+    public string DisplayName => IsSpawnPoint
+        ? SpawnPoint?.IsDefault == true ? "Player Spawn Point (Default)" : $"Player Spawn Point ({SpawnPointMarkerText})"
+        : PreviewObject!.DisplayName;
 
     public string ToolTipText => IsSpawnPoint
-        ? $"Player spawn point. Render Z-order: {Room.SpawnPoint.RenderZOrder?.ToString(CultureInfo.InvariantCulture) ?? "default"}."
+        ? $"{SpawnPointLabel}. Render Z-order: {SpawnPoint?.RenderZOrder?.ToString(CultureInfo.InvariantCulture) ?? "default"}."
         : DisplayName;
 
     public int DrawOrderZIndex
@@ -58,9 +69,9 @@ public sealed class RoomDesignerRenderOrderItemViewModel : ViewModelBase
         }
     }
 
-    public double PositionX => IsSpawnPoint ? Room.SpawnPoint.X : PreviewObject!.PositionX;
+    public double PositionX => IsSpawnPoint ? SpawnPoint!.X : PreviewObject!.PositionX;
 
-    public double PositionY => IsSpawnPoint ? Room.SpawnPoint.Y : PreviewObject!.PositionY;
+    public double PositionY => IsSpawnPoint ? SpawnPoint!.Y : PreviewObject!.PositionY;
 
     public double FootprintWidthPixels => IsSpawnPoint ? 24 : PreviewObject!.FootprintWidthPixels;
 

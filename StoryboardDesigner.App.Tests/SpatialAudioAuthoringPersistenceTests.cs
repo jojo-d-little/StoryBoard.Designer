@@ -15,7 +15,7 @@ public sealed class SpatialAudioAuthoringPersistenceTests
             .SelectMany(static area => area.Rooms));
 
         Assert.Null(legacyProject.RoomSoundLossDefaults);
-        Assert.Equal(new RoomSpawnPoint(400, 300), room.SpawnPoint);
+        Assert.Equal(new RoomSpawnPoint(400, 300, IsDefault: true), room.SpawnPoint);
         Assert.Equal(RoomEnvironmentType.Indoor, room.EnvironmentType);
         Assert.Null(room.SoundLossPercentOverride);
         Assert.All(EnumerateObjects(room.GameObjects), static obj => Assert.Empty(obj.SoundEmitters));
@@ -76,7 +76,7 @@ public sealed class SpatialAudioAuthoringPersistenceTests
             var loaded = service.TryLoadProjectModel(projectFilePath)!;
             var loadedRoom = loaded.Planets.Single().Countries.Single().Areas.Single().Rooms.Single();
             var loadedObject = loadedRoom.GameObjects.Single();
-            Assert.Equal(new RoomSpawnPoint(123.5, 456.25), loadedRoom.SpawnPoint);
+            Assert.Equal(new RoomSpawnPoint(123.5, 456.25, IsDefault: true), loadedRoom.SpawnPoint);
             Assert.Equal(RoomEnvironmentType.Outdoor, loadedRoom.EnvironmentType);
             Assert.Equal(18, loadedRoom.SoundLossPercentOverride);
             Assert.Equal(42, loaded.RoomSoundLossDefaults!.IndoorSoundLossPercent);
@@ -96,7 +96,7 @@ public sealed class SpatialAudioAuthoringPersistenceTests
             var runtimeRoomPath = Path.Combine(tempRoot, "GameRuntimeJson", "Room", room.Id.ToString("D").ToUpperInvariant() + ".runtime.json");
             using var runtimeRoom = JsonDocument.Parse(File.ReadAllText(runtimeRoomPath));
             var roomJson = runtimeRoom.RootElement;
-            Assert.Equal(123.5, roomJson.GetProperty("spawnPoint").GetProperty("x").GetDouble());
+            Assert.Equal(123.5, roomJson.GetProperty("spawnPoints").EnumerateArray().Single().GetProperty("x").GetDouble());
             Assert.Equal("Outdoor", roomJson.GetProperty("environmentType").GetString());
             Assert.Equal(18, roomJson.GetProperty("soundLossPercentOverride").GetDouble());
             var runtimeObjectPath = Path.Combine(tempRoot, "GameRuntimeJson", "GameObject", obj.ObjectId.ToString("D").ToUpperInvariant() + ".runtime.json");

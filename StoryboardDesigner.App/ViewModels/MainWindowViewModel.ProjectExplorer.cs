@@ -8896,7 +8896,7 @@ public sealed partial class MainWindowViewModel
             _project.RoomDesignerGridCellSize,
             LightingModelCloner.CloneRoomAmbientLighting(roomNode.Room.AmbientLighting),
             SerializeObjectNameSynonyms(roomNode.Room.NameSynonyms),
-            roomNode.Room.SpawnPoint,
+            roomNode.Room.SpawnPoints.FirstOrDefault(static point => point.IsDefault),
             roomNode.Room.EnvironmentType,
             roomNode.Room.SoundLossPercentOverride);
 
@@ -8914,7 +8914,7 @@ public sealed partial class MainWindowViewModel
                          || roomNode.Room.RoomImageCanvasWidth != updated.RoomCanvasWidth
                          || roomNode.Room.RoomImageCanvasHeight != updated.RoomCanvasHeight
                          || !AreRoomAmbientLightingEquivalent(roomNode.Room.AmbientLighting, updated.AmbientLighting)
-                         || roomNode.Room.SpawnPoint != updated.SpawnPoint
+                         || roomNode.Room.SpawnPoints.FirstOrDefault(static point => point.IsDefault) != updated.SpawnPoint
                          || roomNode.Room.EnvironmentType != updated.EnvironmentType
                          || roomNode.Room.SoundLossPercentOverride != updated.SoundLossPercentOverride;
 
@@ -8930,8 +8930,13 @@ public sealed partial class MainWindowViewModel
         roomNode.Room.RoomImageCanvasWidth = updated.RoomCanvasWidth;
         roomNode.Room.RoomImageCanvasHeight = updated.RoomCanvasHeight;
         roomNode.Room.AmbientLighting = LightingModelCloner.CloneRoomAmbientLighting(updated.AmbientLighting);
-        roomNode.Room.SpawnPoint = updated.SpawnPoint
-            ?? new RoomSpawnPoint(updated.RoomCanvasWidth / 2d, updated.RoomCanvasHeight / 2d);
+        roomNode.Room.SetDefaultSpawnPoint(updated.SpawnPoint is { } updatedSpawnPoint
+            ? updatedSpawnPoint with
+            {
+                X = Math.Clamp(updatedSpawnPoint.X, 0, updated.RoomCanvasWidth),
+                Y = Math.Clamp(updatedSpawnPoint.Y, 0, updated.RoomCanvasHeight)
+            }
+            : null);
         roomNode.Room.EnvironmentType = updated.EnvironmentType;
         roomNode.Room.SoundLossPercentOverride = updated.SoundLossPercentOverride;
         RefreshScopedNameIndex(area.Rooms, static room => room.Name);
@@ -8965,7 +8970,7 @@ public sealed partial class MainWindowViewModel
             _project.RoomDesignerGridCellSize,
             LightingModelCloner.CloneRoomAmbientLighting(templateRoomNode.Room.AmbientLighting),
             SerializeObjectNameSynonyms(templateRoomNode.Room.NameSynonyms),
-            templateRoomNode.Room.SpawnPoint,
+            templateRoomNode.Room.SpawnPoints.FirstOrDefault(static point => point.IsDefault),
             templateRoomNode.Room.EnvironmentType,
             templateRoomNode.Room.SoundLossPercentOverride);
 
@@ -8982,7 +8987,7 @@ public sealed partial class MainWindowViewModel
                          || templateRoomNode.Room.RoomImageCanvasWidth != updated.RoomCanvasWidth
                          || templateRoomNode.Room.RoomImageCanvasHeight != updated.RoomCanvasHeight
                          || !AreRoomAmbientLightingEquivalent(templateRoomNode.Room.AmbientLighting, updated.AmbientLighting)
-                         || templateRoomNode.Room.SpawnPoint != updated.SpawnPoint
+                         || templateRoomNode.Room.SpawnPoints.FirstOrDefault(static point => point.IsDefault) != updated.SpawnPoint
                          || templateRoomNode.Room.EnvironmentType != updated.EnvironmentType
                          || templateRoomNode.Room.SoundLossPercentOverride != updated.SoundLossPercentOverride;
 
@@ -8998,8 +9003,13 @@ public sealed partial class MainWindowViewModel
         templateRoomNode.Room.RoomImageCanvasWidth = updated.RoomCanvasWidth;
         templateRoomNode.Room.RoomImageCanvasHeight = updated.RoomCanvasHeight;
         templateRoomNode.Room.AmbientLighting = LightingModelCloner.CloneRoomAmbientLighting(updated.AmbientLighting);
-        templateRoomNode.Room.SpawnPoint = updated.SpawnPoint
-            ?? new RoomSpawnPoint(updated.RoomCanvasWidth / 2d, updated.RoomCanvasHeight / 2d);
+        templateRoomNode.Room.SetDefaultSpawnPoint(updated.SpawnPoint is { } updatedSpawnPoint
+            ? updatedSpawnPoint with
+            {
+                X = Math.Clamp(updatedSpawnPoint.X, 0, updated.RoomCanvasWidth),
+                Y = Math.Clamp(updatedSpawnPoint.Y, 0, updated.RoomCanvasHeight)
+            }
+            : null);
         templateRoomNode.Room.EnvironmentType = updated.EnvironmentType;
         templateRoomNode.Room.SoundLossPercentOverride = updated.SoundLossPercentOverride;
         RefreshScopedNameIndex(_project.RoomTemplates, static room => room.Name);

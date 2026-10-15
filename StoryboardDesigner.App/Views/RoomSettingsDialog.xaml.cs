@@ -47,6 +47,7 @@ public partial class RoomSettingsDialog : Window
         UpdateOrientationPresetSelection();
         UpdateEffectiveGridSummary();
         PopulateAmbientLighting(initialValues.AmbientLighting);
+        DefaultSpawnPointCheckBox.IsChecked = initialValues.SpawnPoint is not null;
         SpawnPointXTextBox.Text = (initialValues.SpawnPoint?.X ?? _roomCanvasWidth / 2d).ToString(CultureInfo.InvariantCulture);
         SpawnPointYTextBox.Text = (initialValues.SpawnPoint?.Y ?? _roomCanvasHeight / 2d).ToString(CultureInfo.InvariantCulture);
         EnvironmentTypeComboBox.SelectedItem = initialValues.EnvironmentType.ToString();
@@ -62,9 +63,10 @@ public partial class RoomSettingsDialog : Window
         _projectGridCellSize,
         ReadAmbientLighting(),
         NormalizeSynonymsText(RoomNameSynonymsTextBox.Text),
-        TryReadCoordinate(SpawnPointXTextBox.Text, out var spawnX) && TryReadCoordinate(SpawnPointYTextBox.Text, out var spawnY)
+        DefaultSpawnPointCheckBox.IsChecked == true
+        && TryReadCoordinate(SpawnPointXTextBox.Text, out var spawnX) && TryReadCoordinate(SpawnPointYTextBox.Text, out var spawnY)
             ? new RoomSpawnPoint(spawnX, spawnY, _spawnPointRenderZOrder)
-            : new RoomSpawnPoint(_roomCanvasWidth / 2d, _roomCanvasHeight / 2d, _spawnPointRenderZOrder),
+            : null,
         Enum.TryParse<RoomEnvironmentType>(EnvironmentTypeComboBox.SelectedItem as string, out var environmentType) ? environmentType : RoomEnvironmentType.Indoor,
         TryReadPercent(SoundLossOverrideTextBox.Text, out var soundLoss) ? soundLoss : null);
 
@@ -143,6 +145,12 @@ public partial class RoomSettingsDialog : Window
         _roomCanvasHeight = height;
 
         DialogResult = true;
+    }
+
+    private void DefaultSpawnPointCheckBox_OnChecked(object sender, RoutedEventArgs e)
+    {
+        if (SpawnPointCoordinatesGrid is not null)
+            SpawnPointCoordinatesGrid.IsEnabled = DefaultSpawnPointCheckBox.IsChecked == true;
     }
 
     private static bool TryReadCoordinate(string? text, out double value) =>

@@ -336,6 +336,7 @@ public sealed class JsonExportService : IJsonExportService
 
     public void SaveProjectModel(string projectFilePath, ProjectModel project)
     {
+        EnsureAreaSpawnPoints(project);
         ValidateTraversalOrThrow(project, "save");
         SharedVariableReconciliationService.ReconcileInPlace(project);
         RefreshRoomDerivedOccupancyCaches(project);
@@ -544,6 +545,9 @@ public sealed class JsonExportService : IJsonExportService
         };
 
         pendingWrites.Add((BuildProjectStateFilePath(projectFilePath), JsonSerializer.Serialize(projectState, _jsonOptions)));
+        var spawnPointMetadataPath = BuildRoomSpawnPointGenerationMetadataPath(projectFilePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(spawnPointMetadataPath)!);
+        pendingWrites.Add((spawnPointMetadataPath, JsonSerializer.Serialize(BuildRoomSpawnPointGenerationMetadata(project), _jsonOptions)));
 
         var proceduresFolderPath = BuildProceduresFolderPath(projectFilePath);
         pendingFolderClears.Add((proceduresFolderPath, $"*{ProcedureFileSuffix}"));
@@ -598,12 +602,7 @@ public sealed class JsonExportService : IJsonExportService
                 RoomImageCanvasWidth = ResolveEffectiveRoomCanvasWidth(project, room),
                 RoomImageCanvasHeight = ResolveEffectiveRoomCanvasHeight(project, room),
                 AmbientLighting = LightingContractMapper.ToProjectRoomAmbientLightingDto(room.AmbientLighting),
-                SpawnPoint = new RoomSpawnPointDto
-                {
-                    X = room.SpawnPoint.X,
-                    Y = room.SpawnPoint.Y,
-                    RenderZOrder = ResolveRoomSpawnPointRenderZOrder(room)
-                },
+                SpawnPoints = ToRoomSpawnPointDtos(room, includeTraversalPoints: true),
                 EnvironmentType = room.EnvironmentType,
                 SoundLossPercentOverride = NormalizePercent(room.SoundLossPercentOverride),
                 RoomDisplayMode = room.RoomDisplayMode,
@@ -952,6 +951,7 @@ public sealed class JsonExportService : IJsonExportService
                 var room = ToRoomModel(roomDto, authoringObjectDtosById, defaultRoomCanvasWidth, defaultRoomCanvasHeight);
                 roomMap[room.Id] = room;
             }
+            ApplyRoomSpawnPointGenerationMetadata(projectFilePath, roomMap);
 
             var planetDtos = LoadScopeSidecarsWithFolderFallback(
                 [BuildPlanetsFolderPath(projectFilePath)],
@@ -1400,12 +1400,7 @@ public sealed class JsonExportService : IJsonExportService
             RoomImageCanvasWidth = room.RoomImageCanvasWidth,
             RoomImageCanvasHeight = room.RoomImageCanvasHeight,
             AmbientLighting = LightingContractMapper.ToProjectRoomAmbientLightingDto(room.AmbientLighting),
-            SpawnPoint = new RoomSpawnPointDto
-            {
-                X = room.SpawnPoint.X,
-                Y = room.SpawnPoint.Y,
-                RenderZOrder = ResolveRoomSpawnPointRenderZOrder(room)
-            },
+            SpawnPoints = ToRoomSpawnPointDtos(room, includeTraversalPoints: false),
             EnvironmentType = room.EnvironmentType,
             SoundLossPercentOverride = NormalizePercent(room.SoundLossPercentOverride),
             RoomDisplayMode = room.RoomDisplayMode,
@@ -1444,6 +1439,7 @@ public sealed class JsonExportService : IJsonExportService
 
     public string ExportCleanProjectV1(string projectFilePath, ProjectModel project)
     {
+        EnsureAreaSpawnPoints(project);
         ValidateTraversalOrThrow(project, "clean export");
         RefreshRoomDerivedOccupancyCaches(project);
         var linkedActionLookup = BuildProjectActionLookup(project);
@@ -2092,12 +2088,7 @@ public sealed class JsonExportService : IJsonExportService
                     Ambient = room.AmbientLighting?.Ambient ?? project.DefaultRoomAmbientLighting?.Ambient ?? 1d,
                     AmbientColor = room.AmbientLighting?.AmbientColor ?? project.DefaultRoomAmbientLighting?.AmbientColor ?? "#FFFFFF"
                 },
-                SpawnPoint = new RuntimeRoomSpawnPointDto
-                {
-                    X = room.SpawnPoint.X,
-                    Y = room.SpawnPoint.Y,
-                    RenderZOrder = ResolveRoomSpawnPointRenderZOrder(room)
-                },
+                SpawnPoints = ToRuntimeRoomSpawnPointDtos(room),
                 EnvironmentType = room.EnvironmentType,
                 SoundLossPercentOverride = NormalizePercent(room.SoundLossPercentOverride),
                 RoomDisplayMode = ToRuntimeRoomImageDisplayMode(room.RoomDisplayMode),
@@ -4148,7 +4139,8 @@ public sealed class JsonExportService : IJsonExportService
                     state: connection.TraversalStateFromA,
                     openStateBindingMode: connection.OpenStateBindingMode,
                     pairedOpenableObjectId: connection.TraversalStateFromB?.OpenableObjectId,
-                    presentationEffectKey: connection.PresentationEffectKey));
+                    presentationEffectKey: connection.PresentationEffectKey,
+                    traversalConnectionId: connection.TraversalConnectionId));
             }
 
             if (connection.TraversalAccessMode is TraversalAccessMode.TwoWay or TraversalAccessMode.OneWayBtoA)
@@ -4160,7 +4152,8 @@ public sealed class JsonExportService : IJsonExportService
                     state: connection.TraversalStateFromB,
                     openStateBindingMode: connection.OpenStateBindingMode,
                     pairedOpenableObjectId: connection.TraversalStateFromA?.OpenableObjectId,
-                    presentationEffectKey: connection.PresentationEffectKey));
+                    presentationEffectKey: connection.PresentationEffectKey,
+                    traversalConnectionId: connection.TraversalConnectionId));
             }
         }
 
@@ -4174,7 +4167,8 @@ public sealed class JsonExportService : IJsonExportService
         TraversalLegState? state,
         OpenStateBindingMode openStateBindingMode,
         Guid? pairedOpenableObjectId,
-        string? presentationEffectKey)
+        string? presentationEffectKey,
+        Guid traversalConnectionId)
     {
         var normalizedState = state ?? new TraversalLegState();
         var gameProperties = BuildRuntimeLinkGameProperties(normalizedState);
@@ -4183,6 +4177,7 @@ public sealed class JsonExportService : IJsonExportService
         {
             FromRoomId = fromRoomId,
             ToRoomId = toRoomId,
+            TraversalConnectionId = traversalConnectionId,
             Direction = direction,
             GameProperties = gameProperties,
             OpenableObjectId = normalizedState.OpenableObjectId,
@@ -4522,9 +4517,15 @@ public sealed class JsonExportService : IJsonExportService
             RoomImageCanvasWidth = roomCanvasWidth,
             RoomImageCanvasHeight = roomCanvasHeight,
             AmbientLighting = LightingContractMapper.ToRoomAmbientLightingModel(room.AmbientLighting),
-            SpawnPoint = room.SpawnPoint is null
-                ? new RoomSpawnPoint(roomCanvasWidth / 2d, roomCanvasHeight / 2d)
-                : new RoomSpawnPoint(room.SpawnPoint.X, room.SpawnPoint.Y, room.SpawnPoint.RenderZOrder),
+            SpawnPoints = (room.SpawnPoints ?? new List<RoomSpawnPointDto>())
+                .Select(point => new RoomSpawnPoint(
+                    point.X,
+                    point.Y,
+                    point.RenderZOrder,
+                    point.IsDefault,
+                    point.TraversalConnectionId,
+                    point.FacingOverride))
+                .ToList(),
             EnvironmentType = room.EnvironmentType is { } environmentType && Enum.IsDefined(environmentType)
                 ? environmentType
                 : RoomEnvironmentType.Indoor,
@@ -6326,9 +6327,9 @@ public sealed class JsonExportService : IJsonExportService
             : ComputeRoomObjectRenderZOrder(siblingIndex, siblingCount);
     }
 
-    private static int ResolveRoomSpawnPointRenderZOrder(Room room)
+    private static int ResolveRoomSpawnPointRenderZOrder(Room room, RoomSpawnPoint point)
     {
-        if (room.SpawnPoint.RenderZOrder is int authoredRenderZOrder)
+        if (point.RenderZOrder is int authoredRenderZOrder)
         {
             return authoredRenderZOrder;
         }
@@ -6343,6 +6344,38 @@ public sealed class JsonExportService : IJsonExportService
             .Select((gameObject, index) => ResolveRoomObjectRenderZOrder(gameObject, index, roomObjects.Count))
             .Max() + 1;
     }
+
+    private static List<RoomSpawnPointDto> ToRoomSpawnPointDtos(Room room, bool includeTraversalPoints)
+    {
+        var points = room.SpawnPoints;
+        if (!includeTraversalPoints)
+        {
+            points = points.Where(static point => point.IsDefault)
+                .Select(static point => point with { TraversalConnectionId = null })
+                .ToList();
+        }
+
+        return points.Select(point => new RoomSpawnPointDto
+        {
+            X = point.X,
+            Y = point.Y,
+            IsDefault = point.IsDefault,
+            TraversalConnectionId = point.TraversalConnectionId,
+            RenderZOrder = point.RenderZOrder,
+            FacingOverride = point.FacingOverride
+        }).ToList();
+    }
+
+    private static List<RuntimeRoomSpawnPointDto> ToRuntimeRoomSpawnPointDtos(Room room) => room.SpawnPoints
+        .Select(point => new RuntimeRoomSpawnPointDto
+        {
+            X = point.X,
+            Y = point.Y,
+            IsDefault = point.IsDefault,
+            TraversalConnectionId = point.TraversalConnectionId,
+            RenderZOrder = point.RenderZOrder ?? ResolveRoomSpawnPointRenderZOrder(room, point),
+            FacingOverride = point.FacingOverride
+        }).ToList();
 
     private static void ApplyDerivedRoomRenderZOrders(IList<GameObject> roomObjects)
     {
@@ -8850,12 +8883,36 @@ public sealed class JsonExportService : IJsonExportService
         try
         {
             var normalizedJson = NormalizeLegacySoundEmitterActivationPropertyIds(json);
+            if (typeof(T) == typeof(RoomDto))
+                normalizedJson = NormalizeLegacyRoomSpawnPoint(normalizedJson);
             return JsonSerializer.Deserialize<T>(normalizedJson, options);
         }
         catch (Exception ex)
         {
             throw BuildDeserializationException(filePath, typeof(T), ex);
         }
+    }
+
+    private static string NormalizeLegacyRoomSpawnPoint(string json)
+    {
+        var root = JsonNode.Parse(json) as JsonObject;
+        if (root is null || TryGetJsonProperty(root, "spawnPoints", out _, out _)) return json;
+
+        JsonObject point;
+        if (TryGetJsonProperty(root, "spawnPoint", out _, out var legacyPoint) && legacyPoint is JsonObject legacy)
+        {
+            point = (JsonObject)legacy.DeepClone();
+            point["isDefault"] = true;
+            point["traversalConnectionId"] = null;
+        }
+        else
+        {
+            root["spawnPoints"] = new JsonArray();
+            return root.ToJsonString();
+        }
+
+        root["spawnPoints"] = new JsonArray(point);
+        return root.ToJsonString();
     }
 
     private static string NormalizeLegacySoundEmitterActivationPropertyIds(string json)
@@ -9882,6 +9939,7 @@ public sealed class JsonExportService : IJsonExportService
         var registry = new ValidationRuleRegistry();
         registry.Register(new TraversalRequireOpenSharedIsOpenRule());
         registry.Register(new TraversalConnectionIntegrityRule());
+        registry.Register(new RoomSpawnPointTraversalIntegrityRule());
         registry.Register(new TraversalDirectionalTargetUniquenessRule());
         registry.Register(new TraversalLegPassableContractRule());
         registry.Register(new TraversalDoorLinkIntegrityRule());
@@ -9896,6 +9954,92 @@ public sealed class JsonExportService : IJsonExportService
             ProjectFilePath: null));
 
         return execution.Issues;
+    }
+
+    private static void EnsureAreaSpawnPoints(ProjectModel project)
+    {
+        foreach (var area in project.Planets.SelectMany(static planet => planet.Countries).SelectMany(static country => country.Areas))
+            RoomSpawnPointAuthoringService.EnsureAreaSpawnPoints(area);
+    }
+
+    private static RoomSpawnPointGenerationMetadataFile BuildRoomSpawnPointGenerationMetadata(ProjectModel project) => new()
+    {
+        Points = project.Planets
+            .SelectMany(static planet => planet.Countries)
+            .SelectMany(static country => country.Areas)
+            .SelectMany(static area => area.Rooms)
+            .SelectMany(room => room.SpawnPoints
+                .Where(static point => point.IsAutoGeneratedPosition)
+                .Select(point => new RoomSpawnPointGenerationMetadataEntry
+                {
+                    RoomId = room.Id,
+                    TraversalConnectionId = point.TraversalConnectionId,
+                    IsDefault = point.IsDefault,
+                    GeneratedPositionX = point.GeneratedPositionX ?? point.X,
+                    GeneratedPositionY = point.GeneratedPositionY ?? point.Y
+                }))
+            .ToList()
+    };
+
+    private static void ApplyRoomSpawnPointGenerationMetadata(string projectFilePath, IReadOnlyDictionary<Guid, Room> rooms)
+    {
+        var path = BuildRoomSpawnPointGenerationMetadataPath(projectFilePath);
+        if (!File.Exists(path)) return;
+
+        try
+        {
+            var metadata = JsonSerializer.Deserialize<RoomSpawnPointGenerationMetadataFile>(File.ReadAllText(path), new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+            foreach (var entry in metadata?.Points ?? [])
+            {
+                if (!rooms.TryGetValue(entry.RoomId, out var room)) continue;
+                var points = room.SpawnPoints.ToList();
+                var index = points.FindIndex(point => point.IsDefault == entry.IsDefault
+                    && point.TraversalConnectionId == entry.TraversalConnectionId);
+                if (index < 0) continue;
+                if (entry.IsDefault && entry.TraversalConnectionId is null)
+                {
+                    // Older Designer versions created a center default implicitly. Drop that generated
+                    // marker so defaults are present only when the producer explicitly opts in.
+                    points.RemoveAt(index);
+                    room.SpawnPoints = points;
+                    continue;
+                }
+                points[index] = points[index] with
+                {
+                    IsAutoGeneratedPosition = true,
+                    GeneratedPositionX = entry.GeneratedPositionX,
+                    GeneratedPositionY = entry.GeneratedPositionY
+                };
+                room.SpawnPoints = points;
+            }
+        }
+        catch
+        {
+            // Invalid or stale Designer metadata must not prevent opening the authored project.
+        }
+    }
+
+    private static string BuildRoomSpawnPointGenerationMetadataPath(string projectFilePath)
+    {
+        var folder = Path.GetDirectoryName(projectFilePath) ?? string.Empty;
+        return Path.Combine(folder, "DesignerMetadata", "RoomSpawnPointGeneration.json");
+    }
+
+    private sealed class RoomSpawnPointGenerationMetadataFile
+    {
+        public List<RoomSpawnPointGenerationMetadataEntry> Points { get; set; } = new();
+    }
+
+    private sealed class RoomSpawnPointGenerationMetadataEntry
+    {
+        public Guid RoomId { get; set; }
+        public Guid? TraversalConnectionId { get; set; }
+        public bool IsDefault { get; set; }
+        public double GeneratedPositionX { get; set; }
+        public double GeneratedPositionY { get; set; }
     }
 
     private static string NormalizeToRelativeAssetPath(string filePath)

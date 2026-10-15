@@ -217,7 +217,7 @@
                                              PreviewMouseLeftButtonDown="SpawnPointMarker_OnPreviewMouseLeftButtonDown"
                                              PreviewMouseMove="SpawnPointMarker_OnPreviewMouseMove"
                                              PreviewMouseLeftButtonUp="SpawnPointMarker_OnPreviewMouseLeftButtonUp"
-                                             Fill="#CC22C55E" Stroke="#14532D" StrokeThickness="2">
+                                             Fill="#D1167A3C" Stroke="#14532D" StrokeThickness="2">
                                         <Ellipse.RenderTransform>
                                             <TranslateTransform X="-12" Y="-12" />
                                         </Ellipse.RenderTransform>
@@ -232,6 +232,27 @@
                                             </Style>
                                         </Ellipse.Style>
                                     </Ellipse>
+                                    <Grid Width="24" Height="24" Canvas.Left="0" Canvas.Top="0"
+                                          IsHitTestVisible="False">
+                                        <Grid.RenderTransform>
+                                            <TranslateTransform X="-12" Y="-12" />
+                                        </Grid.RenderTransform>
+                                        <TextBlock Text="{Binding SpawnPointMarkerText}"
+                                                   FontSize="9" FontWeight="Bold" Foreground="White"
+                                                   TextAlignment="Center" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSpawnPoint}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
                                 </Canvas>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
