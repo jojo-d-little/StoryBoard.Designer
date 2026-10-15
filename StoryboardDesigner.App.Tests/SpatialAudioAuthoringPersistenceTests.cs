@@ -15,7 +15,7 @@ public sealed class SpatialAudioAuthoringPersistenceTests
             .SelectMany(static area => area.Rooms));
 
         Assert.Null(legacyProject.RoomSoundLossDefaults);
-        Assert.Null(room.SpawnPoint);
+        Assert.Equal(new RoomSpawnPoint(400, 300), room.SpawnPoint);
         Assert.Equal(RoomEnvironmentType.Indoor, room.EnvironmentType);
         Assert.Null(room.SoundLossPercentOverride);
         Assert.All(EnumerateObjects(room.GameObjects), static obj => Assert.Empty(obj.SoundEmitters));
@@ -30,11 +30,10 @@ public sealed class SpatialAudioAuthoringPersistenceTests
         try
         {
             var soundId = Guid.NewGuid();
-            var propertyId = Guid.NewGuid();
             var emitter = new ObjectSoundEmitter
             {
                 SoundEffectId = soundId,
-                ActivationGamePropertyId = propertyId,
+                ActivationGamePropertyName = "isPlaying",
                 ActiveInRoom = true,
                 ActiveOutOfRoom = true
             };
@@ -54,7 +53,8 @@ public sealed class SpatialAudioAuthoringPersistenceTests
                         MaxInRoomDistancePixels = 450
                     }
                 ],
-                SoundEmitters = [emitter]
+                SoundEmitters = [emitter],
+                Variables = [new GamePropertyDefinition { Name = "isPlaying", DefaultValue = "false", ValueRestriction = GamePropertyValueRestriction.TrueFalse }]
             };
             var room = new Room
             {
@@ -81,7 +81,7 @@ public sealed class SpatialAudioAuthoringPersistenceTests
             Assert.Equal(18, loadedRoom.SoundLossPercentOverride);
             Assert.Equal(42, loaded.RoomSoundLossDefaults!.IndoorSoundLossPercent);
             Assert.Equal(7, loaded.RoomSoundLossDefaults.OutdoorSoundLossPercent);
-            Assert.Equal(propertyId, loadedObject.SoundEmitters.Single().ActivationGamePropertyId);
+            Assert.Equal("isPlaying", loadedObject.SoundEmitters.Single().ActivationGamePropertyName);
             Assert.Equal(soundId, loadedObject.SoundEffectLibraryEntries.Single().SoundEffectId);
             Assert.Equal(1200, loadedObject.SoundEffectLibraryEntries.Single().RepeatIntervalMinMs);
             Assert.Equal(2600, loadedObject.SoundEffectLibraryEntries.Single().RepeatIntervalMaxMs);

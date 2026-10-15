@@ -8,8 +8,6 @@ namespace StoryboardDesigner.App.Views;
 
 public partial class ObjectSoundEmitterDialog : Window
 {
-    public sealed record ActivationChoice(Guid? Id, string Label);
-
     private readonly ObservableCollection<ObjectSoundEmitter> _emitters;
 
     public ObjectSoundEmitterDialog(
@@ -24,23 +22,22 @@ public partial class ObjectSoundEmitterDialog : Window
             .Select(static group => group.First())
             .OrderBy(static choice => choice.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        ActivationChoices = new List<ActivationChoice> { new(null, "Always enabled") }
-            .Concat(activationProperties
-                .Where(static property => property.Id != Guid.Empty
-                    && (property.ValueRestriction == GamePropertyValueRestriction.TrueFalse
-                        || bool.TryParse(property.DefaultValue, out _)))
-                .OrderBy(static property => property.Name, StringComparer.OrdinalIgnoreCase)
-                .Select(static property => new ActivationChoice(property.Id, property.Name)))
+        ActivationPropertyNames = activationProperties
+            .Where(static property => property.ValueRestriction == GamePropertyValueRestriction.TrueFalse
+                || bool.TryParse(property.DefaultValue, out _))
+            .Select(static property => property.Name?.Trim() ?? string.Empty)
+            .Where(static name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static name => name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         SoundDefinitionColumn.ItemsSource = SoundChoices;
-        ActivationPropertyColumn.ItemsSource = ActivationChoices;
         _emitters = new ObservableCollection<ObjectSoundEmitter>(emitters.Select(Clone));
         EmittersDataGrid.ItemsSource = _emitters;
     }
 
     public IReadOnlyList<SoundEffectChoiceItem> SoundChoices { get; }
-    public IReadOnlyList<ActivationChoice> ActivationChoices { get; }
+    public IReadOnlyList<string> ActivationPropertyNames { get; }
     public IReadOnlyList<ObjectSoundEmitter> Emitters => _emitters.Select(Clone).ToList();
 
     private void AddEmitter_OnClick(object sender, RoutedEventArgs e)
@@ -84,7 +81,7 @@ public partial class ObjectSoundEmitterDialog : Window
     {
         EmitterId = emitter.EmitterId,
         SoundEffectId = emitter.SoundEffectId,
-        ActivationGamePropertyId = emitter.ActivationGamePropertyId,
+        ActivationGamePropertyName = emitter.ActivationGamePropertyName,
         ActiveInRoom = emitter.ActiveInRoom,
         ActiveOutOfRoom = emitter.ActiveOutOfRoom
     };

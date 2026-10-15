@@ -425,7 +425,7 @@ public partial class GameObjectSettingsDialog : Window
         {
             EmitterId = emitter.EmitterId,
             SoundEffectId = emitter.SoundEffectId,
-            ActivationGamePropertyId = emitter.ActivationGamePropertyId,
+            ActivationGamePropertyName = emitter.ActivationGamePropertyName,
             ActiveInRoom = emitter.ActiveInRoom,
             ActiveOutOfRoom = emitter.ActiveOutOfRoom
         }).ToList();

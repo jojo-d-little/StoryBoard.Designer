@@ -21,6 +21,11 @@ public partial class RoomDesignerOverlayPreviewControl : System.Windows.Controls
     private Button? _dragButton;
     private ContentPresenter? _dragPresenter;
     private RoomDesignerPreviewObjectViewModel? _dragObject;
+    private bool _isDraggingSpawnPoint;
+    private Point _spawnPointDragStart;
+    private double _spawnPointOriginX;
+    private double _spawnPointOriginY;
+    private Ellipse? _spawnPointMarker;
     private RoomDesignerTabViewModel? _observedTab;
 
     public RoomDesignerOverlayPreviewControl()
@@ -31,23 +36,59 @@ public partial class RoomDesignerOverlayPreviewControl : System.Windows.Controls
         PreviewLayerGrid.SizeChanged += PreviewLayerGrid_OnSizeChanged;
     }
 
-    private void PreviewLayerGrid_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void SpawnPointMarker_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (DataContext is not RoomDesignerTabViewModel tab || !tab.IsSpawnPointPlacementMode)
+        if (sender is not Ellipse marker || DataContext is not RoomDesignerTabViewModel tab)
         {
             return;
         }
 
-        if (FindAncestor<Button>(e.OriginalSource as DependencyObject) is not null)
+        _isDraggingSpawnPoint = true;
+        _spawnPointMarker = marker;
+        _spawnPointDragStart = e.GetPosition(PreviewLayerGrid);
+        _spawnPointOriginX = tab.Room.SpawnPoint.X;
+        _spawnPointOriginY = tab.Room.SpawnPoint.Y;
+        marker.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void SpawnPointMarker_OnPreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isDraggingSpawnPoint || _spawnPointMarker is null || e.LeftButton != MouseButtonState.Pressed)
         {
             return;
         }
 
-        var point = e.GetPosition(PreviewLayerGrid);
-        if (tab.TryPlaceRoomSpawnPoint(point.X, point.Y))
+        var current = e.GetPosition(PreviewLayerGrid);
+        var dx = current.X - _spawnPointDragStart.X;
+        var dy = current.Y - _spawnPointDragStart.Y;
+        _spawnPointMarker.RenderTransform = new TranslateTransform(-12 + dx, -12 + dy);
+        e.Handled = true;
+    }
+
+    private void SpawnPointMarker_OnPreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isDraggingSpawnPoint || _spawnPointMarker is null)
         {
-            e.Handled = true;
+            return;
         }
+
+        var marker = _spawnPointMarker;
+        var current = e.GetPosition(PreviewLayerGrid);
+        var dx = current.X - _spawnPointDragStart.X;
+        var dy = current.Y - _spawnPointDragStart.Y;
+        marker.RenderTransform = new TranslateTransform(-12, -12);
+
+        if ((Math.Abs(dx) > 2 || Math.Abs(dy) > 2)
+            && DataContext is RoomDesignerTabViewModel tab)
+        {
+            tab.TryMoveRoomSpawnPoint(_spawnPointOriginX + dx, _spawnPointOriginY + dy);
+        }
+
+        marker.ReleaseMouseCapture();
+        _spawnPointMarker = null;
+        _isDraggingSpawnPoint = false;
+        e.Handled = true;
     }
 
     private void RoomObjectThumb_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)

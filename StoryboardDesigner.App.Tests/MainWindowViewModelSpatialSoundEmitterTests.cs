@@ -9,7 +9,6 @@ public sealed class MainWindowViewModelSpatialSoundEmitterTests
     public void EditObjectProperties_ProvidesSoundOptionsAndPersistsEmitters()
     {
         var soundId = Guid.NewGuid();
-        var propertyId = Guid.NewGuid();
         var sound = new SoundEffectLibraryEntry
         {
             SoundEffectId = soundId,
@@ -22,7 +21,6 @@ public sealed class MainWindowViewModelSpatialSoundEmitterTests
             Name = "Generator",
             Variables = [new GamePropertyDefinition
             {
-                Id = propertyId,
                 Name = "isRunning",
                 DefaultValue = "false",
                 ValueRestriction = GamePropertyValueRestriction.TrueFalse
@@ -40,7 +38,7 @@ public sealed class MainWindowViewModelSpatialSoundEmitterTests
         var editedEmitter = new ObjectSoundEmitter
         {
             SoundEffectId = soundId,
-            ActivationGamePropertyId = propertyId,
+            ActivationGamePropertyName = "isRunning",
             ActiveInRoom = true,
             ActiveOutOfRoom = true
         };
@@ -49,7 +47,7 @@ public sealed class MainWindowViewModelSpatialSoundEmitterTests
             EditObjectBasicPropertiesHandler = initial =>
             {
                 Assert.Contains(initial.SoundEffectChoices!, choice => choice.SoundEffectId == soundId);
-                Assert.Contains(initial.SoundEmitterActivationProperties!, property => property.Id == propertyId);
+                Assert.Contains(initial.SoundEmitterActivationProperties!, property => property.Name == "isRunning");
                 return initial with { SoundEmitters = [editedEmitter] };
             }
         };
@@ -64,7 +62,7 @@ public sealed class MainWindowViewModelSpatialSoundEmitterTests
         Assert.True(viewModel.EditObjectBasicProperties(objectNode));
         var persistedEmitter = Assert.Single(obj.SoundEmitters);
         Assert.Equal(soundId, persistedEmitter.SoundEffectId);
-        Assert.Equal(propertyId, persistedEmitter.ActivationGamePropertyId);
+        Assert.Equal("isRunning", persistedEmitter.ActivationGamePropertyName);
         Assert.True(persistedEmitter.ActiveOutOfRoom);
     }
 }

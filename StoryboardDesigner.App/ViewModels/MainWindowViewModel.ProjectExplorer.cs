@@ -3987,7 +3987,7 @@ public sealed partial class MainWindowViewModel
     {
         EmitterId = emitter.EmitterId,
         SoundEffectId = emitter.SoundEffectId,
-        ActivationGamePropertyId = emitter.ActivationGamePropertyId,
+        ActivationGamePropertyName = emitter.ActivationGamePropertyName,
         ActiveInRoom = emitter.ActiveInRoom,
         ActiveOutOfRoom = emitter.ActiveOutOfRoom
     };
@@ -3999,7 +3999,7 @@ public sealed partial class MainWindowViewModel
         return left.Count == right.Count && left.Zip(right).All(static pair =>
             pair.First.EmitterId == pair.Second.EmitterId
             && pair.First.SoundEffectId == pair.Second.SoundEffectId
-            && pair.First.ActivationGamePropertyId == pair.Second.ActivationGamePropertyId
+            && string.Equals(pair.First.ActivationGamePropertyName, pair.Second.ActivationGamePropertyName, StringComparison.Ordinal)
             && pair.First.ActiveInRoom == pair.Second.ActiveInRoom
             && pair.First.ActiveOutOfRoom == pair.Second.ActiveOutOfRoom);
     }
@@ -8930,7 +8930,8 @@ public sealed partial class MainWindowViewModel
         roomNode.Room.RoomImageCanvasWidth = updated.RoomCanvasWidth;
         roomNode.Room.RoomImageCanvasHeight = updated.RoomCanvasHeight;
         roomNode.Room.AmbientLighting = LightingModelCloner.CloneRoomAmbientLighting(updated.AmbientLighting);
-        roomNode.Room.SpawnPoint = updated.SpawnPoint;
+        roomNode.Room.SpawnPoint = updated.SpawnPoint
+            ?? new RoomSpawnPoint(updated.RoomCanvasWidth / 2d, updated.RoomCanvasHeight / 2d);
         roomNode.Room.EnvironmentType = updated.EnvironmentType;
         roomNode.Room.SoundLossPercentOverride = updated.SoundLossPercentOverride;
         RefreshScopedNameIndex(area.Rooms, static room => room.Name);
@@ -8997,7 +8998,8 @@ public sealed partial class MainWindowViewModel
         templateRoomNode.Room.RoomImageCanvasWidth = updated.RoomCanvasWidth;
         templateRoomNode.Room.RoomImageCanvasHeight = updated.RoomCanvasHeight;
         templateRoomNode.Room.AmbientLighting = LightingModelCloner.CloneRoomAmbientLighting(updated.AmbientLighting);
-        templateRoomNode.Room.SpawnPoint = updated.SpawnPoint;
+        templateRoomNode.Room.SpawnPoint = updated.SpawnPoint
+            ?? new RoomSpawnPoint(updated.RoomCanvasWidth / 2d, updated.RoomCanvasHeight / 2d);
         templateRoomNode.Room.EnvironmentType = updated.EnvironmentType;
         templateRoomNode.Room.SoundLossPercentOverride = updated.SoundLossPercentOverride;
         RefreshScopedNameIndex(_project.RoomTemplates, static room => room.Name);
@@ -12518,19 +12520,6 @@ public sealed partial class MainWindowViewModel
         };
 
         clone.DesignerPersistenceScopeKind = template.DesignerPersistenceScopeKind;
-        var variableIdMap = template.Variables
-            .Zip(clone.Variables)
-            .Where(static pair => pair.First.Id != Guid.Empty && pair.Second.Id != Guid.Empty)
-            .ToDictionary(static pair => pair.First.Id, static pair => pair.Second.Id);
-        foreach (var emitter in clone.SoundEmitters)
-        {
-            if (emitter.ActivationGamePropertyId is { } sourcePropertyId
-                && variableIdMap.TryGetValue(sourcePropertyId, out var clonedPropertyId))
-            {
-                emitter.ActivationGamePropertyId = clonedPropertyId;
-            }
-        }
-
         BuildObjectCloneReferenceMaps(template, clone, out var actionIds, out var soundEffectIds);
         clone.SequenceDefinitions = CloneSequenceDefinitionsWithMaps(template.SequenceDefinitions, actionIds, soundEffectIds, out var sequenceIds);
         RemapSequenceTargets(clone, sequenceIds);

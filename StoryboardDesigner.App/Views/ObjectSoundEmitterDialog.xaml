@@ -20,9 +20,23 @@
                 <DataGridComboBoxColumn x:Name="SoundDefinitionColumn" Header="Sound Definition" Width="2*"
                                         SelectedValuePath="SoundEffectId" DisplayMemberPath="DisplayName"
                                         SelectedValueBinding="{Binding SoundEffectId, UpdateSourceTrigger=PropertyChanged}" />
-                <DataGridComboBoxColumn x:Name="ActivationPropertyColumn" Header="Activation Property" Width="2*"
-                                        SelectedValuePath="Id" DisplayMemberPath="Label"
-                                        SelectedValueBinding="{Binding ActivationGamePropertyId, UpdateSourceTrigger=PropertyChanged}" />
+                <DataGridTemplateColumn Header="Activation Game Property Name" Width="2*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding ActivationGamePropertyName}" VerticalAlignment="Center" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate>
+                            <ComboBox ItemsSource="{Binding ActivationPropertyNames, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      IsEditable="True"
+                                      IsTextSearchEnabled="True"
+                                      StaysOpenOnEdit="True"
+                                      Text="{Binding ActivationGamePropertyName, UpdateSourceTrigger=PropertyChanged}"
+                                      ToolTip="Select or enter the name of a boolean game property defined on this object. Leave blank to keep the emitter always enabled." />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
                 <DataGridCheckBoxColumn Header="In Room" Width="Auto" Binding="{Binding ActiveInRoom, UpdateSourceTrigger=PropertyChanged}" />
                 <DataGridCheckBoxColumn Header="Out of Room" Width="Auto" Binding="{Binding ActiveOutOfRoom, UpdateSourceTrigger=PropertyChanged}" />
             </DataGrid.Columns>

@@ -30,8 +30,7 @@
                         BorderThickness="1"
                         CornerRadius="4"
                         Background="#F9FAFB">
-                    <Grid x:Name="PreviewLayerGrid" ClipToBounds="True"
-                          PreviewMouseLeftButtonDown="PreviewLayerGrid_OnPreviewMouseLeftButtonDown">
+                    <Grid x:Name="PreviewLayerGrid" ClipToBounds="True">
                     <Grid>
                         <Grid.Style>
                             <Style TargetType="Grid">
@@ -108,7 +107,7 @@
                         </Canvas.Style>
                     </Canvas>
 
-                    <ItemsControl x:Name="RoomObjectPreviewItemsControl" ItemsSource="{Binding RenderableRoomChildObjects}">
+                    <ItemsControl x:Name="RoomObjectPreviewItemsControl" ItemsSource="{Binding RenderableRoomRenderOrderItems}">
                         <ItemsControl.Style>
                             <Style TargetType="ItemsControl">
                                 <Setter Property="Visibility" Value="Collapsed" />
@@ -137,92 +136,106 @@
                                 <Canvas Width="{Binding FootprintWidthPixels}"
                                         Height="{Binding FootprintHeightPixels}"
                                         ClipToBounds="False">
-                                    <!-- Visual footprint frame for selection/interaction bounds. -->
-                                    <Button Padding="0"
-                                            Background="Transparent"
-                                            Width="{Binding FootprintWidthPixels}"
-                                            Height="{Binding FootprintHeightPixels}"
-                                            BorderThickness="1"
-                                            BorderBrush="#2563EB"
-                                            Canvas.Left="0"
-                                            Canvas.Top="0"
-                                            Panel.ZIndex="0"
-                                            HorizontalContentAlignment="Stretch"
-                                            VerticalContentAlignment="Stretch"
-                                            RenderTransformOrigin="0,0"
-                                            PreviewMouseLeftButtonDown="RoomObjectThumb_OnPreviewMouseLeftButtonDown"
-                                            PreviewMouseMove="RoomObjectThumb_OnPreviewMouseMove"
-                                            PreviewMouseLeftButtonUp="RoomObjectThumb_OnPreviewMouseLeftButtonUp"
-                                            Command="{Binding DataContext.SelectRoomChildObjectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}">
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Setter Property="BorderThickness" Value="0" />
+                                    <Canvas x:Name="RoomObjectVisual" Width="{Binding FootprintWidthPixels}"
+                                            Height="{Binding FootprintHeightPixels}" ClipToBounds="False">
+                                        <Canvas.Style>
+                                            <Style TargetType="Canvas">
+                                                <Setter Property="Visibility" Value="Visible" />
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                        <Setter Property="BorderThickness" Value="2" />
+                                                    <DataTrigger Binding="{Binding IsSpawnPoint}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
-                                        </Button.Style>
-                                    </Button>
+                                        </Canvas.Style>
+                                        <!-- Visual footprint frame for selection/interaction bounds. -->
+                                        <Button Padding="0"
+                                                Background="Transparent"
+                                                Width="{Binding FootprintWidthPixels}"
+                                                Height="{Binding FootprintHeightPixels}"
+                                                BorderThickness="1"
+                                                BorderBrush="#2563EB"
+                                                Canvas.Left="0"
+                                                Canvas.Top="0"
+                                                Panel.ZIndex="0"
+                                                HorizontalContentAlignment="Stretch"
+                                                VerticalContentAlignment="Stretch"
+                                                RenderTransformOrigin="0,0"
+                                                PreviewMouseLeftButtonDown="RoomObjectThumb_OnPreviewMouseLeftButtonDown"
+                                                PreviewMouseMove="RoomObjectThumb_OnPreviewMouseMove"
+                                                PreviewMouseLeftButtonUp="RoomObjectThumb_OnPreviewMouseLeftButtonUp"
+                                                Command="{Binding DataContext.SelectRoomChildObjectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding PreviewObject}">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="BorderThickness" Value="0" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                            <Setter Property="BorderThickness" Value="2" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
 
-                                    <!-- The VM resolves the full-bitmap origin; the local and room rotations only affect the draw angle here. -->
-                                    <Image Source="{Binding ThumbnailSource}"
-                                           Width="{Binding PreviewRenderedIconWidthPixels}"
-                                           Height="{Binding PreviewRenderedIconHeightPixels}"
-                                           Stretch="Uniform"
-                                           Canvas.Left="{Binding ImageLocalAlignmentOffsetX}"
-                                           Canvas.Top="{Binding ImageLocalAlignmentOffsetY}"
-                                           Panel.ZIndex="1"
-                                           IsHitTestVisible="False"
-                                           RenderTransformOrigin="0,0">
-                                        <Image.RenderTransform>
-                                            <RotateTransform Angle="{Binding ImageRotationDegrees}" />
-                                        </Image.RenderTransform>
-                                    </Image>
-                                    <Grid Width="{Binding FootprintWidthPixels}"
-                                          Height="{Binding FootprintHeightPixels}"
-                                          IsHitTestVisible="False"
-                                          ToolTip="Light-only object (no sprite)">
-                                        <Grid.Style>
-                                            <Style TargetType="Grid">
+                                        <!-- The VM resolves the full-bitmap origin; the local and room rotations only affect the draw angle here. -->
+                                        <Image Source="{Binding ThumbnailSource}"
+                                               Width="{Binding PreviewRenderedIconWidthPixels}"
+                                               Height="{Binding PreviewRenderedIconHeightPixels}"
+                                               Stretch="Uniform"
+                                               Canvas.Left="{Binding ImageLocalAlignmentOffsetX}"
+                                               Canvas.Top="{Binding ImageLocalAlignmentOffsetY}"
+                                               Panel.ZIndex="1"
+                                               IsHitTestVisible="False"
+                                               RenderTransformOrigin="0,0">
+                                            <Image.RenderTransform>
+                                                <RotateTransform Angle="{Binding ImageRotationDegrees}" />
+                                            </Image.RenderTransform>
+                                        </Image>
+                                        <Grid Width="{Binding FootprintWidthPixels}"
+                                              Height="{Binding FootprintHeightPixels}"
+                                              IsHitTestVisible="False"
+                                              ToolTip="Light-only object (no sprite)">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsLightOnly}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
+                                            <Ellipse Width="22" Height="22" Fill="#55FBBF24" Stroke="#D97706" StrokeThickness="1.5" />
+                                            <Ellipse Width="8" Height="8" Fill="#FBBF24" Stroke="#78350F" StrokeThickness="1" />
+                                        </Grid>
+                                    </Canvas>
+                                    <Ellipse Width="24" Height="24"
+                                             Canvas.Left="0" Canvas.Top="0"
+                                             ToolTip="{Binding ToolTipText}"
+                                             Cursor="SizeAll"
+                                             PreviewMouseLeftButtonDown="SpawnPointMarker_OnPreviewMouseLeftButtonDown"
+                                             PreviewMouseMove="SpawnPointMarker_OnPreviewMouseMove"
+                                             PreviewMouseLeftButtonUp="SpawnPointMarker_OnPreviewMouseLeftButtonUp"
+                                             Fill="#CC22C55E" Stroke="#14532D" StrokeThickness="2">
+                                        <Ellipse.RenderTransform>
+                                            <TranslateTransform X="-12" Y="-12" />
+                                        </Ellipse.RenderTransform>
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
                                                 <Setter Property="Visibility" Value="Collapsed" />
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsLightOnly}" Value="True">
+                                                    <DataTrigger Binding="{Binding IsSpawnPoint}" Value="True">
                                                         <Setter Property="Visibility" Value="Visible" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
-                                        </Grid.Style>
-                                        <Ellipse Width="22" Height="22" Fill="#55FBBF24" Stroke="#D97706" StrokeThickness="1.5" />
-                                        <Ellipse Width="8" Height="8" Fill="#FBBF24" Stroke="#78350F" StrokeThickness="1" />
-                                    </Grid>
+                                        </Ellipse.Style>
+                                    </Ellipse>
                                 </Canvas>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-
-                    <Canvas IsHitTestVisible="False">
-                        <Ellipse Width="18" Height="18"
-                                 Canvas.Left="{Binding Room.SpawnPoint.X}"
-                                 Canvas.Top="{Binding Room.SpawnPoint.Y}"
-                                 Fill="#CC22C55E" Stroke="#14532D" StrokeThickness="2">
-                            <Ellipse.RenderTransform>
-                                <TranslateTransform X="-9" Y="-9" />
-                            </Ellipse.RenderTransform>
-                            <Ellipse.Style>
-                                <Style TargetType="Ellipse">
-                                    <Setter Property="Visibility" Value="Visible" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Room.SpawnPoint}" Value="{x:Null}">
-                                            <Setter Property="Visibility" Value="Collapsed" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Ellipse.Style>
-                        </Ellipse>
-                    </Canvas>
 
                     <TextBlock Text="No Preview Image" Foreground="#6B7280" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <TextBlock.Style>

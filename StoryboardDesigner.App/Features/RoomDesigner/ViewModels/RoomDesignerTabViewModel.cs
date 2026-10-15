@@ -23,9 +23,11 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
     private int _roomGridCellSize;
     private bool _isGridVisible;
     private bool _isSnapToGridEnabled = true;
-    private bool _isSpawnPointPlacementMode;
+    private bool _isSavingRoomRenderOrder;
     private RoomDesignerImageSlotViewModel? _selectedDirectionSlot;
     private RoomDesignerPreviewObjectViewModel? _selectedRoomChildObject;
+    private RoomDesignerRenderOrderItemViewModel? _selectedRoomRenderOrderItem;
+    private bool _isUpdatingRenderOrderSelection;
     private string _roomChildObjectFilter = "All";
     private RoomDesignerPreviewPlacementComparisonMode _previewPlacementComparisonMode = RoomDesignerPreviewPlacementComparisonMode.SharedOnly;
     private GameDiagnosticsLevel _selectedRoomDesignerDiagnosticsLevel = GameDiagnosticsLevel.Medium;
@@ -44,6 +46,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         Action<RoomDesignerTabViewModel>? onDesignerPreferencesChanged = null)
     {
         Room = room;
+        Room.PropertyChanged += Room_OnPropertyChanged;
         _onEdited = onEdited;
         _onDesignerPreferencesChanged = onDesignerPreferencesChanged;
         _projectFilePathAccessor = projectFilePathAccessor;
@@ -56,9 +59,10 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         _isSnapToGridEnabled = isSnapToGridEnabled;
         RoomImageSlots = new ObservableCollection<RoomDesignerImageSlotViewModel>();
         RoomChildObjects = new ObservableCollection<RoomDesignerPreviewObjectViewModel>();
+        RoomRenderOrderItems = new ObservableCollection<RoomDesignerRenderOrderItemViewModel>();
         SelectRoomChildObjectCommand = new RelayCommandOfT<RoomDesignerPreviewObjectViewModel>(SelectRoomChildObject);
-        MoveRoomChildObjectUpCommand = new RelayCommandOfT<RoomDesignerPreviewObjectViewModel>(MoveRoomChildObjectUp, CanMoveRoomChildObjectUp);
-        MoveRoomChildObjectDownCommand = new RelayCommandOfT<RoomDesignerPreviewObjectViewModel>(MoveRoomChildObjectDown, CanMoveRoomChildObjectDown);
+        MoveRoomChildObjectUpCommand = new RelayCommandOfT<object>(MoveRoomChildObjectUp, CanMoveRoomChildObjectUp);
+        MoveRoomChildObjectDownCommand = new RelayCommandOfT<object>(MoveRoomChildObjectDown, CanMoveRoomChildObjectDown);
         EditRoomChildObjectImageCommand = new RelayCommandOfT<RoomDesignerPreviewObjectViewModel>(EditRoomChildObjectImage);
         BuildImageSlots();
         BuildRoomChildObjects();
@@ -69,6 +73,8 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
     public ObservableCollection<RoomDesignerImageSlotViewModel> RoomImageSlots { get; }
 
     public ObservableCollection<RoomDesignerPreviewObjectViewModel> RoomChildObjects { get; }
+
+    public ObservableCollection<RoomDesignerRenderOrderItemViewModel> RoomRenderOrderItems { get; }
 
     public IReadOnlyList<string> RoomChildObjectFilterOptions { get; } = ["All", "Visible", "Hidden"];
 
@@ -149,7 +155,31 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
             }
 
             OnPropertyChanged();
+            if (!_isUpdatingRenderOrderSelection)
+            {
+                _selectedRoomRenderOrderItem = RoomRenderOrderItems.FirstOrDefault(item => ReferenceEquals(item.PreviewObject, value));
+                OnPropertyChanged(nameof(SelectedRoomRenderOrderItem));
+            }
             OnPropertyChanged(nameof(RoomDesignerDiagnosticsLines));
+            RaiseRoomChildCommandStates();
+        }
+    }
+
+    public RoomDesignerRenderOrderItemViewModel? SelectedRoomRenderOrderItem
+    {
+        get => _selectedRoomRenderOrderItem;
+        set
+        {
+            if (ReferenceEquals(_selectedRoomRenderOrderItem, value))
+            {
+                return;
+            }
+
+            _selectedRoomRenderOrderItem = value;
+            OnPropertyChanged();
+            _isUpdatingRenderOrderSelection = true;
+            SelectedRoomChildObject = value?.PreviewObject;
+            _isUpdatingRenderOrderSelection = false;
             RaiseRoomChildCommandStates();
         }
     }
@@ -206,6 +236,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
             _roomChildObjectFilter = normalized;
             OnPropertyChanged();
             OnPropertyChanged(nameof(FilteredRoomChildObjects));
+            OnPropertyChanged(nameof(FilteredRoomRenderOrderItems));
         }
     }
 
@@ -285,9 +316,26 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         _ => RoomChildObjects.ToList()
     };
 
+    public IReadOnlyList<RoomDesignerRenderOrderItemViewModel> FilteredRoomRenderOrderItems => RoomChildObjectFilter switch
+    {
+        "Visible" => RoomRenderOrderItems.Where(static item => item.IsSpawnPoint || item.IncludeInPreview).ToList(),
+        "Hidden" => RoomRenderOrderItems.Where(static item => !item.IsSpawnPoint && !item.IncludeInPreview).ToList(),
+        _ => RoomRenderOrderItems.ToList()
+    };
+
+    public IReadOnlyList<RoomDesignerRenderOrderItemViewModel> RenderableRoomRenderOrderItems =>
+        RoomRenderOrderItems.Where(static item => item.IsRenderable).ToList();
+
     public IReadOnlyList<string> RoomDesignerDiagnosticsLines => BuildRoomDesignerDiagnosticsLines();
 
-    public bool HasRenderableRoomChildObjects => RenderableRoomChildObjects.Count > 0;
+    public bool HasRenderableRoomChildObjects => RenderableRoomRenderOrderItems.Count > 0;
+
+    public double SpawnPointPreviewX => Room.SpawnPoint.X;
+
+    public double SpawnPointPreviewY => Room.SpawnPoint.Y;
+
+    public string SpawnPointPreviewToolTip =>
+        $"Room spawn point (drag to move). Render Z-order: {Room.SpawnPoint.RenderZOrder?.ToString(CultureInfo.InvariantCulture) ?? "default"}.";
 
     public int DesignerCanvasWidth
     {
@@ -301,6 +349,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
 
             _designerCanvasWidth = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(SpawnPointPreviewX));
             OnPropertyChanged(nameof(EffectiveGridColumns));
             OnPropertyChanged(nameof(EffectiveGridRows));
             OnPropertyChanged(nameof(EffectiveGridSummary));
@@ -319,6 +368,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
 
             _designerCanvasHeight = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(SpawnPointPreviewY));
             OnPropertyChanged(nameof(EffectiveGridColumns));
             OnPropertyChanged(nameof(EffectiveGridRows));
             OnPropertyChanged(nameof(EffectiveGridSummary));
@@ -387,20 +437,9 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         }
     }
 
-    public bool IsSpawnPointPlacementMode
+    public bool TryMoveRoomSpawnPoint(double x, double y)
     {
-        get => _isSpawnPointPlacementMode;
-        set
-        {
-            if (_isSpawnPointPlacementMode == value) return;
-            _isSpawnPointPlacementMode = value;
-            OnPropertyChanged();
-        }
-    }
-
-    public bool TryPlaceRoomSpawnPoint(double x, double y)
-    {
-        if (!IsSpawnPointPlacementMode || !double.IsFinite(x) || !double.IsFinite(y)) return false;
+        if (!double.IsFinite(x) || !double.IsFinite(y)) return false;
 
         var nextX = Math.Clamp(x, 0, Math.Max(0, DesignerCanvasWidth));
         var nextY = Math.Clamp(y, 0, Math.Max(0, DesignerCanvasHeight));
@@ -410,11 +449,46 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
             nextY = Math.Clamp(SnapCoordinate(nextY), 0, Math.Max(0, DesignerCanvasHeight));
         }
 
-        Room.SpawnPoint = new RoomSpawnPoint(nextX, nextY);
-        IsSpawnPointPlacementMode = false;
-        OnPropertyChanged(nameof(Room));
+        Room.SpawnPoint = new RoomSpawnPoint(nextX, nextY, Room.SpawnPoint.RenderZOrder);
         _onEdited?.Invoke();
         return true;
+    }
+
+    private void Room_OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!string.Equals(e.PropertyName, nameof(Room.SpawnPoint), StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        OnPropertyChanged(nameof(SpawnPointPreviewX));
+        OnPropertyChanged(nameof(SpawnPointPreviewY));
+        OnPropertyChanged(nameof(SpawnPointPreviewToolTip));
+        var spawnPointItem = RoomRenderOrderItems.FirstOrDefault(static item => item.IsSpawnPoint);
+        if (_isSavingRoomRenderOrder)
+        {
+            spawnPointItem?.NotifySpawnPointChanged();
+            return;
+        }
+
+        var selectedObjectId = _selectedRoomRenderOrderItem?.PreviewObject?.GameObject.ObjectId;
+        var selectedSpawnPoint = _selectedRoomRenderOrderItem?.IsSpawnPoint == true;
+        BuildRoomRenderOrderItems();
+        if (selectedSpawnPoint)
+        {
+            SelectedRoomRenderOrderItem = RoomRenderOrderItems.FirstOrDefault(static item => item.IsSpawnPoint);
+        }
+        else if (selectedObjectId.HasValue)
+        {
+            _selectedRoomRenderOrderItem = RoomRenderOrderItems.FirstOrDefault(item =>
+                item.PreviewObject?.GameObject.ObjectId == selectedObjectId.Value);
+            OnPropertyChanged(nameof(SelectedRoomRenderOrderItem));
+        }
+
+        OnPropertyChanged(nameof(RenderableRoomRenderOrderItems));
+        OnPropertyChanged(nameof(FilteredRoomChildObjects));
+        OnPropertyChanged(nameof(FilteredRoomRenderOrderItems));
+        RaiseRoomChildCommandStates();
     }
 
     public IEnumerable<RoomDesignerImageSlotViewModel> OverlaySlots => RoomImageSlots.Where(slot =>
@@ -471,6 +545,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
     {
         RefreshDefinitionSettingsSubscriptions();
         var selectedObjectId = SelectedRoomChildObject?.GameObject.ObjectId;
+        var selectedSpawnPoint = _selectedRoomRenderOrderItem?.IsSpawnPoint == true;
 
         RoomChildObjects.Clear();
 
@@ -507,15 +582,52 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
             }
         }
 
+        BuildRoomRenderOrderItems();
+
         SelectedRoomChildObject = selectedObjectId.HasValue
             ? RoomChildObjects.FirstOrDefault(item => item.GameObject.ObjectId == selectedObjectId.Value)
-            : RoomChildObjects.FirstOrDefault();
+            : selectedSpawnPoint ? null : RoomChildObjects.FirstOrDefault();
+        if (selectedSpawnPoint)
+        {
+            SelectedRoomRenderOrderItem = RoomRenderOrderItems.FirstOrDefault(static item => item.IsSpawnPoint);
+        }
 
         OnPropertyChanged(nameof(RenderableRoomChildObjects));
+        OnPropertyChanged(nameof(RenderableRoomRenderOrderItems));
         OnPropertyChanged(nameof(HasRenderableRoomChildObjects));
         OnPropertyChanged(nameof(FilteredRoomChildObjects));
+        OnPropertyChanged(nameof(FilteredRoomRenderOrderItems));
         OnPropertyChanged(nameof(RoomDesignerDiagnosticsLines));
         RaiseRoomChildCommandStates();
+    }
+
+    private void BuildRoomRenderOrderItems()
+    {
+        foreach (var existingItem in RoomRenderOrderItems)
+        {
+            existingItem.Detach();
+        }
+
+        RoomRenderOrderItems.Clear();
+        foreach (var preview in RoomChildObjects)
+        {
+            RoomRenderOrderItems.Add(new RoomDesignerRenderOrderItemViewModel(Room, preview, preview.DrawOrderZIndex));
+        }
+
+        var defaultSpawnPointOrder = RoomRenderOrderItems.Count == 0
+            ? 1
+            : RoomRenderOrderItems.Max(static item => item.DrawOrderZIndex) + 1;
+        var spawnPointOrder = Room.SpawnPoint.RenderZOrder ?? defaultSpawnPointOrder;
+        RoomRenderOrderItems.Add(new RoomDesignerRenderOrderItemViewModel(Room, spawnPointOrder));
+
+        var orderedItems = RoomRenderOrderItems
+            .OrderByDescending(static item => item.DrawOrderZIndex)
+            .ToList();
+        RoomRenderOrderItems.Clear();
+        foreach (var item in orderedItems)
+        {
+            RoomRenderOrderItems.Add(item);
+        }
     }
 
     private void RefreshDefinitionSettingsSubscriptions()
@@ -610,8 +722,10 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
     {
         _onEdited?.Invoke();
         OnPropertyChanged(nameof(RenderableRoomChildObjects));
+        OnPropertyChanged(nameof(RenderableRoomRenderOrderItems));
         OnPropertyChanged(nameof(HasRenderableRoomChildObjects));
         OnPropertyChanged(nameof(FilteredRoomChildObjects));
+        OnPropertyChanged(nameof(FilteredRoomRenderOrderItems));
         OnPropertyChanged(nameof(RoomDesignerDiagnosticsLines));
         RaiseRoomChildCommandStates();
     }
@@ -749,74 +863,114 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         RaiseRoomChildCommandStates();
     }
 
-    private bool CanMoveRoomChildObjectUp(RoomDesignerPreviewObjectViewModel? preview)
+    private RoomDesignerRenderOrderItemViewModel? ResolveRenderOrderItem(object? value) => value switch
     {
-        return preview is not null && RoomChildObjects.IndexOf(preview) > 0;
+        RoomDesignerRenderOrderItemViewModel item => item,
+        RoomDesignerPreviewObjectViewModel preview => RoomRenderOrderItems.FirstOrDefault(item => ReferenceEquals(item.PreviewObject, preview)),
+        _ => null
+    };
+
+    private bool CanMoveRoomChildObjectUp(object? value)
+    {
+        var item = ResolveRenderOrderItem(value);
+        return item is not null && RoomRenderOrderItems.IndexOf(item) > 0;
     }
 
-    private bool CanMoveRoomChildObjectDown(RoomDesignerPreviewObjectViewModel? preview)
+    private bool CanMoveRoomChildObjectDown(object? value)
     {
-        return preview is not null
-               && RoomChildObjects.IndexOf(preview) >= 0
-               && RoomChildObjects.IndexOf(preview) < RoomChildObjects.Count - 1;
+        var item = ResolveRenderOrderItem(value);
+        return item is not null
+               && RoomRenderOrderItems.IndexOf(item) >= 0
+               && RoomRenderOrderItems.IndexOf(item) < RoomRenderOrderItems.Count - 1;
     }
 
-    private void MoveRoomChildObjectUp(RoomDesignerPreviewObjectViewModel? preview)
+    private void MoveRoomChildObjectUp(object? value)
     {
-        if (preview is null)
+        var item = ResolveRenderOrderItem(value);
+        if (item is null)
         {
             return;
         }
 
-        var currentIndex = RoomChildObjects.IndexOf(preview);
+        var currentIndex = RoomRenderOrderItems.IndexOf(item);
         if (currentIndex <= 0)
         {
             return;
         }
 
-        RoomChildObjects.RemoveAt(currentIndex);
-        RoomChildObjects.Insert(currentIndex - 1, preview);
+        RoomRenderOrderItems.Move(currentIndex, currentIndex - 1);
         SaveRoomPreviewDrawOrder();
-        SelectedRoomChildObject = preview;
-        OnPropertyChanged(nameof(RenderableRoomChildObjects));
+        SelectedRoomRenderOrderItem = item;
+        OnPropertyChanged(nameof(RenderableRoomRenderOrderItems));
         OnPropertyChanged(nameof(FilteredRoomChildObjects));
+        OnPropertyChanged(nameof(FilteredRoomRenderOrderItems));
         RaiseRoomChildCommandStates();
         _onEdited?.Invoke();
     }
 
-    private void MoveRoomChildObjectDown(RoomDesignerPreviewObjectViewModel? preview)
+    private void MoveRoomChildObjectDown(object? value)
     {
-        if (preview is null)
+        var item = ResolveRenderOrderItem(value);
+        if (item is null)
         {
             return;
         }
 
-        var currentIndex = RoomChildObjects.IndexOf(preview);
-        if (currentIndex < 0 || currentIndex >= RoomChildObjects.Count - 1)
+        var currentIndex = RoomRenderOrderItems.IndexOf(item);
+        if (currentIndex < 0 || currentIndex >= RoomRenderOrderItems.Count - 1)
         {
             return;
         }
 
-        RoomChildObjects.RemoveAt(currentIndex);
-        RoomChildObjects.Insert(currentIndex + 1, preview);
+        RoomRenderOrderItems.Move(currentIndex, currentIndex + 1);
         SaveRoomPreviewDrawOrder();
-        SelectedRoomChildObject = preview;
-        OnPropertyChanged(nameof(RenderableRoomChildObjects));
+        SelectedRoomRenderOrderItem = item;
+        OnPropertyChanged(nameof(RenderableRoomRenderOrderItems));
         OnPropertyChanged(nameof(FilteredRoomChildObjects));
+        OnPropertyChanged(nameof(FilteredRoomRenderOrderItems));
         RaiseRoomChildCommandStates();
         _onEdited?.Invoke();
     }
 
     private void SaveRoomPreviewDrawOrder()
     {
-        var count = RoomChildObjects.Count;
-        for (var index = 0; index < count; index++)
+        _isSavingRoomRenderOrder = true;
+        try
         {
-            var zOrder = count - index;
-            var preview = RoomChildObjects[index];
-            preview.GameObject.RenderZOrder = zOrder;
-            preview.DrawOrderZIndex = zOrder;
+            var count = RoomRenderOrderItems.Count;
+            for (var index = 0; index < count; index++)
+            {
+                var item = RoomRenderOrderItems[index];
+                var zOrder = count - index;
+                item.DrawOrderZIndex = zOrder;
+                if (item.IsSpawnPoint)
+                {
+                    Room.SpawnPoint = Room.SpawnPoint with { RenderZOrder = zOrder };
+                }
+                else if (item.PreviewObject is { } preview)
+                {
+                    preview.GameObject.RenderZOrder = zOrder;
+                }
+            }
+
+            var orderedObjectPreviews = RoomRenderOrderItems
+                .Where(static item => item.PreviewObject is not null)
+                .Select(static item => item.PreviewObject!)
+                .ToList();
+            RoomChildObjects.Clear();
+            foreach (var preview in orderedObjectPreviews)
+            {
+                RoomChildObjects.Add(preview);
+            }
         }
+        finally
+        {
+            _isSavingRoomRenderOrder = false;
+        }
+
+        OnPropertyChanged(nameof(RenderableRoomChildObjects));
+        OnPropertyChanged(nameof(RenderableRoomRenderOrderItems));
+        OnPropertyChanged(nameof(HasRenderableRoomChildObjects));
     }
 
     private void EditRoomChildObjectImage(RoomDesignerPreviewObjectViewModel? preview)
@@ -834,12 +988,12 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
 
     private void RaiseRoomChildCommandStates()
     {
-        if (MoveRoomChildObjectUpCommand is RelayCommandOfT<RoomDesignerPreviewObjectViewModel> moveUp)
+        if (MoveRoomChildObjectUpCommand is RelayCommandOfT<object> moveUp)
         {
             moveUp.RaiseCanExecuteChanged();
         }
 
-        if (MoveRoomChildObjectDownCommand is RelayCommandOfT<RoomDesignerPreviewObjectViewModel> moveDown)
+        if (MoveRoomChildObjectDownCommand is RelayCommandOfT<object> moveDown)
         {
             moveDown.RaiseCanExecuteChanged();
         }
@@ -859,8 +1013,10 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         OnPropertyChanged(nameof(IndependentPreviewImageSource));
         OnPropertyChanged(nameof(ShowNoPreviewImagePlaceholder));
         OnPropertyChanged(nameof(RenderableRoomChildObjects));
+        OnPropertyChanged(nameof(RenderableRoomRenderOrderItems));
         OnPropertyChanged(nameof(HasRenderableRoomChildObjects));
         OnPropertyChanged(nameof(FilteredRoomChildObjects));
+        OnPropertyChanged(nameof(FilteredRoomRenderOrderItems));
         OnPropertyChanged(nameof(RoomDesignerDiagnosticsLines));
     }
 

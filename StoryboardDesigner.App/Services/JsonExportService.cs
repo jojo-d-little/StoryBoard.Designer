@@ -598,7 +598,12 @@ public sealed class JsonExportService : IJsonExportService
                 RoomImageCanvasWidth = ResolveEffectiveRoomCanvasWidth(project, room),
                 RoomImageCanvasHeight = ResolveEffectiveRoomCanvasHeight(project, room),
                 AmbientLighting = LightingContractMapper.ToProjectRoomAmbientLightingDto(room.AmbientLighting),
-                SpawnPoint = room.SpawnPoint is null ? null : new RoomSpawnPointDto { X = room.SpawnPoint.X, Y = room.SpawnPoint.Y },
+                SpawnPoint = new RoomSpawnPointDto
+                {
+                    X = room.SpawnPoint.X,
+                    Y = room.SpawnPoint.Y,
+                    RenderZOrder = ResolveRoomSpawnPointRenderZOrder(room)
+                },
                 EnvironmentType = room.EnvironmentType,
                 SoundLossPercentOverride = NormalizePercent(room.SoundLossPercentOverride),
                 RoomDisplayMode = room.RoomDisplayMode,
@@ -1395,7 +1400,12 @@ public sealed class JsonExportService : IJsonExportService
             RoomImageCanvasWidth = room.RoomImageCanvasWidth,
             RoomImageCanvasHeight = room.RoomImageCanvasHeight,
             AmbientLighting = LightingContractMapper.ToProjectRoomAmbientLightingDto(room.AmbientLighting),
-            SpawnPoint = room.SpawnPoint is null ? null : new RoomSpawnPointDto { X = room.SpawnPoint.X, Y = room.SpawnPoint.Y },
+            SpawnPoint = new RoomSpawnPointDto
+            {
+                X = room.SpawnPoint.X,
+                Y = room.SpawnPoint.Y,
+                RenderZOrder = ResolveRoomSpawnPointRenderZOrder(room)
+            },
             EnvironmentType = room.EnvironmentType,
             SoundLossPercentOverride = NormalizePercent(room.SoundLossPercentOverride),
             RoomDisplayMode = room.RoomDisplayMode,
@@ -2082,7 +2092,12 @@ public sealed class JsonExportService : IJsonExportService
                     Ambient = room.AmbientLighting?.Ambient ?? project.DefaultRoomAmbientLighting?.Ambient ?? 1d,
                     AmbientColor = room.AmbientLighting?.AmbientColor ?? project.DefaultRoomAmbientLighting?.AmbientColor ?? "#FFFFFF"
                 },
-                SpawnPoint = room.SpawnPoint is null ? null : new RuntimeRoomSpawnPointDto { X = room.SpawnPoint.X, Y = room.SpawnPoint.Y },
+                SpawnPoint = new RuntimeRoomSpawnPointDto
+                {
+                    X = room.SpawnPoint.X,
+                    Y = room.SpawnPoint.Y,
+                    RenderZOrder = ResolveRoomSpawnPointRenderZOrder(room)
+                },
                 EnvironmentType = room.EnvironmentType,
                 SoundLossPercentOverride = NormalizePercent(room.SoundLossPercentOverride),
                 RoomDisplayMode = ToRuntimeRoomImageDisplayMode(room.RoomDisplayMode),
@@ -4478,6 +4493,12 @@ public sealed class JsonExportService : IJsonExportService
             : InferLegacyRoomDisplayMode(room.Images);
         var resolvedRoomObjects = ResolveScopedObjectDtos(room.GameObjectIds, room.GameObjects, objectDtosById);
         var roomObjects = resolvedRoomObjects.Select(ToGameObjectModel).ToList();
+        var roomCanvasWidth = room.RoomImageCanvasWidth.GetValueOrDefault() > 0
+            ? room.RoomImageCanvasWidth!.Value
+            : (defaultRoomCanvasWidth > 0 ? defaultRoomCanvasWidth : 800);
+        var roomCanvasHeight = room.RoomImageCanvasHeight.GetValueOrDefault() > 0
+            ? room.RoomImageCanvasHeight!.Value
+            : (defaultRoomCanvasHeight > 0 ? defaultRoomCanvasHeight : 600);
 
         if (resolvedRoomObjects.All(static obj => !obj.RenderZOrder.HasValue))
         {
@@ -4498,14 +4519,12 @@ public sealed class JsonExportService : IJsonExportService
             HideEmptyConfiguration = room.HideEmptyConfiguration,
             Description = room.Description,
             ProducerNotes = room.ProducerNotes ?? string.Empty,
-            RoomImageCanvasWidth = room.RoomImageCanvasWidth.GetValueOrDefault() > 0
-                ? room.RoomImageCanvasWidth!.Value
-                : (defaultRoomCanvasWidth > 0 ? defaultRoomCanvasWidth : 800),
-            RoomImageCanvasHeight = room.RoomImageCanvasHeight.GetValueOrDefault() > 0
-                ? room.RoomImageCanvasHeight!.Value
-                : (defaultRoomCanvasHeight > 0 ? defaultRoomCanvasHeight : 600),
+            RoomImageCanvasWidth = roomCanvasWidth,
+            RoomImageCanvasHeight = roomCanvasHeight,
             AmbientLighting = LightingContractMapper.ToRoomAmbientLightingModel(room.AmbientLighting),
-            SpawnPoint = room.SpawnPoint is null ? null : new RoomSpawnPoint(room.SpawnPoint.X, room.SpawnPoint.Y),
+            SpawnPoint = room.SpawnPoint is null
+                ? new RoomSpawnPoint(roomCanvasWidth / 2d, roomCanvasHeight / 2d)
+                : new RoomSpawnPoint(room.SpawnPoint.X, room.SpawnPoint.Y, room.SpawnPoint.RenderZOrder),
             EnvironmentType = room.EnvironmentType is { } environmentType && Enum.IsDefined(environmentType)
                 ? environmentType
                 : RoomEnvironmentType.Indoor,
@@ -6307,6 +6326,24 @@ public sealed class JsonExportService : IJsonExportService
             : ComputeRoomObjectRenderZOrder(siblingIndex, siblingCount);
     }
 
+    private static int ResolveRoomSpawnPointRenderZOrder(Room room)
+    {
+        if (room.SpawnPoint.RenderZOrder is int authoredRenderZOrder)
+        {
+            return authoredRenderZOrder;
+        }
+
+        var roomObjects = EnumerateGameObjectsRecursive(room.GameObjects).ToList();
+        if (roomObjects.Count == 0)
+        {
+            return RoomObjectRenderZBase + 1;
+        }
+
+        return roomObjects
+            .Select((gameObject, index) => ResolveRoomObjectRenderZOrder(gameObject, index, roomObjects.Count))
+            .Max() + 1;
+    }
+
     private static void ApplyDerivedRoomRenderZOrders(IList<GameObject> roomObjects)
     {
         for (var index = 0; index < roomObjects.Count; index++)
@@ -6420,7 +6457,7 @@ public sealed class JsonExportService : IJsonExportService
     {
         EmitterId = emitter.EmitterId == Guid.Empty ? Guid.NewGuid() : emitter.EmitterId,
         SoundEffectId = emitter.SoundEffectId,
-        ActivationGamePropertyId = emitter.ActivationGamePropertyId,
+        ActivationGamePropertyName = emitter.ActivationGamePropertyName,
         ActiveInRoom = emitter.ActiveInRoom,
         ActiveOutOfRoom = emitter.ActiveOutOfRoom
     };
@@ -6429,7 +6466,7 @@ public sealed class JsonExportService : IJsonExportService
     {
         EmitterId = emitter.EmitterId == Guid.Empty ? Guid.NewGuid() : emitter.EmitterId,
         SoundEffectId = emitter.SoundEffectId,
-        ActivationGamePropertyId = emitter.ActivationGamePropertyId,
+        ActivationGamePropertyName = emitter.ActivationGamePropertyName,
         ActiveInRoom = emitter.ActiveInRoom,
         ActiveOutOfRoom = emitter.ActiveOutOfRoom
     };
@@ -6438,7 +6475,7 @@ public sealed class JsonExportService : IJsonExportService
     {
         EmitterId = emitter.EmitterId == Guid.Empty ? Guid.NewGuid() : emitter.EmitterId,
         SoundEffectId = emitter.SoundEffectId,
-        ActivationGamePropertyId = emitter.ActivationGamePropertyId,
+        ActivationGamePropertyName = emitter.ActivationGamePropertyName,
         ActiveInRoom = emitter.ActiveInRoom,
         ActiveOutOfRoom = emitter.ActiveOutOfRoom
     };
@@ -8812,12 +8849,113 @@ public sealed class JsonExportService : IJsonExportService
     {
         try
         {
-            return JsonSerializer.Deserialize<T>(json, options);
+            var normalizedJson = NormalizeLegacySoundEmitterActivationPropertyIds(json);
+            return JsonSerializer.Deserialize<T>(normalizedJson, options);
         }
         catch (Exception ex)
         {
             throw BuildDeserializationException(filePath, typeof(T), ex);
         }
+    }
+
+    private static string NormalizeLegacySoundEmitterActivationPropertyIds(string json)
+    {
+        if (!json.Contains("activationGamePropertyId", StringComparison.OrdinalIgnoreCase))
+        {
+            return json;
+        }
+
+        var root = JsonNode.Parse(json);
+        if (root is null)
+        {
+            return json;
+        }
+
+        MigrateLegacySoundEmitterActivationPropertyIds(root);
+        return root.ToJsonString();
+    }
+
+    private static void MigrateLegacySoundEmitterActivationPropertyIds(JsonNode node)
+    {
+        if (node is JsonObject jsonObject)
+        {
+            var propertyNamesById = new Dictionary<Guid, string>();
+            if (TryGetJsonProperty(jsonObject, "gameProperties", out _, out var gamePropertiesNode)
+                && gamePropertiesNode is JsonArray gameProperties)
+            {
+                foreach (var gamePropertyNode in gameProperties.OfType<JsonObject>())
+                {
+                    if (TryGetJsonProperty(gamePropertyNode, "id", out _, out var idNode)
+                        && TryGetJsonProperty(gamePropertyNode, "name", out _, out var nameNode)
+                        && idNode is JsonValue idValue
+                        && idValue.TryGetValue<string>(out var idText)
+                        && Guid.TryParse(idText, out var id)
+                        && nameNode is JsonValue nameValue
+                        && nameValue.TryGetValue<string>(out var name)
+                        && !string.IsNullOrWhiteSpace(name))
+                    {
+                        propertyNamesById.TryAdd(id, name.Trim());
+                    }
+                }
+            }
+
+            if (TryGetJsonProperty(jsonObject, "soundEmitters", out _, out var emittersNode)
+                && emittersNode is JsonArray emitters)
+            {
+                foreach (var emitterNode in emitters.OfType<JsonObject>())
+                {
+                    if (!TryGetJsonProperty(emitterNode, "activationGamePropertyId", out var legacyKey, out var legacyIdNode))
+                    {
+                        continue;
+                    }
+
+                    var hasCurrentName = TryGetJsonProperty(emitterNode, "activationGamePropertyName", out _, out var currentNameNode)
+                        && currentNameNode is not null;
+                    if (!hasCurrentName
+                        && legacyIdNode is JsonValue legacyIdValue
+                        && legacyIdValue.TryGetValue<string>(out var legacyIdText)
+                        && !string.IsNullOrWhiteSpace(legacyIdText))
+                    {
+                        var activationName = Guid.TryParse(legacyIdText, out var legacyId)
+                            && propertyNamesById.TryGetValue(legacyId, out var resolvedName)
+                                ? resolvedName
+                                : legacyIdText.Trim();
+                        emitterNode["activationGamePropertyName"] = activationName;
+                    }
+
+                    emitterNode.Remove(legacyKey);
+                }
+            }
+
+            foreach (var child in jsonObject.Select(static pair => pair.Value).Where(static value => value is not null).ToList())
+            {
+                MigrateLegacySoundEmitterActivationPropertyIds(child!);
+            }
+        }
+        else if (node is JsonArray array)
+        {
+            foreach (var child in array.Where(static value => value is not null))
+            {
+                MigrateLegacySoundEmitterActivationPropertyIds(child!);
+            }
+        }
+    }
+
+    private static bool TryGetJsonProperty(JsonObject jsonObject, string propertyName, out string actualName, out JsonNode? value)
+    {
+        foreach (var pair in jsonObject)
+        {
+            if (string.Equals(pair.Key, propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                actualName = pair.Key;
+                value = pair.Value;
+                return true;
+            }
+        }
+
+        actualName = string.Empty;
+        value = null;
+        return false;
     }
 
     private static InvalidOperationException BuildDeserializationException(string filePath, Type targetType, Exception ex)

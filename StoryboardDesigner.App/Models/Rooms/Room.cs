@@ -121,13 +121,13 @@ public sealed class Room : ScopeNodeBase, INotifyPropertyChanged
 
     public RoomAmbientLighting? AmbientLighting { get; set; }
 
-    /// <summary>Optional authored pixel location for the single runtime player object.</summary>
-    public RoomSpawnPoint? SpawnPoint
+    /// <summary>Authored pixel location for the single runtime player object. Unset rooms default to their center.</summary>
+    public RoomSpawnPoint SpawnPoint
     {
-        get => _spawnPoint;
+        get => _spawnPoint ??= new RoomSpawnPoint(RoomImageCanvasWidth / 2d, RoomImageCanvasHeight / 2d);
         set
         {
-            if (Equals(_spawnPoint, value)) return;
+            if (_spawnPoint is not null && Equals(_spawnPoint, value)) return;
             _spawnPoint = value;
             OnPropertyChanged();
         }

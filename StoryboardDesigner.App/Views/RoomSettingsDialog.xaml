@@ -118,8 +118,14 @@
         <TextBlock Grid.Row="10" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Spawn point (pixels)" />
         <Grid Grid.Row="10" Grid.Column="1" Margin="0,0,0,12">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-            <TextBox x:Name="SpawnPointXTextBox" Grid.Column="0" Margin="0,0,8,0" ToolTip="X coordinate. Leave both coordinates blank to use room center." />
-            <TextBox x:Name="SpawnPointYTextBox" Grid.Column="1" ToolTip="Y coordinate. Leave both coordinates blank to use room center." />
+            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                <TextBlock Margin="0,0,0,4" Foreground="#4B5563" Text="X" />
+                <TextBox x:Name="SpawnPointXTextBox" ToolTip="X coordinate. Leave both coordinates blank to use room center." />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                <TextBlock Margin="0,0,0,4" Foreground="#4B5563" Text="Y" />
+                <TextBox x:Name="SpawnPointYTextBox" ToolTip="Y coordinate. Leave both coordinates blank to use room center." />
+            </StackPanel>
         </Grid>
 
         <TextBlock Grid.Row="11" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Environment" />

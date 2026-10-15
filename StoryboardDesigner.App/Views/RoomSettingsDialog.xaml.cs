@@ -21,6 +21,7 @@ public partial class RoomSettingsDialog : Window
     private readonly int _projectDefaultCanvasWidth;
     private readonly int _projectDefaultCanvasHeight;
     private readonly int _projectGridCellSize;
+    private readonly int? _spawnPointRenderZOrder;
     private int _roomCanvasWidth;
     private int _roomCanvasHeight;
     private bool _isApplyingPreset;
@@ -34,6 +35,7 @@ public partial class RoomSettingsDialog : Window
         _roomCanvasWidth = _projectDefaultCanvasWidth;
         _roomCanvasHeight = _projectDefaultCanvasHeight;
         _projectGridCellSize = initialValues.ProjectRoomGridCellSize > 0 ? initialValues.ProjectRoomGridCellSize : 40;
+        _spawnPointRenderZOrder = initialValues.SpawnPoint?.RenderZOrder;
 
         RoomNameTextBox.Text = initialValues.Name;
         RoomNameInGameTextBox.Text = initialValues.NameInGame;
@@ -45,8 +47,8 @@ public partial class RoomSettingsDialog : Window
         UpdateOrientationPresetSelection();
         UpdateEffectiveGridSummary();
         PopulateAmbientLighting(initialValues.AmbientLighting);
-        SpawnPointXTextBox.Text = initialValues.SpawnPoint?.X.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
-        SpawnPointYTextBox.Text = initialValues.SpawnPoint?.Y.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        SpawnPointXTextBox.Text = (initialValues.SpawnPoint?.X ?? _roomCanvasWidth / 2d).ToString(CultureInfo.InvariantCulture);
+        SpawnPointYTextBox.Text = (initialValues.SpawnPoint?.Y ?? _roomCanvasHeight / 2d).ToString(CultureInfo.InvariantCulture);
         EnvironmentTypeComboBox.SelectedItem = initialValues.EnvironmentType.ToString();
         SoundLossOverrideTextBox.Text = initialValues.SoundLossPercentOverride?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
     }
@@ -61,8 +63,8 @@ public partial class RoomSettingsDialog : Window
         ReadAmbientLighting(),
         NormalizeSynonymsText(RoomNameSynonymsTextBox.Text),
         TryReadCoordinate(SpawnPointXTextBox.Text, out var spawnX) && TryReadCoordinate(SpawnPointYTextBox.Text, out var spawnY)
-            ? new RoomSpawnPoint(spawnX, spawnY)
-            : null,
+            ? new RoomSpawnPoint(spawnX, spawnY, _spawnPointRenderZOrder)
+            : new RoomSpawnPoint(_roomCanvasWidth / 2d, _roomCanvasHeight / 2d, _spawnPointRenderZOrder),
         Enum.TryParse<RoomEnvironmentType>(EnvironmentTypeComboBox.SelectedItem as string, out var environmentType) ? environmentType : RoomEnvironmentType.Indoor,
         TryReadPercent(SoundLossOverrideTextBox.Text, out var soundLoss) ? soundLoss : null);
 
@@ -126,7 +128,7 @@ public partial class RoomSettingsDialog : Window
                     || !TryReadCoordinate(SpawnPointYTextBox.Text, out var spawnY)
                     || spawnX < 0 || spawnX > width || spawnY < 0 || spawnY > height)))
         {
-            MessageBox.Show(this, "Enter both spawn-point coordinates as pixels within the room bounds, or clear both fields.", "Room Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(this, "Enter both spawn-point coordinates within the room bounds, or clear both fields to reset the point to the room center.", "Room Settings", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
