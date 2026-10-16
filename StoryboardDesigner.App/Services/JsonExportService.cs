@@ -9244,13 +9244,15 @@ public sealed class JsonExportService : IJsonExportService
             PhaseAmbientTimerKey = string.IsNullOrWhiteSpace(phaseNode.PhaseAmbientTimerKey) ? null : phaseNode.PhaseAmbientTimerKey,
             PhaseAmbienceMode = phaseNode.PhaseAmbienceMode,
             PhaseAmbientOverlay = LightingContractMapper.ToProjectPhaseAmbientOverlayDto(phaseNode.PhaseAmbientOverlay),
+            Time = phaseNode.TimeOfDay is null && phaseNode.TimeOfYear is null ? null : new PhaseTimeDto { TimeOfDay = phaseNode.TimeOfDay, TimeOfYear = phaseNode.TimeOfYear },
+            Weather = phaseNode.SkyCondition is null && phaseNode.Precipitation is null && phaseNode.WeatherIntensity is null && phaseNode.Temperature is null && phaseNode.Storming is null && phaseNode.WindDirection is null ? null : new PhaseWeatherDto { SkyCondition = phaseNode.SkyCondition, Precipitation = phaseNode.Precipitation, WeatherIntensity = phaseNode.WeatherIntensity, Temperature = phaseNode.Temperature, Storming = phaseNode.Storming, WindDirection = phaseNode.WindDirection },
             ParentPhaseId = phaseNode.ParentScope is PhaseNode parent ? parent.Id : null,
             ChildPhaseIds = phaseNode.Children
                 .Select(static child => child.Id)
                 .Where(static id => id != Guid.Empty)
                 .Distinct()
                 .ToList(),
-            GameProperties = phaseNode.Variables.Select(ToVariableDto).ToList(),
+            GameProperties = phaseNode.Variables.Where(static property => !property.IsGeneratedEnvironmentalProperty).Select(ToVariableDto).ToList(),
             AvailableGameActions = ToCommandActionDtos(phaseNode.AvailableActions, linkedActionLookup),
             EventSubscriptions = phaseNode.EventSubscriptions.Select(ToProjectEventSubscriptionDto).ToList(),
             TimerDefinitions = phaseNode.TimerDefinitions.Select(ToProjectTimerDefinitionDto).ToList(),
@@ -9285,6 +9287,14 @@ public sealed class JsonExportService : IJsonExportService
             PhaseAmbientTimerKey = dto.PhaseAmbientTimerKey,
             PhaseAmbienceMode = dto.PhaseAmbienceMode,
             PhaseAmbientOverlay = LightingContractMapper.ToPhaseAmbientOverlayModel(dto.PhaseAmbientOverlay),
+            TimeOfDay = dto.Time?.TimeOfDay,
+            TimeOfYear = dto.Time?.TimeOfYear,
+            SkyCondition = dto.Weather?.SkyCondition,
+            Precipitation = dto.Weather?.Precipitation,
+            WeatherIntensity = dto.Weather?.WeatherIntensity,
+            Temperature = dto.Weather?.Temperature,
+            Storming = dto.Weather?.Storming,
+            WindDirection = dto.Weather?.WindDirection,
             Variables = (dto.GameProperties ?? new List<GamePropertyDefinitionDto>())
                 .Select(ToVariableModel)
                 .ToList(),
@@ -9432,7 +9442,7 @@ public sealed class JsonExportService : IJsonExportService
             PhaseAmbientTimerKey = string.IsNullOrWhiteSpace(phaseNode.PhaseAmbientTimerKey) ? null : phaseNode.PhaseAmbientTimerKey,
             PhaseAmbienceMode = phaseNode.PhaseAmbienceMode,
             PhaseAmbientOverlay = LightingContractMapper.ToRuntimePhaseAmbientOverlayDto(phaseNode.PhaseAmbientOverlay),
-            GameProperties = NullIfEmpty(phaseNode.Variables
+            GameProperties = NullIfEmpty(BuildCleanPhaseGameProperties(phaseNode)
                 .Select(ToCleanGamePropertyDto)
                 .OrderBy(static variable => variable.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList()),
@@ -9462,6 +9472,23 @@ public sealed class JsonExportService : IJsonExportService
                 .Select(entry => ToCleanSoundEffectLibraryEntryDto(entry, null, $"phase:{phaseNode.Id:D}"))
                 .ToList())
         };
+    }
+
+    private static List<GamePropertyDefinition> BuildCleanPhaseGameProperties(PhaseNode phaseNode)
+    {
+        if (phaseNode.Tier != PhaseTier.Page)
+        {
+            return phaseNode.Variables;
+        }
+
+        PhaseEnvironmentalProperties.MaterializePageProperties(phaseNode);
+        var generatedNames = phaseNode.Variables
+            .Where(static property => property.IsGeneratedEnvironmentalProperty)
+            .Select(static property => property.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return phaseNode.Variables
+            .Where(property => property.IsGeneratedEnvironmentalProperty || !generatedNames.Contains(property.Name))
+            .ToList();
     }
 
     private static PhaseNodeDto BuildResolvedPhaseTree(
@@ -9529,6 +9556,8 @@ public sealed class JsonExportService : IJsonExportService
             PhaseAmbientTimerKey = source.PhaseAmbientTimerKey,
             PhaseAmbienceMode = source.PhaseAmbienceMode,
             PhaseAmbientOverlay = source.PhaseAmbientOverlay,
+            Time = source.Time is null ? null : new PhaseTimeDto { TimeOfDay = source.Time.TimeOfDay, TimeOfYear = source.Time.TimeOfYear },
+            Weather = source.Weather is null ? null : new PhaseWeatherDto { SkyCondition = source.Weather.SkyCondition, Precipitation = source.Weather.Precipitation, WeatherIntensity = source.Weather.WeatherIntensity, Temperature = source.Weather.Temperature, Storming = source.Weather.Storming, WindDirection = source.Weather.WindDirection },
             BaseObjectIds = source.BaseObjectIds,
             GameObjectIds = source.GameObjectIds,
             ProcedureIds = source.ProcedureIds,

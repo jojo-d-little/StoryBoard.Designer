@@ -1893,6 +1893,7 @@ public sealed partial class MainWindowViewModel
 
         // Slice A + current Slice B extraction set.
         registry.Register(new DuplicateNameInScopeRule());
+        registry.Register(new DuplicateGamePropertyNameRule());
         registry.Register(new AdjacentRoomDuplicateNormalizedNameWarningRule());
         registry.Register(new InvalidStartingScopeRule());
         registry.Register(new SharedVariableSingleMembershipRule());

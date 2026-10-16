@@ -39,11 +39,34 @@
             </Grid>
             <Grid Grid.Column="2">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="70" />
+                    <ColumnDefinition Width="52" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Verb" ToolTip="Command verb or verbs that trigger this action." />
-                <TextBox Grid.Column="1" Text="{Binding VerbListText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <CheckBox Grid.Column="1"
+                          Margin="0,0,8,0"
+                          VerticalAlignment="Center"
+                          Content="No verb linkage"
+                          IsChecked="{Binding NoVerbLinkage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                          Click="NoVerbLinkage_OnClick"
+                          ToolTip="Enable this when the action is invoked without a command verb." />
+                <TextBox Grid.Column="2"
+                         IsReadOnly="True"
+                         Cursor="Hand"
+                         PreviewMouseLeftButtonDown="VerbEditor_OnPreviewMouseLeftButtonDown"
+                         Text="{Binding VerbListText, Mode=OneWay}"
+                         ToolTip="Click to choose from available verbs.">
+                    <TextBox.Style>
+                        <Style TargetType="TextBox">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding NoVerbLinkage}" Value="True">
+                                    <Setter Property="IsEnabled" Value="False" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
             </Grid>
         </Grid>
 

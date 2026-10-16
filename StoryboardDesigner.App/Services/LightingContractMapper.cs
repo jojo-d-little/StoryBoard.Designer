@@ -136,6 +136,7 @@ internal static class LightingContractMapper
             ? null
             : new ProjectPhaseAmbientOverlayDto
             {
+                TransitionDurationMs = source.TransitionDurationMs,
                 AmbientScale = source.AmbientScale,
                 Color = source.Color,
                 ColorMode = source.ColorMode,
@@ -149,6 +150,7 @@ internal static class LightingContractMapper
             ? null
             : new PhaseAmbientOverlay
             {
+                TransitionDurationMs = source.TransitionDurationMs,
                 AmbientScale = source.AmbientScale,
                 Color = source.Color,
                 ColorMode = source.ColorMode,
@@ -244,6 +246,7 @@ internal static class LightingContractMapper
             ? null
             : new RuntimePhaseAmbientOverlayDto
             {
+                TransitionDurationMs = source.TransitionDurationMs,
                 AmbientScale = source.AmbientScale,
                 Color = source.Color,
                 ColorMode = source.ColorMode,

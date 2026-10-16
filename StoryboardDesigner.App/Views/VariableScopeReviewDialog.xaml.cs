@@ -60,7 +60,9 @@ public partial class VariableScopeReviewDialog : Window
 
     private void EditComputation_OnClick(object sender, RoutedEventArgs e)
     {
-        if (sender is not System.Windows.Controls.Button { DataContext: GamePropertyDefinition variable } || _editComputation is null)
+        if (sender is not System.Windows.Controls.Button { DataContext: GamePropertyDefinition variable }
+            || variable.IsGeneratedEnvironmentalProperty
+            || _editComputation is null)
         {
             return;
         }
@@ -75,7 +77,9 @@ public partial class VariableScopeReviewDialog : Window
 
     private void MakeOrdinary_OnClick(object sender, RoutedEventArgs e)
     {
-        if (sender is not System.Windows.Controls.Button { DataContext: GamePropertyDefinition variable } || variable.Computation is null)
+        if (sender is not System.Windows.Controls.Button { DataContext: GamePropertyDefinition variable }
+            || variable.IsGeneratedEnvironmentalProperty
+            || variable.Computation is null)
         {
             return;
         }
@@ -86,7 +90,7 @@ public partial class VariableScopeReviewDialog : Window
 
     private void RemoveSelected_OnClick(object sender, RoutedEventArgs e)
     {
-        if (VariablesDataGrid.SelectedItem is not GamePropertyDefinition variable)
+        if (VariablesDataGrid.SelectedItem is not GamePropertyDefinition variable || variable.IsGeneratedEnvironmentalProperty)
         {
             return;
         }
@@ -97,6 +101,12 @@ public partial class VariableScopeReviewDialog : Window
 
     private void VariablesDataGrid_OnBeginningEdit(object sender, DataGridBeginningEditEventArgs e)
     {
+        if (e.Row.Item is GamePropertyDefinition { IsGeneratedEnvironmentalProperty: true })
+        {
+            e.Cancel = true;
+            return;
+        }
+
         if (!ReferenceEquals(e.Column, VariableNameColumn) || e.Row.Item is not GamePropertyDefinition variable)
         {
             return;

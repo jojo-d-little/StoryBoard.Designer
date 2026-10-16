@@ -20,12 +20,14 @@ public partial class VariableEditorDialog : Window
         IEnumerable<string>? disallowedNames = null,
         Action<Window>? manageSharedVariablesAction = null,
         ProjectGamePropertyComputationDto? computation = null,
-        Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation = null)
+        Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation = null,
+        bool readOnly = false)
     {
         InitializeComponent();
         _manageSharedVariablesAction = manageSharedVariablesAction;
         _computation = computation;
         _editComputation = editComputation;
+        IsReadOnly = readOnly;
         _disallowedNames = disallowedNames is null
             ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             : new HashSet<string>(disallowedNames.Where(static n => !string.IsNullOrWhiteSpace(n)), StringComparer.OrdinalIgnoreCase);
@@ -37,8 +39,20 @@ public partial class VariableEditorDialog : Window
         EditComputationButton.Visibility = ComputedCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         UpdateComputationPreview();
         ManageSharedVariablesButton.Visibility = _manageSharedVariablesAction is null ? Visibility.Collapsed : Visibility.Visible;
+        if (IsReadOnly)
+        {
+            Title = "Game Property (Read-only)";
+            VariableNameTextBox.IsEnabled = false;
+            ComputedCheckBox.IsEnabled = false;
+            EditComputationButton.IsEnabled = false;
+            LifetimeComboBox.IsEnabled = false;
+            DefaultValueTextBox.IsEnabled = false;
+            ValueRestrictionComboBox.IsEnabled = false;
+            SaveButton.Content = "Close";
+        }
     }
 
+    public bool IsReadOnly { get; }
     public string VariableName => VariableNameTextBox.Text.Trim();
     public string DefaultValue => DefaultValueTextBox.Text;
     public GamePropertyValueRestriction ValueRestriction => ValueRestrictionComboBox.SelectedValue is GamePropertyValueRestriction restriction ? restriction : GamePropertyValueRestriction.Unrestricted;
@@ -77,27 +91,17 @@ public partial class VariableEditorDialog : Window
     private void UpdateComputationPreview()
     {
         ComputationPreviewTextBlock.Visibility = IsComputed ? Visibility.Visible : Visibility.Collapsed;
-        ComputationPreviewTextBlock.Text = _computation?.Condition is null
-            ? "Computation: not defined"
-            : "Computation: " + BuildPreview(_computation.Condition);
+        ComputationPreviewTextBlock.Text = "Computation: " + GamePropertyComputationFormatter.Format(_computation?.Condition);
     }
-
-    private static string BuildPreview(ProjectGamePropertyConditionDto condition) => condition.Kind switch
-    {
-        "All" => "(" + string.Join(" AND ", (condition.Conditions ?? new()).Select(BuildPreview)) + ")",
-        "Any" => "(" + string.Join(" OR ", (condition.Conditions ?? new()).Select(BuildPreview)) + ")",
-        "Not" => "NOT (" + (condition.Condition is null ? "<missing>" : BuildPreview(condition.Condition)) + ")",
-        "Exists" => "exists(" + FormatSource(condition.GamePropertySource) + ")",
-        "Compare" => FormatSource(condition.GamePropertySource) + " " + (condition.Operator ?? "?") + (condition.RightOperand is null ? string.Empty : " " + (condition.RightOperand.GamePropertySource?.PropertyName ?? condition.RightOperand.Value ?? string.Empty)),
-        _ => "<unknown condition>"
-    };
-
-    private static string FormatSource(ProjectGamePropertySourceReferenceDto? source) => source is null
-        ? "<choose property>"
-        : (source.AnchorKey is not null ? source.AnchorKey + "." : source.OwnerId.HasValue ? $"owner[{source.OwnerId.Value:N}]." : "self.") + (source.PropertyName ?? "<missing>");
 
     private void Save_OnClick(object sender, RoutedEventArgs e)
     {
+        if (IsReadOnly)
+        {
+            DialogResult = true;
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(VariableName))
         {
             System.Windows.MessageBox.Show(this, "Please enter a game property name.", "Game Property", MessageBoxButton.OK, MessageBoxImage.Information);

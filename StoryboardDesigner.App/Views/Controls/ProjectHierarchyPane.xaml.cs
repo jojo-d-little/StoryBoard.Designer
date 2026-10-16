@@ -520,12 +520,18 @@ public partial class ProjectHierarchyPane : System.Windows.Controls.UserControl
             siblingNames,
             _ => viewModel.OpenSharedRelationshipManager(variableNode),
             computation: variableNode.Variable.Computation,
-            editComputation: viewModel.CreateComputationEditor(variableNode))
+            editComputation: viewModel.CreateComputationEditor(variableNode),
+            readOnly: variableNode.IsGeneratedEnvironmentalProperty)
         {
             Owner = Window.GetWindow(this)
         };
 
         if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        if (dialog.IsReadOnly)
         {
             return;
         }

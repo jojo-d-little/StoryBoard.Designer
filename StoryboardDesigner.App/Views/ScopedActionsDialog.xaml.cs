@@ -119,7 +119,7 @@ public partial class ScopedActionsDialog : Window
             return;
         }
 
-        var dialog = new RoomActionEditorDialog(action, _variableScope, _pickerContext, _containerTargetChoices, _materializeSourceObjectChoices, _procedureChoices, _compositeRecipeChoices, _soundEffectChoices, _timerKeySuggestions, _workingActions, _sequenceDefinitionChoices, _defaultCurrentObjectId)
+        var dialog = new RoomActionEditorDialog(action, _variableScope, _pickerContext, _containerTargetChoices, _materializeSourceObjectChoices, _procedureChoices, _compositeRecipeChoices, _soundEffectChoices, _timerKeySuggestions, _workingActions, _sequenceDefinitionChoices, _defaultCurrentObjectId, _verbEntrySuggestions)
         {
             Owner = this
         };

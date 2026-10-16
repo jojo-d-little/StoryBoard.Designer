@@ -3,10 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:StoryboardDesigner.App.ViewModels"
         Title="Review Game Properties"
-        Height="440"
-        Width="760"
+        Height="560"
+        Width="1120"
         MinHeight="360"
-        MinWidth="680"
+        MinWidth="900"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize">
     <Grid Margin="14">
@@ -49,12 +49,36 @@
                                         SelectedValuePath="Value"
                                         DisplayMemberPath="Label"
                                         Width="2*" />
+                <DataGridTextColumn Header="Formula"
+                                    Binding="{Binding ComputationSummary}"
+                                    IsReadOnly="True"
+                                    Width="3*" />
                 <DataGridTemplateColumn Header="Computation" Width="Auto">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
-                                <Button Margin="0,0,4,0" Padding="7,3" Content="Edit..." Click="EditComputation_OnClick" />
-                                <Button Padding="7,3" Content="Make ordinary" Click="MakeOrdinary_OnClick" />
+                                <Button Margin="0,0,4,0" Padding="7,3" Content="Edit..." Click="EditComputation_OnClick">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsGeneratedEnvironmentalProperty}" Value="True">
+                                                    <Setter Property="IsEnabled" Value="False" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Padding="7,3" Content="Make ordinary" Click="MakeOrdinary_OnClick">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsGeneratedEnvironmentalProperty}" Value="True">
+                                                    <Setter Property="IsEnabled" Value="False" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                             </StackPanel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>

@@ -70,6 +70,7 @@ internal static class LightingModelCloner
             ? null
             : new PhaseAmbientOverlay
             {
+                TransitionDurationMs = source.TransitionDurationMs,
                 AmbientScale = source.AmbientScale,
                 Color = source.Color,
                 ColorMode = source.ColorMode,

@@ -44,6 +44,7 @@ public partial class LinkedActionTreeEditorDialog : Window
     private readonly IReadOnlyList<SoundEffectChoiceItem> _soundEffectChoices;
     private readonly IReadOnlyList<string> _timerKeySuggestions;
     private readonly IReadOnlyList<SequenceDefinitionChoiceItem> _sequenceDefinitionChoices;
+    private readonly IReadOnlyList<string> _verbEntrySuggestions;
     private Dictionary<Guid, CommandAction> _allActionsById = new();
     private readonly HashSet<Guid> _originalActionIds;
     private readonly LinkedActionFlowDefinition _originalDefinition;
@@ -66,7 +67,8 @@ public partial class LinkedActionTreeEditorDialog : Window
         IReadOnlyList<CompositeRecipeChoiceItem>? compositeRecipeChoices = null,
         IReadOnlyList<SoundEffectChoiceItem>? soundEffectChoices = null,
         IReadOnlyList<string>? timerKeySuggestions = null,
-        IReadOnlyList<SequenceDefinitionChoiceItem>? sequenceDefinitionChoices = null)
+        IReadOnlyList<SequenceDefinitionChoiceItem>? sequenceDefinitionChoices = null,
+        IReadOnlyList<string>? verbSuggestions = null)
     {
         InitializeComponent();
 
@@ -84,6 +86,7 @@ public partial class LinkedActionTreeEditorDialog : Window
         _soundEffectChoices = soundEffectChoices ?? Array.Empty<SoundEffectChoiceItem>();
         _timerKeySuggestions = timerKeySuggestions ?? Array.Empty<string>();
         _sequenceDefinitionChoices = sequenceDefinitionChoices ?? Array.Empty<SequenceDefinitionChoiceItem>();
+        _verbEntrySuggestions = verbSuggestions ?? Array.Empty<string>();
         RefreshActionLookup();
         _originalActionIds = editableActions.Select(action => action.Id).ToHashSet();
         _originalDefinition = rootAction.LinkedFlowDefinition.Clone();
@@ -397,7 +400,8 @@ public partial class LinkedActionTreeEditorDialog : Window
             _soundEffectChoices,
             _timerKeySuggestions,
             _editableActions.ToList(),
-            _sequenceDefinitionChoices)
+            _sequenceDefinitionChoices,
+            verbSuggestions: _verbEntrySuggestions)
         {
             Owner = this
         };

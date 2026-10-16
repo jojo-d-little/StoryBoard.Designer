@@ -8,6 +8,7 @@ namespace StoryboardDesigner.App.Models;
 /// </summary>
 public sealed class PhaseAmbientOverlay
 {
+    public int? TransitionDurationMs { get; set; }
     public double? AmbientScale { get; set; }
     public string? Color { get; set; }
     public PhaseAmbientColorMode? ColorMode { get; set; }

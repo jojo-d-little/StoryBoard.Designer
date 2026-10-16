@@ -235,18 +235,31 @@ public sealed class ComputedGamePropertyIntegrityRule : IValidationRule
         var matches = candidates.ToList();
         if (matches.Count == 0)
             issues.Add($"Source '{source.PropertyName}' does not resolve on the selected owner or anchor.");
-        else if (isAnchorReference && matches.GroupBy(static match => match.Owner.Id).Any(static group => group.Count() > 1))
-            issues.Add($"Source '{source.PropertyName}' is duplicated on an eligible anchor owner.");
-        else if (isAnchorReference && matches.Select(static match => match.Property.ValueRestriction).Distinct().Count() > 1)
+        else if (isAnchorReference)
+        {
+            var duplicateOwners = matches
+                .GroupBy(static match => match.Owner.Id)
+                .Where(static group => group.Count() > 1)
+                .ToList();
+            if (duplicateOwners.Count > 0)
+            {
+                var locations = string.Join(
+                    "; ",
+                    duplicateOwners.Select(group =>
+                        $"{group.First().Owner.Path} ({group.Count()} matching definitions)"));
+                issues.Add($"Source '{source.PropertyName}' is duplicated on eligible anchor owner(s): {locations}.");
+            }
+        }
+        if (issues.Count == 0 && isAnchorReference && matches.Select(static match => match.Property.ValueRestriction).Distinct().Count() > 1)
             issues.Add($"Source '{source.PropertyName}' has inconsistent value restrictions across eligible anchor targets.");
-        else if (matches.Count > 1)
+        else if (issues.Count == 0 && matches.Count > 1)
         {
             if (!isAnchorReference)
                 issues.Add($"Source '{source.PropertyName}' is ambiguous on the selected owner or anchor.");
             else
                 resolved = matches[0].Property;
         }
-        else
+        else if (issues.Count == 0)
             resolved = matches[0].Property;
         return issues;
     }

@@ -40,20 +40,10 @@ public sealed class DuplicateNameInScopeRule : IValidationRule
                     yield return issue;
                 }
 
-                foreach (var issue in BuildDuplicateNameIssues(project.GlobalVariables, static variable => variable.Name, "global scope", "variable", "Global"))
-                {
-                    yield return issue;
-                }
-
                 yield break;
 
             case Planet planet:
                 foreach (var issue in BuildDuplicateNameIssues(planet.Countries, static country => country.Name, $"planet '{planet.Name}'", "country", BuildPlanetPath(planet, project)))
-                {
-                    yield return issue;
-                }
-
-                foreach (var issue in BuildDuplicateNameIssues(planet.Variables, static variable => variable.Name, $"planet '{planet.Name}'", "variable", BuildPlanetPath(planet, project)))
                 {
                     yield return issue;
                 }
@@ -67,21 +57,11 @@ public sealed class DuplicateNameInScopeRule : IValidationRule
                     yield return issue;
                 }
 
-                foreach (var issue in BuildDuplicateNameIssues(country.Variables, static variable => variable.Name, $"country '{country.Name}'", "variable", countryPath))
-                {
-                    yield return issue;
-                }
-
                 yield break;
 
             case Area area:
                 var areaPath = BuildAreaPath(area, project);
                 foreach (var issue in BuildDuplicateNameIssues(area.Rooms, static room => room.Name, $"area '{area.Name}'", "room", areaPath))
-                {
-                    yield return issue;
-                }
-
-                foreach (var issue in BuildDuplicateNameIssues(area.Variables, static variable => variable.Name, $"area '{area.Name}'", "variable", areaPath))
                 {
                     yield return issue;
                 }
@@ -94,19 +74,9 @@ public sealed class DuplicateNameInScopeRule : IValidationRule
                     yield return issue;
                 }
 
-                foreach (var issue in BuildDuplicateNameIssues(room.Variables, static variable => variable.Name, $"room '{room.Name}'", "variable", BuildRoomPath(room, project)))
-                {
-                    yield return issue;
-                }
-
                 yield break;
 
             case GameObject gameObject:
-                foreach (var issue in BuildDuplicateNameIssues(gameObject.Variables, static variable => variable.Name, $"game object '{gameObject.Name}'", "variable", BuildGameObjectPath(gameObject, project)))
-                {
-                    yield return issue;
-                }
-
                 yield break;
         }
     }

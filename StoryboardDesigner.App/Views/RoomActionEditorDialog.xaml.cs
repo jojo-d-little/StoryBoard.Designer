@@ -94,6 +94,7 @@ public partial class RoomActionEditorDialog : Window
     private readonly Dictionary<Guid, SoundEffectChoiceItem> _soundEffectChoicesById;
     private readonly IReadOnlyList<string> _timerKeySuggestions;
     private readonly IReadOnlyList<SequenceDefinitionChoiceItem> _sequenceDefinitionChoices;
+    private readonly IReadOnlyList<string> _verbEntrySuggestions;
     private readonly IReadOnlyList<string> _variableReferenceTokens;
     private readonly IReadOnlyList<GamePropertyChoiceItem> _variableChoices;
     private readonly GamePropertyPickerContext _pickerContext;
@@ -149,7 +150,8 @@ public partial class RoomActionEditorDialog : Window
         IReadOnlyList<string>? timerKeySuggestions = null,
         IReadOnlyList<CommandAction>? availableActions = null,
         IReadOnlyList<SequenceDefinitionChoiceItem>? sequenceDefinitionChoices = null,
-        Guid? defaultCurrentObjectId = null)
+        Guid? defaultCurrentObjectId = null,
+        IReadOnlyList<string>? verbSuggestions = null)
     {
         InitializeComponent();
         _sourceAction = sourceAction;
@@ -212,6 +214,12 @@ public partial class RoomActionEditorDialog : Window
         _actionEchoTokenProviderRegistry = ActionEchoReferenceTokenProviderRegistry.CreateDefault();
         _availableActions = (availableActions ?? Array.Empty<CommandAction>()).ToList();
         _availableActionsById = _availableActions.ToDictionary(action => action.Id, action => action);
+        _verbEntrySuggestions = (verbSuggestions ?? _availableActions.SelectMany(static action => action.Verbs))
+            .Where(static verb => !string.IsNullOrWhiteSpace(verb))
+            .Select(static verb => verb.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static verb => verb, StringComparer.OrdinalIgnoreCase)
+            .ToList();
         var sourceEchoMessage = ActionPayloadAccessors.GetEchoMessage(sourceAction);
         var sourceCheckPropertyName = ActionPayloadAccessors.GetCheckPropertyName(sourceAction);
         var sourceCheckExpectedValue = ActionPayloadAccessors.GetCheckExpectedValue(sourceAction);
@@ -284,6 +292,9 @@ public partial class RoomActionEditorDialog : Window
         {
             Id = sourceAction.Id,
             Name = sourceAction.Name,
+            NoVerbLinkage = sourceAction.NoVerbLinkage,
+            Verbs = sourceAction.Verbs.ToList(),
+            DirectionQualifierText = sourceAction.DirectionQualifierText,
             ActionType = sourceAction.ActionType == CommandActionType.SetFlag ? CommandActionType.SetGameProperty : sourceAction.ActionType,
             FlagName = sourceCheckPropertyName,
             FlagValue = sourceCheckExpectedValue,
@@ -888,6 +899,9 @@ public partial class RoomActionEditorDialog : Window
         }
 
         _sourceAction.Name = _workingCopy.Name.Trim();
+        _sourceAction.NoVerbLinkage = _workingCopy.NoVerbLinkage;
+        _sourceAction.Verbs = _workingCopy.Verbs.ToList();
+        _sourceAction.DirectionQualifierText = _workingCopy.DirectionQualifierText;
         var isCheckGamePropertyAction = ActionPayloadSchemaHelpers.OwnsAllFields(
             _workingCopy.ActionType,
             nameof(CommandAction.FlagName),
@@ -1227,6 +1241,91 @@ public partial class RoomActionEditorDialog : Window
         _sourceAction.Payload = _sourceAction.CreatePayloadSnapshot();
 
         DialogResult = true;
+    }
+
+    private void VerbEditor_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.TextBox || _workingCopy.NoVerbLinkage)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        var qualifier = _workingCopy.DirectionQualifierText;
+        var unavailableVerbs = BuildUnavailableVerbMap(qualifier);
+        var dialog = new ActionVerbPickerDialog(
+            _verbEntrySuggestions,
+            _workingCopy.Verbs,
+            unavailableVerbs,
+            qualifier)
+        {
+            Owner = this
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        _workingCopy.Verbs = dialog.SelectedVerbs.ToList();
+        _workingCopy.NoVerbLinkage = _workingCopy.Verbs.Count == 0;
+        if (_workingCopy.NoVerbLinkage)
+        {
+            _workingCopy.DirectionQualifierText = string.Empty;
+        }
+    }
+
+    private void NoVerbLinkage_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_workingCopy.NoVerbLinkage)
+        {
+            _workingCopy.Verbs = new List<string>();
+            _workingCopy.DirectionQualifierText = string.Empty;
+        }
+    }
+
+    private Dictionary<string, string> BuildUnavailableVerbMap(string? directionalQualifier)
+    {
+        var map = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        var targetDirectional = directionalQualifier?.Trim() ?? string.Empty;
+
+        foreach (var action in _availableActions)
+        {
+            if (action.Id == _sourceAction.Id || action.NoVerbLinkage || action.Verbs.Count == 0)
+            {
+                continue;
+            }
+
+            if (!string.Equals(action.DirectionQualifierText?.Trim() ?? string.Empty, targetDirectional, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var actionLabel = string.IsNullOrWhiteSpace(action.Name)
+                ? $"(unnamed {action.Id:N})"
+                : action.Name.Trim();
+            foreach (var verb in action.Verbs)
+            {
+                var normalized = verb?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(normalized))
+                {
+                    continue;
+                }
+
+                if (!map.TryGetValue(normalized, out var labels))
+                {
+                    labels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    map[normalized] = labels;
+                }
+
+                labels.Add(actionLabel);
+            }
+        }
+
+        return map.ToDictionary(
+            static pair => pair.Key,
+            static pair => string.Join(", ", pair.Value.OrderBy(static value => value, StringComparer.OrdinalIgnoreCase)),
+            StringComparer.OrdinalIgnoreCase);
     }
 
     private IReadOnlyList<string> BuildSelectionCueEffectKeyChoices()

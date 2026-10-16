@@ -8,6 +8,7 @@ using WpfTextBox = System.Windows.Controls.TextBox;
 using WpfBrushes = System.Windows.Media.Brushes;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
+using Storyboard.Shared.RuntimeContracts.Enums;
 
 namespace StoryboardDesigner.App.Views;
 
@@ -19,6 +20,12 @@ public partial class PhaseNodeSettingsDialog : Window
     private sealed record TextCueOption(string? EffectKey, string Display);
     private readonly PhaseTier _tier;
     private bool _updatingPhaseAmbientControls;
+    private SkyCondition? _skyCondition;
+    private Precipitation? _precipitation;
+    private WeatherIntensity? _weatherIntensity;
+    private Temperature? _temperature;
+    private Storming? _storming;
+    private int? _windDirection;
 
     public PhaseNodeSettingsDialog(
         PhaseNodeEditRequest initialValues,
@@ -96,6 +103,16 @@ public partial class PhaseNodeSettingsDialog : Window
         };
 
         var overlay = initialValues.PhaseAmbientOverlay;
+        SetupEnvironmentalCombo(TimeOfDayComboBox, initialValues.TimeOfDay);
+        SetupEnvironmentalCombo(TimeOfYearComboBox, initialValues.TimeOfYear);
+        _skyCondition = initialValues.SkyCondition;
+        _precipitation = initialValues.Precipitation;
+        _weatherIntensity = initialValues.WeatherIntensity;
+        _temperature = initialValues.Temperature;
+        _storming = initialValues.Storming;
+        _windDirection = initialValues.WindDirection;
+        PhaseAmbientTransitionDurationTextBox.Text = overlay?.TransitionDurationMs?.ToString(CultureInfo.InvariantCulture)
+            ?? (overlay is null ? "10000" : "0");
         PhaseAmbientColorModeComboBox.SelectedValue = overlay?.ColorMode;
         PhaseAmbientLightingEnabledCheckBox.IsChecked = overlay is not null;
         PhaseAmbientScaleTextBox.Text = FormatOptionalNumber(overlay?.AmbientScale, "0.##");
@@ -138,7 +155,15 @@ public partial class PhaseNodeSettingsDialog : Window
         AmbientSoundComboBox.SelectedValue as Guid?,
         NormalizeOptionalText(AmbientTimerKeyComboBox.Text),
         AmbienceModeComboBox.SelectedValue as PhaseAmbienceMode?,
-        ReadPhaseAmbientOverlayForValues());
+        ReadPhaseAmbientOverlayForValues(),
+        ReadEnvironmentalCombo<TimeOfDay>(TimeOfDayComboBox),
+        ReadEnvironmentalCombo<TimeOfYear>(TimeOfYearComboBox),
+        _skyCondition,
+        _precipitation,
+        _weatherIntensity,
+        _temperature,
+        _storming,
+        _windDirection);
 
     private PhaseAmbientOverlay? ReadPhaseAmbientOverlayForValues()
     {
@@ -154,7 +179,8 @@ public partial class PhaseNodeSettingsDialog : Window
             ColorMode = PhaseAmbientColorModeComboBox.SelectedValue as PhaseAmbientColorMode?,
             ColorBlend = PhaseAmbientColorModeComboBox.SelectedValue is PhaseAmbientColorMode.Blend
                 ? ParseOptionalNumber(PhaseAmbientColorBlendTextBox.Text)
-                : null
+                : null,
+            TransitionDurationMs = TryParseNonnegativeInteger(PhaseAmbientTransitionDurationTextBox.Text, out var duration) ? duration : null
         };
     }
 
@@ -340,6 +366,11 @@ public partial class PhaseNodeSettingsDialog : Window
             return false;
         }
 
+        if (!TryReadOptionalNonnegativeInteger(PhaseAmbientTransitionDurationTextBox, "Transition duration", out var durationMs))
+        {
+            return false;
+        }
+
         if (_tier == PhaseTier.Book)
         {
             MessageBox.Show(this, "Ambient overlays are supported only on chapter and page phases. Clear the checkbox to remove this overlay.", "Phase Settings", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -351,9 +382,51 @@ public partial class PhaseNodeSettingsDialog : Window
             AmbientScale = ambientScale,
             Color = color,
             ColorMode = colorMode,
-            ColorBlend = colorMode == PhaseAmbientColorMode.Blend ? colorBlend : null
+            ColorBlend = colorMode == PhaseAmbientColorMode.Blend ? colorBlend : null,
+            TransitionDurationMs = durationMs
         };
         return true;
+    }
+
+    private static bool TryParseNonnegativeInteger(string text, out int value) =>
+        int.TryParse(text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value) && value >= 0;
+
+    private static bool TryReadOptionalNonnegativeInteger(WpfTextBox textBox, string label, out int? value)
+    {
+        value = null;
+        var text = textBox.Text.Trim();
+        if (text.Length == 0) return true;
+        if (!TryParseNonnegativeInteger(text, out var parsed))
+        {
+            MessageBox.Show($"{label} must be a nonnegative whole number, or blank to inherit.", "Phase Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+            textBox.Focus();
+            return false;
+        }
+        value = parsed;
+        return true;
+    }
+
+    private static void SetupEnvironmentalCombo<T>(System.Windows.Controls.ComboBox combo, T? value) where T : struct, Enum
+    {
+        combo.ItemsSource = new[] { "(Inherit)" }.Concat(Enum.GetNames<T>()).ToArray();
+        combo.SelectedItem = value?.ToString() ?? "(Inherit)";
+    }
+
+    private static T? ReadEnvironmentalCombo<T>(System.Windows.Controls.ComboBox combo) where T : struct, Enum =>
+        combo.SelectedItem is string value && Enum.TryParse<T>(value, out var parsed) ? parsed : null;
+
+    private void ManageWeather_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ManageWeatherDialog(new ManageWeatherDialog.WeatherValues(_skyCondition, _precipitation,
+            _weatherIntensity, _temperature, _storming, _windDirection)) { Owner = this };
+        if (dialog.ShowDialog() != true) return;
+        var values = dialog.Values;
+        _skyCondition = values.SkyCondition;
+        _precipitation = values.Precipitation;
+        _weatherIntensity = values.WeatherIntensity;
+        _temperature = values.Temperature;
+        _storming = values.Storming;
+        _windDirection = values.WindDirection;
     }
 
     private static bool TryReadOptionalNumber(WpfTextBox textBox, string label, double minimum, double maximum, out double? value)

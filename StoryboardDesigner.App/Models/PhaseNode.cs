@@ -1,5 +1,7 @@
 namespace StoryboardDesigner.App.Models;
 
+using Storyboard.Shared.RuntimeContracts.Enums;
+
 public sealed class PhaseNode : ScopeNodeBase
 {
     private string _displayName = string.Empty;
@@ -31,6 +33,14 @@ public sealed class PhaseNode : ScopeNodeBase
     public string? PhaseAmbientTimerKey { get; set; }
     public PhaseAmbienceMode? PhaseAmbienceMode { get; set; }
     public PhaseAmbientOverlay? PhaseAmbientOverlay { get; set; }
+    public TimeOfDay? TimeOfDay { get; set; }
+    public TimeOfYear? TimeOfYear { get; set; }
+    public SkyCondition? SkyCondition { get; set; }
+    public Precipitation? Precipitation { get; set; }
+    public WeatherIntensity? WeatherIntensity { get; set; }
+    public Temperature? Temperature { get; set; }
+    public Storming? Storming { get; set; }
+    public int? WindDirection { get; set; }
     public List<GamePropertyDefinition> Variables { get; set; } = new();
     public List<CommandAction> AvailableActions { get; set; } = new();
     public List<string> AdditionalVerbs { get; set; } = new();

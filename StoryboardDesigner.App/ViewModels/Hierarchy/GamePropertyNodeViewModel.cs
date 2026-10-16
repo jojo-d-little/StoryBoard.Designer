@@ -20,6 +20,8 @@ public sealed class GamePropertyNodeViewModel : HierarchyNodeViewModel
     public PropertyResolutionScope Scope { get; }
     public GamePropertiesContainerNodeViewModel VariablesContainer { get; }
     public bool IsComputed => Variable.Computation is not null;
+    public bool IsGeneratedEnvironmentalProperty => Variable.IsGeneratedEnvironmentalProperty;
+    public string DisplayValue => Variable.GeneratedPreviewValue ?? Variable.DefaultValue;
 
     public void RefreshComputedState()
     {
@@ -70,12 +72,21 @@ public sealed class GamePropertyNodeViewModel : HierarchyNodeViewModel
 
     protected override void RenameModel(string newName)
     {
+        if (Variable.IsGeneratedEnvironmentalProperty)
+        {
+            SetEditableNameWithoutModelRename(Variable.Name);
+            return;
+        }
         Variable.Name = newName;
     }
 
     protected override string BuildNodeDetailsToolTip()
     {
-        return Variable.DefaultValue ?? string.Empty;
+        return Variable.IsGeneratedEnvironmentalProperty
+            ? Variable.Computation is null
+                ? $"Effective phase environment value: {DisplayValue}. Edit phase time or weather settings to change it."
+                : $"Read-only computed condition; current preview: {DisplayValue}. Edit phase time or weather settings to change it."
+            : Variable.DefaultValue ?? string.Empty;
     }
 
     public override bool ShouldShowValidationSummaryToolTip => true;

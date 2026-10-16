@@ -37,7 +37,8 @@ public interface IMainWindowDialogWorkflowService
         IReadOnlyList<string> timerKeySuggestions,
         IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
         IReadOnlyList<CommandAction> availableActions,
-        Guid? defaultCurrentObjectId = null);
+        Guid? defaultCurrentObjectId = null,
+        IReadOnlyList<string>? verbSuggestions = null);
 
     bool EditLinkedActionFlow(
         string scopeLabel,
@@ -52,5 +53,6 @@ public interface IMainWindowDialogWorkflowService
         IReadOnlyList<CompositeRecipeChoiceItem> compositeRecipeChoices,
         IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
         IReadOnlyList<string> timerKeySuggestions,
-        IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices);
+        IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
+        IReadOnlyList<string>? verbSuggestions = null);
 }

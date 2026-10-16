@@ -48,7 +48,8 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
         IReadOnlyList<string> timerKeySuggestions,
         IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
         IReadOnlyList<CommandAction> availableActions,
-        Guid? defaultCurrentObjectId = null)
+        Guid? defaultCurrentObjectId = null,
+        IReadOnlyList<string>? verbSuggestions = null)
     {
         var dialog = new RoomActionEditorDialog(
             action,
@@ -62,7 +63,8 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
             timerKeySuggestions,
             availableActions,
             sequenceDefinitionChoices,
-            defaultCurrentObjectId)
+            defaultCurrentObjectId,
+            verbSuggestions)
         {
             Owner = GetOwnerWindow()
         };
@@ -83,7 +85,8 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
         IReadOnlyList<CompositeRecipeChoiceItem> compositeRecipeChoices,
         IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
         IReadOnlyList<string> timerKeySuggestions,
-        IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices)
+        IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
+        IReadOnlyList<string>? verbSuggestions = null)
     {
         var dialog = new LinkedActionTreeEditorDialog(
             scopeLabel,
@@ -98,7 +101,8 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
             compositeRecipeChoices,
             soundEffectChoices,
             timerKeySuggestions,
-            sequenceDefinitionChoices)
+            sequenceDefinitionChoices,
+            verbSuggestions)
         {
             Owner = GetOwnerWindow()
         };

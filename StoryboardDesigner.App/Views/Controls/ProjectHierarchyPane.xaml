@@ -591,6 +591,12 @@
                              Visibility="{Binding IsShared, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 </Canvas>
                 <TextBlock VerticalAlignment="Center" Text="{Binding EditableName}" />
+                <TextBlock Margin="6,0,0,0"
+                           VerticalAlignment="Center"
+                           Foreground="#6B7280"
+                           Text="{Binding DisplayValue, StringFormat=({0})}"
+                           ToolTip="Effective value projected from this page and its phase ancestors."
+                           Visibility="{Binding IsGeneratedEnvironmentalProperty, Converter={StaticResource BooleanToVisibilityConverter}}" />
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ScopedActionEntryNodeViewModel}">

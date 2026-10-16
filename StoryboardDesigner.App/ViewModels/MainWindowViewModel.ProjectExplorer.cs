@@ -939,6 +939,11 @@ public sealed partial class MainWindowViewModel
 
         if (node is GamePropertyNodeViewModel)
         {
+            if (((GamePropertyNodeViewModel)node).IsGeneratedEnvironmentalProperty)
+            {
+                return new List<TreeContextAction>();
+            }
+
             var actions = new List<TreeContextAction>
             {
                 new("remove-game-property", "Remove Game Property")
@@ -2595,7 +2600,15 @@ public sealed partial class MainWindowViewModel
             node.PhaseNode.PhaseAmbientSoundEffectId,
             node.PhaseNode.PhaseAmbientTimerKey,
             node.PhaseNode.PhaseAmbienceMode,
-            LightingModelCloner.ClonePhaseAmbientOverlay(node.PhaseNode.PhaseAmbientOverlay));
+            LightingModelCloner.ClonePhaseAmbientOverlay(node.PhaseNode.PhaseAmbientOverlay),
+            node.PhaseNode.TimeOfDay,
+            node.PhaseNode.TimeOfYear,
+            node.PhaseNode.SkyCondition,
+            node.PhaseNode.Precipitation,
+            node.PhaseNode.WeatherIntensity,
+            node.PhaseNode.Temperature,
+            node.PhaseNode.Storming,
+            node.PhaseNode.WindDirection);
 
         if (!_treeContextInteractionService.TryEditPhaseNode(
                 current,
@@ -2644,7 +2657,15 @@ public sealed partial class MainWindowViewModel
             || node.PhaseNode.PhaseAmbientSoundEffectId != updated.PhaseAmbientSoundEffectId
             || !string.Equals(node.PhaseNode.PhaseAmbientTimerKey, timerKey, StringComparison.Ordinal)
             || node.PhaseNode.PhaseAmbienceMode != updated.PhaseAmbienceMode
-            || !ArePhaseAmbientOverlayEquivalent(node.PhaseNode.PhaseAmbientOverlay, updated.PhaseAmbientOverlay);
+            || !ArePhaseAmbientOverlayEquivalent(node.PhaseNode.PhaseAmbientOverlay, updated.PhaseAmbientOverlay)
+            || node.PhaseNode.TimeOfDay != updated.TimeOfDay
+            || node.PhaseNode.TimeOfYear != updated.TimeOfYear
+            || node.PhaseNode.SkyCondition != updated.SkyCondition
+            || node.PhaseNode.Precipitation != updated.Precipitation
+            || node.PhaseNode.WeatherIntensity != updated.WeatherIntensity
+            || node.PhaseNode.Temperature != updated.Temperature
+            || node.PhaseNode.Storming != updated.Storming
+            || node.PhaseNode.WindDirection != updated.WindDirection;
 
         if (!hasChanges)
         {
@@ -2663,6 +2684,14 @@ public sealed partial class MainWindowViewModel
         node.PhaseNode.PhaseAmbientTimerKey = timerKey;
         node.PhaseNode.PhaseAmbienceMode = updated.PhaseAmbienceMode;
         node.PhaseNode.PhaseAmbientOverlay = LightingModelCloner.ClonePhaseAmbientOverlay(updated.PhaseAmbientOverlay);
+        node.PhaseNode.TimeOfDay = updated.TimeOfDay;
+        node.PhaseNode.TimeOfYear = updated.TimeOfYear;
+        node.PhaseNode.SkyCondition = updated.SkyCondition;
+        node.PhaseNode.Precipitation = updated.Precipitation;
+        node.PhaseNode.WeatherIntensity = updated.WeatherIntensity;
+        node.PhaseNode.Temperature = updated.Temperature;
+        node.PhaseNode.Storming = updated.Storming;
+        node.PhaseNode.WindDirection = updated.WindDirection;
 
         return ReloadAndSelectPhaseNode(node.PhaseNode.Id, "Updated phase settings.");
     }
@@ -2675,6 +2704,7 @@ public sealed partial class MainWindowViewModel
         }
 
         return AreNearlyEqualNullable(left.AmbientScale, right.AmbientScale)
+               && left.TransitionDurationMs == right.TransitionDurationMs
                && string.Equals(left.Color, right.Color, StringComparison.Ordinal)
                && left.ColorMode == right.ColorMode
                && AreNearlyEqualNullable(left.ColorBlend, right.ColorBlend);
@@ -2787,6 +2817,9 @@ public sealed partial class MainWindowViewModel
         if (selected is not null)
         {
             ExpandToNode(selected);
+            selected.IsExpanded = true;
+            var gameProperties = selected.Children.OfType<GamePropertiesContainerNodeViewModel>().FirstOrDefault();
+            if (gameProperties is not null) gameProperties.IsExpanded = true;
             SelectedNode = selected;
         }
 
@@ -3780,7 +3813,8 @@ public sealed partial class MainWindowViewModel
                     compositeRecipeChoices,
                     soundEffectChoices,
                     timerKeySuggestions,
-                    sequenceDefinitionChoices))
+                    sequenceDefinitionChoices,
+                    GetScopedVerbSuggestions(target.ScopeNode)))
             {
                 return false;
             }
@@ -3802,7 +3836,8 @@ public sealed partial class MainWindowViewModel
                 timerKeySuggestions,
                 sequenceDefinitionChoices,
                 target.Actions.ToList(),
-                target.ScopeNode is GameObject ownerObject ? ownerObject.ObjectId : null))
+                target.ScopeNode is GameObject ownerObject ? ownerObject.ObjectId : null,
+                GetScopedVerbSuggestions(target.ScopeNode)))
         {
             return false;
         }
@@ -6026,6 +6061,7 @@ public sealed partial class MainWindowViewModel
 
     public bool RemoveVariableNode(GamePropertyNodeViewModel variableNode)
     {
+        if (variableNode.IsGeneratedEnvironmentalProperty) return false;
         var (collection, _) = ResolveVariableCollectionAndScope(variableNode.VariablesContainer);
         if (collection is null)
         {
@@ -13963,6 +13999,7 @@ public sealed partial class MainWindowViewModel
 
     private static PhaseNodeViewModel CreatePhaseNodeViewModel(PhaseNode phaseNode, HierarchyNodeViewModel parent, Guid? startingPhasePageId)
     {
+        PhaseEnvironmentalProperties.MaterializePageProperties(phaseNode);
         var node = new PhaseNodeViewModel(phaseNode, parent, phaseNode.Tier == PhaseTier.Page && phaseNode.Id == startingPhasePageId);
         var propertyScope = phaseNode.Tier switch
         {

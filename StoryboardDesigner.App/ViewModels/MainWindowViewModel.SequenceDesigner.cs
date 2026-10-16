@@ -2142,7 +2142,8 @@ public sealed partial class MainWindowViewModel
                 GetTimerKeySuggestionsForScopeNode(scopeNode),
                 GetSequenceDefinitionChoices(),
                 availableActions,
-                scopeNode is GameObject ownerObject ? ownerObject.ObjectId : null))
+                scopeNode is GameObject ownerObject ? ownerObject.ObjectId : null,
+                GetScopedVerbSuggestions(scopeNode)))
         {
             return false;
         }
