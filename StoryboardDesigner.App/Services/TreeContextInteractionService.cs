@@ -2,14 +2,15 @@ using System.Windows;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.ViewModels;
 using StoryboardDesigner.App.Views;
+using Storyboard.Shared.DesignerContracts;
 
 namespace StoryboardDesigner.App.Services;
 
 public sealed class TreeContextInteractionService : ITreeContextInteractionService
 {
-    public bool TryGetNewVariableInput(string initialName, GamePropertyLifetime initialLifetime, string initialDefaultValue, GamePropertyValueRestriction initialValueRestriction, out string variableName, out GamePropertyLifetime lifetime, out string defaultValue, out GamePropertyValueRestriction valueRestriction)
+    public bool TryGetNewVariableInput(string initialName, GamePropertyLifetime initialLifetime, string initialDefaultValue, GamePropertyValueRestriction initialValueRestriction, Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation, out string variableName, out GamePropertyLifetime lifetime, out string defaultValue, out GamePropertyValueRestriction valueRestriction, out ProjectGamePropertyComputationDto? computation)
     {
-        var dialog = new VariableEditorDialog(initialName, initialLifetime, initialDefaultValue, initialValueRestriction)
+        var dialog = new VariableEditorDialog(initialName, initialLifetime, initialDefaultValue, initialValueRestriction, editComputation: editComputation)
         {
             Owner = GetOwnerWindow()
         };
@@ -20,6 +21,7 @@ public sealed class TreeContextInteractionService : ITreeContextInteractionServi
             lifetime = initialLifetime;
             defaultValue = initialDefaultValue;
             valueRestriction = initialValueRestriction;
+            computation = null;
             return false;
         }
 
@@ -27,12 +29,13 @@ public sealed class TreeContextInteractionService : ITreeContextInteractionServi
         lifetime = dialog.Lifetime;
         defaultValue = dialog.DefaultValue;
         valueRestriction = dialog.ValueRestriction;
+        computation = dialog.IsComputed ? dialog.Computation : null;
         return true;
     }
 
-    public void ShowVariableScopeReview(string scopeLabel, IList<GamePropertyDefinition> variables)
+    public void ShowVariableScopeReview(string scopeLabel, IList<GamePropertyDefinition> variables, Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation = null)
     {
-        var dialog = new VariableScopeReviewDialog(scopeLabel, variables)
+        var dialog = new VariableScopeReviewDialog(scopeLabel, variables, editComputation)
         {
             Owner = GetOwnerWindow()
         };
@@ -97,13 +100,12 @@ public sealed class TreeContextInteractionService : ITreeContextInteractionServi
     }
 
     public bool TryChooseVariable(
-        IReadOnlyList<GamePropertyChoiceItem> choices,
-        PropertyResolutionScope initializationScope,
+        GamePropertyPickerContext pickerContext,
         string title,
         out string selectedValue,
         string? initialSelectedValue = null)
     {
-        var dialog = new VariableChooserDialog(choices, initializationScope, title, initialSelectedValue)
+        var dialog = new VariableChooserDialog(pickerContext, title, initialSelectedValue)
         {
             Owner = GetOwnerWindow()
         };

@@ -2123,22 +2123,17 @@ public sealed partial class MainWindowViewModel
         var target = ownerHierarchyNode is null ? null : ResolveScopedActionEditTarget(ownerHierarchyNode);
         var variableScope = target?.VariableScope ?? PropertyResolutionScope.Global;
         IScopedAwareNode? scopeNode = target?.ScopeNode ?? SelectedSequenceScope;
-        var variableChoices = GetVariableChoicesForScopeNode(scopeNode, variableScope);
-        var echoReferenceTokens = variableChoices
-            .Select(static choice => choice.Value)
-            .Where(static value => !string.IsNullOrWhiteSpace(value))
-            .Concat(RuntimeAnchorReferenceTokenCatalog.BuildIntrinsicAnchorTokens())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(static value => value, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var pickerContext = CreateGamePropertyPickerContext(
+            scopeNode,
+            variableScope,
+            relativeOwnerId: scopeNode is GameObject ownerForPicker ? ownerForPicker.ObjectId : null);
         var availableActions = target?.Actions.ToList() ?? new List<CommandAction>();
         var action = JsonExportService.ToCommandActionModel(step.InlineAction);
 
         if (!_dialogWorkflowService.EditSingleScopedAction(
                 action,
                 variableScope,
-                variableChoices,
-                echoReferenceTokens,
+                pickerContext,
                 GetContainerTargetChoicesForScopeNode(scopeNode),
                 GetMaterializeSourceObjectChoicesForScopeNode(scopeNode),
                 GetProcedureChoicesForScopeNode(scopeNode),
@@ -2264,7 +2259,7 @@ public sealed partial class MainWindowViewModel
         InlineAction = new CommandActionDto
         {
             Id = Guid.NewGuid(),
-            Name = "New Action",
+            Name = string.Empty,
             ActionType = CommandActionType.EchoMessage,
             NoVerbLinkage = true,
             ChildCommandForwardingMode = ChildCommandForwardingMode.None

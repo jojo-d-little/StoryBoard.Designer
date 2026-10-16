@@ -22,6 +22,11 @@ internal static class SharedVariableReconciliationService
         AddLinkedObjectParticipants(project.EnumerateAllObjectTemplateRoots(), participantsBySharedId, seedVariableBySharedId);
         AddLinkedObjectParticipants(project.BaseObjects, participantsBySharedId, seedVariableBySharedId);
 
+        foreach (var phaseBook in project.PhaseBooks)
+        {
+            AddLinkedPhaseParticipants(phaseBook, participantsBySharedId, seedVariableBySharedId);
+        }
+
         foreach (var roomTemplate in project.EnumerateAllRoomTemplateRoots())
         {
             AddLinkedGlobalParticipants(roomTemplate.Variables, participantsBySharedId, seedVariableBySharedId);
@@ -117,6 +122,18 @@ internal static class SharedVariableReconciliationService
                 },
                 participantsBySharedId,
                 seedVariableBySharedId);
+        }
+    }
+
+    private static void AddLinkedPhaseParticipants(
+        PhaseNode phase,
+        Dictionary<Guid, List<SharedVariableParticipant>> participantsBySharedId,
+        Dictionary<Guid, GamePropertyDefinition> seedVariableBySharedId)
+    {
+        AddLinkedGlobalParticipants(phase.Variables, participantsBySharedId, seedVariableBySharedId);
+        foreach (var child in phase.Children)
+        {
+            AddLinkedPhaseParticipants(child, participantsBySharedId, seedVariableBySharedId);
         }
     }
 

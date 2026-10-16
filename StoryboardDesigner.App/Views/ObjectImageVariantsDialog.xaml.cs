@@ -30,8 +30,7 @@ public partial class ObjectImageVariantsDialog : Window
     private double _imageRotationDegrees;
     private readonly List<ObjectImageVariant> _imageVariants;
     private readonly IReadOnlyList<string> _chooserReferenceTokens;
-    private readonly IReadOnlyList<GamePropertyChoiceItem> _chooserVariableChoices;
-    private readonly PropertyResolutionScope _chooserVariableScope;
+    private readonly GamePropertyPickerContext _chooserPickerContext;
     private string _imageVariantChooserScript;
     private bool _isMovable;
     private bool _isMovableDefaultValue;
@@ -65,8 +64,8 @@ public partial class ObjectImageVariantsDialog : Window
         _imageRotationDegrees = initial.ImageRotationDegrees;
         _imageVariants = NormalizeImageVariants(initial.ImageVariants);
         _chooserReferenceTokens = initial.ImageVariantChooserReferenceTokens ?? Array.Empty<string>();
-        _chooserVariableChoices = initial.ImageVariantChooserVariableChoices ?? Array.Empty<GamePropertyChoiceItem>();
-        _chooserVariableScope = initial.ImageVariantChooserVariableScope;
+        _chooserPickerContext = initial.ImageVariantChooserPickerContext
+            ?? throw new ArgumentException("A game-property picker context is required.", nameof(initial));
         _imageVariantChooserScript = initial.ImageVariantChooserScript ?? string.Empty;
         _isMovable = initial.IsMovable;
         _isMovableDefaultValue = initial.IsMovableDefaultValue;
@@ -477,8 +476,7 @@ public partial class ObjectImageVariantsDialog : Window
         var dialog = new ImageVariantChooserScriptEditorDialog(
             _imageVariantChooserScript,
             _chooserReferenceTokens,
-            _chooserVariableChoices,
-            _chooserVariableScope,
+            _chooserPickerContext,
             availableVariantNames)
         {
             Owner = this

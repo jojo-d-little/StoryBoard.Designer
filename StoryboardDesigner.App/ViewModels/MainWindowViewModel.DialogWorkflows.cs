@@ -59,17 +59,11 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
-        var variableChoices = target.VariableChoices
-            ?? (target.ScopeNode is null
-                ? Array.Empty<GamePropertyChoiceItem>()
-                : GetVariableChoicesForScopeNode(target.ScopeNode, target.VariableScope));
-        var echoReferenceTokens = variableChoices
-            .Select(choice => choice.Value)
-            .Where(static value => !string.IsNullOrWhiteSpace(value))
-            .Concat(RuntimeAnchorReferenceTokenCatalog.BuildIntrinsicAnchorTokens())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(static value => value, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var pickerContext = CreateGamePropertyPickerContext(
+            target.ScopeNode,
+            target.VariableScope,
+            relativeOwnerId: target.ScopeNode is GameObject ownerForPicker ? ownerForPicker.ObjectId : null,
+            customChoiceDiscovery: target.VariableChoices is null ? null : () => target.VariableChoices!);
 
         var verbSuggestions = GetScopedVerbSuggestions(target.ScopeNode);
         var directionalSuggestions = GetScopedDirectionalSuggestions(target.ScopeNode);
@@ -94,8 +88,7 @@ public sealed partial class MainWindowViewModel
                 compositeRecipeChoices,
                 soundEffectChoices,
                 sequenceDefinitionChoices,
-                variableChoices,
-                echoReferenceTokens,
+                pickerContext,
                 timerKeySuggestions,
                 verbSuggestions,
                 directionalSuggestions,

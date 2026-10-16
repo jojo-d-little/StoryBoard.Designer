@@ -19,6 +19,12 @@ public sealed class GamePropertyNodeViewModel : HierarchyNodeViewModel
     public GamePropertyDefinition Variable { get; }
     public PropertyResolutionScope Scope { get; }
     public GamePropertiesContainerNodeViewModel VariablesContainer { get; }
+    public bool IsComputed => Variable.Computation is not null;
+
+    public void RefreshComputedState()
+    {
+        OnPropertyChanged(nameof(IsComputed));
+    }
 
     public bool IsShared
     {

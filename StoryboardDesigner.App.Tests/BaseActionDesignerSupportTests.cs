@@ -76,7 +76,12 @@ public sealed class BaseActionDesignerSupportTests
                         }
 
                         var dialog = new RoomActionEditorDialog(
-                            action, PropertyResolutionScope.Object, [], [], [], choices, [],
+                            action,
+                            PropertyResolutionScope.Object,
+                            new GamePropertyPickerContext(new ProjectModel(), baseObject, PropertyResolutionScope.Object, _ => []),
+                            [],
+                            choices,
+                            [],
                             defaultCurrentObjectId: baseObject.ObjectId);
                         dialog.Loaded += (_, _) =>
                         {
@@ -117,7 +122,14 @@ public sealed class BaseActionDesignerSupportTests
         {
             try
             {
-                var dialog = new RoomActionEditorDialog(action, PropertyResolutionScope.Object, [], [], [], [], []);
+                var dialog = new RoomActionEditorDialog(
+                    action,
+                    PropertyResolutionScope.Object,
+                    new GamePropertyPickerContext(new ProjectModel(), null, PropertyResolutionScope.Object, _ => []),
+                    [],
+                    [],
+                    [],
+                    []);
                 dialog.Loaded += (_, _) => typeof(RoomActionEditorDialog)
                     .GetMethod("Save_OnClick", BindingFlags.Instance | BindingFlags.NonPublic)!
                     .Invoke(dialog, [dialog, new System.Windows.RoutedEventArgs()]);

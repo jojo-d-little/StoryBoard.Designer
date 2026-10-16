@@ -1,3 +1,5 @@
+using Storyboard.Shared.DesignerContracts;
+
 namespace StoryboardDesigner.App.Models;
 
 public sealed class GamePropertyDefinition
@@ -8,4 +10,5 @@ public sealed class GamePropertyDefinition
     public GamePropertyValueRestriction ValueRestriction { get; set; } = GamePropertyValueRestriction.TrueFalse;
     public GamePropertyLifetime Lifetime { get; set; } = GamePropertyLifetime.Singleton;
     public Guid? SharedVariableId { get; set; }
+    public ProjectGamePropertyComputationDto? Computation { get; set; }
 }

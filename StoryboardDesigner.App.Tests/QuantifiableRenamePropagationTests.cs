@@ -955,9 +955,9 @@ public sealed class QuantifiableRenamePropagationTests
 
         Assert.True(edited);
         var request = Assert.IsType<ObjectBasicPropertiesEditRequest>(treeContext.LastObjectBasicPropertiesRequest);
-        Assert.NotNull(request.ImageVariantChooserVariableChoices);
+        Assert.NotNull(request.ImageVariantChooserPickerContext);
         Assert.NotNull(request.ImageVariantChooserReferenceTokens);
-        Assert.Contains(request.ImageVariantChooserVariableChoices!, choice =>
+        Assert.Contains(request.ImageVariantChooserPickerContext!.DiscoverChoices(false), choice =>
             string.Equals(choice.Value, "owner.isOpen", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(request.ImageVariantChooserReferenceTokens!, token =>
             string.Equals(token, "owner.isOpen", StringComparison.OrdinalIgnoreCase));

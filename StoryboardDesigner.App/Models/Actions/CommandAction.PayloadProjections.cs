@@ -1,6 +1,7 @@
 using Storyboard.Shared.GameServices.Actions;
 using Storyboard.Shared.GameServices.Commands;
 using Storyboard.Shared.GameServices.RuntimeContext;
+using System.Text.Json.Serialization;
 
 namespace StoryboardDesigner.App.Models;
 
@@ -148,6 +149,11 @@ public sealed partial class CommandAction
         }
     }
 
+    [JsonIgnore]
+    public string FlagTargetDisplayName => FormatGamePropertyTargetDisplayName(
+        ActionPayloadAccessors.GetCheckGamePropertyReference(this),
+        FlagName);
+
     public bool FlagValue
     {
         get => CommandActionPayloadCoordinator.GetCheckExpectedValue(_payload);
@@ -177,6 +183,33 @@ public sealed partial class CommandAction
             OnPropertyChanged();
             RaiseSummaryChanged();
         }
+    }
+
+    [JsonIgnore]
+    public string GamePropertyTargetDisplayName => FormatGamePropertyTargetDisplayName(
+        ActionPayloadAccessors.GetSetGamePropertyReference(this),
+        GamePropertyName);
+
+    private static string FormatGamePropertyTargetDisplayName(
+        Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? reference,
+        string legacyName)
+    {
+        if (reference is null || string.IsNullOrWhiteSpace(reference.PropertyName))
+        {
+            return legacyName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(reference.AnchorKey))
+        {
+            return $"{reference.AnchorKey}.{reference.PropertyName}";
+        }
+
+        if (reference.OwnerId.HasValue)
+        {
+            return $"Owner {reference.OwnerId.Value:N}.{reference.PropertyName}";
+        }
+
+        return $"Self.{reference.PropertyName}";
     }
 
     public string GamePropertyValue

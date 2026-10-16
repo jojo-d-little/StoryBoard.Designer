@@ -5,6 +5,7 @@ using System.IO;
 using System.Text.Json;
 using System.Windows.Input;
 using System.Windows.Threading;
+using Storyboard.Shared.DesignerContracts;
 using Storyboard.Shared.GameServices;
 using Storyboard.Shared.GameServices.References;
 using StoryboardDesigner.App.Models;
@@ -1221,6 +1222,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         var popupEligibleErrorCount = popupEligibleValidationIssues.Count(issue => issue.Severity == ValidationSeverity.Error);
         var popupEligibleWarningCount = popupEligibleValidationIssues.Count(issue => issue.Severity == ValidationSeverity.Warning);
         var validationReportPath = string.Empty;
+        var computedPropertyIssues = validationIssues
+            .Where(issue => string.Equals(issue.RuleId, "CGP-001", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (isAutoSave && computedPropertyIssues.Count > 0)
+        {
+            ExportStatus = "Auto-save paused because computed game property findings need author review. Use Save to review and override them.";
+            return false;
+        }
+        var allowComputedPropertyRuntimeExport = true;
 
         if (validationIssues.Count > 0)
         {
@@ -1259,6 +1269,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                     ExportStatus = $"Save canceled after validation ({validationErrorCount} error(s), {validationWarningCount} warning(s)).";
                     return false;
                 }
+
+                if (computedPropertyIssues.Count > 0)
+                {
+                    allowComputedPropertyRuntimeExport = _projectUiService.ConfirmContinueWithValidationSummary(
+                        "clean Runtime export",
+                        computedPropertyIssues.Count,
+                        computedPropertyIssues.Count(issue => issue.Severity == ValidationSeverity.Error),
+                        computedPropertyIssues.Count(issue => issue.Severity == ValidationSeverity.Warning));
+                }
             }
 
             ApplyValidationErrorsToScopeNodes(validationIssues);
@@ -1289,6 +1308,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
 
         string cleanProjectPath;
+        if (!allowComputedPropertyRuntimeExport)
+        {
+            _isProjectDirty = false;
+            _autoSaveTimer.Stop();
+            ExportStatus = $"Project saved. Clean Runtime export was not updated because computed-property validation was not overridden. Report: {validationReportPath}";
+            UpdateProjectSummary();
+            return true;
+        }
+
         try
         {
             cleanProjectPath = _jsonExportService.ExportCleanProjectV1(_projectFilePath, _project);
@@ -1357,9 +1385,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 validationIssues,
                 reportFilePath,
                 NavigateToValidationIssue);
-            failureReason = BuildValidationFailureStatus(blockingIssues, "runtime export") + $" Report: {reportFilePath}";
-            ExportStatus = failureReason;
-            return false;
+            var errorCount = validationIssues.Count(issue => issue.Severity == ValidationSeverity.Error);
+            var warningCount = validationIssues.Count(issue => issue.Severity == ValidationSeverity.Warning);
+            if (!_projectUiService.ConfirmContinueWithValidationSummary(
+                    "runtime export",
+                    validationIssues.Count,
+                    errorCount,
+                    warningCount))
+            {
+                failureReason = BuildValidationFailureStatus(blockingIssues, "runtime export") + $" Report: {reportFilePath}";
+                ExportStatus = failureReason;
+                return false;
+            }
         }
 
         try
@@ -2099,6 +2136,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         if (initializationScope is PropertyResolutionScope.Object or PropertyResolutionScope.Room or PropertyResolutionScope.Area or PropertyResolutionScope.Country or PropertyResolutionScope.Planet)
         {
+            AddSimpleVariableChoices(
+                choices,
+                seen,
+                _project.GlobalVariables.Concat(_project.GlobalScope.GameProperties),
+                int.MaxValue - 2,
+                PropertyResolutionScope.Global,
+                "Global",
+                "Global",
+                GamePropertyChoiceRelation.Ancestor);
+
             foreach (var globalObject in EnumerateGameObjectsRecursive(_project.GlobalScope.GameObjects))
             {
                 if (string.IsNullOrWhiteSpace(globalObject.ScopeName))
@@ -2906,8 +2953,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                         depth,
                         BuildScopePath(obj.EnumerateSelfAndAncestors().Reverse().Select(static n => n.ScopeName).ToArray()),
                         ResolveObjectOwnerName(obj),
-                        GamePropertyChoiceRelation.Self,
-                        includeSelfAlias: true);
+                        GetHierarchyRelationAtDepth(depth),
+                        includeSelfAlias: depth == 0);
 
                     if (initializationScope == PropertyResolutionScope.Object)
                     {
@@ -2939,13 +2986,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                         PropertyResolutionScope.Room,
                         BuildScopePathFromNode(room),
                         room.ScopeName,
-                        depth == 1 ? GamePropertyChoiceRelation.Parent : GamePropertyChoiceRelation.Ancestor);
-                    AddRoomSelfVariableChoices(
-                        choices,
-                        seen,
-                        room.Variables,
-                        depth,
-                        BuildScopePathFromNode(room));
+                        GetHierarchyRelationAtDepth(depth));
+                    if (depth == 0 && initializationScope == PropertyResolutionScope.Room)
+                    {
+                        AddRoomSelfVariableChoices(
+                            choices,
+                            seen,
+                            room.Variables,
+                            depth,
+                            BuildScopePathFromNode(room));
+                    }
 
                     if (initializationScope == PropertyResolutionScope.Room)
                     {
@@ -2970,10 +3020,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                     if (initializationScope == PropertyResolutionScope.Object)
                     {
                         var currentObject = scopeNode as GameObject;
-                        foreach (var siblingObject in EnumerateGameObjectsRecursive(room.GameObjects))
+                        foreach (var siblingObject in currentObject?.ParentScope?.ChildScopes.OfType<GameObject>() ?? Enumerable.Empty<GameObject>())
                         {
-                            if (currentObject is not null
-                                && ReferenceEquals(siblingObject, currentObject))
+                            if (ReferenceEquals(siblingObject, currentObject))
                             {
                                 continue;
                             }
@@ -2992,21 +3041,96 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                     break;
 
                 case Area area when ShouldIncludeScope(initializationScope, PropertyResolutionScope.Area):
-                    AddSimpleVariableChoices(choices, seen, area.Variables, depth, PropertyResolutionScope.Area, BuildScopePathFromNode(area), area.ScopeName, GamePropertyChoiceRelation.Ancestor);
+                    AddSimpleVariableChoices(choices, seen, area.Variables, depth, PropertyResolutionScope.Area, BuildScopePathFromNode(area), area.ScopeName, GetHierarchyRelationAtDepth(depth));
                     break;
 
                 case Country country when ShouldIncludeScope(initializationScope, PropertyResolutionScope.Country):
-                    AddSimpleVariableChoices(choices, seen, country.Variables, depth, PropertyResolutionScope.Country, BuildScopePathFromNode(country), country.ScopeName, GamePropertyChoiceRelation.Ancestor);
+                    AddSimpleVariableChoices(choices, seen, country.Variables, depth, PropertyResolutionScope.Country, BuildScopePathFromNode(country), country.ScopeName, GetHierarchyRelationAtDepth(depth));
                     break;
 
                 case Planet planet when ShouldIncludeScope(initializationScope, PropertyResolutionScope.Planet):
-                    AddSimpleVariableChoices(choices, seen, planet.Variables, depth, PropertyResolutionScope.Planet, BuildScopePathFromNode(planet), planet.ScopeName, GamePropertyChoiceRelation.Ancestor);
+                    AddSimpleVariableChoices(choices, seen, planet.Variables, depth, PropertyResolutionScope.Planet, BuildScopePathFromNode(planet), planet.ScopeName, GetHierarchyRelationAtDepth(depth));
+                    break;
+
+                case PhaseNode phase when ShouldIncludePhaseScope(initializationScope, phase.Tier):
+                    AddSimpleVariableChoices(
+                        choices,
+                        seen,
+                        phase.Variables,
+                        depth,
+                        GetPhaseResolutionScope(phase.Tier),
+                        BuildScopePathFromNode(phase),
+                        phase.ScopeName,
+                        GetHierarchyRelationAtDepth(depth));
+
+                    if (depth == 0 && initializationScope is PropertyResolutionScope.PhaseBook or PropertyResolutionScope.PhaseChapter)
+                    {
+                        foreach (var (descendant, descendantDepth) in EnumeratePhaseNodesWithDepth(phase.Children))
+                        {
+                            AddSimpleVariableChoices(
+                                choices,
+                                seen,
+                                descendant.Variables,
+                                descendantDepth,
+                                GetPhaseResolutionScope(descendant.Tier),
+                                BuildScopePathFromNode(descendant),
+                                descendant.ScopeName,
+                                descendantDepth == 1 ? GamePropertyChoiceRelation.Child : GamePropertyChoiceRelation.Descendant);
+                        }
+                    }
                     break;
 
             }
 
             depth++;
             current = current.ParentScope;
+        }
+
+        // Phases live beside the world-scope tree, so walking the current scope's
+        // parents never discovers them for room/object action editors. Include the
+        // project phase tree as an opt-in Phase relation for those contexts.
+        if (initializationScope is not (PropertyResolutionScope.PhaseBook or PropertyResolutionScope.PhaseChapter or PropertyResolutionScope.PhasePage))
+        {
+            void AddProjectPhaseChoices(PhaseNode phase)
+            {
+                var phaseScope = GetPhaseResolutionScope(phase.Tier);
+                var phasePath = BuildScopePathFromNode(phase);
+                foreach (var variable in phase.Variables)
+                {
+                    var variableName = variable.Name?.Trim() ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(variableName))
+                    {
+                        continue;
+                    }
+
+                    var ownerVariable = BuildOwnerVariable(phase.ScopeName, variableName);
+                    if (!seen.Add(ownerVariable))
+                    {
+                        continue;
+                    }
+
+                    choices.Add(new GamePropertyChoiceItem
+                    {
+                        Value = ownerVariable,
+                        ScopePath = phasePath,
+                        OwnerVariable = ownerVariable,
+                        Scope = phaseScope,
+                        ValueRestriction = variable.ValueRestriction,
+                        Priority = choices.Count,
+                        Relation = GamePropertyChoiceRelation.Phase
+                    });
+                }
+
+                foreach (var child in phase.Children)
+                {
+                    AddProjectPhaseChoices(child);
+                }
+            }
+
+            foreach (var phase in _project.PhaseBooks)
+            {
+                AddProjectPhaseChoices(phase);
+            }
         }
 
         if (initializationScope is PropertyResolutionScope.Object or PropertyResolutionScope.Room or PropertyResolutionScope.Area or PropertyResolutionScope.Country or PropertyResolutionScope.Planet)
@@ -3031,6 +3155,36 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             .ToList();
     }
 
+    public GamePropertyPickerContext CreateGamePropertyPickerContext(
+        IScopedAwareNode? currentScope,
+        PropertyResolutionScope initializationScope,
+        bool booleanOnly = false,
+        bool allowReferenceModes = false,
+        Guid? relativeOwnerId = null,
+        IReadOnlyList<string>? anchorKeys = null,
+        ProjectGamePropertySourceReferenceDto? selectedReference = null,
+        Func<IReadOnlyList<GamePropertyChoiceItem>>? customChoiceDiscovery = null)
+    {
+        relativeOwnerId ??= currentScope is ScopeNodeBase scopeOwner
+            ? GetGamePropertyOwnerId(scopeOwner)
+            : null;
+        return new GamePropertyPickerContext(
+            _project,
+            currentScope,
+            initializationScope,
+            useReferenceChoices => customChoiceDiscovery?.Invoke()
+                ?? (useReferenceChoices
+                    ? BuildComputedPropertyChoices(currentScope as ScopeNodeBase, booleanOnly)
+                    : currentScope is null
+                        ? Array.Empty<GamePropertyChoiceItem>()
+                        : GetVariableChoicesForScopeNode(currentScope, initializationScope)),
+            booleanOnly,
+            allowReferenceModes,
+            relativeOwnerId,
+            anchorKeys,
+            selectedReference);
+    }
+
     private static bool ShouldIncludeScope(PropertyResolutionScope initializationScope, PropertyResolutionScope scope)
     {
         return initializationScope switch
@@ -3042,6 +3196,47 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             PropertyResolutionScope.Planet => scope is PropertyResolutionScope.Planet,
             _ => false
         };
+    }
+
+    private static GamePropertyChoiceRelation GetHierarchyRelationAtDepth(int depth) => depth switch
+    {
+        0 => GamePropertyChoiceRelation.Self,
+        1 => GamePropertyChoiceRelation.Parent,
+        _ => GamePropertyChoiceRelation.Ancestor
+    };
+
+    private static bool ShouldIncludePhaseScope(PropertyResolutionScope initializationScope, PhaseTier tier)
+    {
+        var currentTier = initializationScope switch
+        {
+            PropertyResolutionScope.PhaseBook => PhaseTier.Book,
+            PropertyResolutionScope.PhaseChapter => PhaseTier.Chapter,
+            PropertyResolutionScope.PhasePage => PhaseTier.Page,
+            _ => (PhaseTier?)null
+        };
+
+        return currentTier.HasValue && (int)tier <= (int)currentTier.Value;
+    }
+
+    private static PropertyResolutionScope GetPhaseResolutionScope(PhaseTier tier) => tier switch
+    {
+        PhaseTier.Book => PropertyResolutionScope.PhaseBook,
+        PhaseTier.Chapter => PropertyResolutionScope.PhaseChapter,
+        _ => PropertyResolutionScope.PhasePage
+    };
+
+    private static IEnumerable<(PhaseNode Node, int Depth)> EnumeratePhaseNodesWithDepth(
+        IEnumerable<PhaseNode> roots,
+        int startingDepth = 1)
+    {
+        foreach (var phase in roots)
+        {
+            yield return (phase, startingDepth);
+            foreach (var descendant in EnumeratePhaseNodesWithDepth(phase.Children, startingDepth + 1))
+            {
+                yield return descendant;
+            }
+        }
     }
 
     private static IEnumerable<(GameObject Object, int Depth)> EnumerateGameObjectsWithDepth(

@@ -242,6 +242,13 @@
                     <Path Stroke="#4B5563" StrokeThickness="1" Data="M7,4 L7,10 M4,7 L10,7" />
                 </Canvas>
                 <TextBlock VerticalAlignment="Center" Text="{Binding EditableName}" />
+                <TextBlock Margin="8,0,0,0"
+                           VerticalAlignment="Center"
+                           Foreground="#2563EB"
+                           FontSize="10"
+                           Text="computed"
+                           ToolTip="This Boolean property is evaluated from its condition."
+                           Visibility="{Binding IsComputed, Converter={StaticResource BooleanToVisibilityConverter}}" />
             </StackPanel>
         </HierarchicalDataTemplate>
         <HierarchicalDataTemplate DataType="{x:Type vm:ConstructsNodeViewModel}" ItemsSource="{Binding Children}">

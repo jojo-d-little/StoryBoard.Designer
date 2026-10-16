@@ -1,12 +1,13 @@
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.ViewModels;
+using Storyboard.Shared.DesignerContracts;
 
 namespace StoryboardDesigner.App.Services;
 
 public interface ITreeContextInteractionService
 {
-    bool TryGetNewVariableInput(string initialName, GamePropertyLifetime initialLifetime, string initialDefaultValue, GamePropertyValueRestriction initialValueRestriction, out string variableName, out GamePropertyLifetime lifetime, out string defaultValue, out GamePropertyValueRestriction valueRestriction);
-    void ShowVariableScopeReview(string scopeLabel, IList<GamePropertyDefinition> variables);
+    bool TryGetNewVariableInput(string initialName, GamePropertyLifetime initialLifetime, string initialDefaultValue, GamePropertyValueRestriction initialValueRestriction, Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation, out string variableName, out GamePropertyLifetime lifetime, out string defaultValue, out GamePropertyValueRestriction valueRestriction, out ProjectGamePropertyComputationDto? computation);
+    void ShowVariableScopeReview(string scopeLabel, IList<GamePropertyDefinition> variables, Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation = null);
     void ShowSharedPropertyRelationships(
         string propertyPath,
         IReadOnlyList<SharedPropertyRelationshipReviewItem> relationships,
@@ -25,8 +26,7 @@ public interface ITreeContextInteractionService
         Func<Guid, bool>? dropEmptySharedVariableAction = null,
         Func<IReadOnlyList<SharedVariableManagerListItem>>? reloadItemsAction = null);
     bool TryChooseVariable(
-        IReadOnlyList<GamePropertyChoiceItem> choices,
-        PropertyResolutionScope initializationScope,
+        GamePropertyPickerContext pickerContext,
         string title,
         out string selectedValue,
         string? initialSelectedValue = null);

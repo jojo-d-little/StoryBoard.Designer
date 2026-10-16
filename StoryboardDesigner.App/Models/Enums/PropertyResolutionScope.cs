@@ -11,5 +11,8 @@ public enum PropertyResolutionScope
     Country,
     Area,
     Room,
-    Object
+    Object,
+    PhaseBook,
+    PhaseChapter,
+    PhasePage
 }

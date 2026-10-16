@@ -36,8 +36,7 @@ public partial class LinkedActionTreeEditorDialog : Window
     private readonly IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> _externalActionChoices;
     private readonly IReadOnlyList<CommandAction> _externalActions;
     private readonly PropertyResolutionScope _variableScope;
-    private readonly IReadOnlyList<GamePropertyChoiceItem> _variableChoices;
-    private readonly IReadOnlyList<string> _echoReferenceTokens;
+    private readonly GamePropertyPickerContext _pickerContext;
     private readonly IReadOnlyList<ContainerTargetChoiceItem> _containerTargetChoices;
     private readonly IReadOnlyList<MaterializeSourceObjectChoiceItem> _materializeSourceObjectChoices;
     private readonly IReadOnlyList<ProcedureChoiceItem> _procedureChoices;
@@ -58,10 +57,9 @@ public partial class LinkedActionTreeEditorDialog : Window
         string scopeLabel,
         CommandAction rootAction,
         IList<CommandAction> editableActions,
+        GamePropertyPickerContext pickerContext,
         IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)>? externalActions = null,
         PropertyResolutionScope variableScope = PropertyResolutionScope.Room,
-        IReadOnlyList<GamePropertyChoiceItem>? variableChoices = null,
-        IReadOnlyList<string>? echoReferenceTokens = null,
         IReadOnlyList<ContainerTargetChoiceItem>? containerTargetChoices = null,
         IReadOnlyList<MaterializeSourceObjectChoiceItem>? materializeSourceObjectChoices = null,
         IReadOnlyList<ProcedureChoiceItem>? procedureChoices = null,
@@ -78,8 +76,7 @@ public partial class LinkedActionTreeEditorDialog : Window
         _externalActionChoices = externalActions ?? Array.Empty<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)>();
         _externalActions = _externalActionChoices.Select(static choice => choice.Action).ToList();
         _variableScope = variableScope;
-        _variableChoices = variableChoices ?? Array.Empty<GamePropertyChoiceItem>();
-        _echoReferenceTokens = echoReferenceTokens ?? Array.Empty<string>();
+        _pickerContext = pickerContext;
         _containerTargetChoices = containerTargetChoices ?? Array.Empty<ContainerTargetChoiceItem>();
         _materializeSourceObjectChoices = materializeSourceObjectChoices ?? Array.Empty<MaterializeSourceObjectChoiceItem>();
         _procedureChoices = procedureChoices ?? Array.Empty<ProcedureChoiceItem>();
@@ -370,10 +367,9 @@ public partial class LinkedActionTreeEditorDialog : Window
                 _scopeLabel,
                 selectedAction,
                 _editableActions,
+                _pickerContext,
                 _externalActionChoices,
                 _variableScope,
-                _variableChoices,
-                _echoReferenceTokens,
                 _containerTargetChoices,
                 _materializeSourceObjectChoices,
                 _procedureChoices,
@@ -393,8 +389,7 @@ public partial class LinkedActionTreeEditorDialog : Window
         var dialog = new RoomActionEditorDialog(
             selectedAction,
             _variableScope,
-            _variableChoices,
-            _echoReferenceTokens,
+            _pickerContext,
             _containerTargetChoices,
             _materializeSourceObjectChoices,
             _procedureChoices,

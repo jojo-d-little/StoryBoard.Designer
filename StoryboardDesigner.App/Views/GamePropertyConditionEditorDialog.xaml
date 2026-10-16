@@ -1,0 +1,85 @@
+<Window x:Class="StoryboardDesigner.App.Views.GamePropertyConditionEditorDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Computed Game Property Condition"
+        Height="620" Width="900" MinHeight="520" MinWidth="760"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize">
+    <Grid Margin="14">
+        <Grid.Resources>
+            <HierarchicalDataTemplate x:Key="ConditionTreeTemplate" ItemsSource="{Binding Children}">
+                <TextBlock Text="{Binding Label}" />
+            </HierarchicalDataTemplate>
+        </Grid.Resources>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <WrapPanel Grid.Row="0" Margin="0,0,0,10">
+            <Button x:Name="AddAllButton" Margin="0,0,6,0" Padding="10,5" Content="Add AND group" Click="AddAll_OnClick" />
+            <Button x:Name="AddAnyButton" Margin="0,0,6,0" Padding="10,5" Content="Add OR group" Click="AddAny_OnClick" />
+            <Button x:Name="AddNotButton" Margin="0,0,6,0" Padding="10,5" Content="Add NOT" Click="AddNot_OnClick" />
+            <Button x:Name="AddCompareButton" Margin="0,0,6,0" Padding="10,5" Content="Add comparison" Click="AddCompare_OnClick" />
+            <Button x:Name="AddExistsButton" Margin="0,0,6,0" Padding="10,5" Content="Add exists" Click="AddExists_OnClick" />
+            <Button x:Name="RemoveButton" Padding="10,5" Content="Remove" Click="Remove_OnClick" />
+        </WrapPanel>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.1*" />
+                <ColumnDefinition Width="1.4*" />
+            </Grid.ColumnDefinitions>
+            <TreeView x:Name="ConditionTree" Grid.Column="0" Margin="0,0,12,0" ItemTemplate="{StaticResource ConditionTreeTemplate}" SelectedItemChanged="ConditionTree_OnSelectedItemChanged" />
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock x:Name="ConditionSelectionPromptTextBlock"
+                               Margin="0,0,0,12"
+                               Foreground="#4B5563"
+                               TextWrapping="Wrap"
+                               Text="Select a group or condition in the tree to see its available actions." />
+                    <StackPanel x:Name="ConditionEditorPanel" IsEnabled="False" Visibility="Collapsed">
+                        <TextBlock FontWeight="SemiBold" Text="Selected condition" Margin="0,0,0,8" />
+                        <TextBlock Text="Source property" />
+                        <DockPanel Margin="0,4,0,12">
+                            <Button DockPanel.Dock="Right" Margin="6,0,0,0" Padding="9,4" Content="Choose..." Click="ChooseSource_OnClick" />
+                            <TextBox x:Name="SourceTextBox" IsReadOnly="True" />
+                        </DockPanel>
+                        <TextBlock Text="Operator" />
+                        <ComboBox x:Name="OperatorComboBox" Margin="0,4,0,12" SelectionChanged="Operand_OnChanged">
+                            <ComboBoxItem Content="IsTrue" />
+                            <ComboBoxItem Content="IsFalse" />
+                            <ComboBoxItem Content="Equals" />
+                            <ComboBoxItem Content="NotEquals" />
+                            <ComboBoxItem Content="LessThan" />
+                            <ComboBoxItem Content="LessThanOrEqual" />
+                            <ComboBoxItem Content="GreaterThan" />
+                            <ComboBoxItem Content="GreaterThanOrEqual" />
+                        </ComboBox>
+                        <CheckBox x:Name="RightOperandIsSourceCheckBox" Content="Compare with another game property" Margin="0,0,0,8" Checked="OperandMode_OnChanged" Unchecked="OperandMode_OnChanged" />
+                        <DockPanel x:Name="RightSourcePanel" Margin="0,0,0,12">
+                            <Button DockPanel.Dock="Right" Margin="6,0,0,0" Padding="9,4" Content="Choose..." Click="ChooseRightSource_OnClick" />
+                            <TextBox x:Name="RightSourceTextBox" IsReadOnly="True" />
+                        </DockPanel>
+                        <StackPanel x:Name="RightConstantPanel">
+                            <TextBlock Text="Constant type" />
+                            <ComboBox x:Name="ValueKindComboBox" Margin="0,4,0,8" SelectionChanged="Operand_OnChanged">
+                                <ComboBoxItem Content="Boolean" />
+                                <ComboBoxItem Content="Numeric" />
+                                <ComboBoxItem Content="Text" />
+                            </ComboBox>
+                            <TextBlock Text="Constant value" />
+                            <TextBox x:Name="ValueTextBox" Margin="0,4,0,12" TextChanged="Operand_OnChanged" />
+                        </StackPanel>
+                    </StackPanel>
+                    <TextBlock Text="Condition preview" FontWeight="SemiBold" Margin="0,8,0,4" />
+                    <TextBlock x:Name="PreviewTextBlock" TextWrapping="Wrap" Foreground="#374151" />
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+        <TextBlock Grid.Row="2" Margin="0,10,0,0" Foreground="#6B7280" TextWrapping="Wrap" Text="AND/OR groups show explicit grouping. Sources are stored by owner identity or anchor plus property name; the displayed path is only a label." />
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Width="90" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
+            <Button Width="90" Content="Cancel" Click="Cancel_OnClick" />
+        </StackPanel>
+    </Grid>
+</Window>

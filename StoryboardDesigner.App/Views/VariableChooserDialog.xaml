@@ -17,76 +17,120 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0"
-                   Margin="0,0,0,8"
-                   Foreground="#4B5563"
-                   TextWrapping="Wrap"
-                   Text="Choose a game property from the current context. Use the filter box to narrow the list quickly." />
+        <StackPanel x:Name="ReferenceModePanel" Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" Visibility="Collapsed">
+            <TextBlock Margin="0,0,8,0" VerticalAlignment="Center" Text="Reference as:" />
+            <ComboBox x:Name="ReferenceModeComboBox" Width="190" SelectionChanged="ReferenceMode_OnChanged">
+                <ComboBoxItem Content="Fixed" />
+                <ComboBoxItem Content="Owner relative" />
+                <ComboBoxItem Content="Anchor" />
+            </ComboBox>
+            <TextBlock x:Name="AnchorLabel" Margin="14,0,8,0" VerticalAlignment="Center" Text="Anchor:" Visibility="Collapsed" />
+            <ComboBox x:Name="AnchorComboBox" Width="190" Visibility="Collapsed" SelectionChanged="Anchor_OnChanged" />
+            <TextBlock x:Name="ReferencePreviewTextBlock" Margin="14,0,0,0" VerticalAlignment="Center" Foreground="#4B5563" />
+        </StackPanel>
 
-        <Grid Grid.Row="1" Margin="0,0,0,8">
+        <Grid Grid.Row="2" Margin="0,0,0,8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="220" />
             </Grid.ColumnDefinitions>
-            <TextBox x:Name="ScopePathFilterTextBox"
+            <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,6,3" Foreground="#4B5563" Text="Filter by scope" />
+            <TextBlock Grid.Row="0" Grid.Column="1" Margin="0,0,0,3" Foreground="#4B5563" Text="Filter by property" />
+            <ComboBox x:Name="ScopeFilterComboBox"
+                     Grid.Row="1"
                      Grid.Column="0"
                      Margin="0,0,6,0"
-                     ToolTip="Contains filter for scope path"
-                     TextChanged="Filters_OnTextChanged"
-                     PreviewKeyDown="FilterTextBox_OnPreviewKeyDown" />
-            <TextBox x:Name="OwnerVariableFilterTextBox"
-                     Grid.Column="1"
-                     Margin="0,0,6,0"
-                     ToolTip="Contains filter for owner.variable"
-                     TextChanged="Filters_OnTextChanged"
-                     PreviewKeyDown="FilterTextBox_OnPreviewKeyDown" />
-            <ComboBox x:Name="RoomFilterComboBox"
-                      Grid.Column="2"
+                     DisplayMemberPath="Label"
+                     SelectedValuePath="Value"
+                     ToolTip="Show results for one object or scope"
+                     SelectionChanged="ScopeFilterComboBox_OnSelectionChanged" />
+            <ComboBox x:Name="PropertyFilterComboBox"
+                      Grid.Row="1"
+                      Grid.Column="1"
+                      Margin="0,0,0,0"
                       DisplayMemberPath="Label"
                       SelectedValuePath="Value"
-                      SelectionChanged="RoomFilterComboBox_OnSelectionChanged" />
+                      ToolTip="Show results for one property name"
+                      SelectionChanged="PropertyFilterComboBox_OnSelectionChanged" />
         </Grid>
 
-                <StackPanel x:Name="ScopeOptionsPanel"
-                        Grid.Row="2"
-                        Margin="0,0,0,8"
-                        Orientation="Horizontal"
-                        Visibility="Collapsed">
-                    <TextBlock Margin="0,0,10,0" VerticalAlignment="Center" Foreground="#4B5563" Text="Include:" />
-                    <CheckBox x:Name="IncludeChildrenCheckBox"
-                          Margin="0,0,12,0"
-                          Content="Child variables"
-                          Checked="ScopeOptions_OnChanged"
-                          Unchecked="ScopeOptions_OnChanged" />
-                    <CheckBox x:Name="IncludeDescendantsCheckBox"
-                          Margin="0,0,12,0"
-                          Content="Descendant variables"
-                          Checked="ScopeOptions_OnChanged"
-                          Unchecked="ScopeOptions_OnChanged" />
-                    <CheckBox x:Name="IncludeParentCheckBox"
-                          Margin="0,0,12,0"
-                          Content="Parent variables"
-                          Checked="ScopeOptions_OnChanged"
-                          Unchecked="ScopeOptions_OnChanged" />
-                    <CheckBox x:Name="IncludeAncestorsCheckBox"
-                          Margin="0,0,12,0"
-                          Content="Ancestor variables"
-                          Checked="ScopeOptions_OnChanged"
-                          Unchecked="ScopeOptions_OnChanged" />
-                    <CheckBox x:Name="IncludeSiblingsCheckBox"
-                          Margin="0,0,12,0"
-                          Content="Sibling variables"
-                          Checked="ScopeOptions_OnChanged"
-                          Unchecked="ScopeOptions_OnChanged" />
-                      <CheckBox x:Name="IncludeTraversalLegsCheckBox"
-                          Content="Traversal legs"
-                          Checked="ScopeOptions_OnChanged"
-                          Unchecked="ScopeOptions_OnChanged" />
-                </StackPanel>
+        <Grid x:Name="ScopeOptionsPanel"
+              Grid.Row="1"
+              Margin="0,0,0,8"
+              Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <CheckBox x:Name="IncludeSelfCheckBox"
+                      Grid.Row="0" Grid.Column="0" Margin="0,0,12,6"
+                      Content="Self"
+                      Checked="ScopeOptions_OnChanged"
+                      Unchecked="ScopeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeChildrenCheckBox"
+                      Grid.Row="1" Grid.Column="0" Margin="0,0,12,6"
+                      Content="Children"
+                      Checked="ScopeOptions_OnChanged"
+                      Unchecked="ScopeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeDescendantsCheckBox"
+                      Grid.Row="2" Grid.Column="0" Margin="0,0,12,6"
+                      Content="Descendants"
+                      Checked="ScopeOptions_OnChanged"
+                      Unchecked="ScopeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeAncestorsCheckBox"
+                      Grid.Row="0" Grid.Column="1" Margin="0,0,12,6"
+                      Content="Ancestors"
+                      Checked="ScopeOptions_OnChanged"
+                      Unchecked="ScopeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeParentCheckBox"
+                      Grid.Row="1" Grid.Column="1" Margin="0,0,12,6"
+                      Content="Parents"
+                      Checked="ScopeOptions_OnChanged"
+                      Unchecked="ScopeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeSiblingsCheckBox"
+                      Grid.Row="2" Grid.Column="1" Margin="0,0,12,6"
+                      Content="Siblings"
+                      ToolTip="Include objects or scopes with the same immediate parent. For room objects, this includes other objects in the room and traversals connected to that room."
+                      Checked="ScopeOptions_OnChanged"
+                      Unchecked="ScopeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeGlobalCheckBox"
+                      Grid.Row="0" Grid.Column="2" Margin="0,0,12,6"
+                      Content="Global"
+                      ToolTip="Include global properties and owners. Global results are also included when Ancestors is checked."
+                      Checked="ScopeOptions_OnChanged"
+                      Unchecked="ScopeOptions_OnChanged" />
+            <CheckBox x:Name="IncludePhaseVariablesCheckBox"
+                      Grid.Row="1" Grid.Column="2" Margin="0,0,12,6"
+                      Content="Phase"
+                      ToolTip="Include variables owned by phase books, chapters, and pages."
+                      Checked="ScopeOptions_OnChanged"
+                      Unchecked="ScopeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeTraversalLegsCheckBox"
+                      Grid.Row="2" Grid.Column="2" Margin="0,0,12,6"
+                      Content="Traversals"
+                      Checked="ScopeOptions_OnChanged"
+                      Unchecked="ScopeOptions_OnChanged" />
+            <CheckBox x:Name="IncludeOtherScopesCheckBox"
+                      Grid.Row="0" Grid.Column="3" Margin="0,0,0,6"
+                      Content="Unrelated"
+                      ToolTip="Include properties owned outside this hierarchy that are not global or phase properties."
+                      Checked="ScopeOptions_OnChanged"
+                      Unchecked="ScopeOptions_OnChanged" />
+        </Grid>
 
         <DataGrid x:Name="ChoicesDataGrid"
-                      Grid.Row="3"
+                  Grid.Row="3"
                   IsReadOnly="True"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
@@ -94,10 +138,11 @@
                   CanUserResizeRows="False"
                   SelectionMode="Single"
                   SelectionUnit="FullRow"
+                  SelectionChanged="ChoicesDataGrid_OnSelectionChanged"
                   MouseDoubleClick="ChoicesDataGrid_OnMouseDoubleClick"
                   PreviewKeyDown="ChoicesDataGrid_OnPreviewKeyDown">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Scoped Path"
+                <DataGridTextColumn Header="Scope"
                                     Binding="{Binding ScopePath}"
                                     SortMemberPath="ScopePath"
                                     Width="*" />
@@ -107,6 +152,18 @@
                                     Width="*" />
             </DataGrid.Columns>
         </DataGrid>
+
+        <TextBlock x:Name="ChoiceEmptyTextBlock"
+                   Grid.Row="3"
+                   Margin="12,36,12,12"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Foreground="#6B7280"
+                   TextAlignment="Center"
+                   MaxWidth="520"
+                   TextWrapping="Wrap"
+                   IsHitTestVisible="False"
+                   Visibility="Collapsed" />
 
         <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
             <Button Width="100" Margin="0,0,8,0" Content="Select" Click="Select_OnClick" />

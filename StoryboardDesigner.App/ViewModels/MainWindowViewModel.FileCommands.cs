@@ -1250,7 +1250,8 @@ public sealed partial class MainWindowViewModel
                 DefaultValue = variable.DefaultValue,
                 Lifetime = variable.Lifetime,
                 ValueRestriction = variable.ValueRestriction,
-                SharedVariableId = variable.SharedVariableId
+                SharedVariableId = variable.SharedVariableId,
+                Computation = GamePropertyComputationCloner.Clone(variable.Computation)
             }).ToList(),
             AdditionalVerbs = source.AdditionalVerbs.ToList(),
             AdditionalDirectionals = source.AdditionalDirectionals.ToList(),
@@ -1286,7 +1287,32 @@ public sealed partial class MainWindowViewModel
 
         clone.SequenceDefinitions = CloneSequenceDefinitionsForRoom(source, clone, out var sequenceIds);
         RemapSequenceTargets(clone, sequenceIds);
+        RemapRoomComputationOwners(source, clone);
         return clone;
+    }
+
+    private static void RemapRoomComputationOwners(Room source, Room clone)
+    {
+        var ownerIdMap = new Dictionary<Guid, Guid> { [source.Id] = clone.Id };
+        void MapObjects(IReadOnlyList<GameObject> originals, IReadOnlyList<GameObject> copies)
+        {
+            for (var index = 0; index < Math.Min(originals.Count, copies.Count); index++)
+            {
+                ownerIdMap[originals[index].ObjectId] = copies[index].ObjectId;
+                MapObjects(originals[index].ContainedObjects, copies[index].ContainedObjects);
+            }
+        }
+        MapObjects(source.GameObjects, clone.GameObjects);
+
+        foreach (var property in clone.Variables)
+            GamePropertyComputationCloner.RemapOwnerIds(property.Computation, ownerIdMap);
+        void RemapObject(GameObject obj)
+        {
+            foreach (var property in obj.Variables)
+                GamePropertyComputationCloner.RemapOwnerIds(property.Computation, ownerIdMap);
+            foreach (var child in obj.ContainedObjects) RemapObject(child);
+        }
+        foreach (var obj in clone.GameObjects) RemapObject(obj);
     }
 
     private static void RemapSequenceTargets(Room room, IReadOnlyDictionary<Guid, Guid> sequenceIds)
@@ -1875,6 +1901,7 @@ public sealed partial class MainWindowViewModel
         registry.Register(new SharedVariableLegacyParticipantDriftRule());
         registry.Register(new SharedVariableOrphanMetadataShellRule());
         registry.Register(new SharedVariableDuplicateDisplayNameRule());
+        registry.Register(new ComputedGamePropertyIntegrityRule());
         registry.Register(new ProcedureParticipantObjectReferenceExistsRule());
         registry.Register(new ProcedureRequiresMutationRule());
         registry.Register(new ProcedureOwnershipReferenceExistsRule());

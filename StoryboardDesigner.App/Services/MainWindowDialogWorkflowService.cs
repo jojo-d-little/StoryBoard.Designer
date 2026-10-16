@@ -21,15 +21,14 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
         IReadOnlyList<CompositeRecipeChoiceItem> compositeRecipeChoices,
         IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
         IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
-        IReadOnlyList<GamePropertyChoiceItem> variableChoices,
-        IReadOnlyList<string> echoReferenceTokens,
+        GamePropertyPickerContext pickerContext,
         IReadOnlyList<string> timerKeySuggestions,
         IReadOnlyList<string> verbSuggestions,
         IReadOnlyList<string> directionalSuggestions,
         Func<IReadOnlyList<CommandAction>, IReadOnlyList<ProjectValidationIssue>>? validateWithPipeline = null,
         Guid? defaultCurrentObjectId = null)
     {
-        var dialog = new ScopedActionsDialog(scopeLabel, variableScope, scopeEntityName, actions, additionalLinkTargetActions, containerTargetChoices, materializeSourceObjectChoices, procedureChoices, compositeRecipeChoices, soundEffectChoices, sequenceDefinitionChoices, variableChoices, echoReferenceTokens, timerKeySuggestions, verbSuggestions, directionalSuggestions, validateWithPipeline, defaultCurrentObjectId)
+        var dialog = new ScopedActionsDialog(scopeLabel, variableScope, scopeEntityName, actions, additionalLinkTargetActions, containerTargetChoices, materializeSourceObjectChoices, procedureChoices, compositeRecipeChoices, soundEffectChoices, sequenceDefinitionChoices, pickerContext, timerKeySuggestions, verbSuggestions, directionalSuggestions, validateWithPipeline, defaultCurrentObjectId)
         {
             Owner = GetOwnerWindow()
         };
@@ -40,8 +39,7 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
     public bool EditSingleScopedAction(
         CommandAction action,
         PropertyResolutionScope variableScope,
-        IReadOnlyList<GamePropertyChoiceItem> variableChoices,
-        IReadOnlyList<string> echoReferenceTokens,
+        GamePropertyPickerContext pickerContext,
         IReadOnlyList<ContainerTargetChoiceItem> containerTargetChoices,
         IReadOnlyList<MaterializeSourceObjectChoiceItem> materializeSourceObjectChoices,
         IReadOnlyList<ProcedureChoiceItem> procedureChoices,
@@ -55,8 +53,7 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
         var dialog = new RoomActionEditorDialog(
             action,
             variableScope,
-            variableChoices,
-            echoReferenceTokens,
+            pickerContext,
             containerTargetChoices,
             materializeSourceObjectChoices,
             procedureChoices,
@@ -79,8 +76,7 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
         IList<CommandAction> editableActions,
         IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> externalActionChoices,
         PropertyResolutionScope variableScope,
-        IReadOnlyList<GamePropertyChoiceItem> variableChoices,
-        IReadOnlyList<string> echoReferenceTokens,
+        GamePropertyPickerContext pickerContext,
         IReadOnlyList<ContainerTargetChoiceItem> containerTargetChoices,
         IReadOnlyList<MaterializeSourceObjectChoiceItem> materializeSourceObjectChoices,
         IReadOnlyList<ProcedureChoiceItem> procedureChoices,
@@ -93,10 +89,9 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
             scopeLabel,
             action,
             editableActions,
+            pickerContext,
             externalActionChoices,
             variableScope,
-            variableChoices,
-            echoReferenceTokens,
             containerTargetChoices,
             materializeSourceObjectChoices,
             procedureChoices,

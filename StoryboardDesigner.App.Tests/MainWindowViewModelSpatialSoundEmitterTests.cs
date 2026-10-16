@@ -47,7 +47,9 @@ public sealed class MainWindowViewModelSpatialSoundEmitterTests
             EditObjectBasicPropertiesHandler = initial =>
             {
                 Assert.Contains(initial.SoundEffectChoices!, choice => choice.SoundEffectId == soundId);
-                Assert.Contains(initial.SoundEmitterActivationProperties!, property => property.Name == "isRunning");
+                Assert.Contains(
+                    initial.SoundEmitterActivationPickerContext!.DiscoverChoices(true),
+                    property => property.PropertyName == "isRunning");
                 return initial with { SoundEmitters = [editedEmitter] };
             }
         };

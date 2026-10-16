@@ -18,19 +18,22 @@ internal static class CommandActionPayloadCoordinator
     private static readonly string[] CheckProjectionProperties =
     [
         nameof(CommandAction.FlagName),
-        nameof(CommandAction.FlagValue)
+        nameof(CommandAction.FlagValue),
+        nameof(CommandAction.FlagTargetDisplayName)
     ];
 
     private static readonly string[] SetFlagProjectionProperties =
     [
         nameof(CommandAction.FlagName),
-        nameof(CommandAction.FlagValue)
+        nameof(CommandAction.FlagValue),
+        nameof(CommandAction.FlagTargetDisplayName)
     ];
 
     private static readonly string[] SetProjectionProperties =
     [
         nameof(CommandAction.GamePropertyName),
-        nameof(CommandAction.GamePropertyValue)
+        nameof(CommandAction.GamePropertyValue),
+        nameof(CommandAction.GamePropertyTargetDisplayName)
     ];
 
     private static readonly string[] ContainerProjectionProperties =
@@ -216,9 +219,9 @@ internal static class CommandActionPayloadCoordinator
             SynonymPayload synonym => new SynonymPayload(synonym.SynonymTargetActionId),
             EchoPayload => new EchoPayload(),
             SetFlagPayload setFlag => new SetFlagPayload(setFlag.FlagName, setFlag.FlagValue),
-            CheckGamePropertyPayload check => new CheckGamePropertyPayload(check.PropertyName, check.ExpectedValue),
+            CheckGamePropertyPayload check => new CheckGamePropertyPayload(check.PropertyName, check.ExpectedValue, check.GamePropertyReference),
             CheckCommandContextPayload check => new CheckCommandContextPayload(check.Field, check.ExpectedBoolean, check.ExpectedDirection),
-            SetGamePropertyPayload set => new SetGamePropertyPayload(set.PropertyName, set.PropertyValue),
+            SetGamePropertyPayload set => new SetGamePropertyPayload(set.PropertyName, set.PropertyValue, set.GamePropertyReference),
             ContainerTransferPayload transfer => new ContainerTransferPayload(transfer.TargetContainerId),
             MoveRoomObjectOnGridPayload move => new MoveRoomObjectOnGridPayload(
                 move.DirectionToken,
@@ -298,7 +301,9 @@ internal static class CommandActionPayloadCoordinator
     {
         return payload switch
         {
-            CheckGamePropertyPayload check => check.PropertyName ?? string.Empty,
+            CheckGamePropertyPayload check => !string.IsNullOrWhiteSpace(check.PropertyName)
+                ? check.PropertyName
+                : check.GamePropertyReference?.PropertyName ?? string.Empty,
             SetFlagPayload setFlag => setFlag.FlagName ?? string.Empty,
             _ => string.Empty
         };
@@ -371,7 +376,9 @@ internal static class CommandActionPayloadCoordinator
     public static string GetSetPropertyName(IActionPayload payload)
     {
         return payload is SetGamePropertyPayload set
-            ? set.PropertyName ?? string.Empty
+            ? !string.IsNullOrWhiteSpace(set.PropertyName)
+                ? set.PropertyName
+                : set.GamePropertyReference?.PropertyName ?? string.Empty
             : string.Empty;
     }
 

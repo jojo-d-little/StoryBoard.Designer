@@ -10,7 +10,7 @@ public sealed partial class CommandAction : INotifyPropertyChanged,
                                                 IActionLinkedActionsProvider, 
                                                 IActionReferenceTokenProvider
 {
-    private string _name = "New Action";
+    private string _name = string.Empty;
     private CommandActionType _actionType = CommandActionType.EchoMessage;
     private IActionPayload _payload = new EchoPayload();
     private Dictionary<string, string> _outcomeMessageMap = new(StringComparer.OrdinalIgnoreCase);

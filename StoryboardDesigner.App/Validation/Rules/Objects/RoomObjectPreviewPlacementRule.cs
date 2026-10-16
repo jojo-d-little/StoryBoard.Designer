@@ -48,9 +48,11 @@ public sealed class RoomObjectPreviewPlacementRule : IValidationRule
 
         var effectiveSettings = Effective(gameObject);
         var hasRenderableLight = effectiveSettings.PointLight is not null;
+        var hasSoundEmitter = effectiveSettings.SoundEmitters.Count > 0;
         if (effectiveSettings.IncludeInPreview
             && IsVisibleThroughContainment(gameObject, Effective)
             && !hasRenderableLight
+            && !hasSoundEmitter
             && string.IsNullOrWhiteSpace(effectiveSettings.ResolveDefaultImagePath()))
         {
             var objectName = string.IsNullOrWhiteSpace(gameObject.ScopeName) ? "(unnamed object)" : gameObject.ScopeName.Trim();

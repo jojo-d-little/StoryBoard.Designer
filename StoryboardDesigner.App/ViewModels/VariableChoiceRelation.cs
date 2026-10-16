@@ -9,5 +9,7 @@ public enum GamePropertyChoiceRelation
     Child,
     Descendant,
     Sibling,
-    TraversalLeg
+    TraversalLeg,
+    Phase,
+    Global
 }

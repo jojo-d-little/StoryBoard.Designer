@@ -32,11 +32,16 @@ public static class ActionPayloadAccessors
     {
         if (action.Payload is CheckGamePropertyPayload payload)
         {
-            return payload.PropertyName ?? string.Empty;
+            return !string.IsNullOrWhiteSpace(payload.PropertyName)
+                ? payload.PropertyName
+                : payload.GamePropertyReference?.PropertyName ?? string.Empty;
         }
 
         return action.FlagName ?? string.Empty;
     }
+
+    public static Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? GetCheckGamePropertyReference(CommandAction action) =>
+        action.Payload is CheckGamePropertyPayload payload ? payload.GamePropertyReference : null;
 
     public static bool GetCheckExpectedValue(CommandAction action)
     {
@@ -80,7 +85,11 @@ public static class ActionPayloadAccessors
         }
     }
 
-    public static void SetCheckGameProperty(CommandAction action, string propertyName, bool expectedValue)
+    public static void SetCheckGameProperty(
+        CommandAction action,
+        string propertyName,
+        bool expectedValue,
+        Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? gamePropertyReference = null)
     {
         var normalizedName = propertyName ?? string.Empty;
         action.FlagName = normalizedName;
@@ -88,7 +97,8 @@ public static class ActionPayloadAccessors
 
         if (action.ActionType == CommandActionType.CheckGameProperty)
         {
-            action.Payload = new CheckGamePropertyPayload(normalizedName, expectedValue);
+            gamePropertyReference ??= GetCheckGamePropertyReference(action);
+            action.Payload = new CheckGamePropertyPayload(normalizedName, expectedValue, gamePropertyReference);
         }
     }
 
@@ -118,11 +128,16 @@ public static class ActionPayloadAccessors
     {
         if (action.Payload is SetGamePropertyPayload payload)
         {
-            return payload.PropertyName ?? string.Empty;
+            return !string.IsNullOrWhiteSpace(payload.PropertyName)
+                ? payload.PropertyName
+                : payload.GamePropertyReference?.PropertyName ?? string.Empty;
         }
 
         return action.GamePropertyName ?? string.Empty;
     }
+
+    public static Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? GetSetGamePropertyReference(CommandAction action) =>
+        action.Payload is SetGamePropertyPayload payload ? payload.GamePropertyReference : null;
 
     public static string GetSetPropertyValue(CommandAction action)
     {
@@ -134,7 +149,11 @@ public static class ActionPayloadAccessors
         return action.GamePropertyValue ?? string.Empty;
     }
 
-    public static void SetSetGameProperty(CommandAction action, string propertyName, string propertyValue)
+    public static void SetSetGameProperty(
+        CommandAction action,
+        string propertyName,
+        string propertyValue,
+        Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? gamePropertyReference = null)
     {
         var normalizedName = propertyName ?? string.Empty;
         var normalizedValue = propertyValue ?? string.Empty;
@@ -143,7 +162,8 @@ public static class ActionPayloadAccessors
 
         if (action.ActionType == CommandActionType.SetGameProperty)
         {
-            action.Payload = new SetGamePropertyPayload(normalizedName, normalizedValue);
+            gamePropertyReference ??= GetSetGamePropertyReference(action);
+            action.Payload = new SetGamePropertyPayload(normalizedName, normalizedValue, gamePropertyReference);
         }
     }
 

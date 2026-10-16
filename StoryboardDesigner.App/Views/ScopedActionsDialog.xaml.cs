@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using System.Windows;
 using Storyboard.Shared.GameServices;
+using Storyboard.Shared.GameServices.References;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.ViewModels;
@@ -15,6 +16,7 @@ public partial class ScopedActionsDialog : Window
     private readonly string _scopeLabel;
     private readonly IList<CommandAction> _targetActions;
     private readonly IReadOnlyList<GamePropertyChoiceItem> _variableChoices;
+    private readonly GamePropertyPickerContext _pickerContext;
     private readonly IReadOnlyList<string> _echoReferenceTokens;
     private readonly IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> _additionalLinkTargetActions;
     private readonly IReadOnlyList<ContainerTargetChoiceItem> _containerTargetChoices;
@@ -44,8 +46,7 @@ public partial class ScopedActionsDialog : Window
         IReadOnlyList<CompositeRecipeChoiceItem> compositeRecipeChoices,
         IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
         IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
-        IReadOnlyList<GamePropertyChoiceItem> variableChoices,
-        IReadOnlyList<string> echoReferenceTokens,
+        GamePropertyPickerContext pickerContext,
         IReadOnlyList<string> timerKeySuggestions,
         IReadOnlyList<string> verbSuggestions,
         IReadOnlyList<string> directionalSuggestions,
@@ -64,8 +65,15 @@ public partial class ScopedActionsDialog : Window
         _soundEffectChoices = soundEffectChoices;
         _sequenceDefinitionChoices = sequenceDefinitionChoices;
         _timerKeySuggestions = timerKeySuggestions;
-        _variableChoices = variableChoices;
-        _echoReferenceTokens = echoReferenceTokens;
+        _pickerContext = pickerContext;
+        _variableChoices = _pickerContext.DiscoverChoices(false);
+        _echoReferenceTokens = _variableChoices
+            .Select(static choice => choice.Value)
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .Concat(RuntimeAnchorReferenceTokenCatalog.BuildIntrinsicAnchorTokens())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static value => value, StringComparer.OrdinalIgnoreCase)
+            .ToList();
         _variableScope = variableScope;
         _scopeEntityName = scopeEntityName;
         _defaultCurrentObjectId = defaultCurrentObjectId;
@@ -82,7 +90,7 @@ public partial class ScopedActionsDialog : Window
     {
         var action = new CommandAction
         {
-                Name = "New Action",
+            Name = string.Empty,
             ActionType = CommandActionType.EchoMessage,
             TargetContainerId = string.Empty,
             OutcomeMessageMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
@@ -111,7 +119,7 @@ public partial class ScopedActionsDialog : Window
             return;
         }
 
-        var dialog = new RoomActionEditorDialog(action, _variableScope, _variableChoices, _echoReferenceTokens, _containerTargetChoices, _materializeSourceObjectChoices, _procedureChoices, _compositeRecipeChoices, _soundEffectChoices, _timerKeySuggestions, _workingActions, _sequenceDefinitionChoices, _defaultCurrentObjectId)
+        var dialog = new RoomActionEditorDialog(action, _variableScope, _pickerContext, _containerTargetChoices, _materializeSourceObjectChoices, _procedureChoices, _compositeRecipeChoices, _soundEffectChoices, _timerKeySuggestions, _workingActions, _sequenceDefinitionChoices, _defaultCurrentObjectId)
         {
             Owner = this
         };
@@ -542,10 +550,9 @@ public partial class ScopedActionsDialog : Window
             _scopeLabel,
             action,
             _workingActions,
+            _pickerContext,
             _additionalLinkTargetActions,
             _variableScope,
-            _variableChoices,
-            _echoReferenceTokens,
             _containerTargetChoices,
             _materializeSourceObjectChoices,
             _procedureChoices,

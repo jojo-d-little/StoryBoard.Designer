@@ -14,6 +14,7 @@ using Storyboard.Shared.GameServices.RuntimeContext;
 using Storyboard.Shared.GameStateData;
 using Storyboard.Shared.RuntimeContracts.Dtos;
 using Storyboard.Shared.RuntimeContracts.Enums;
+using Storyboard.Shared.DesignerContracts;
 using Storyboard.Shared.Serialization;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Validation.Contracts;
@@ -2938,7 +2939,7 @@ public sealed class JsonExportService : IJsonExportService
             Payload = action.ActionType switch
             {
                 CommandActionType.EchoMessage => BuildEchoMessagePayloadElement(),
-                CommandActionType.CheckGameProperty => BuildCheckGamePropertyPayloadElement(ActionPayloadAccessors.GetCheckPropertyName(action), ActionPayloadAccessors.GetCheckExpectedValue(action)),
+                CommandActionType.CheckGameProperty => BuildCheckGamePropertyPayloadElement(ActionPayloadAccessors.GetCheckPropertyName(action), ActionPayloadAccessors.GetCheckExpectedValue(action), ActionPayloadAccessors.GetCheckGamePropertyReference(action)),
                 CommandActionType.CheckCommandContext => BuildCheckCommandContextPayloadElement(checkCommandContextPayload),
                 CommandActionType.ClearActiveRoomObjects => BuildClearActiveRoomObjectsPayloadElement(clearActivePayload.ClearScope),
                 CommandActionType.CloseObject => BuildCloseObjectPayloadElement(),
@@ -2967,7 +2968,7 @@ public sealed class JsonExportService : IJsonExportService
                 CommandActionType.BreakCompositeItem => BuildBreakCompositeItemPayloadElement(breakCompositePayload),
                 CommandActionType.SetActiveRoomObject => BuildSetActiveRoomObjectPayloadElement(setActivePayload.SelectionCueEffectKey),
                 CommandActionType.SelectRoomObjectByPoint => BuildSelectRoomObjectByPointPayloadElement(selectByPointPayload.SelectionCueEffectKey),
-                CommandActionType.SetGameProperty => BuildSetGamePropertyPayloadElement(ActionPayloadAccessors.GetSetPropertyName(action), ActionPayloadAccessors.GetSetPropertyValue(action)),
+                CommandActionType.SetGameProperty => BuildSetGamePropertyPayloadElement(ActionPayloadAccessors.GetSetPropertyName(action), ActionPayloadAccessors.GetSetPropertyValue(action), ActionPayloadAccessors.GetSetGamePropertyReference(action)),
                 CommandActionType.SetFlag => BuildSetFlagPayloadElement(ActionPayloadAccessors.GetSetFlagName(action), ActionPayloadAccessors.GetSetFlagValue(action)),
                 CommandActionType.Synonym => BuildSynonymPayloadElement(synonymTargetActionId),
                 CommandActionType.ClearRoomObjectSelections => BuildClearRoomObjectSelectionsPayloadElement(clearSelectionsPayload.ClearScope),
@@ -3018,8 +3019,10 @@ public sealed class JsonExportService : IJsonExportService
         var clearRoomObjectSelectionsScopeFromPayload = TryGetClearRoomObjectSelectionsScopeFromPayload(action.Payload);
         var checkPropertyNameFromPayload = TryGetCheckGamePropertyNameFromPayload(action.Payload);
         var checkExpectedValueFromPayload = TryGetCheckGamePropertyExpectedValueFromPayload(action.Payload);
+        var checkGamePropertyReferenceFromPayload = TryGetCheckGamePropertyReferenceFromPayload(action.Payload);
         var setPropertyNameFromPayload = TryGetSetGamePropertyNameFromPayload(action.Payload);
         var setPropertyValueFromPayload = TryGetSetGamePropertyValueFromPayload(action.Payload);
+        var setGamePropertyReferenceFromPayload = TryGetSetGamePropertyReferenceFromPayload(action.Payload);
         var setFlagNameFromPayload = TryGetSetFlagNameFromPayload(action.Payload);
         var setFlagValueFromPayload = TryGetSetFlagValueFromPayload(action.Payload);
         var compositeTargetObjectIdFromPayload = TryGetCompositeTargetObjectIdFromPayload(action.Payload);
@@ -3223,7 +3226,8 @@ public sealed class JsonExportService : IJsonExportService
             ActionPayloadAccessors.SetCheckGameProperty(
                 model,
                 checkPropertyNameFromPayload ?? string.Empty,
-                checkExpectedValueFromPayload.GetValueOrDefault(false));
+                checkExpectedValueFromPayload.GetValueOrDefault(false),
+                checkGamePropertyReferenceFromPayload);
         }
 
         if (model.ActionType == CommandActionType.CheckCommandContext
@@ -3249,7 +3253,8 @@ public sealed class JsonExportService : IJsonExportService
             ActionPayloadAccessors.SetSetGameProperty(
                 model,
                 setPropertyNameFromPayload ?? string.Empty,
-                setPropertyValueFromPayload ?? string.Empty);
+                setPropertyValueFromPayload ?? string.Empty,
+                setGamePropertyReferenceFromPayload);
         }
 
         if (model.ActionType == CommandActionType.MaterializeObjectCopy)
@@ -6435,10 +6440,11 @@ public sealed class JsonExportService : IJsonExportService
         {
             Id = variable.Id,
             Name = variable.Name,
-            DefaultValue = variable.DefaultValue,
-            ValueRestriction = variable.ValueRestriction,
+            DefaultValue = variable.Computation is null ? variable.DefaultValue : "false",
+            ValueRestriction = variable.Computation is null ? variable.ValueRestriction : GamePropertyValueRestriction.TrueFalse,
             Lifetime = variable.Lifetime,
-            SharedVariableId = variable.SharedVariableId
+            SharedVariableId = variable.SharedVariableId,
+            Computation = CloneContractValue(variable.Computation)
         };
     }
 
@@ -6491,6 +6497,8 @@ public sealed class JsonExportService : IJsonExportService
     {
         EmitterId = emitter.EmitterId == Guid.Empty ? Guid.NewGuid() : emitter.EmitterId,
         SoundEffectId = emitter.SoundEffectId,
+        ActivationGamePropertyReference = CloneGamePropertySourceReference(
+            emitter.ActivationGamePropertyReference ?? CreateLegacySelfGamePropertyReference(emitter.ActivationGamePropertyName)),
         ActivationGamePropertyName = emitter.ActivationGamePropertyName,
         ActiveInRoom = emitter.ActiveInRoom,
         ActiveOutOfRoom = emitter.ActiveOutOfRoom
@@ -6500,6 +6508,8 @@ public sealed class JsonExportService : IJsonExportService
     {
         EmitterId = emitter.EmitterId == Guid.Empty ? Guid.NewGuid() : emitter.EmitterId,
         SoundEffectId = emitter.SoundEffectId,
+        ActivationGamePropertyReference = ToRuntimeGamePropertySourceReference(
+            emitter.ActivationGamePropertyReference ?? CreateLegacySelfGamePropertyReference(emitter.ActivationGamePropertyName)),
         ActivationGamePropertyName = emitter.ActivationGamePropertyName,
         ActiveInRoom = emitter.ActiveInRoom,
         ActiveOutOfRoom = emitter.ActiveOutOfRoom
@@ -6509,10 +6519,35 @@ public sealed class JsonExportService : IJsonExportService
     {
         EmitterId = emitter.EmitterId == Guid.Empty ? Guid.NewGuid() : emitter.EmitterId,
         SoundEffectId = emitter.SoundEffectId,
+        ActivationGamePropertyReference = CloneGamePropertySourceReference(
+            emitter.ActivationGamePropertyReference ?? CreateLegacySelfGamePropertyReference(emitter.ActivationGamePropertyName)),
         ActivationGamePropertyName = emitter.ActivationGamePropertyName,
         ActiveInRoom = emitter.ActiveInRoom,
         ActiveOutOfRoom = emitter.ActiveOutOfRoom
     };
+
+    private static ProjectGamePropertySourceReferenceDto? CloneGamePropertySourceReference(ProjectGamePropertySourceReferenceDto? source) => source is null
+        ? null
+        : new ProjectGamePropertySourceReferenceDto
+        {
+            OwnerId = source.OwnerId,
+            AnchorKey = source.AnchorKey,
+            PropertyName = source.PropertyName
+        };
+
+    private static RuntimeGamePropertySourceReferenceDto? ToRuntimeGamePropertySourceReference(ProjectGamePropertySourceReferenceDto? source) => source is null
+        ? null
+        : new RuntimeGamePropertySourceReferenceDto
+        {
+            OwnerId = source.OwnerId,
+            AnchorKey = source.AnchorKey,
+            PropertyName = source.PropertyName
+        };
+
+    private static ProjectGamePropertySourceReferenceDto? CreateLegacySelfGamePropertyReference(string? propertyName) =>
+        string.IsNullOrWhiteSpace(propertyName)
+            ? null
+            : new ProjectGamePropertySourceReferenceDto { PropertyName = propertyName.Trim() };
 
     private static double? NormalizePercent(double? value)
     {
@@ -6678,10 +6713,11 @@ public sealed class JsonExportService : IJsonExportService
         {
             Id = variableId,
             Name = variable.Name,
-            DefaultValue = variable.DefaultValue,
-            ValueRestriction = variable.ValueRestriction,
+            DefaultValue = variable.Computation is null ? variable.DefaultValue : "false",
+            ValueRestriction = variable.Computation is null ? variable.ValueRestriction : GamePropertyValueRestriction.TrueFalse,
             Lifetime = variable.Lifetime,
-            SharedVariableId = variable.SharedVariableId
+            SharedVariableId = variable.SharedVariableId,
+            Computation = ConvertComputationToRuntime(variable.Computation)
         };
     }
 
@@ -6940,7 +6976,7 @@ public sealed class JsonExportService : IJsonExportService
             Payload = action.ActionType switch
             {
                 CommandActionType.EchoMessage => BuildCleanEchoMessagePayloadElement(),
-                CommandActionType.CheckGameProperty => BuildCleanCheckGamePropertyPayloadElement(ActionPayloadAccessors.GetCheckPropertyName(action), ActionPayloadAccessors.GetCheckExpectedValue(action)),
+                CommandActionType.CheckGameProperty => BuildCleanCheckGamePropertyPayloadElement(ActionPayloadAccessors.GetCheckPropertyName(action), ActionPayloadAccessors.GetCheckExpectedValue(action), ActionPayloadAccessors.GetCheckGamePropertyReference(action)),
                 CommandActionType.CheckCommandContext => BuildCleanCheckCommandContextPayloadElement(checkCommandContextPayload),
                 CommandActionType.ClearActiveRoomObjects => BuildCleanClearActiveRoomObjectsPayloadElement(ActionPayloadAccessors.GetClearActiveRoomObjectsPayload(action).ClearScope),
                 CommandActionType.CloseObject => BuildCleanCloseObjectPayloadElement(),
@@ -6969,7 +7005,7 @@ public sealed class JsonExportService : IJsonExportService
                 CommandActionType.RemoveObjectPresentationCue => BuildCleanRemoveObjectPresentationCuePayloadElement(action),
                 CommandActionType.ClearObjectPresentationCues => BuildCleanClearObjectPresentationCuesPayloadElement(action),
                 CommandActionType.SelectRoomObjectByPoint => BuildCleanSelectRoomObjectByPointPayloadElement(selectByPointPayload.SelectionCueEffectKey),
-                CommandActionType.SetGameProperty => BuildCleanSetGamePropertyPayloadElement(ActionPayloadAccessors.GetSetPropertyName(action), ActionPayloadAccessors.GetSetPropertyValue(action)),
+                CommandActionType.SetGameProperty => BuildCleanSetGamePropertyPayloadElement(ActionPayloadAccessors.GetSetPropertyName(action), ActionPayloadAccessors.GetSetPropertyValue(action), ActionPayloadAccessors.GetSetGamePropertyReference(action)),
                 CommandActionType.SetFlag => BuildCleanSetFlagPayloadElement(ActionPayloadAccessors.GetSetFlagName(action), ActionPayloadAccessors.GetSetFlagValue(action)),
                 CommandActionType.Synonym => BuildCleanSynonymPayloadElement(synonymTargetActionId),
                 CommandActionType.ClearRoomObjectSelections => BuildCleanClearRoomObjectSelectionsPayloadElement(clearSelectionsPayload.ClearScope),
@@ -7174,8 +7210,30 @@ public sealed class JsonExportService : IJsonExportService
             DefaultValue = variable.DefaultValue,
             ValueRestriction = Enum.IsDefined(variable.ValueRestriction) ? variable.ValueRestriction : GamePropertyValueRestriction.Unrestricted,
             Lifetime = Enum.IsDefined(variable.Lifetime) ? variable.Lifetime : GamePropertyLifetime.Singleton,
-            SharedVariableId = variable.SharedVariableId
+            SharedVariableId = variable.SharedVariableId,
+            Computation = CloneContractValue(variable.Computation)
         };
+    }
+
+    private static T? CloneContractValue<T>(T? value)
+        where T : class
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        return JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value));
+    }
+
+    private static RuntimeGamePropertyComputationDto? ConvertComputationToRuntime(ProjectGamePropertyComputationDto? computation)
+    {
+        if (computation is null)
+        {
+            return null;
+        }
+
+        return JsonSerializer.Deserialize<RuntimeGamePropertyComputationDto>(JsonSerializer.Serialize(computation));
     }
 
     private static SoundEffectLibraryEntry ToSoundEffectLibraryEntryModel(SoundEffectLibraryEntryDto dto)
@@ -7409,12 +7467,16 @@ public sealed class JsonExportService : IJsonExportService
         };
     }
 
-    private static ProjectCommandActionPayloadBaseDto BuildCheckGamePropertyPayloadElement(string propertyName, bool expectedValue)
+    private static ProjectCommandActionPayloadBaseDto BuildCheckGamePropertyPayloadElement(
+        string propertyName,
+        bool expectedValue,
+        ProjectGamePropertySourceReferenceDto? gamePropertyReference)
     {
         return new ProjectCheckGamePropertyActionPayloadDto
         {
             PropertyName = propertyName,
-            ExpectedValue = expectedValue
+            ExpectedValue = expectedValue,
+            GamePropertyReference = CloneGamePropertySourceReference(gamePropertyReference)
         };
     }
 
@@ -7433,12 +7495,16 @@ public sealed class JsonExportService : IJsonExportService
         return new ProjectNavigateDirectionPreFlightCheckActionPayloadDto();
     }
 
-    private static ProjectCommandActionPayloadBaseDto BuildSetGamePropertyPayloadElement(string propertyName, string propertyValue)
+    private static ProjectCommandActionPayloadBaseDto BuildSetGamePropertyPayloadElement(
+        string propertyName,
+        string propertyValue,
+        ProjectGamePropertySourceReferenceDto? gamePropertyReference)
     {
         return new ProjectSetGamePropertyActionPayloadDto
         {
             PropertyName = propertyName,
-            PropertyValue = propertyValue
+            PropertyValue = propertyValue,
+            GamePropertyReference = CloneGamePropertySourceReference(gamePropertyReference)
         };
     }
 
@@ -7763,12 +7829,16 @@ public sealed class JsonExportService : IJsonExportService
         };
     }
 
-    private static RuntimeCommandActionPayloadBaseDto BuildCleanCheckGamePropertyPayloadElement(string propertyName, bool expectedValue)
+    private static RuntimeCommandActionPayloadBaseDto BuildCleanCheckGamePropertyPayloadElement(
+        string propertyName,
+        bool expectedValue,
+        ProjectGamePropertySourceReferenceDto? gamePropertyReference)
     {
         return new RuntimeCheckGamePropertyActionPayloadDto
         {
             PropertyName = propertyName,
-            ExpectedValue = expectedValue
+            ExpectedValue = expectedValue,
+            GamePropertyReference = ToRuntimeGamePropertySourceReference(gamePropertyReference)
         };
     }
 
@@ -7787,12 +7857,16 @@ public sealed class JsonExportService : IJsonExportService
         return new RuntimeNavigateDirectionPreFlightCheckActionPayloadDto();
     }
 
-    private static RuntimeCommandActionPayloadBaseDto BuildCleanSetGamePropertyPayloadElement(string propertyName, string propertyValue)
+    private static RuntimeCommandActionPayloadBaseDto BuildCleanSetGamePropertyPayloadElement(
+        string propertyName,
+        string propertyValue,
+        ProjectGamePropertySourceReferenceDto? gamePropertyReference)
     {
         return new RuntimeSetGamePropertyActionPayloadDto
         {
             PropertyName = propertyName,
-            PropertyValue = propertyValue
+            PropertyValue = propertyValue,
+            GamePropertyReference = ToRuntimeGamePropertySourceReference(gamePropertyReference)
         };
     }
 
@@ -8522,6 +8596,11 @@ public sealed class JsonExportService : IJsonExportService
         return setGamePropertyPayload.PropertyName;
     }
 
+    private static ProjectGamePropertySourceReferenceDto? TryGetSetGamePropertyReferenceFromPayload(ProjectCommandActionPayloadBaseDto? payload) =>
+        payload is ProjectSetGamePropertyActionPayloadDto setGamePropertyPayload
+            ? CloneGamePropertySourceReference(setGamePropertyPayload.GamePropertyReference)
+            : null;
+
     private static string? TryGetSetGamePropertyValueFromPayload(ProjectCommandActionPayloadBaseDto? payload)
     {
         if (payload is not ProjectSetGamePropertyActionPayloadDto setGamePropertyPayload)
@@ -8541,6 +8620,11 @@ public sealed class JsonExportService : IJsonExportService
 
         return checkGamePropertyPayload.PropertyName;
     }
+
+    private static ProjectGamePropertySourceReferenceDto? TryGetCheckGamePropertyReferenceFromPayload(ProjectCommandActionPayloadBaseDto? payload) =>
+        payload is ProjectCheckGamePropertyActionPayloadDto checkGamePropertyPayload
+            ? CloneGamePropertySourceReference(checkGamePropertyPayload.GamePropertyReference)
+            : null;
 
     private static bool? TryGetCheckGamePropertyExpectedValueFromPayload(ProjectCommandActionPayloadBaseDto? payload)
     {

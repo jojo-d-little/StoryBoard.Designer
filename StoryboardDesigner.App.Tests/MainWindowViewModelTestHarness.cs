@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.IO;
+using Storyboard.Shared.DesignerContracts;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
@@ -117,8 +118,7 @@ internal sealed class MainWindowDialogWorkflowServiceStub : IMainWindowDialogWor
         IReadOnlyList<CompositeRecipeChoiceItem> compositeRecipeChoices,
         IReadOnlyList<SoundEffectChoiceItem> soundEffectChoices,
         IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
-        IReadOnlyList<GamePropertyChoiceItem> variableChoices,
-        IReadOnlyList<string> echoReferenceTokens,
+        GamePropertyPickerContext pickerContext,
         IReadOnlyList<string> timerKeySuggestions,
         IReadOnlyList<string> verbSuggestions,
         IReadOnlyList<string> directionalSuggestions,
@@ -131,8 +131,7 @@ internal sealed class MainWindowDialogWorkflowServiceStub : IMainWindowDialogWor
     public bool EditSingleScopedAction(
         CommandAction action,
         PropertyResolutionScope variableScope,
-        IReadOnlyList<GamePropertyChoiceItem> variableChoices,
-        IReadOnlyList<string> echoReferenceTokens,
+        GamePropertyPickerContext pickerContext,
         IReadOnlyList<ContainerTargetChoiceItem> containerTargetChoices,
         IReadOnlyList<MaterializeSourceObjectChoiceItem> materializeSourceObjectChoices,
         IReadOnlyList<ProcedureChoiceItem> procedureChoices,
@@ -152,8 +151,7 @@ internal sealed class MainWindowDialogWorkflowServiceStub : IMainWindowDialogWor
         IList<CommandAction> editableActions,
         IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> externalActionChoices,
         PropertyResolutionScope variableScope,
-        IReadOnlyList<GamePropertyChoiceItem> variableChoices,
-        IReadOnlyList<string> echoReferenceTokens,
+        GamePropertyPickerContext pickerContext,
         IReadOnlyList<ContainerTargetChoiceItem> containerTargetChoices,
         IReadOnlyList<MaterializeSourceObjectChoiceItem> materializeSourceObjectChoices,
         IReadOnlyList<ProcedureChoiceItem> procedureChoices,
@@ -421,16 +419,17 @@ internal sealed class TreeContextInteractionServiceStub : ITreeContextInteractio
     public Func<IReadOnlyList<SharedVariableManagerListItem>>? LastReloadSharedVariableManagerItemsAction { get; private set; }
     public bool AutoInvokeOpenSharedVariablesManagerAction { get; set; }
 
-    public bool TryGetNewVariableInput(string initialName, GamePropertyLifetime initialLifetime, string initialDefaultValue, GamePropertyValueRestriction initialValueRestriction, out string variableName, out GamePropertyLifetime lifetime, out string defaultValue, out GamePropertyValueRestriction valueRestriction)
+    public bool TryGetNewVariableInput(string initialName, GamePropertyLifetime initialLifetime, string initialDefaultValue, GamePropertyValueRestriction initialValueRestriction, Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation, out string variableName, out GamePropertyLifetime lifetime, out string defaultValue, out GamePropertyValueRestriction valueRestriction, out ProjectGamePropertyComputationDto? computation)
     {
         variableName = string.Empty;
         lifetime = initialLifetime;
         defaultValue = initialDefaultValue;
         valueRestriction = initialValueRestriction;
+        computation = null;
         return false;
     }
 
-    public void ShowVariableScopeReview(string scopeLabel, IList<GamePropertyDefinition> variables)
+    public void ShowVariableScopeReview(string scopeLabel, IList<GamePropertyDefinition> variables, Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation = null)
     {
         ShowVariableScopeReviewHandler?.Invoke(scopeLabel, variables);
     }
@@ -474,14 +473,14 @@ internal sealed class TreeContextInteractionServiceStub : ITreeContextInteractio
     }
 
     public bool TryChooseVariable(
-        IReadOnlyList<GamePropertyChoiceItem> choices,
-        PropertyResolutionScope initializationScope,
+        GamePropertyPickerContext pickerContext,
         string title,
         out string selectedValue,
         string? initialSelectedValue = null)
     {
+        var choices = pickerContext.DiscoverChoices(pickerContext.AllowReferenceModes);
         LastVariableChoices = choices.ToList();
-        var result = ChooseVariableHandler?.Invoke(choices, initializationScope, title, initialSelectedValue);
+        var result = ChooseVariableHandler?.Invoke(choices, pickerContext.InitializationScope, title, initialSelectedValue);
         selectedValue = result?.SelectedValue ?? string.Empty;
         return result?.Accepted == true;
     }

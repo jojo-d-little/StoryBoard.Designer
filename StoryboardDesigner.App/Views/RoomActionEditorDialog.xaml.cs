@@ -6,8 +6,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
+using Storyboard.Shared.DesignerContracts;
 using Storyboard.Shared.GameServices;
 using Storyboard.Shared.GameServices.Commands;
+using Storyboard.Shared.GameServices.References;
 using Storyboard.Shared.GameServices.RuntimeContext;
 using Storyboard.Shared.RuntimeContracts.Enums;
 using StoryboardDesigner.App.Models;
@@ -21,6 +23,8 @@ public partial class RoomActionEditorDialog : Window
 {
     private const string EchoPropertyChooserEntry = "Property Chooser...";
     private const string PlaySoundEffectDefaultResultCodeToken = "Success";
+    private static readonly IReadOnlyList<string> ActionPropertyAnchorKeys =
+    ["currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer"];
 
     private sealed class ForwardingModeOption
     {
@@ -92,6 +96,7 @@ public partial class RoomActionEditorDialog : Window
     private readonly IReadOnlyList<SequenceDefinitionChoiceItem> _sequenceDefinitionChoices;
     private readonly IReadOnlyList<string> _variableReferenceTokens;
     private readonly IReadOnlyList<GamePropertyChoiceItem> _variableChoices;
+    private readonly GamePropertyPickerContext _pickerContext;
     private readonly Dictionary<string, GamePropertyChoiceItem> _variableChoiceMap;
     private readonly IReadOnlyList<CommandAction> _availableActions;
     private readonly Dictionary<Guid, CommandAction> _availableActionsById;
@@ -135,8 +140,7 @@ public partial class RoomActionEditorDialog : Window
     public RoomActionEditorDialog(
         CommandAction sourceAction,
         PropertyResolutionScope variableScope,
-        IReadOnlyList<GamePropertyChoiceItem> variableChoices,
-        IReadOnlyList<string> echoReferenceTokens,
+        GamePropertyPickerContext pickerContext,
         IReadOnlyList<ContainerTargetChoiceItem> containerTargetChoices,
         IReadOnlyList<MaterializeSourceObjectChoiceItem> materializeSourceObjectChoices,
         IReadOnlyList<ProcedureChoiceItem> procedureChoices,
@@ -152,8 +156,11 @@ public partial class RoomActionEditorDialog : Window
         _defaultCurrentObjectId = defaultCurrentObjectId;
         _presentationEffectsCatalogService = new PresentationEffectsCatalogService();
         _variableScope = variableScope;
-        _variableChoices = variableChoices;
-        _echoReferenceTokens = OrderReferenceTokensPreferSelf(echoReferenceTokens);
+        _pickerContext = pickerContext;
+        _variableChoices = _pickerContext.DiscoverChoices(false);
+        _echoReferenceTokens = OrderReferenceTokensPreferSelf(_variableChoices
+            .Select(static choice => choice.Value)
+            .Concat(RuntimeAnchorReferenceTokenCatalog.BuildIntrinsicAnchorTokens()));
         _compositeRecipeChoices = (compositeRecipeChoices ?? Array.Empty<CompositeRecipeChoiceItem>())
             .Where(choice => choice.RecipeId != Guid.Empty)
             .ToList();
@@ -198,8 +205,8 @@ public partial class RoomActionEditorDialog : Window
             .OrderBy(static choice => choice.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(static choice => choice.ScopeName, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        _variableReferenceTokens = OrderReferenceTokensPreferSelf(variableChoices.Select(choice => choice.Value));
-        _variableChoiceMap = variableChoices
+        _variableReferenceTokens = OrderReferenceTokensPreferSelf(_variableChoices.Select(static choice => choice.Value));
+        _variableChoiceMap = _variableChoices
             .GroupBy(choice => choice.Value, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
         _actionEchoTokenProviderRegistry = ActionEchoReferenceTokenProviderRegistry.CreateDefault();
@@ -208,8 +215,10 @@ public partial class RoomActionEditorDialog : Window
         var sourceEchoMessage = ActionPayloadAccessors.GetEchoMessage(sourceAction);
         var sourceCheckPropertyName = ActionPayloadAccessors.GetCheckPropertyName(sourceAction);
         var sourceCheckExpectedValue = ActionPayloadAccessors.GetCheckExpectedValue(sourceAction);
+        var sourceCheckGamePropertyReference = ActionPayloadAccessors.GetCheckGamePropertyReference(sourceAction);
         var sourceSetPropertyName = ActionPayloadAccessors.GetSetPropertyName(sourceAction);
         var sourceSetPropertyValue = ActionPayloadAccessors.GetSetPropertyValue(sourceAction);
+        var sourceSetGamePropertyReference = ActionPayloadAccessors.GetSetGamePropertyReference(sourceAction);
         var sourceContainerTransfer = ActionPayloadAccessors.GetContainerTransfer(sourceAction);
         var sourceMovePayload = ActionPayloadAccessors.GetMoveRoomObjectOnGridPayload(sourceAction);
         var sourceMoveByPointsPayload = ActionPayloadAccessors.GetMoveRoomObjectByPointsPayload(sourceAction);
@@ -330,7 +339,8 @@ public partial class RoomActionEditorDialog : Window
         ActionPayloadAccessors.SetCheckGameProperty(
             _workingCopy,
             ActionPayloadAccessors.GetCheckPropertyName(sourceAction),
-            ActionPayloadAccessors.GetCheckExpectedValue(sourceAction));
+            ActionPayloadAccessors.GetCheckExpectedValue(sourceAction),
+            sourceCheckGamePropertyReference);
         ActionPayloadAccessors.SetSetGameProperty(
             _workingCopy,
             sourceAction.ActionType == CommandActionType.SetFlag
@@ -338,7 +348,8 @@ public partial class RoomActionEditorDialog : Window
                 : sourceSetPropertyName,
             sourceAction.ActionType == CommandActionType.SetFlag
                 ? sourceCheckExpectedValue.ToString().ToLowerInvariant()
-                : sourceSetPropertyValue);
+                : sourceSetPropertyValue,
+            sourceAction.ActionType == CommandActionType.SetGameProperty ? sourceSetGamePropertyReference : null);
         ActionPayloadAccessors.SetMoveRoomObjectOnGrid(
             _workingCopy,
             sourceMovePayload.DirectionToken,
@@ -1071,8 +1082,16 @@ public partial class RoomActionEditorDialog : Window
         var workingMoveByPointsPayload = ActionPayloadAccessors.GetMoveRoomObjectByPointsPayload(_workingCopy);
         var workingSelectByPointPayload = ActionPayloadAccessors.GetSelectRoomObjectByPointPayload(_workingCopy);
         ActionPayloadAccessors.SetEchoMessage(_sourceAction, ActionPayloadAccessors.GetEchoMessage(_workingCopy));
-        ActionPayloadAccessors.SetCheckGameProperty(_sourceAction, _workingCopy.FlagName, _workingCopy.FlagValue);
-        ActionPayloadAccessors.SetSetGameProperty(_sourceAction, setPropertyName, setPropertyValue);
+        ActionPayloadAccessors.SetCheckGameProperty(
+            _sourceAction,
+            _workingCopy.FlagName,
+            _workingCopy.FlagValue,
+            ActionPayloadAccessors.GetCheckGamePropertyReference(_workingCopy));
+        ActionPayloadAccessors.SetSetGameProperty(
+            _sourceAction,
+            setPropertyName,
+            setPropertyValue,
+            ActionPayloadAccessors.GetSetGamePropertyReference(_workingCopy));
         var workingContainerTransfer = ActionPayloadAccessors.GetContainerTransfer(_workingCopy);
         _sourceAction.TargetContainerId = workingContainerTransfer.TargetContainerId;
         ActionPayloadAccessors.SetMoveRoomObjectOnGrid(
@@ -1635,6 +1654,24 @@ public partial class RoomActionEditorDialog : Window
 
     private void ChooseFlagVariable_OnClick(object sender, RoutedEventArgs e)
     {
+        if (_workingCopy.ActionType == CommandActionType.CheckGameProperty)
+        {
+            var selection = OpenActionPropertyChooser(
+                "Choose Flag Variable",
+                _workingCopy.FlagName,
+                ActionPayloadAccessors.GetCheckGamePropertyReference(_workingCopy),
+                booleanOnly: true);
+            if (selection is not null)
+            {
+                ActionPayloadAccessors.SetCheckGameProperty(
+                    _workingCopy,
+                    selection.PropertyName,
+                    _workingCopy.FlagValue,
+                    selection.Reference);
+            }
+            return;
+        }
+
         var selected = OpenVariableChooser("Choose Flag Variable", _workingCopy.FlagName);
         if (!string.IsNullOrWhiteSpace(selected))
         {
@@ -1644,16 +1681,89 @@ public partial class RoomActionEditorDialog : Window
 
     private void ChooseSetVariable_OnClick(object sender, RoutedEventArgs e)
     {
-        var selected = OpenVariableChooser("Choose Game Property", ActionPayloadAccessors.GetSetPropertyName(_workingCopy));
-        if (!string.IsNullOrWhiteSpace(selected))
+        var selection = OpenActionPropertyChooser(
+            "Choose Game Property",
+            ActionPayloadAccessors.GetSetPropertyName(_workingCopy),
+            ActionPayloadAccessors.GetSetGamePropertyReference(_workingCopy));
+        if (selection is not null)
         {
-            ActionPayloadAccessors.SetSetGameProperty(_workingCopy, selected, ActionPayloadAccessors.GetSetPropertyValue(_workingCopy));
+            ActionPayloadAccessors.SetSetGameProperty(
+                _workingCopy,
+                selection.PropertyName,
+                ActionPayloadAccessors.GetSetPropertyValue(_workingCopy),
+                selection.Reference);
         }
+    }
+
+    private sealed record ActionGamePropertySelection(
+        string PropertyName,
+        ProjectGamePropertySourceReferenceDto Reference);
+
+    private ActionGamePropertySelection? OpenActionPropertyChooser(
+        string title,
+        string? currentPropertyName,
+        ProjectGamePropertySourceReferenceDto? currentReference,
+        bool booleanOnly = false)
+    {
+        var selectedReference = currentReference;
+        if (selectedReference is null && !string.IsNullOrWhiteSpace(currentPropertyName))
+        {
+            var legacyName = currentPropertyName.Trim();
+            var separator = legacyName.IndexOf('.');
+            var possibleAnchor = separator > 0 ? legacyName[..separator] : string.Empty;
+            if (ActionPropertyAnchorKeys.Contains(possibleAnchor, StringComparer.OrdinalIgnoreCase))
+            {
+                selectedReference = new ProjectGamePropertySourceReferenceDto
+                {
+                    AnchorKey = ActionPropertyAnchorKeys.First(key => string.Equals(key, possibleAnchor, StringComparison.OrdinalIgnoreCase)),
+                    PropertyName = legacyName[(separator + 1)..]
+                };
+            }
+            else
+            {
+                var relativePropertyName = legacyName.StartsWith("self.", StringComparison.OrdinalIgnoreCase)
+                    || legacyName.StartsWith("owner.", StringComparison.OrdinalIgnoreCase)
+                        ? legacyName[(separator + 1)..]
+                        : legacyName;
+                selectedReference = new ProjectGamePropertySourceReferenceDto { PropertyName = relativePropertyName };
+            }
+        }
+
+        var context = _pickerContext with
+        {
+            BooleanOnly = booleanOnly,
+            AllowReferenceModes = true,
+            AnchorKeys = ActionPropertyAnchorKeys,
+            SelectedReference = selectedReference,
+            DiscoverChoices = useReferenceChoices =>
+            {
+                var choices = _pickerContext.DiscoverChoices(useReferenceChoices);
+                return booleanOnly
+                    ? choices.Where(static choice => choice.ValueRestriction == GamePropertyValueRestriction.TrueFalse).ToList()
+                    : choices;
+            }
+        };
+        var dialog = new VariableChooserDialog(context, title, currentPropertyName)
+        {
+            Owner = this
+        };
+
+        if (dialog.ShowDialog() != true || dialog.SelectedReference is null)
+        {
+            return null;
+        }
+
+        var propertyName = dialog.SelectedReference.PropertyName
+            ?? dialog.SelectedChoice?.PropertyName
+            ?? currentPropertyName;
+        return string.IsNullOrWhiteSpace(propertyName)
+            ? null
+            : new ActionGamePropertySelection(propertyName, dialog.SelectedReference);
     }
 
     private string? OpenVariableChooser(string title, string? selectedValue)
     {
-        var dialog = new VariableChooserDialog(_variableChoices, _variableScope, title, selectedValue)
+        var dialog = new VariableChooserDialog(_pickerContext, title, selectedValue)
         {
             Owner = this
         };
@@ -2443,7 +2553,7 @@ public partial class RoomActionEditorDialog : Window
             return true;
         }
 
-        if (!_variableChoiceMap.TryGetValue(variableName.Trim(), out var choice))
+        if (!TryGetCurrentGamePropertyChoice(variableName, out var choice))
         {
             return true;
         }
@@ -2537,7 +2647,7 @@ public partial class RoomActionEditorDialog : Window
     {
         try
         {
-            var dialog = new TextOutputScriptEditorDialog(entry.Script, GetEchoReferenceTokensForCurrentAction(), _variableChoices, _variableScope)
+            var dialog = new TextOutputScriptEditorDialog(entry.Script, GetEchoReferenceTokensForCurrentAction(), _pickerContext)
             {
                 Owner = this,
                 Title = $"Edit Echo: {entry.Token}"
@@ -3087,9 +3197,44 @@ public partial class RoomActionEditorDialog : Window
             return GamePropertyValueRestriction.Unrestricted;
         }
 
-        return _variableChoiceMap.TryGetValue(variableName.Trim(), out var choice)
+        return TryGetCurrentGamePropertyChoice(variableName, out var choice)
             ? choice.ValueRestriction
             : GamePropertyValueRestriction.Unrestricted;
+    }
+
+    private bool TryGetCurrentGamePropertyChoice(string? variableName, out GamePropertyChoiceItem choice)
+    {
+        var reference = _workingCopy.ActionType switch
+        {
+            CommandActionType.CheckGameProperty => ActionPayloadAccessors.GetCheckGamePropertyReference(_workingCopy),
+            CommandActionType.SetGameProperty => ActionPayloadAccessors.GetSetGamePropertyReference(_workingCopy),
+            _ => null
+        };
+        if (reference is not null)
+        {
+            var referencedChoice = _pickerContext.DiscoverChoices(true).FirstOrDefault(candidate =>
+                string.Equals(candidate.PropertyName, reference.PropertyName, StringComparison.OrdinalIgnoreCase)
+                && (reference.OwnerId.HasValue
+                    ? candidate.OwnerId == reference.OwnerId
+                    : reference.AnchorKey is not null
+                        ? candidate.EligibleAnchors.Contains(reference.AnchorKey, StringComparer.OrdinalIgnoreCase)
+                        : candidate.OwnerId == _pickerContext.RelativeOwnerId));
+            if (referencedChoice is not null)
+            {
+                choice = referencedChoice;
+                return true;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(variableName)
+            && _variableChoiceMap.TryGetValue(variableName.Trim(), out var tokenChoice))
+        {
+            choice = tokenChoice;
+            return true;
+        }
+
+        choice = null!;
+        return false;
     }
 
     private void EchoTextEditorTextBox_OnPreviewTextInput(object sender, TextCompositionEventArgs e)

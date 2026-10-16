@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
+using Storyboard.Shared.DesignerContracts;
 
 namespace StoryboardDesigner.App.Views;
 
@@ -10,11 +11,13 @@ public partial class VariableScopeReviewDialog : Window
 {
     private readonly Dictionary<Guid, string> _originalNames = new();
     private readonly IList<GamePropertyDefinition> _variables;
+    private readonly Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? _editComputation;
 
-    public VariableScopeReviewDialog(string scopeLabel, IList<GamePropertyDefinition> variables)
+    public VariableScopeReviewDialog(string scopeLabel, IList<GamePropertyDefinition> variables, Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation = null)
     {
         InitializeComponent();
         _variables = variables;
+        _editComputation = editComputation;
         ScopeLabelTextBlock.Text = $"Scope: {scopeLabel}";
         RestrictionColumn.ItemsSource = GamePropertyValueRestrictionOptions.All;
         VariablesDataGrid.ItemsSource = _variables;
@@ -32,7 +35,7 @@ public partial class VariableScopeReviewDialog : Window
             .Where(static name => !string.IsNullOrWhiteSpace(name))
             .ToList();
 
-        var dialog = new VariableEditorDialog(string.Empty, GamePropertyLifetime.Singleton, "false", GamePropertyValueRestriction.TrueFalse, disallowedNames)
+        var dialog = new VariableEditorDialog(string.Empty, GamePropertyLifetime.Singleton, "false", GamePropertyValueRestriction.TrueFalse, disallowedNames, computation: null, editComputation: _editComputation)
         {
             Owner = this
         };
@@ -47,11 +50,38 @@ public partial class VariableScopeReviewDialog : Window
             Name = dialog.VariableName,
             Lifetime = dialog.Lifetime,
             DefaultValue = dialog.DefaultValue,
-            ValueRestriction = dialog.ValueRestriction
+            ValueRestriction = dialog.ValueRestriction,
+            Computation = dialog.IsComputed ? dialog.Computation : null
         };
 
         _variables.Add(variable);
         RefreshVariablesGrid(variable);
+    }
+
+    private void EditComputation_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button { DataContext: GamePropertyDefinition variable } || _editComputation is null)
+        {
+            return;
+        }
+
+        var computation = _editComputation(variable.Computation);
+        if (computation is not null)
+        {
+            variable.Computation = computation;
+            VariablesDataGrid.Items.Refresh();
+        }
+    }
+
+    private void MakeOrdinary_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button { DataContext: GamePropertyDefinition variable } || variable.Computation is null)
+        {
+            return;
+        }
+
+        variable.Computation = null;
+        VariablesDataGrid.Items.Refresh();
     }
 
     private void RemoveSelected_OnClick(object sender, RoutedEventArgs e)

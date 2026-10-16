@@ -1231,7 +1231,8 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
                         DefaultValue = variable.DefaultValue,
                         ValueRestriction = variable.ValueRestriction,
                         Lifetime = variable.Lifetime,
-                        SharedVariableId = variable.SharedVariableId
+                        SharedVariableId = variable.SharedVariableId,
+                        Computation = GamePropertyComputationCloner.Clone(variable.Computation)
                     }).ToList()
                 },
                 TraversalStateFromB = new TraversalLegState
@@ -1246,7 +1247,8 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
                         DefaultValue = variable.DefaultValue,
                         ValueRestriction = variable.ValueRestriction,
                         Lifetime = variable.Lifetime,
-                        SharedVariableId = variable.SharedVariableId
+                        SharedVariableId = variable.SharedVariableId,
+                        Computation = GamePropertyComputationCloner.Clone(variable.Computation)
                     }).ToList()
                 },
                 Variables = connection.Variables.Select(variable => new GamePropertyDefinition
@@ -1254,7 +1256,8 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
                     Name = variable.Name,
                     DefaultValue = variable.DefaultValue,
                     ValueRestriction = variable.ValueRestriction,
-                    Lifetime = variable.Lifetime
+                    Lifetime = variable.Lifetime,
+                    Computation = GamePropertyComputationCloner.Clone(variable.Computation)
                 }).ToList()
             }).ToList(),
             Placements = RoomPlacements.Select(placement => new AreaRoomPlacement
@@ -1292,7 +1295,8 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
                     DefaultValue = variable.DefaultValue,
                     ValueRestriction = variable.ValueRestriction,
                     Lifetime = variable.Lifetime,
-                    SharedVariableId = variable.SharedVariableId
+                    SharedVariableId = variable.SharedVariableId,
+                    Computation = GamePropertyComputationCloner.Clone(variable.Computation)
                 }).ToList()
             },
             TraversalStateFromB = new TraversalLegState
@@ -1307,7 +1311,8 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
                     DefaultValue = variable.DefaultValue,
                     ValueRestriction = variable.ValueRestriction,
                     Lifetime = variable.Lifetime,
-                    SharedVariableId = variable.SharedVariableId
+                    SharedVariableId = variable.SharedVariableId,
+                    Computation = GamePropertyComputationCloner.Clone(variable.Computation)
                 }).ToList()
             },
             Variables = connection.Variables.Select(variable => new GamePropertyDefinition
@@ -1315,7 +1320,8 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
                 Name = variable.Name,
                 DefaultValue = variable.DefaultValue,
                 ValueRestriction = variable.ValueRestriction,
-                Lifetime = variable.Lifetime
+                Lifetime = variable.Lifetime,
+                Computation = GamePropertyComputationCloner.Clone(variable.Computation)
             }).ToList()
         }).ToList();
 

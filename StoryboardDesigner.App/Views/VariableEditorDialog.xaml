@@ -3,14 +3,16 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:StoryboardDesigner.App.ViewModels"
         Title="Variable"
-        Height="260"
+        Height="440"
         Width="460"
-        MinHeight="260"
+        MinHeight="440"
         MinWidth="460"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize">
     <Grid Margin="16">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -27,19 +29,38 @@
         <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Name" />
         <TextBox x:Name="VariableNameTextBox" Grid.Row="0" Grid.Column="1" Margin="0,0,0,12" />
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Lifetime" />
+        <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,12">
+            <CheckBox x:Name="ComputedCheckBox"
+                      Margin="0,0,0,6"
+                      Content="Computed Boolean property"
+                      Checked="Computed_OnChanged"
+                      Unchecked="Computed_OnChanged" />
+            <Button x:Name="EditComputationButton"
+                    Width="150"
+                    HorizontalAlignment="Left"
+                    Content="Define computation..."
+                    Click="EditComputation_OnClick"
+                    Visibility="Collapsed" />
+            <TextBlock x:Name="ComputationPreviewTextBlock"
+                       Margin="0,6,0,0"
+                       Foreground="#374151"
+                       TextWrapping="Wrap"
+                       Visibility="Collapsed" />
+        </StackPanel>
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Lifetime" />
         <ComboBox x:Name="LifetimeComboBox"
-                  Grid.Row="1"
+                  Grid.Row="2"
                   Grid.Column="1"
                   Margin="0,0,0,12"
                   ItemsSource="{Binding Source={x:Static vm:GamePropertyLifetimeValues.All}}" />
 
-        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Default Value" />
-        <TextBox x:Name="DefaultValueTextBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,12" />
+        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Default Value" />
+        <TextBox x:Name="DefaultValueTextBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,12" />
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Value Restrictions" />
+        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Value Restrictions" />
         <ComboBox x:Name="ValueRestrictionComboBox"
-                  Grid.Row="3"
+                  Grid.Row="4"
                   Grid.Column="1"
                   Margin="0,0,0,12"
                   DisplayMemberPath="Label"
@@ -47,7 +68,7 @@
                   ItemsSource="{Binding Source={x:Static vm:GamePropertyValueRestrictionOptions.All}}" />
 
         <Button x:Name="ManageSharedVariablesButton"
-            Grid.Row="4"
+            Grid.Row="5"
             Grid.Column="1"
             Width="180"
             HorizontalAlignment="Left"
@@ -56,10 +77,10 @@
             Click="ManageSharedVariables_OnClick"
             Visibility="Collapsed" />
 
-        <TextBlock Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Foreground="#6B7280" TextWrapping="Wrap"
+        <TextBlock Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2" Foreground="#6B7280" TextWrapping="Wrap"
                    Text="Transient resets to default when re-entering scope. Singleton persists for the game session within its scope." />
 
-        <StackPanel Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+        <StackPanel Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
             <Button Width="84" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
             <Button Width="84" Content="Cancel" Click="Cancel_OnClick" />
         </StackPanel>

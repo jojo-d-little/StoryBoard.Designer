@@ -23,15 +23,55 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Action Name" ToolTip="Friendly name used by designers to identify this game action in editors." />
-        <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,12" Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <Grid Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid Grid.Column="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="100" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Action Name" ToolTip="Friendly name used by designers to identify this game action in editors." />
+                <TextBox Grid.Column="1" Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
+            <Grid Grid.Column="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="70" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Verb" ToolTip="Command verb or verbs that trigger this action." />
+                <TextBox Grid.Column="1" Text="{Binding VerbListText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
+        </Grid>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Action Type" ToolTip="Defines what this action does at runtime, such as echo, property checks, or composite build/break." />
-        <ComboBox Grid.Row="1"
-                  Grid.Column="1"
-                  Margin="0,0,0,12"
-                  ItemsSource="{Binding Source={x:Static vm:CommandActionTypeValues.All}}"
-                  SelectedItem="{Binding ActionType, Mode=TwoWay}" />
+        <Grid Grid.Row="1" Grid.ColumnSpan="2" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid Grid.Column="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="100" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Action Type" ToolTip="Defines what this action does at runtime, such as echo, property checks, or composite build/break." />
+                <ComboBox Grid.Column="1"
+                          ItemsSource="{Binding Source={x:Static vm:CommandActionTypeValues.All}}"
+                          SelectedItem="{Binding ActionType, Mode=TwoWay}" />
+            </Grid>
+            <Grid Grid.Column="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="70" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Direction" ToolTip="Directional qualifier bound to this action, if any." />
+                <TextBox Grid.Column="1" Text="{Binding DirectionQualifierText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
+        </Grid>
 
         <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,12" VerticalAlignment="Center">
             <CheckBox x:Name="ForwardToChildrenCheckBox"
@@ -343,7 +383,7 @@
                              Grid.Column="1"
                              Margin="0,0,8,10"
                              IsReadOnly="True"
-                             Text="{Binding FlagName, Mode=OneWay}" />
+                             Text="{Binding FlagTargetDisplayName, Mode=OneWay}" />
                     <Button Grid.Row="0"
                             Grid.Column="2"
                             Margin="0,0,0,10"
@@ -399,7 +439,7 @@
                              Grid.Column="1"
                              Margin="0,0,8,10"
                              IsReadOnly="True"
-                             Text="{Binding GamePropertyName, Mode=OneWay}" />
+                             Text="{Binding GamePropertyTargetDisplayName, Mode=OneWay}" />
                     <Button Grid.Row="0"
                             Grid.Column="2"
                             Margin="0,0,0,10"

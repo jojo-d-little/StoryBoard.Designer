@@ -1,26 +1,24 @@
 using System.Windows;
 using System.Windows.Input;
 using StoryboardDesigner.App.Models;
+using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
 
 namespace StoryboardDesigner.App.Views;
 
 public partial class ImageVariantChooserScriptEditorDialog : Window
 {
-    private readonly IReadOnlyList<GamePropertyChoiceItem> _variableChoices;
-    private readonly PropertyResolutionScope _variableScope;
+    private readonly GamePropertyPickerContext _pickerContext;
 
     public ImageVariantChooserScriptEditorDialog(
         string scriptText,
         IReadOnlyList<string> referenceTokens,
-        IReadOnlyList<GamePropertyChoiceItem>? variableChoices,
-        PropertyResolutionScope variableScope,
+        GamePropertyPickerContext pickerContext,
         IReadOnlyList<string>? availableVariantNames)
     {
         InitializeComponent();
 
-        _variableChoices = variableChoices ?? Array.Empty<GamePropertyChoiceItem>();
-        _variableScope = variableScope;
+        _pickerContext = pickerContext;
 
         ScriptEditor.ScriptText = scriptText ?? string.Empty;
         ScriptEditor.ReferenceTokens = referenceTokens ?? Array.Empty<string>();
@@ -42,12 +40,7 @@ public partial class ImageVariantChooserScriptEditorDialog : Window
 
     private string? OpenVariableChooser()
     {
-        if (_variableChoices.Count == 0)
-        {
-            return null;
-        }
-
-        var dialog = new VariableChooserDialog(_variableChoices, _variableScope, "Choose Variable")
+        var dialog = new VariableChooserDialog(_pickerContext, "Choose Variable")
         {
             Owner = this
         };

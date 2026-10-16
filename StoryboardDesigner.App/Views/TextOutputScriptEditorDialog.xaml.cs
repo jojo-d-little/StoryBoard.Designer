@@ -1,7 +1,6 @@
 using System.Windows;
 using Storyboard.Shared.GameServices;
 using StoryboardDesigner.App.Services;
-using StoryboardDesigner.App.ViewModels;
 
 namespace StoryboardDesigner.App.Views;
 
@@ -22,19 +21,16 @@ public partial class TextOutputScriptEditorDialog : Window
 
     private bool _saveRequested;
     private readonly IReadOnlyList<string> _referenceTokens;
-    private readonly IReadOnlyList<GamePropertyChoiceItem> _variableChoices;
-    private readonly PropertyResolutionScope _variableScope;
+    private readonly GamePropertyPickerContext _pickerContext;
 
     public TextOutputScriptEditorDialog(
         string scriptText,
         IReadOnlyList<string> referenceTokens,
-        IReadOnlyList<GamePropertyChoiceItem>? variableChoices = null,
-        PropertyResolutionScope variableScope = PropertyResolutionScope.Room)
+        GamePropertyPickerContext pickerContext)
     {
         InitializeComponent();
         _referenceTokens = referenceTokens;
-        _variableChoices = variableChoices ?? Array.Empty<GamePropertyChoiceItem>();
-        _variableScope = variableScope;
+        _pickerContext = pickerContext;
         ScriptEditor.ScriptText = scriptText;
         ScriptEditor.ReferenceTokens = referenceTokens;
         ScriptEditor.ChooseVariableToken = OpenVariableChooser;
@@ -47,18 +43,7 @@ public partial class TextOutputScriptEditorDialog : Window
 
     private string? OpenVariableChooser()
     {
-        if (_variableChoices.Count == 0)
-        {
-            System.Windows.MessageBox.Show(
-                this,
-                "No scoped variables are available for this action context. You can still type runtime tokens manually, such as {currentRoom.Name}.",
-                "Choose Variable",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return null;
-        }
-
-        var dialog = new VariableChooserDialog(_variableChoices, _variableScope, "Choose Variable")
+        var dialog = new VariableChooserDialog(_pickerContext, "Choose Variable")
         {
             Owner = this
         };

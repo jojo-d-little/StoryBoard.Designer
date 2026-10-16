@@ -20,20 +20,30 @@
                 <DataGridComboBoxColumn x:Name="SoundDefinitionColumn" Header="Sound Definition" Width="2*"
                                         SelectedValuePath="SoundEffectId" DisplayMemberPath="DisplayName"
                                         SelectedValueBinding="{Binding SoundEffectId, UpdateSourceTrigger=PropertyChanged}" />
-                <DataGridTemplateColumn Header="Activation Game Property Name" Width="2*">
+                <DataGridTemplateColumn Header="Activation Game Property" Width="2*">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding ActivationGamePropertyName}" VerticalAlignment="Center" />
+                            <TextBlock VerticalAlignment="Center"
+                                       Text="{Binding ActivationGamePropertyDisplayName, TargetNullValue='Always active', FallbackValue='Always active'}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                     <DataGridTemplateColumn.CellEditingTemplate>
                         <DataTemplate>
-                            <ComboBox ItemsSource="{Binding ActivationPropertyNames, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      IsEditable="True"
-                                      IsTextSearchEnabled="True"
-                                      StaysOpenOnEdit="True"
-                                      Text="{Binding ActivationGamePropertyName, UpdateSourceTrigger=PropertyChanged}"
-                                      ToolTip="Select or enter the name of a boolean game property defined on this object. Leave blank to keep the emitter always enabled." />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Button Grid.Column="0"
+                                        Margin="0,0,6,0"
+                                        Content="Choose property…"
+                                        ToolTip="Choose a Boolean game property from this object or another available scope. Leave it blank to keep the emitter always active."
+                                        Click="ChooseActivationProperty_OnClick" />
+                                <Button Grid.Column="1"
+                                        Content="Clear"
+                                        ToolTip="Keep this emitter always active."
+                                        Click="ClearActivationProperty_OnClick" />
+                            </Grid>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellEditingTemplate>
                 </DataGridTemplateColumn>

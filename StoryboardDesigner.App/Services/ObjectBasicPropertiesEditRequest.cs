@@ -40,8 +40,6 @@ public sealed record ObjectBasicPropertiesEditRequest(
     IReadOnlyList<ObjectImageVariant>? ImageVariants = null,
     string ImageVariantChooserScript = "",
     IReadOnlyList<string>? ImageVariantChooserReferenceTokens = null,
-    IReadOnlyList<GamePropertyChoiceItem>? ImageVariantChooserVariableChoices = null,
-    PropertyResolutionScope ImageVariantChooserVariableScope = PropertyResolutionScope.Object,
     LockOperationRequirements? LockOperationRequirements = null,
     IReadOnlyList<GameObjectSelectionOption>? AvailableLockKeyOptions = null,
     List<CompositePartRequirement>? CompositeRequiredParts = null,
@@ -73,4 +71,5 @@ public sealed record ObjectBasicPropertiesEditRequest(
     double ImageTransparency = 0,
     IReadOnlyList<ObjectSoundEmitter>? SoundEmitters = null,
     IReadOnlyList<SoundEffectChoiceItem>? SoundEffectChoices = null,
-    IReadOnlyList<GamePropertyDefinition>? SoundEmitterActivationProperties = null);
+    GamePropertyPickerContext? SoundEmitterActivationPickerContext = null,
+    GamePropertyPickerContext? ImageVariantChooserPickerContext = null);

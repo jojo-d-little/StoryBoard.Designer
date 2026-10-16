@@ -518,7 +518,9 @@ public partial class ProjectHierarchyPane : System.Windows.Controls.UserControl
             variableNode.Variable.DefaultValue,
             variableNode.Variable.ValueRestriction,
             siblingNames,
-            _ => viewModel.OpenSharedRelationshipManager(variableNode))
+            _ => viewModel.OpenSharedRelationshipManager(variableNode),
+            computation: variableNode.Variable.Computation,
+            editComputation: viewModel.CreateComputationEditor(variableNode))
         {
             Owner = Window.GetWindow(this)
         };
@@ -532,8 +534,11 @@ public partial class ProjectHierarchyPane : System.Windows.Controls.UserControl
         variableNode.Variable.Lifetime = dialog.Lifetime;
         variableNode.Variable.DefaultValue = dialog.DefaultValue;
         variableNode.Variable.ValueRestriction = dialog.ValueRestriction;
+        variableNode.Variable.Computation = dialog.Computation;
         variableNode.EditableName = dialog.VariableName;
+        variableNode.RefreshComputedState();
         viewModel.RefreshVariableNameIndex(variableNode);
+        viewModel.NotifyProjectEdited();
         viewModel.NotifyProjectEdited();
     }
 }

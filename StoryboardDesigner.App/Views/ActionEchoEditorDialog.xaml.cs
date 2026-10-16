@@ -4,7 +4,6 @@ using System.Windows;
 using System.Windows.Controls;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
-using StoryboardDesigner.App.ViewModels;
 
 namespace StoryboardDesigner.App.Views;
 
@@ -12,21 +11,18 @@ public partial class ActionEchoEditorDialog : Window
 {
     private readonly ObservableCollection<ActionEchoEditorEntry> _entries;
     private readonly IReadOnlyList<string> _referenceTokens;
-    private readonly IReadOnlyList<GamePropertyChoiceItem> _variableChoices;
-    private readonly PropertyResolutionScope _variableScope;
+    private readonly GamePropertyPickerContext _pickerContext;
 
     public ActionEchoEditorDialog(
         CommandActionType actionType,
         IReadOnlyDictionary<string, string> currentOutcomeMessageMap,
         IReadOnlyList<string> referenceTokens,
-        IReadOnlyList<GamePropertyChoiceItem> variableChoices,
-        PropertyResolutionScope variableScope,
+        GamePropertyPickerContext pickerContext,
         string? initialToken = null)
     {
         InitializeComponent();
         _referenceTokens = referenceTokens;
-        _variableChoices = variableChoices;
-        _variableScope = variableScope;
+        _pickerContext = pickerContext;
         _entries = new ObservableCollection<ActionEchoEditorEntry>(ActionEchoEditorEntryBuilder.BuildEntries(actionType, currentOutcomeMessageMap));
         _entries.CollectionChanged += Entries_CollectionChanged;
         EntriesListView.ItemsSource = _entries;
@@ -81,7 +77,7 @@ public partial class ActionEchoEditorDialog : Window
     {
         try
         {
-            var dialog = new TextOutputScriptEditorDialog(entry.Script, _referenceTokens, _variableChoices, _variableScope)
+            var dialog = new TextOutputScriptEditorDialog(entry.Script, _referenceTokens, _pickerContext)
             {
                 Owner = this,
                 Title = $"Edit Echo: {entry.Token}"

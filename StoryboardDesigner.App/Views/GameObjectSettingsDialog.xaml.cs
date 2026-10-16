@@ -15,15 +15,14 @@ public partial class GameObjectSettingsDialog : Window
     private readonly IReadOnlyList<GameObjectSelectionOption> _availableCompositePartOptions;
     private readonly IReadOnlyList<GameObjectSelectionOption> _availableLockKeyOptions;
     private readonly IReadOnlyList<SoundEffectChoiceItem> _soundEffectChoices;
-    private readonly IReadOnlyList<GamePropertyDefinition> _soundEmitterActivationProperties;
+    private readonly GamePropertyPickerContext? _soundEmitterActivationPickerContext;
     private List<ObjectSoundEmitter> _soundEmitters;
     private string _fullImagePath = string.Empty;
     private double _imageRotationDegrees;
     private List<ObjectImageVariant> _imageVariants = new();
     private string _imageVariantChooserScript = string.Empty;
     private readonly IReadOnlyList<string> _imageVariantChooserReferenceTokens;
-    private readonly IReadOnlyList<GamePropertyChoiceItem> _imageVariantChooserVariableChoices;
-    private readonly PropertyResolutionScope _imageVariantChooserVariableScope;
+    private readonly GamePropertyPickerContext? _imageVariantChooserPickerContext;
     private readonly string _projectFilePath;
     private readonly string _preferredImageSourceBucket;
     private bool _isInitializingMovementUi = true;
@@ -110,7 +109,7 @@ public partial class GameObjectSettingsDialog : Window
         _availableCompositePartOptions = initialValues.AvailableCompositePartOptions ?? Array.Empty<GameObjectSelectionOption>();
         _availableLockKeyOptions = initialValues.AvailableLockKeyOptions ?? _availableCompositePartOptions;
         _soundEffectChoices = initialValues.SoundEffectChoices ?? Array.Empty<SoundEffectChoiceItem>();
-        _soundEmitterActivationProperties = initialValues.SoundEmitterActivationProperties ?? Array.Empty<GamePropertyDefinition>();
+        _soundEmitterActivationPickerContext = initialValues.SoundEmitterActivationPickerContext;
         _soundEmitters = CloneSoundEmitters(initialValues.SoundEmitters);
         ManageSoundEffectsButton.Visibility = initialValues.SoundEffectChoices is null ? Visibility.Collapsed : Visibility.Visible;
         _compositeSettings = new CompositeObjectSettingsEditRequest(
@@ -127,8 +126,7 @@ public partial class GameObjectSettingsDialog : Window
         ImageTransparencyTextBox.Text = initialValues.ImageTransparency.ToString("0.################", System.Globalization.CultureInfo.InvariantCulture);
         _imageVariantChooserScript = initialValues.ImageVariantChooserScript;
         _imageVariantChooserReferenceTokens = initialValues.ImageVariantChooserReferenceTokens ?? Array.Empty<string>();
-        _imageVariantChooserVariableChoices = initialValues.ImageVariantChooserVariableChoices ?? Array.Empty<GamePropertyChoiceItem>();
-        _imageVariantChooserVariableScope = initialValues.ImageVariantChooserVariableScope;
+        _imageVariantChooserPickerContext = initialValues.ImageVariantChooserPickerContext;
         _fullImagePath = ResolveDefaultVariantPath(_imageVariants, initialValues.FullImagePath);
         _imageRotationDegrees = initialValues.ImageRotationDegrees;
         _projectFilePath = initialValues.ProjectFilePath;
@@ -238,8 +236,7 @@ public partial class GameObjectSettingsDialog : Window
                 _projectFilePath,
                 _preferredImageSourceBucket,
                 ImageVariantChooserReferenceTokens: _imageVariantChooserReferenceTokens,
-                ImageVariantChooserVariableChoices: _imageVariantChooserVariableChoices,
-                ImageVariantChooserVariableScope: _imageVariantChooserVariableScope,
+                ImageVariantChooserPickerContext: _imageVariantChooserPickerContext,
                 ImageVariants: _imageVariants,
                 ImageVariantChooserScript: _imageVariantChooserScript,
                 LockOperationRequirements: CloneLockOperationRequirements(_lockOperationRequirements),
@@ -350,8 +347,7 @@ public partial class GameObjectSettingsDialog : Window
             _projectFilePath,
             _preferredImageSourceBucket,
             _imageVariantChooserReferenceTokens,
-            _imageVariantChooserVariableChoices,
-            _imageVariantChooserVariableScope,
+            ImageVariantChooserPickerContext: _imageVariantChooserPickerContext,
             IsMovable: _isMovable,
             IsMovableDefaultValue: _isMovableDefaultValue,
             SpatialType: _spatialType,
@@ -408,7 +404,10 @@ public partial class GameObjectSettingsDialog : Window
 
     private void ManageSoundEffectsButton_OnClick(object sender, RoutedEventArgs e)
     {
-        var dialog = new ObjectSoundEmitterDialog(_soundEmitters, _soundEffectChoices, _soundEmitterActivationProperties)
+        var dialog = new ObjectSoundEmitterDialog(
+            _soundEmitters,
+            _soundEffectChoices,
+            _soundEmitterActivationPickerContext ?? throw new InvalidOperationException("A game-property picker context is required."))
         {
             Owner = this
         };
@@ -425,11 +424,23 @@ public partial class GameObjectSettingsDialog : Window
         {
             EmitterId = emitter.EmitterId,
             SoundEffectId = emitter.SoundEffectId,
+            ActivationGamePropertyReference = CloneGamePropertySourceReference(emitter.ActivationGamePropertyReference),
             ActivationGamePropertyName = emitter.ActivationGamePropertyName,
+            ActivationGamePropertyDisplayName = emitter.ActivationGamePropertyDisplayName,
             ActiveInRoom = emitter.ActiveInRoom,
             ActiveOutOfRoom = emitter.ActiveOutOfRoom
         }).ToList();
     }
+
+    private static Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? CloneGamePropertySourceReference(
+        Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? source) => source is null
+        ? null
+        : new Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto
+        {
+            OwnerId = source.OwnerId,
+            AnchorKey = source.AnchorKey,
+            PropertyName = source.PropertyName
+        };
 
     private static List<ObjectImageVariant> NormalizeImageVariants(IReadOnlyList<ObjectImageVariant>? variants, string legacyFullPath)
     {
