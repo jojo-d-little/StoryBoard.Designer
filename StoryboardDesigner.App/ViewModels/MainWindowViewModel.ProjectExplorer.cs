@@ -9813,6 +9813,7 @@ public sealed partial class MainWindowViewModel
             PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults),
             HideContainedObjects: gameObject.HideContainedObjects,
             ShowWhenContained: gameObject.ShowWhenContained,
+            ImageVariantChooserPickerContext: CreateGamePropertyPickerContext(gameObject, PropertyResolutionScope.Object),
             SoundEmitters: gameObject.SoundEmitters.Select(CloneObjectSoundEmitter).ToList(),
             SoundEffectChoices: GetSoundEffectChoicesForScopeNode(gameObject),
             SoundEmitterActivationPickerContext: CreateGamePropertyPickerContext(
@@ -13039,6 +13040,13 @@ public sealed partial class MainWindowViewModel
     {
         configuredName = string.Empty;
         var (stackScaleStepOverride, minStackScaleOverride) = ResolveObjectStackScaleEditorDefaults(target);
+        var imageVariantChooserPickerContext = CreateGamePropertyPickerContext(target, PropertyResolutionScope.Object);
+        var imageVariantChooserReferenceTokens = imageVariantChooserPickerContext.DiscoverChoices(false)
+            .Select(static choice => choice.Value)
+            .Where(static token => !string.IsNullOrWhiteSpace(token))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static token => token, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         var initial = new ObjectBasicPropertiesEditRequest(
             defaultName,
@@ -13072,6 +13080,8 @@ public sealed partial class MainWindowViewModel
             target.ImageRotationDegrees,
             _projectFilePath ?? string.Empty,
             "objects",
+            ImageVariantChooserReferenceTokens: imageVariantChooserReferenceTokens,
+            ImageVariantChooserPickerContext: imageVariantChooserPickerContext,
             ImageVariants: target.ImageVariants,
             ImageVariantChooserScript: target.ImageVariantChooserScript,
             ImageTransparency: target.ImageTransparency,
@@ -13254,6 +13264,13 @@ public sealed partial class MainWindowViewModel
         var linkedDefinition = TryResolveDefinitionObject(target);
         var effectiveDefinitionOwnedSource = linkedDefinition ?? target;
         var (stackScaleStepOverride, minStackScaleOverride) = ResolveObjectStackScaleEditorDefaults(target);
+        var imageVariantChooserPickerContext = CreateGamePropertyPickerContext(target, PropertyResolutionScope.Object);
+        var imageVariantChooserReferenceTokens = imageVariantChooserPickerContext.DiscoverChoices(false)
+            .Select(static choice => choice.Value)
+            .Where(static token => !string.IsNullOrWhiteSpace(token))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static token => token, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         var initial = new ObjectBasicPropertiesEditRequest(
             target.Name,
@@ -13287,6 +13304,8 @@ public sealed partial class MainWindowViewModel
             target.ImageRotationDegrees,
             _projectFilePath ?? string.Empty,
             "objects",
+            ImageVariantChooserReferenceTokens: imageVariantChooserReferenceTokens,
+            ImageVariantChooserPickerContext: imageVariantChooserPickerContext,
             ImageVariants: effectiveDefinitionOwnedSource.ImageVariants,
             ImageVariantChooserScript: effectiveDefinitionOwnedSource.ImageVariantChooserScript,
             ImageTransparency: effectiveDefinitionOwnedSource.ImageTransparency,

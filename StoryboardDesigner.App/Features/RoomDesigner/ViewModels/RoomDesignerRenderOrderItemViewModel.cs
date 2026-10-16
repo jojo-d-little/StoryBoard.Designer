@@ -91,6 +91,8 @@ public sealed class RoomDesignerRenderOrderItemViewModel : ViewModelBase
 
     public bool IsLightOnly => PreviewObject?.IsLightOnly ?? false;
 
+    public bool IsSoundOnly => PreviewObject?.IsSoundOnly ?? false;
+
     public bool IsSelected => PreviewObject?.IsSelected ?? false;
 
     public bool IsRenderable => IsSpawnPoint || (PreviewObject?.IsRenderable ?? false);
@@ -149,6 +151,7 @@ public sealed class RoomDesignerRenderOrderItemViewModel : ViewModelBase
         OnPropertyChanged(nameof(ImageRotationDegrees));
         OnPropertyChanged(nameof(ThumbnailSource));
         OnPropertyChanged(nameof(IsLightOnly));
+        OnPropertyChanged(nameof(IsSoundOnly));
         OnPropertyChanged(nameof(IsSelected));
         OnPropertyChanged(nameof(IsRenderable));
         OnPropertyChanged(nameof(IncludeInPreview));

@@ -209,6 +209,23 @@
                                             <Ellipse Width="22" Height="22" Fill="#55FBBF24" Stroke="#D97706" StrokeThickness="1.5" />
                                             <Ellipse Width="8" Height="8" Fill="#FBBF24" Stroke="#78350F" StrokeThickness="1" />
                                         </Grid>
+                                        <Grid Width="24" Height="24" Canvas.Left="20" Canvas.Top="0"
+                                              IsHitTestVisible="False"
+                                              ToolTip="Sound-only object (no sprite)">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSoundOnly}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
+                                            <Ellipse Fill="#DBEAFE" Stroke="#2563EB" StrokeThickness="1.5" />
+                                            <TextBlock Text="♪" FontSize="14" FontWeight="Bold" Foreground="#1D4ED8"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Grid>
                                     </Canvas>
                                     <Ellipse Width="24" Height="24"
                                              Canvas.Left="0" Canvas.Top="0"

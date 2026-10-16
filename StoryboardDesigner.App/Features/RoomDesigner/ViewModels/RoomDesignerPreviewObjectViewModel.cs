@@ -287,7 +287,11 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
 
     public bool IsLightOnly => ThumbnailSource is null && _effectiveDefinitionOwnedSource.PointLight is not null;
 
-    public bool IsRenderable => IncludeInPreview && (ThumbnailSource is not null || IsLightOnly);
+    public bool IsSoundOnly => ThumbnailSource is null
+        && _effectiveDefinitionOwnedSource.PointLight is null
+        && _effectiveDefinitionOwnedSource.SoundEmitters.Count > 0;
+
+    public bool IsRenderable => IncludeInPreview && (ThumbnailSource is not null || IsLightOnly || IsSoundOnly);
 
     public BitmapImage? ThumbnailSource => LoadThumbnail(_effectiveDefinitionOwnedSource.ResolveImagePath(SelectedPreviewVariantName));
 
@@ -367,6 +371,7 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
                 break;
             case nameof(GameObject.PointLight):
                 OnPropertyChanged(nameof(IsLightOnly));
+                OnPropertyChanged(nameof(IsSoundOnly));
                 OnPropertyChanged(nameof(IsRenderable));
                 break;
             case nameof(GameObject.FootprintWidthCells):
@@ -616,6 +621,7 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasMultiplePreviewVariants));
         OnPropertyChanged(nameof(ThumbnailSource));
         OnPropertyChanged(nameof(IsLightOnly));
+        OnPropertyChanged(nameof(IsSoundOnly));
         OnPropertyChanged(nameof(PreviewBaseIconWidthPixels));
         OnPropertyChanged(nameof(PreviewBaseIconHeightPixels));
         OnPropertyChanged(nameof(PreviewRenderedIconWidthPixels));

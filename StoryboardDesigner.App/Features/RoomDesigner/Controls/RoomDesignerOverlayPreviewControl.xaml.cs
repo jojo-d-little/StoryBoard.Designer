@@ -100,7 +100,9 @@ public partial class RoomDesignerOverlayPreviewControl : System.Windows.Controls
     {
         Focus();
 
-        if (sender is not Button button || button.DataContext is not RoomDesignerPreviewObjectViewModel previewObject)
+        if (sender is not Button button
+            || button.DataContext is not RoomDesignerRenderOrderItemViewModel renderOrderItem
+            || renderOrderItem.PreviewObject is not { } previewObject)
         {
             return;
         }
