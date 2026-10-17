@@ -1,4 +1,4 @@
-using Storyboard.Shared.GameServices.References;
+using Storyboard.GameEngine.Configuration.Catalogs;
 
 namespace StoryboardDesigner.App.Services;
 
@@ -60,30 +60,13 @@ internal static class RuntimeAnchorReferenceTokenCatalog
 
     private static IReadOnlyList<string> LoadKnownAnchorKeys()
     {
-        var anchors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
         try
         {
-            foreach (var anchorKey in new RuntimeSessionAnchorManifestReader().Load().GetOrderedAnchorKeys())
-            {
-                if (!string.IsNullOrWhiteSpace(anchorKey))
-                {
-                    anchors.Add(anchorKey.Trim());
-                }
-            }
+            return SessionAnchorManifestLoader.Load().GetOrderedAnchorKeys();
         }
         catch
         {
+            return Array.Empty<string>();
         }
-
-        anchors.Add("self");
-        anchors.Add("currentAction");
-        anchors.Add("currentPhase");
-        anchors.Add("currentRoom");
-        anchors.Add("priorRoom");
-
-        return anchors
-            .OrderBy(static anchor => anchor, StringComparer.OrdinalIgnoreCase)
-            .ToList();
     }
 }

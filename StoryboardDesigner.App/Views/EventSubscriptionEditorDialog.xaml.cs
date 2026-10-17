@@ -5,7 +5,6 @@ using System.Windows;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
-using Storyboard.Shared.GameServices.References;
 using Storyboard.Shared.RuntimeContracts.Enums;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfMessageBoxButton = System.Windows.MessageBoxButton;
@@ -18,7 +17,6 @@ public partial class EventSubscriptionEditorDialog : Window
     private const string DefaultLane = "foreground";
     private const string DefaultOnMissingAction = "DiagnosticOnly";
     private const string EventSubscriptionSchemaRelativePath = "schemas\\runtime\\DtoContracts\\Core\\EventSubscription.core.schema.json";
-    private const string EventPayloadManifestRelativePath = "Config\\event-payload.manifest.json";
     private static readonly Lazy<IReadOnlyList<string>> LaneOptions = new(LoadLaneOptionsFromSchema);
 
     private readonly EventSubscriptionDefinition _entry;
@@ -313,71 +311,26 @@ public partial class EventSubscriptionEditorDialog : Window
             return Array.Empty<KeyValuePair<string, string>>();
         }
 
-        var manifestPath = Path.Combine(AppContext.BaseDirectory, EventPayloadManifestRelativePath);
-        if (!File.Exists(manifestPath))
-        {
-            return Array.Empty<KeyValuePair<string, string>>();
-        }
-
         try
         {
-            using var stream = File.OpenRead(manifestPath);
-            using var document = JsonDocument.Parse(stream);
-            if (!document.RootElement.TryGetProperty("events", out var eventsElement)
-                || eventsElement.ValueKind != JsonValueKind.Array)
+            var definition = Storyboard.GameEngine.Configuration.Catalogs.EventPayloadManifestLoader.Load().Events
+                .FirstOrDefault(item => string.Equals(item.EventKey?.Trim(), normalizedEventKey, StringComparison.OrdinalIgnoreCase));
+            if (definition is null)
             {
                 return Array.Empty<KeyValuePair<string, string>>();
             }
 
-            var mappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var eventElement in eventsElement.EnumerateArray())
-            {
-                if (!eventElement.TryGetProperty("eventKey", out var eventKeyElement)
-                    || eventKeyElement.ValueKind != JsonValueKind.String)
+            return definition.PayloadArguments
+                .Select(static argument => new
                 {
-                    continue;
-                }
-
-                var manifestEventKey = eventKeyElement.GetString()?.Trim() ?? string.Empty;
-                if (!string.Equals(manifestEventKey, normalizedEventKey, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (!eventElement.TryGetProperty("payloadMappings", out var mappingsElement)
-                    || mappingsElement.ValueKind != JsonValueKind.Array)
-                {
-                    continue;
-                }
-
-                foreach (var mappingElement in mappingsElement.EnumerateArray())
-                {
-                    if (!mappingElement.TryGetProperty("payloadKey", out var payloadKeyElement)
-                        || payloadKeyElement.ValueKind != JsonValueKind.String)
-                    {
-                        continue;
-                    }
-
-                    if (!mappingElement.TryGetProperty("sourcePath", out var sourcePathElement)
-                        || sourcePathElement.ValueKind != JsonValueKind.String)
-                    {
-                        continue;
-                    }
-
-                    var payloadKey = payloadKeyElement.GetString()?.Trim() ?? string.Empty;
-                    var sourcePath = sourcePathElement.GetString()?.Trim() ?? string.Empty;
-                    if (!string.IsNullOrWhiteSpace(payloadKey)
-                        && !string.IsNullOrWhiteSpace(sourcePath)
-                        && !mappings.ContainsKey(payloadKey))
-                    {
-                        mappings[payloadKey] = sourcePath;
-                    }
-                }
-            }
-
-            return mappings
+                    PayloadKey = argument.PayloadKey?.Trim() ?? string.Empty,
+                    SessionAnchorPath = argument.SessionAnchorPath?.Trim() ?? string.Empty
+                })
+                .Where(static argument => !string.IsNullOrWhiteSpace(argument.PayloadKey)
+                    && !string.IsNullOrWhiteSpace(argument.SessionAnchorPath))
+                .GroupBy(static argument => argument.PayloadKey, StringComparer.OrdinalIgnoreCase)
+                .Select(static group => new KeyValuePair<string, string>(group.Key, group.First().SessionAnchorPath))
                 .OrderBy(static pair => pair.Key, StringComparer.OrdinalIgnoreCase)
-                .Select(static pair => new KeyValuePair<string, string>(pair.Key, pair.Value))
                 .ToList();
         }
         catch
@@ -388,44 +341,7 @@ public partial class EventSubscriptionEditorDialog : Window
 
     private static IReadOnlyList<EventBindingVariableAssistDialog.AnchorSubPropertyDefinition> LoadAnchorSubPropertiesFromManifest()
     {
-        try
-        {
-            var output = new List<EventBindingVariableAssistDialog.AnchorSubPropertyDefinition>();
-            foreach (var anchor in new RuntimeSessionAnchorManifestReader().Load().Anchors)
-            {
-                var anchorKey = anchor.AnchorKey?.Trim() ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(anchorKey))
-                {
-                    continue;
-                }
-
-                foreach (var subProperty in anchor.SupportedSubProperties)
-                {
-                    var propertyKey = subProperty.PropertyKey?.Trim() ?? string.Empty;
-                    if (string.IsNullOrWhiteSpace(propertyKey))
-                    {
-                        continue;
-                    }
-
-                    var sourcePath = subProperty.SourcePath?.Trim() ?? string.Empty;
-                    var expectedScopeType = string.IsNullOrWhiteSpace(subProperty.ExpectedScopeType)
-                        ? "Unknown"
-                        : subProperty.ExpectedScopeType.Trim();
-
-                    output.Add(new EventBindingVariableAssistDialog.AnchorSubPropertyDefinition(
-                        anchorKey,
-                        propertyKey,
-                        sourcePath,
-                        expectedScopeType));
-                }
-            }
-
-            return output;
-        }
-        catch
-        {
-            return Array.Empty<EventBindingVariableAssistDialog.AnchorSubPropertyDefinition>();
-        }
+        return Array.Empty<EventBindingVariableAssistDialog.AnchorSubPropertyDefinition>();
     }
 
     private IReadOnlyList<EventBindingVariableAssistDialog.ActionOutputVariableDefinition> LoadActionOutputVariablesForBindingAction(

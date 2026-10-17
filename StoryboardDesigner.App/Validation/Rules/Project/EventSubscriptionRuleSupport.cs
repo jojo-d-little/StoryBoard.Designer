@@ -1,14 +1,10 @@
-using System.Text.Json;
-using System.IO;
 using StoryboardDesigner.App.Models;
-using Storyboard.Shared.GameServices.References;
+using Storyboard.GameEngine.Configuration.Catalogs;
 
 namespace StoryboardDesigner.App.Validation.Rules.Project;
 
 internal static class EventSubscriptionRuleSupport
 {
-    private const string EventPayloadManifestRelativePath = "Config\\event-payload.manifest.json";
-
     public static string BuildScopePath(ScopeNodeBase node)
     {
         var scopes = node
@@ -65,27 +61,12 @@ internal static class EventSubscriptionRuleSupport
         ISet<string> eventKeys,
         IDictionary<string, HashSet<string>> payloadKeysByEvent)
     {
-        var manifestPath = ResolveManifestPath(EventPayloadManifestRelativePath);
-        if (string.IsNullOrWhiteSpace(manifestPath) || !File.Exists(manifestPath))
-        {
-            return;
-        }
-
         try
         {
-            using var stream = File.OpenRead(manifestPath);
-            using var document = JsonDocument.Parse(stream);
-            var root = document.RootElement;
-
-            if (!root.TryGetProperty("events", out var eventsElement)
-                || eventsElement.ValueKind != JsonValueKind.Array)
+            var manifest = EventPayloadManifestLoader.Load();
+            foreach (var eventDefinition in manifest.Events)
             {
-                return;
-            }
-
-            foreach (var eventElement in eventsElement.EnumerateArray())
-            {
-                var eventKey = ReadTrimmedString(eventElement, "eventKey");
+                var eventKey = eventDefinition.EventKey?.Trim() ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(eventKey))
                 {
                     continue;
@@ -94,17 +75,10 @@ internal static class EventSubscriptionRuleSupport
                 eventKeys.Add(eventKey);
                 var payloadKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-                if (eventElement.TryGetProperty("payloadMappings", out var mappingsElement)
-                    && mappingsElement.ValueKind == JsonValueKind.Array)
+                foreach (var argument in eventDefinition.PayloadArguments)
                 {
-                    foreach (var mapping in mappingsElement.EnumerateArray())
-                    {
-                        var payloadKey = ReadTrimmedString(mapping, "payloadKey");
-                        if (!string.IsNullOrWhiteSpace(payloadKey))
-                        {
-                            payloadKeys.Add(payloadKey);
-                        }
-                    }
+                    var payloadKey = argument.PayloadKey?.Trim() ?? string.Empty;
+                    if (!string.IsNullOrWhiteSpace(payloadKey)) payloadKeys.Add(payloadKey);
                 }
 
                 payloadKeysByEvent[eventKey] = payloadKeys;
@@ -123,7 +97,7 @@ internal static class EventSubscriptionRuleSupport
     {
         try
         {
-            var manifest = new RuntimeSessionAnchorManifestReader().Load();
+            var manifest = SessionAnchorManifestLoader.Load();
             foreach (var anchor in manifest.Anchors)
             {
                 var anchorKey = anchor.AnchorKey?.Trim() ?? string.Empty;
@@ -133,60 +107,13 @@ internal static class EventSubscriptionRuleSupport
                 }
 
                 anchorKeys.Add(anchorKey);
-                var subProperties = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var subProperty in anchor.SupportedSubProperties)
-                {
-                    var propertyKey = subProperty.PropertyKey?.Trim() ?? string.Empty;
-                    if (string.IsNullOrWhiteSpace(propertyKey))
-                    {
-                        continue;
-                    }
-
-                    subProperties.Add(propertyKey);
-                    allSubPropertyKeys.Add(propertyKey);
-                }
-
-                subPropertiesByAnchor[anchorKey] = subProperties;
+                subPropertiesByAnchor[anchorKey] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             }
         }
         catch
         {
             // Keep validation resilient when manifests are unavailable or malformed.
         }
-    }
-
-    private static string ResolveManifestPath(string relativeManifestPath)
-    {
-        var defaultPath = Path.Combine(AppContext.BaseDirectory, relativeManifestPath);
-        if (File.Exists(defaultPath))
-        {
-            return defaultPath;
-        }
-
-        var current = new DirectoryInfo(AppContext.BaseDirectory);
-        while (current is not null)
-        {
-            if (File.Exists(Path.Combine(current.FullName, "StoryboardDesigner.slnx")))
-            {
-                var repoPath = Path.Combine(current.FullName, "Storyboard.GameEngine", relativeManifestPath);
-                return repoPath;
-            }
-
-            current = current.Parent;
-        }
-
-        return defaultPath;
-    }
-
-    private static string ReadTrimmedString(JsonElement element, string propertyName)
-    {
-        if (!element.TryGetProperty(propertyName, out var value)
-            || value.ValueKind != JsonValueKind.String)
-        {
-            return string.Empty;
-        }
-
-        return value.GetString()?.Trim() ?? string.Empty;
     }
 
     internal sealed class EventPayloadManifestIndex

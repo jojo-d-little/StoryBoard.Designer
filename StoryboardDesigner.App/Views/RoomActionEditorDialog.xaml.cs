@@ -1331,14 +1331,14 @@ public partial class RoomActionEditorDialog : Window
     private IReadOnlyList<string> BuildSelectionCueEffectKeyChoices()
     {
         var configuredKeys = _presentationEffectsCatalogService.GetCatalog().Effects
-            .Where(static effect => effect.Category == HostCommandPresentationCueCategory.Appearance)
+            .Where(static effect => string.Equals(effect.Category, "Appearance", StringComparison.OrdinalIgnoreCase))
             .Select(static effect => effect.EffectKey?.Trim() ?? string.Empty)
             .Where(static effectKey => !string.IsNullOrWhiteSpace(effectKey))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(static effectKey => effectKey, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var defaultKey = GameCommandPresentationEffectKeyCatalog.GetDefaultSelectionOutlineEffectKey();
+        var defaultKey = _presentationEffectsCatalogService.GetDefaultSelectionOutlineEffectKey();
         if (!configuredKeys.Contains(defaultKey, StringComparer.OrdinalIgnoreCase))
         {
             configuredKeys.Insert(0, defaultKey);

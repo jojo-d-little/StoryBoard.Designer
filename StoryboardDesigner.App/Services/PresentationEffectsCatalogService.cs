@@ -1,20 +1,23 @@
-using Storyboard.Shared.GameServices;
-using Storyboard.Shared.GameServices.RuntimeContext;
 using System.IO;
-using System.Text.Json;
+using Storyboard.GameEngine.Configuration.Catalogs;
+using Storyboard.Shared.GameServices.RuntimeContext;
 
 namespace StoryboardDesigner.App.Services;
 
 public sealed class PresentationEffectsCatalogService
 {
-    private readonly Lazy<GameCommandPresentationEffectsCatalog> _catalog;
+    private const string DefaultPrimarySelectionOutlineEffectKey = "appearance.selection.outline.cyan";
+    private const string DefaultSecondarySelectionOutlineEffectKey = "appearance.selection.outline.amber";
+    private const string SelectionOutlineEffectKeyPrefix = "appearance.selection.outline.";
+
+    private readonly Lazy<PresentationEffectsCatalog> _catalog;
 
     public PresentationEffectsCatalogService()
     {
-        _catalog = new Lazy<GameCommandPresentationEffectsCatalog>(LoadCatalog);
+        _catalog = new Lazy<PresentationEffectsCatalog>(LoadCatalog);
     }
 
-    public GameCommandPresentationEffectsCatalog GetCatalog()
+    public PresentationEffectsCatalog GetCatalog()
     {
         return _catalog.Value;
     }
@@ -22,9 +25,12 @@ public sealed class PresentationEffectsCatalogService
     public IReadOnlyList<RuntimeMovementVisualTransitionHint> GetConfiguredMovementHints()
     {
         var ordered = _catalog.Value.Effects
-            .Where(static effect => effect.Category == HostCommandPresentationCueCategory.Movement)
-            .Where(static effect => effect.MovementHint.HasValue)
-            .Select(static effect => effect.MovementHint!.Value)
+            .Where(static effect => string.Equals(effect.Category, "Movement", StringComparison.OrdinalIgnoreCase))
+            .Select(static effect => Enum.TryParse<RuntimeMovementVisualTransitionHint>(effect.MovementHint, true, out var hint)
+                ? (RuntimeMovementVisualTransitionHint?)hint
+                : null)
+            .Where(static hint => hint.HasValue)
+            .Select(static hint => hint!.Value)
             .Distinct()
             .ToList();
 
@@ -42,7 +48,7 @@ public sealed class PresentationEffectsCatalogService
     public IReadOnlyList<string> GetConfiguredRoomTransitionEffectKeys()
     {
         return _catalog.Value.Effects
-            .Where(static effect => effect.Category == HostCommandPresentationCueCategory.RoomTransition)
+            .Where(static effect => string.Equals(effect.Category, "RoomTransition", StringComparison.OrdinalIgnoreCase))
             .Select(static effect => effect.EffectKey?.Trim() ?? string.Empty)
             .Where(static key => !string.IsNullOrWhiteSpace(key))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -52,55 +58,57 @@ public sealed class PresentationEffectsCatalogService
 
     public IReadOnlyList<string> GetObjectCueEligibleEffectKeys()
     {
-        var catalogPath = new[]
-        {
-            Path.Combine(AppContext.BaseDirectory, "Config", "presentation-effects.catalog.json"),
-            Path.Combine(AppContext.BaseDirectory, "Storyboard.GameEngine", "Config", "presentation-effects.catalog.json")
-        }.FirstOrDefault(File.Exists);
-        if (catalogPath is null)
-        {
-            return Array.Empty<string>();
-        }
+        var eligibleCategories = _catalog.Value.Categories
+            .Where(static category => category.ObjectCueEligible)
+            .Select(static category => category.Category)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        using var document = JsonDocument.Parse(File.ReadAllText(catalogPath));
-        var eligibleCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (document.RootElement.TryGetProperty("categories", out var categories)
-            && categories.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var category in categories.EnumerateArray())
-            {
-                if (category.TryGetProperty("objectCueEligible", out var eligible)
-                    && eligible.ValueKind == JsonValueKind.True
-                    && category.TryGetProperty("category", out var name)
-                    && name.ValueKind == JsonValueKind.String)
-                {
-                    eligibleCategories.Add(name.GetString() ?? string.Empty);
-                }
-            }
-        }
-
-        if (!document.RootElement.TryGetProperty("effects", out var effects)
-            || effects.ValueKind != JsonValueKind.Array)
-        {
-            return Array.Empty<string>();
-        }
-
-        return effects.EnumerateArray()
-            .Where(effect => effect.TryGetProperty("category", out var category)
-                && category.ValueKind == JsonValueKind.String
-                && eligibleCategories.Contains(category.GetString() ?? string.Empty))
-            .Select(effect => effect.TryGetProperty("effectKey", out var key) && key.ValueKind == JsonValueKind.String
-                ? key.GetString()?.Trim() ?? string.Empty
-                : string.Empty)
+        return _catalog.Value.Effects
+            .Where(effect => eligibleCategories.Contains(effect.Category))
+            .Select(static effect => effect.EffectKey?.Trim() ?? string.Empty)
             .Where(static key => !string.IsNullOrWhiteSpace(key))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(static key => key, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
-    private static GameCommandPresentationEffectsCatalog LoadCatalog()
+    public string GetDefaultSelectionOutlineEffectKey()
     {
-        var configPath = Path.Combine(AppContext.BaseDirectory, "Config", "presentation-effects.catalog.json");
-        return GameCommandPresentationEffectsCatalogLoader.LoadFromPathOrDefault(configPath);
+        var configuredKeys = GetConfiguredSelectionOutlineEffectKeys();
+        return configuredKeys.FirstOrDefault(key => string.Equals(
+                   key,
+                   DefaultPrimarySelectionOutlineEffectKey,
+                   StringComparison.OrdinalIgnoreCase))
+               ?? configuredKeys.FirstOrDefault()
+               ?? DefaultPrimarySelectionOutlineEffectKey;
+    }
+
+    public string GetDefaultSecondarySelectionOutlineEffectKey()
+    {
+        var configuredKeys = GetConfiguredSelectionOutlineEffectKeys();
+        return configuredKeys.FirstOrDefault(key => string.Equals(
+                   key,
+                   DefaultSecondarySelectionOutlineEffectKey,
+                   StringComparison.OrdinalIgnoreCase))
+               ?? configuredKeys.FirstOrDefault(key => !string.Equals(
+                   key,
+                   GetDefaultSelectionOutlineEffectKey(),
+                   StringComparison.OrdinalIgnoreCase))
+               ?? DefaultSecondarySelectionOutlineEffectKey;
+    }
+
+    private IReadOnlyList<string> GetConfiguredSelectionOutlineEffectKeys()
+    {
+        return _catalog.Value.Effects
+            .Where(static effect => string.Equals(effect.Category, "Appearance", StringComparison.OrdinalIgnoreCase))
+            .Select(static effect => effect.EffectKey?.Trim() ?? string.Empty)
+            .Where(static key => key.StartsWith(SelectionOutlineEffectKeyPrefix, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static PresentationEffectsCatalog LoadCatalog()
+    {
+        return PresentationEffectsCatalogLoader.Load(Path.Combine(AppContext.BaseDirectory, "Config"));
     }
 }

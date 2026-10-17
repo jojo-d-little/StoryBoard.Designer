@@ -14,7 +14,6 @@ namespace StoryboardDesigner.App.Views;
 public partial class EventInputArgumentMappingsDialog : Window
 {
     private const string AllActionTypesOptionLabel = "(All Action Types)";
-    private const string EventPayloadManifestRelativePath = "Config\\event-payload.manifest.json";
     private const string PlaySoundOverrideSoundEffectKey = "sound.play.overrideSoundEffectKey";
     private readonly List<EventInputArgumentMappingDefinition> _workingMappings;
     private readonly ActionPayloadSuggestionCatalog _actionPayloadSuggestionCatalog;
@@ -159,60 +158,18 @@ public partial class EventInputArgumentMappingsDialog : Window
             return Array.Empty<string>();
         }
 
-        var manifestPath = Path.Combine(AppContext.BaseDirectory, EventPayloadManifestRelativePath);
-        if (!File.Exists(manifestPath))
-        {
-            return Array.Empty<string>();
-        }
-
         try
         {
-            using var stream = File.OpenRead(manifestPath);
-            using var document = JsonDocument.Parse(stream);
-            if (!document.RootElement.TryGetProperty("events", out var eventsElement)
-                || eventsElement.ValueKind != JsonValueKind.Array)
+            var definition = Storyboard.GameEngine.Configuration.Catalogs.EventPayloadManifestLoader.Load().Events
+                .FirstOrDefault(item => string.Equals(item.EventKey?.Trim(), eventKey, StringComparison.OrdinalIgnoreCase));
+            if (definition is null)
             {
                 return Array.Empty<string>();
             }
 
-            var keys = new List<string>();
-            foreach (var eventElement in eventsElement.EnumerateArray())
-            {
-                if (!eventElement.TryGetProperty("eventKey", out var eventKeyElement)
-                    || eventKeyElement.ValueKind != JsonValueKind.String)
-                {
-                    continue;
-                }
-
-                var manifestEventKey = eventKeyElement.GetString()?.Trim() ?? string.Empty;
-                if (!string.Equals(manifestEventKey, eventKey, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (!eventElement.TryGetProperty("payloadMappings", out var mappingsElement)
-                    || mappingsElement.ValueKind != JsonValueKind.Array)
-                {
-                    continue;
-                }
-
-                foreach (var mappingElement in mappingsElement.EnumerateArray())
-                {
-                    if (!mappingElement.TryGetProperty("payloadKey", out var payloadKeyElement)
-                        || payloadKeyElement.ValueKind != JsonValueKind.String)
-                    {
-                        continue;
-                    }
-
-                    var payloadKey = payloadKeyElement.GetString()?.Trim() ?? string.Empty;
-                    if (!string.IsNullOrWhiteSpace(payloadKey))
-                    {
-                        keys.Add(payloadKey);
-                    }
-                }
-            }
-
-            return keys
+            return definition.PayloadArguments
+                .Select(static argument => argument.PayloadKey.Trim())
+                .Where(static key => !string.IsNullOrWhiteSpace(key))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(static key => key, StringComparer.OrdinalIgnoreCase)
                 .ToList();

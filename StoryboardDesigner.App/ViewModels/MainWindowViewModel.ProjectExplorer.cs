@@ -1,7 +1,7 @@
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.Validation.Execution;
-using Storyboard.Shared.GameServices.References;
+using Storyboard.GameEngine.Configuration.Catalogs;
 using Storyboard.Shared.RuntimeContracts.Dtos;
 using Storyboard.Shared.RuntimeContracts.Enums;
 using Storyboard.Shared.DesignerContracts;
@@ -4440,8 +4440,6 @@ public sealed partial class MainWindowViewModel
         return true;
     }
 
-    private const string EventPayloadManifestRelativePath = "Config\\event-payload.manifest.json";
-
     private IReadOnlyList<string> BuildEventSubscriptionEventKeySuggestions(ScopeNodeBase? scopeNode)
     {
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -4510,40 +4508,14 @@ public sealed partial class MainWindowViewModel
 
     private static IReadOnlyList<string> LoadEventKeysFromManifest()
     {
-        var manifestPath = Path.Combine(AppContext.BaseDirectory, EventPayloadManifestRelativePath);
-        if (!File.Exists(manifestPath))
-        {
-            return Array.Empty<string>();
-        }
-
         try
         {
-            using var stream = File.OpenRead(manifestPath);
-            using var document = JsonDocument.Parse(stream);
-
-            if (!document.RootElement.TryGetProperty("events", out var eventsElement)
-                || eventsElement.ValueKind != JsonValueKind.Array)
-            {
-                return Array.Empty<string>();
-            }
-
-            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var eventElement in eventsElement.EnumerateArray())
-            {
-                if (!eventElement.TryGetProperty("eventKey", out var keyElement)
-                    || keyElement.ValueKind != JsonValueKind.String)
-                {
-                    continue;
-                }
-
-                var eventKey = keyElement.GetString()?.Trim() ?? string.Empty;
-                if (!string.IsNullOrWhiteSpace(eventKey))
-                {
-                    keys.Add(eventKey);
-                }
-            }
-
-            return keys.OrderBy(static key => key, StringComparer.OrdinalIgnoreCase).ToList();
+            return Storyboard.GameEngine.Configuration.Catalogs.EventPayloadManifestLoader.Load().Events
+                .Select(static definition => definition.EventKey?.Trim() ?? string.Empty)
+                .Where(static key => !string.IsNullOrWhiteSpace(key))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(static key => key, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
         catch
         {
@@ -4629,9 +4601,7 @@ public sealed partial class MainWindowViewModel
     {
         try
         {
-            return new RuntimeSessionAnchorManifestReader()
-                .Load()
-                .GetOrderedAnchorKeys();
+            return SessionAnchorManifestLoader.Load().GetOrderedAnchorKeys();
         }
         catch
         {

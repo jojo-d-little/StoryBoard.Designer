@@ -414,10 +414,11 @@ public sealed partial class MainWindowViewModel
             Directory.CreateDirectory(directory);
         }
 
+        var presentationEffectsCatalogService = new PresentationEffectsCatalogService();
         var defaults = new RuntimeSelectionCueDefaultsFile
         {
-            PrimarySelectionCueEffectKey = GameCommandPresentationEffectKeyCatalog.GetDefaultSelectionOutlineEffectKey(),
-            SecondarySelectionCueEffectKey = GameCommandPresentationEffectKeyCatalog.GetDefaultSecondarySelectionOutlineEffectKey()
+            PrimarySelectionCueEffectKey = presentationEffectsCatalogService.GetDefaultSelectionOutlineEffectKey(),
+            SecondarySelectionCueEffectKey = presentationEffectsCatalogService.GetDefaultSecondarySelectionOutlineEffectKey()
         };
         var options = StoryboardJsonSerializerOptions.Create();
         var json = JsonSerializer.Serialize(defaults, options);
@@ -437,7 +438,8 @@ public sealed partial class MainWindowViewModel
             Directory.CreateDirectory(directory);
         }
 
-        var defaults = GameCommandPresentationEffectsCatalogLoader.BuildDefault();
+        var defaults = Storyboard.GameEngine.Configuration.Catalogs.PresentationEffectsCatalogLoader.Load(
+            Path.Combine(AppContext.BaseDirectory, "Config"));
         var options = StoryboardJsonSerializerOptions.Create();
         var json = JsonSerializer.Serialize(defaults, options);
         File.WriteAllText(filePath, json);
@@ -447,8 +449,8 @@ public sealed partial class MainWindowViewModel
 
     private sealed class RuntimeSelectionCueDefaultsFile
     {
-        public string PrimarySelectionCueEffectKey { get; init; } = GameCommandPresentationEffectKeyCatalog.GetDefaultSelectionOutlineEffectKey();
-        public string SecondarySelectionCueEffectKey { get; init; } = GameCommandPresentationEffectKeyCatalog.GetDefaultSecondarySelectionOutlineEffectKey();
+        public string PrimarySelectionCueEffectKey { get; init; } = string.Empty;
+        public string SecondarySelectionCueEffectKey { get; init; } = string.Empty;
     }
 
     private static void EnsureDefaultEchoMessagesFileExists(string filePath)
