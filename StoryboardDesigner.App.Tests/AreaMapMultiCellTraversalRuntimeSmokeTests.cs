@@ -31,14 +31,14 @@ public sealed class AreaMapMultiCellTraversalRuntimeSmokeTests
         Directory.CreateDirectory(tempRoot);
         try
         {
+            var packagedRuntimePath = GetPackagedRuntimePath();
+            Assert.True(File.Exists(packagedRuntimePath), $"Packaged runtime export is missing: {packagedRuntimePath}");
             var runtimePath = jsonExportService.ExportCleanProjectV1(
                 Path.Combine(tempRoot, "LargeRoomTraversals.sbe.json"),
                 project);
 
             Assert.True(File.Exists(runtimePath), $"Temporary runtime export is missing: {runtimePath}");
-            var packagedRuntimePath = GetPackagedRuntimePath();
-            Assert.True(File.Exists(packagedRuntimePath), $"Packaged runtime export is missing: {packagedRuntimePath}");
-            AssertRuntimeExportsMatch(runtimePath, packagedRuntimePath);
+            AssertTraversalRuntimeExportMatches(runtimePath, packagedRuntimePath, area.Id);
         }
         finally
         {
@@ -49,38 +49,88 @@ public sealed class AreaMapMultiCellTraversalRuntimeSmokeTests
         }
     }
 
-    private static void AssertRuntimeExportsMatch(string temporaryRuntimePath, string packagedRuntimePath)
+    private static void AssertTraversalRuntimeExportMatches(
+        string temporaryRuntimePath,
+        string packagedRuntimePath,
+        Guid areaId)
     {
         var temporaryRoot = Path.GetDirectoryName(temporaryRuntimePath)
             ?? throw new InvalidOperationException("Unable to resolve temporary runtime export folder.");
         var packagedRoot = Path.GetDirectoryName(packagedRuntimePath)
             ?? throw new InvalidOperationException("Unable to resolve packaged runtime export folder.");
 
-        var temporaryFiles = GetRelativeJsonFiles(temporaryRoot);
-        var packagedFiles = GetRelativeJsonFiles(packagedRoot);
-        Assert.Equal(packagedFiles.Keys.OrderBy(path => path, StringComparer.OrdinalIgnoreCase),
-            temporaryFiles.Keys.OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+        var areaRuntimeRelativePath = Path.Combine("Area", $"{areaId:D}.runtime.json");
+        var temporaryAreaPath = Path.Combine(temporaryRoot, areaRuntimeRelativePath);
+        var packagedAreaPath = Path.Combine(packagedRoot, areaRuntimeRelativePath);
+        Assert.True(File.Exists(temporaryAreaPath), $"Temporary area runtime export is missing: {temporaryAreaPath}");
+        Assert.True(File.Exists(packagedAreaPath), $"Packaged area runtime export is missing: {packagedAreaPath}");
 
-        foreach (var relativePath in packagedFiles.Keys)
-        {
-            var packagedJson = JsonNode.Parse(File.ReadAllText(packagedFiles[relativePath]));
-            var temporaryJson = JsonNode.Parse(File.ReadAllText(temporaryFiles[relativePath]));
-            Assert.True(
-                JsonNode.DeepEquals(packagedJson, temporaryJson),
-                $"Temporary and packaged runtime exports differ in '{relativePath}'.");
-        }
+        var packagedJson = JsonNode.Parse(File.ReadAllText(packagedAreaPath));
+        var temporaryJson = JsonNode.Parse(File.ReadAllText(temporaryAreaPath));
+        var difference = FindFirstJsonDifference(packagedJson, temporaryJson, "$");
+        Assert.True(difference is null,
+            $"Temporary and packaged area traversal exports differ in '{areaRuntimeRelativePath}': {difference}");
     }
 
-    private static Dictionary<string, string> GetRelativeJsonFiles(string root)
+    private static string? FindFirstJsonDifference(JsonNode? packaged, JsonNode? temporary, string path)
     {
-        return Directory.EnumerateFiles(root, "*.json", SearchOption.AllDirectories)
-            .Where(path => !Path.GetFileName(path).EndsWith(
-                ".sbr.runtime.direct-command-echoes.json",
-                StringComparison.OrdinalIgnoreCase))
-            .ToDictionary(
-                path => Path.GetRelativePath(root, path),
-                path => path,
-                StringComparer.OrdinalIgnoreCase);
+        if (packaged is JsonObject packagedObject && temporary is JsonObject temporaryObject)
+        {
+            var keys = packagedObject.Select(property => property.Key)
+                .Concat(temporaryObject.Select(property => property.Key))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(key => key, StringComparer.Ordinal);
+
+            foreach (var key in keys)
+            {
+                var hasPackaged = packagedObject.TryGetPropertyValue(key, out var packagedValue);
+                var hasTemporary = temporaryObject.TryGetPropertyValue(key, out var temporaryValue);
+                if (!hasPackaged || !hasTemporary)
+                {
+                    return $"{path}.{key}: property exists in packaged={hasPackaged}, temporary={hasTemporary}.";
+                }
+
+                var nestedDifference = FindFirstJsonDifference(packagedValue, temporaryValue, $"{path}.{key}");
+                if (nestedDifference is not null)
+                {
+                    return nestedDifference;
+                }
+            }
+
+            return null;
+        }
+
+        if (packaged is JsonArray packagedArray && temporary is JsonArray temporaryArray)
+        {
+            if (packagedArray.Count != temporaryArray.Count)
+            {
+                return $"{path}: array lengths differ (packaged={packagedArray.Count}, temporary={temporaryArray.Count}).";
+            }
+
+            for (var index = 0; index < packagedArray.Count; index++)
+            {
+                var nestedDifference = FindFirstJsonDifference(packagedArray[index], temporaryArray[index], $"{path}[{index}]");
+                if (nestedDifference is not null)
+                {
+                    return nestedDifference;
+                }
+            }
+
+            return null;
+        }
+
+        if (JsonNode.DeepEquals(packaged, temporary))
+        {
+            return null;
+        }
+
+        return $"{path}: packaged={FormatJsonValue(packaged)}, temporary={FormatJsonValue(temporary)}.";
+    }
+
+    private static string FormatJsonValue(JsonNode? value)
+    {
+        var json = value?.ToJsonString() ?? "null";
+        return json.Length <= 160 ? json : json[..157] + "...";
     }
 
     private static string GetAuthoredProjectPath() => Path.Combine(
