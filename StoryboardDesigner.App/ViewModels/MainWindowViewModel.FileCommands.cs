@@ -475,7 +475,7 @@ public sealed partial class MainWindowViewModel
         var byAction = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
         foreach (var actionType in CommandActionTypeValues.All)
         {
-            var tokens = RuntimeActionResultCodeRegistry
+            var tokens = StoryboardDesigner.App.Services.ActionManifestCatalog
                 .GetSupportedResultCodes(actionType)
                 .Select(descriptor => descriptor.Token)
                 .Distinct(StringComparer.OrdinalIgnoreCase)

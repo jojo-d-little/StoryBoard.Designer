@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Collections.ObjectModel;
 using StoryboardDesigner.App.Models;
+using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
 using WpfMessageBox = System.Windows.MessageBox;
 using WpfMessageBoxButton = System.Windows.MessageBoxButton;
@@ -14,7 +15,6 @@ public partial class EventInputArgumentMappingsDialog : Window
 {
     private const string AllActionTypesOptionLabel = "(All Action Types)";
     private const string EventPayloadManifestRelativePath = "Config\\event-payload.manifest.json";
-    private const string ActionPayloadManifestRelativePath = "Config\\action-payload.manifest.json";
     private const string PlaySoundOverrideSoundEffectKey = "sound.play.overrideSoundEffectKey";
     private readonly List<EventInputArgumentMappingDefinition> _workingMappings;
     private readonly ActionPayloadSuggestionCatalog _actionPayloadSuggestionCatalog;
@@ -351,80 +351,20 @@ public partial class EventInputArgumentMappingsDialog : Window
 
     private static ActionPayloadSuggestionCatalog LoadActionPayloadSuggestionCatalog()
     {
-        var manifestPath = Path.Combine(AppContext.BaseDirectory, ActionPayloadManifestRelativePath);
-        if (!File.Exists(manifestPath))
-        {
-            return ActionPayloadSuggestionCatalog.Empty;
-        }
-
-        try
-        {
-            using var stream = File.OpenRead(manifestPath);
-            using var document = JsonDocument.Parse(stream);
-            var globalKeys = new List<string>();
-            var keysByActionType = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-            var actionTypes = new List<string>();
-
-            if (document.RootElement.TryGetProperty("global", out var globalElement)
-                && globalElement.ValueKind == JsonValueKind.Object)
-            {
-                AddActionPayloadKeysFromCatalog(globalElement, globalKeys);
-            }
-
-            if (document.RootElement.TryGetProperty("perActionTypeCatalog", out var perActionTypeCatalogElement)
-                && perActionTypeCatalogElement.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var actionTypeElement in perActionTypeCatalogElement.EnumerateArray())
-                {
-                    if (actionTypeElement.ValueKind != JsonValueKind.Object)
-                    {
-                        continue;
-                    }
-
-                    if (!actionTypeElement.TryGetProperty("actionType", out var actionTypeNameElement)
-                        || actionTypeNameElement.ValueKind != JsonValueKind.String)
-                    {
-                        continue;
-                    }
-
-                    var actionTypeName = actionTypeNameElement.GetString()?.Trim() ?? string.Empty;
-                    if (string.IsNullOrWhiteSpace(actionTypeName))
-                    {
-                        continue;
-                    }
-
-                    actionTypes.Add(actionTypeName);
-                    if (!keysByActionType.TryGetValue(actionTypeName, out var scopedKeys))
-                    {
-                        scopedKeys = new List<string>();
-                        keysByActionType[actionTypeName] = scopedKeys;
-                    }
-
-                    AddActionPayloadKeysFromCatalog(actionTypeElement, scopedKeys);
-                }
-            }
-
-            return new ActionPayloadSuggestionCatalog(
-                globalKeys
+        var suggestions = ActionManifestCatalog.GetPayloadArgumentSuggestions();
+        return new ActionPayloadSuggestionCatalog(
+            Array.Empty<string>(),
+            suggestions.Select(static item => item.ActionType).Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(static key => key, StringComparer.OrdinalIgnoreCase).ToList(),
+            suggestions.GroupBy(static item => item.ActionType, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                static group => group.Key,
+                static group => (IReadOnlyList<string>)group
+                    .Select(static item => item.Key)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .OrderBy(static key => key, StringComparer.OrdinalIgnoreCase)
                     .ToList(),
-                actionTypes
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(static key => key, StringComparer.OrdinalIgnoreCase)
-                    .ToList(),
-                keysByActionType.ToDictionary(
-                    static pair => pair.Key,
-                    static pair => (IReadOnlyList<string>)pair.Value
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .OrderBy(static key => key, StringComparer.OrdinalIgnoreCase)
-                        .ToList(),
-                    StringComparer.OrdinalIgnoreCase));
-        }
-        catch
-        {
-            return ActionPayloadSuggestionCatalog.Empty;
-        }
+                StringComparer.OrdinalIgnoreCase));
     }
 
     private static void AddActionPayloadKeysFromCatalog(JsonElement catalogOwner, List<string> keys)

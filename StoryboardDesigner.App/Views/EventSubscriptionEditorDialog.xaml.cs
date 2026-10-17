@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using StoryboardDesigner.App.Models;
+using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
 using Storyboard.Shared.GameServices.References;
 using Storyboard.Shared.RuntimeContracts.Enums;
@@ -18,7 +19,6 @@ public partial class EventSubscriptionEditorDialog : Window
     private const string DefaultOnMissingAction = "DiagnosticOnly";
     private const string EventSubscriptionSchemaRelativePath = "schemas\\runtime\\DtoContracts\\Core\\EventSubscription.core.schema.json";
     private const string EventPayloadManifestRelativePath = "Config\\event-payload.manifest.json";
-    private const string ActionPayloadManifestRelativePath = "Config\\action-payload.manifest.json";
     private static readonly Lazy<IReadOnlyList<string>> LaneOptions = new(LoadLaneOptionsFromSchema);
 
     private readonly EventSubscriptionDefinition _entry;
@@ -445,83 +445,14 @@ public partial class EventSubscriptionEditorDialog : Window
     private static IReadOnlyList<EventBindingVariableAssistDialog.ActionOutputVariableDefinition> LoadActionOutputVariableCatalogFromManifest(
         IReadOnlyList<CommandActionType> actionTypes)
     {
-        var actionTypeNames = actionTypes
-            .Select(static actionType => actionType.ToString())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        if (actionTypeNames.Count == 0)
-        {
-            return Array.Empty<EventBindingVariableAssistDialog.ActionOutputVariableDefinition>();
-        }
-
-        var manifestPath = Path.Combine(AppContext.BaseDirectory, ActionPayloadManifestRelativePath);
-        if (!File.Exists(manifestPath))
-        {
-            return Array.Empty<EventBindingVariableAssistDialog.ActionOutputVariableDefinition>();
-        }
-
-        try
-        {
-            using var stream = File.OpenRead(manifestPath);
-            using var document = JsonDocument.Parse(stream);
-
-            if (!document.RootElement.TryGetProperty("perActionTypeCatalog", out var perActionCatalog)
-                || perActionCatalog.ValueKind != JsonValueKind.Array)
-            {
-                return Array.Empty<EventBindingVariableAssistDialog.ActionOutputVariableDefinition>();
-            }
-
-            var results = new List<EventBindingVariableAssistDialog.ActionOutputVariableDefinition>();
-
-            foreach (var actionCatalog in perActionCatalog.EnumerateArray())
-            {
-                if (!actionCatalog.TryGetProperty("actionType", out var actionTypeElement)
-                    || actionTypeElement.ValueKind != JsonValueKind.String)
-                {
-                    continue;
-                }
-
-                var actionTypeText = actionTypeElement.GetString()?.Trim() ?? string.Empty;
-                if (!actionTypeNames.Contains(actionTypeText)
-                    || !Enum.TryParse<CommandActionType>(actionTypeText, ignoreCase: true, out var actionType))
-                {
-                    continue;
-                }
-
-                if (!actionCatalog.TryGetProperty("actionOutputVariableCatalog", out var outputCatalog)
-                    || outputCatalog.ValueKind != JsonValueKind.Array)
-                {
-                    continue;
-                }
-
-                foreach (var outputEntry in outputCatalog.EnumerateArray())
-                {
-                    var key = ReadTrimmedString(outputEntry, "actionOutputVariableKey");
-                    if (string.IsNullOrWhiteSpace(key))
-                    {
-                        continue;
-                    }
-
-                    results.Add(new EventBindingVariableAssistDialog.ActionOutputVariableDefinition(
-                        actionType,
-                        key,
-                        ReadTrimmedString(outputEntry, "description"),
-                        ReadTrimmedString(outputEntry, "valueType"),
-                        ReadTrimmedString(outputEntry, "notes")));
-                }
-            }
-
-            return results
-                .GroupBy(static item => $"{item.ActionType}|{item.ActionOutputVariableKey}", StringComparer.OrdinalIgnoreCase)
-                .Select(static group => group.First())
-                .OrderBy(static item => item.ActionType.ToString(), StringComparer.OrdinalIgnoreCase)
-                .ThenBy(static item => item.ActionOutputVariableKey, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
-        catch
-        {
-            return Array.Empty<EventBindingVariableAssistDialog.ActionOutputVariableDefinition>();
-        }
+        return ActionManifestCatalog.GetOutputVariableSuggestions(actionTypes.Select(static actionType => actionType.ToString()))
+            .Select(static suggestion => new EventBindingVariableAssistDialog.ActionOutputVariableDefinition(
+                Enum.Parse<CommandActionType>(suggestion.ActionType, ignoreCase: true),
+                suggestion.Key,
+                suggestion.Description,
+                suggestion.ValueType,
+                suggestion.Notes))
+            .ToList();
     }
 
     private void Save_OnClick(object sender, RoutedEventArgs e)

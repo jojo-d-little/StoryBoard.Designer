@@ -18,7 +18,7 @@ public sealed record StackRoomObjectOnAnotherPayload : IActionPayload
 
     public IReadOnlyList<string> GetReferenceTokens()
     {
-        return RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(ActionType);
+        return StoryboardDesigner.App.Services.ActionManifestCatalog.GetOutputVariableTokens(ActionType);
     }
 
     public IReadOnlyList<(string FieldName, string Value)> GetScriptFields()

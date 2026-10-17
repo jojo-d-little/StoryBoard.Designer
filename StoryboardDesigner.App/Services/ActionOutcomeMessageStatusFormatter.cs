@@ -7,7 +7,7 @@ public static class ActionOutcomeMessageStatusFormatter
 {
     public static IReadOnlyList<ActionOutcomeMessageStatus> BuildStatuses(CommandAction action)
     {
-        var supportedCodes = RuntimeActionResultCodeRegistry.GetSupportedResultCodes(action.ActionType);
+        var supportedCodes = StoryboardDesigner.App.Services.ActionManifestCatalog.GetSupportedResultCodes(action.ActionType);
         if (supportedCodes.Count == 0)
         {
             return Array.Empty<ActionOutcomeMessageStatus>();
@@ -61,7 +61,7 @@ public static class ActionOutcomeMessageStatusFormatter
         var count = 0;
         foreach (var token in normalized.Keys)
         {
-            if (!RuntimeActionResultCodeRegistry.TryGetDescriptor(action.ActionType, token, out _))
+            if (!StoryboardDesigner.App.Services.ActionManifestCatalog.TryGetDescriptor(action.ActionType, token, out _))
             {
                 count++;
             }
@@ -73,7 +73,7 @@ public static class ActionOutcomeMessageStatusFormatter
     private static Dictionary<string, string> BuildEffectiveOutcomeMessageMap(CommandAction action)
     {
         var actionType = action.ActionType;
-        var map = RuntimeOutcomeMessageMapBuilder.Create(actionType, string.Empty, string.Empty, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase))
+        var map = StoryboardDesigner.App.Services.ActionManifestCatalog.CreateDefaultOutcomeMessageMap(actionType)
             .ToDictionary(static pair => pair.Key, static pair => pair.Value ?? string.Empty, StringComparer.OrdinalIgnoreCase);
 
         var persistedMap = NormalizeOutcomeMessageMap(actionType, action.OutcomeMessageMap);
@@ -103,7 +103,7 @@ public static class ActionOutcomeMessageStatusFormatter
                 continue;
             }
 
-            if (RuntimeActionResultCodeRegistry.TryGetDescriptor(actionType, token, out var descriptor))
+            if (StoryboardDesigner.App.Services.ActionManifestCatalog.TryGetDescriptor(actionType, token, out var descriptor))
             {
                 normalized[descriptor.Token] = value ?? string.Empty;
                 continue;

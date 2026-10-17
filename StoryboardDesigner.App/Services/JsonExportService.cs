@@ -7106,7 +7106,7 @@ public sealed class JsonExportService : IJsonExportService
                 continue;
             }
 
-            if (RuntimeActionResultCodeRegistry.TryGetDescriptor(actionType, token, out var descriptor))
+            if (StoryboardDesigner.App.Services.ActionManifestCatalog.TryGetDescriptor(actionType, token, out var descriptor))
             {
                 normalized[descriptor.Token] = value ?? string.Empty;
                 continue;
@@ -7136,7 +7136,7 @@ public sealed class JsonExportService : IJsonExportService
                 continue;
             }
 
-            if (RuntimeActionResultCodeRegistry.TryGetDescriptor(actionType, token, out var descriptor))
+            if (StoryboardDesigner.App.Services.ActionManifestCatalog.TryGetDescriptor(actionType, token, out var descriptor))
             {
                 token = descriptor.Token;
             }
@@ -7175,7 +7175,7 @@ public sealed class JsonExportService : IJsonExportService
                 continue;
             }
 
-            if (RuntimeActionResultCodeRegistry.TryGetDescriptor(actionType, token, out var descriptor))
+            if (StoryboardDesigner.App.Services.ActionManifestCatalog.TryGetDescriptor(actionType, token, out var descriptor))
             {
                 token = descriptor.Token;
             }

@@ -1,11 +1,33 @@
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
 using Storyboard.Shared.GameServices.References;
+using Storyboard.GameEngine.Configuration.ActionManifest;
 
 namespace StoryboardDesigner.App.Tests;
 
 public sealed class ActionEchoReferenceTokenProviderRegistryTests
 {
+    private static IReadOnlyList<string> GetManifestOutputVariableTokens(CommandActionType actionType)
+    {
+        var manifest = ActionManifestLoader.Load(Path.Combine(AppContext.BaseDirectory, "Config"));
+        return manifest.GetAction(actionType.ToString()).OutputVariables.SelectMany(static output =>
+        {
+            var key = $"currentAction.{output.ActionOutputVariableKey}";
+            var tokens = new List<string> { key };
+            if (output.SupportsCount)
+            {
+                tokens.Add($"{key}Count");
+            }
+
+            if (output.SupportsIndexedValues)
+            {
+                tokens.Add($"{key}[n]");
+            }
+
+            return tokens;
+        }).OrderBy(static token => token, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
     [Fact]
     public void CreateDefault_HasProviderForEveryActionType()
     {
@@ -41,7 +63,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
         var registry = ActionEchoReferenceTokenProviderRegistry.CreateDefault();
 
         var tokens = registry.GetTokens(CommandActionType.BuildCompositeByParts);
-        var sharedTokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.BuildCompositeByParts);
+        var sharedTokens = GetManifestOutputVariableTokens(CommandActionType.BuildCompositeByParts);
 
         Assert.NotEmpty(sharedTokens);
         Assert.Equal(sharedTokens, tokens);
@@ -67,7 +89,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
         var registry = ActionEchoReferenceTokenProviderRegistry.CreateDefault();
 
         var tokens = registry.GetTokens(CommandActionType.BuildCompositeByTarget);
-        var sharedTokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.BuildCompositeByTarget);
+        var sharedTokens = GetManifestOutputVariableTokens(CommandActionType.BuildCompositeByTarget);
 
         Assert.NotEmpty(sharedTokens);
         Assert.Equal(sharedTokens, tokens);
@@ -91,7 +113,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
         var registry = ActionEchoReferenceTokenProviderRegistry.CreateDefault();
 
         var tokens = registry.GetTokens(CommandActionType.BreakCompositeItem);
-        var sharedTokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.BreakCompositeItem);
+        var sharedTokens = GetManifestOutputVariableTokens(CommandActionType.BreakCompositeItem);
 
         Assert.NotEmpty(sharedTokens);
         Assert.Equal(sharedTokens, tokens);
@@ -122,7 +144,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
         var registry = ActionEchoReferenceTokenProviderRegistry.CreateDefault();
 
         var tokens = registry.GetTokens(CommandActionType.PutObjectInContainer);
-        var sharedTokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.PutObjectInContainer);
+        var sharedTokens = GetManifestOutputVariableTokens(CommandActionType.PutObjectInContainer);
 
         Assert.NotEmpty(sharedTokens);
         Assert.Equal(sharedTokens, tokens);
@@ -155,7 +177,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
         var registry = ActionEchoReferenceTokenProviderRegistry.CreateDefault();
 
         var tokens = registry.GetTokens(CommandActionType.RemoveObjectFromContainer);
-        var sharedTokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.RemoveObjectFromContainer);
+        var sharedTokens = GetManifestOutputVariableTokens(CommandActionType.RemoveObjectFromContainer);
 
         Assert.NotEmpty(sharedTokens);
         Assert.Equal(sharedTokens, tokens);
@@ -167,7 +189,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
         var registry = ActionEchoReferenceTokenProviderRegistry.CreateDefault();
 
         var tokens = registry.GetTokens(CommandActionType.NavigateDirection);
-        var sharedTokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.NavigateDirection);
+        var sharedTokens = GetManifestOutputVariableTokens(CommandActionType.NavigateDirection);
 
         Assert.NotEmpty(sharedTokens);
         Assert.Equal(sharedTokens, tokens);
@@ -193,7 +215,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
         var registry = ActionEchoReferenceTokenProviderRegistry.CreateDefault();
 
         var tokens = registry.GetTokens(CommandActionType.NavigateToAdjacent);
-        var sharedTokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.NavigateToAdjacent);
+        var sharedTokens = GetManifestOutputVariableTokens(CommandActionType.NavigateToAdjacent);
 
         Assert.NotEmpty(sharedTokens);
         Assert.Equal(sharedTokens, tokens);
@@ -205,7 +227,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
         var registry = ActionEchoReferenceTokenProviderRegistry.CreateDefault();
 
         var tokens = registry.GetTokens(CommandActionType.SetActiveRoomObject);
-        var sharedTokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.SetActiveRoomObject);
+        var sharedTokens = GetManifestOutputVariableTokens(CommandActionType.SetActiveRoomObject);
 
         Assert.NotEmpty(sharedTokens);
         Assert.Equal(sharedTokens, tokens);
@@ -229,7 +251,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
         var registry = ActionEchoReferenceTokenProviderRegistry.CreateDefault();
 
         var tokens = registry.GetTokens(CommandActionType.MoveRoomObjectOnGrid);
-        var sharedTokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.MoveRoomObjectOnGrid);
+        var sharedTokens = GetManifestOutputVariableTokens(CommandActionType.MoveRoomObjectOnGrid);
 
         Assert.NotEmpty(sharedTokens);
         Assert.Equal(sharedTokens, tokens);
@@ -241,7 +263,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
         var registry = ActionEchoReferenceTokenProviderRegistry.CreateDefault();
 
         var tokens = registry.GetTokens(CommandActionType.RotateRoomObjectOnGrid);
-        var sharedTokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.RotateRoomObjectOnGrid);
+        var sharedTokens = GetManifestOutputVariableTokens(CommandActionType.RotateRoomObjectOnGrid);
 
         Assert.Empty(sharedTokens);
         Assert.Equal(sharedTokens, tokens);
@@ -253,7 +275,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
         var registry = ActionEchoReferenceTokenProviderRegistry.CreateDefault();
 
         var tokens = registry.GetTokens(CommandActionType.StackRoomObjectOnAnother);
-        var sharedTokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.StackRoomObjectOnAnother);
+        var sharedTokens = GetManifestOutputVariableTokens(CommandActionType.StackRoomObjectOnAnother);
 
         Assert.NotEmpty(sharedTokens);
         Assert.Equal(sharedTokens, tokens);
@@ -285,15 +307,21 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
     [Fact]
     public void SharedDescriptorRegistry_BuildCompositeByParts_DeclaresExpectedPilotTokens()
     {
-        var tokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.BuildCompositeByParts);
+        var tokens = GetManifestOutputVariableTokens(CommandActionType.BuildCompositeByParts);
 
         Assert.Equal(
         [
             "currentAction.all",
             "currentAction.builtObjectNameInGame",
             "currentAction.candidateTargets",
+            "currentAction.candidateTargetsCount",
+            "currentAction.candidateTargets[n]",
             "currentAction.missingParts",
+            "currentAction.missingPartsCount",
+            "currentAction.missingParts[n]",
             "currentAction.providedParts",
+            "currentAction.providedPartsCount",
+            "currentAction.providedParts[n]",
             "currentAction.requestedTarget",
             "currentAction.targetContainerName"
         ],
@@ -303,7 +331,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
     [Fact]
     public void SharedDescriptorRegistry_BuildCompositeByTarget_DeclaresExpectedPilotTokens()
     {
-        var tokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.BuildCompositeByTarget);
+        var tokens = GetManifestOutputVariableTokens(CommandActionType.BuildCompositeByTarget);
 
         Assert.Equal(
         [
@@ -318,15 +346,21 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
     [Fact]
     public void SharedDescriptorRegistry_BreakCompositeItem_DeclaresExpectedPilotTokens()
     {
-        var tokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.BreakCompositeItem);
+        var tokens = GetManifestOutputVariableTokens(CommandActionType.BreakCompositeItem);
 
         Assert.Equal(
         [
             "currentAction.all",
             "currentAction.breakTarget",
             "currentAction.recipeParts",
+            "currentAction.recipePartsCount",
+            "currentAction.recipeParts[n]",
             "currentAction.restoredParts",
-            "currentAction.returnedParts"
+            "currentAction.restoredPartsCount",
+            "currentAction.restoredParts[n]",
+            "currentAction.returnedParts",
+            "currentAction.returnedPartsCount",
+            "currentAction.returnedParts[n]"
         ],
         tokens);
     }
@@ -334,7 +368,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
     [Fact]
     public void SharedDescriptorRegistry_PutObjectInContainer_DeclaresExpectedPilotTokens()
     {
-        var tokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.PutObjectInContainer);
+        var tokens = GetManifestOutputVariableTokens(CommandActionType.PutObjectInContainer);
 
         Assert.Equal(
         [
@@ -354,7 +388,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
     [Fact]
     public void SharedDescriptorRegistry_RemoveObjectFromContainer_DeclaresExpectedPilotTokens()
     {
-        var tokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.RemoveObjectFromContainer);
+        var tokens = GetManifestOutputVariableTokens(CommandActionType.RemoveObjectFromContainer);
 
         Assert.Equal(
         [
@@ -376,7 +410,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
     [Fact]
     public void SharedDescriptorRegistry_NavigateDirection_DeclaresExpectedPilotTokens()
     {
-        var tokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.NavigateDirection);
+        var tokens = GetManifestOutputVariableTokens(CommandActionType.NavigateDirection);
 
         Assert.Equal(
         [
@@ -393,7 +427,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
     [Fact]
     public void SharedDescriptorRegistry_MoveRoomObjectOnGrid_DeclaresExpectedPilotTokens()
     {
-        var tokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.MoveRoomObjectOnGrid);
+        var tokens = GetManifestOutputVariableTokens(CommandActionType.MoveRoomObjectOnGrid);
 
         Assert.Equal(
         [
@@ -410,7 +444,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
     [Fact]
     public void SharedDescriptorRegistry_RotateRoomObjectOnGrid_DeclaresExpectedPilotTokens()
     {
-        var tokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.RotateRoomObjectOnGrid);
+        var tokens = GetManifestOutputVariableTokens(CommandActionType.RotateRoomObjectOnGrid);
 
         Assert.Empty(tokens);
     }
@@ -418,7 +452,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
     [Fact]
     public void SharedDescriptorRegistry_StackRoomObjectOnAnother_DeclaresExpectedPilotTokens()
     {
-        var tokens = RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(CommandActionType.StackRoomObjectOnAnother);
+        var tokens = GetManifestOutputVariableTokens(CommandActionType.StackRoomObjectOnAnother);
 
         Assert.Equal(
         [

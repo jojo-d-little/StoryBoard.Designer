@@ -8,6 +8,6 @@ public sealed class StartTimerActionEchoReferenceTokenProvider : IActionEchoRefe
 
     public IReadOnlyList<string> GetTokens()
     {
-        return RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(ActionType);
+        return StoryboardDesigner.App.Services.ActionManifestCatalog.GetOutputVariableTokens(ActionType);
     }
 }

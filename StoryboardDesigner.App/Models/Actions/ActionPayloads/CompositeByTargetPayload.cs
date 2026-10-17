@@ -16,7 +16,7 @@ public sealed record CompositeByTargetPayload(
 
     public IReadOnlyList<string> GetReferenceTokens()
     {
-        return RuntimeActionOutputVariableKeyCatalog.GetDeclaredActionPropertyTokens(ActionType);
+        return StoryboardDesigner.App.Services.ActionManifestCatalog.GetOutputVariableTokens(ActionType);
     }
 
     public IReadOnlyList<(string FieldName, string Value)> GetScriptFields()

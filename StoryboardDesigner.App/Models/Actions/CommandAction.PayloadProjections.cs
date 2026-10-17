@@ -55,7 +55,7 @@ public sealed partial class CommandAction
                 continue;
             }
 
-            if (RuntimeActionResultCodeRegistry.TryGetDescriptor(actionType, token, out var descriptor))
+            if (StoryboardDesigner.App.Services.ActionManifestCatalog.TryGetDescriptor(actionType, token, out var descriptor))
             {
                 normalizedCurrent[descriptor.Token] = script ?? string.Empty;
                 continue;
@@ -75,7 +75,7 @@ public sealed partial class CommandAction
                     continue;
                 }
 
-                if (!RuntimeActionResultCodeRegistry.TryGetDescriptor(actionType, token, out var descriptor))
+                if (!StoryboardDesigner.App.Services.ActionManifestCatalog.TryGetDescriptor(actionType, token, out var descriptor))
                 {
                     continue;
                 }
@@ -85,7 +85,7 @@ public sealed partial class CommandAction
         }
 
         var normalizedOutcomeMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var supported = RuntimeActionResultCodeRegistry.GetSupportedResultCodes(actionType);
+        var supported = StoryboardDesigner.App.Services.ActionManifestCatalog.GetSupportedResultCodes(actionType);
         foreach (var descriptor in supported)
         {
             if (normalizedCurrent.TryGetValue(descriptor.Token, out var existingScript))
@@ -107,7 +107,7 @@ public sealed partial class CommandAction
         {
             foreach (var (token, script) in normalizedCurrent)
             {
-                if (RuntimeActionResultCodeRegistry.TryGetDescriptor(actionType, token, out _))
+                if (StoryboardDesigner.App.Services.ActionManifestCatalog.TryGetDescriptor(actionType, token, out _))
                 {
                     continue;
                 }
