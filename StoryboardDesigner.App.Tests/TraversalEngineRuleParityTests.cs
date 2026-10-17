@@ -8,6 +8,33 @@ namespace StoryboardDesigner.App.Tests;
 public sealed class TraversalEngineRuleParityTests
 {
     [Fact]
+    public void Execute_ReportsConnectionError_WhenBaseDirectionIsUnspecified()
+    {
+        var roomA = new Room { Name = "A" };
+        var roomB = new Room { Name = "B" };
+        var project = BuildProject(new Area
+        {
+            Name = "Area",
+            Rooms = [roomA, roomB],
+            TraversalConnections =
+            [
+                new TraversalConnection
+                {
+                    RoomAId = roomA.Id,
+                    RoomBId = roomB.Id,
+                    TraversalStateFromA = BuildPassableLeg("true"),
+                    TraversalStateFromB = BuildPassableLeg("true")
+                }
+            ]
+        });
+
+        var issues = ExecuteTraversalRules(project);
+
+        Assert.Contains(issues, issue => issue.RuleId == "TRV-002"
+            && issue.Description.Contains("no usable base direction", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Execute_ReportsConnectionError_WhenFourDirectionalHasDiagonalDirection()
     {
         var roomA = new Room { Name = "A" };

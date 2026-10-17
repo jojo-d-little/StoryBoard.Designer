@@ -119,6 +119,15 @@ public sealed class TraversalDirectionGatingTests
         Assert.Equal(Direction10.Down, vertical[1]);
     }
 
+    [Fact]
+    public void DirectionValues_ExcludeUnknownFromSelectableDirections()
+    {
+        Assert.DoesNotContain(Direction10.Unknown, DirectionValues.All10);
+        Assert.DoesNotContain(Direction10.Unknown, DirectionValues.DefaultTraversalDirections);
+        Assert.Equal(Direction10.Unknown, new TraversalConnection().BaseTraversalDirectionFromA);
+        Assert.Equal(Direction10.Unknown, new DirectionalTraversalMapping().TraversalDirection);
+    }
+
     [Theory]
     [InlineData(Direction10.Up, 10, true, true)]
     [InlineData(Direction10.Down, 10, true, true)]

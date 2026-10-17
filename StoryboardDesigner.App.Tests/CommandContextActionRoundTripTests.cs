@@ -24,6 +24,16 @@ public sealed class CommandContextActionRoundTripTests
         AssertInvalid(CommandContextField.DestinationRoomQualifierResolved, true, Direction10.Down);
         AssertInvalid((CommandContextField)int.MaxValue, true, null);
         AssertInvalid(CommandContextField.Direction, null, (Direction10)int.MaxValue);
+        AssertInvalid(CommandContextField.Direction, null, Direction10.Unknown);
+    }
+
+    [Fact]
+    public void CommandAction_UnknownDirectionRemainsUnspecified()
+    {
+        var action = new CommandAction { Direction = Direction10.Unknown };
+
+        Assert.Equal(Direction10.Unknown, action.Direction);
+        Assert.Equal(string.Empty, action.DirectionQualifierText);
     }
 
     [Fact]

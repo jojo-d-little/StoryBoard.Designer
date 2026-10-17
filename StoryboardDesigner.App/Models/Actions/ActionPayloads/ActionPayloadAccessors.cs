@@ -457,28 +457,28 @@ public static class ActionPayloadAccessors
             return mapped;
         }
 
-        if (GameCommandDirectionFormatting.TryParseToken(normalized, out var parsed)
+        if (Direction10Formatting.TryParseToken(normalized, out var parsed)
             && IsEightWayDirection(parsed))
         {
             return parsed.ToToken();
         }
 
-        return Enum.TryParse<GameCommandDirection>(normalized, true, out var byEnumName)
+        return Enum.TryParse<Direction10>(normalized, true, out var byEnumName)
             && IsEightWayDirection(byEnumName)
             ? byEnumName.ToToken()
             : normalized;
     }
 
-    private static bool IsEightWayDirection(GameCommandDirection direction)
+    private static bool IsEightWayDirection(Direction10 direction)
     {
-        return direction is GameCommandDirection.North
-            or GameCommandDirection.NorthEast
-            or GameCommandDirection.East
-            or GameCommandDirection.SouthEast
-            or GameCommandDirection.South
-            or GameCommandDirection.SouthWest
-            or GameCommandDirection.West
-            or GameCommandDirection.NorthWest;
+        return direction is Direction10.North
+            or Direction10.NorthEast
+            or Direction10.East
+            or Direction10.SouthEast
+            or Direction10.South
+            or Direction10.SouthWest
+            or Direction10.West
+            or Direction10.NorthWest;
     }
 
     public static CompositeByTargetPayload GetCompositeByTargetPayload(CommandAction action)

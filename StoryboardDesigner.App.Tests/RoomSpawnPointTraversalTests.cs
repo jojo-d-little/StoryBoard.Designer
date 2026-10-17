@@ -93,7 +93,13 @@ public sealed class RoomSpawnPointTraversalTests
     {
         var roomA = new Room();
         var roomB = new Room();
-        var aToB = new TraversalConnection { RoomAId = roomA.Id, RoomBId = roomB.Id, TraversalAccessMode = TraversalAccessMode.OneWayAtoB };
+        var aToB = new TraversalConnection
+        {
+            RoomAId = roomA.Id,
+            RoomBId = roomB.Id,
+            BaseTraversalDirectionFromA = Direction10.North,
+            TraversalAccessMode = TraversalAccessMode.OneWayAtoB
+        };
         var area = new Area { Rooms = [roomA, roomB], TraversalConnections = [aToB] };
 
         RoomSpawnPointAuthoringService.EnsureAreaSpawnPoints(area);

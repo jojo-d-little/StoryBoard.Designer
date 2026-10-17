@@ -82,7 +82,7 @@ public static class TraversalWizardApplyUtility
             Direction.SouthWest => Direction.NorthEast,
             Direction.West => Direction.East,
             Direction.NorthWest => Direction.SouthEast,
-            _ => Direction.North
+            _ => Direction.Unknown
         };
     }
 
@@ -100,7 +100,7 @@ public static class TraversalWizardApplyUtility
             Direction10.NorthWest => Direction10.SouthEast,
             Direction10.Up => Direction10.Down,
             Direction10.Down => Direction10.Up,
-            _ => Direction10.North
+            _ => Direction10.Unknown
         };
     }
 
@@ -121,7 +121,7 @@ public static class TraversalWizardApplyUtility
             Direction10.SouthWest => 225,
             Direction10.West => 270,
             Direction10.NorthWest => 315,
-            _ => 0
+            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, "A usable direction is required.")
         };
     }
 
@@ -190,7 +190,7 @@ public static class TraversalWizardApplyUtility
             Direction10.NorthWest => (0, 0),
             Direction10.Up => (centeredX, centeredY),
             Direction10.Down => (centeredX, centeredY),
-            _ => (centeredX, 0)
+            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, "A usable direction is required.")
         };
     }
 
@@ -223,7 +223,7 @@ public static class TraversalWizardApplyUtility
             Direction10.NorthWest => "NW",
             Direction10.Up => "U",
             Direction10.Down => "D",
-            _ => "N"
+            _ => "UNKNOWN"
         };
     }
 
@@ -239,7 +239,7 @@ public static class TraversalWizardApplyUtility
             Direction.SouthWest => Direction10.SouthWest,
             Direction.West => Direction10.West,
             Direction.NorthWest => Direction10.NorthWest,
-            _ => Direction10.North
+            _ => Direction10.Unknown
         };
     }
 

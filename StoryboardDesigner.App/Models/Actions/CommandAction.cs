@@ -154,13 +154,13 @@ public sealed partial class CommandAction : INotifyPropertyChanged,
         }
     }
 
-    public GameCommandDirection Direction
+    public Direction10 Direction
     {
         get
         {
-            return GameCommandDirectionFormatting.TryParseToken(_directionQualifierText, out var parsed)
+            return Direction10Formatting.TryParseToken(_directionQualifierText, out var parsed)
                 ? parsed
-                : GameCommandDirection.Unknown;
+                : Direction10.Unknown;
         }
         set
         {

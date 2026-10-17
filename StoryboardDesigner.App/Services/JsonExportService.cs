@@ -3391,12 +3391,12 @@ public sealed class JsonExportService : IJsonExportService
             return string.Empty;
         }
 
-        if (GameCommandDirectionFormatting.TryParseToken(token, out var parsed))
+        if (Direction10Formatting.TryParseToken(token, out var parsed))
         {
             return parsed.ToToken();
         }
 
-        if (Enum.TryParse<GameCommandDirection>(token, out var byEnumName))
+        if (Enum.TryParse<Direction10>(token, out var byEnumName))
         {
             return byEnumName.ToToken();
         }
@@ -4223,7 +4223,7 @@ public sealed class JsonExportService : IJsonExportService
             Direction10.NorthWest => Direction10.SouthEast,
             Direction10.Up => Direction10.Down,
             Direction10.Down => Direction10.Up,
-            _ => Direction10.North
+            _ => Direction10.Unknown
         };
     }
 
@@ -4269,7 +4269,7 @@ public sealed class JsonExportService : IJsonExportService
             RoomBId = dto.RoomBId,
             BaseTraversalDirectionFromA = Enum.IsDefined(dto.BaseTraversalDirectionFromA)
                 ? dto.BaseTraversalDirectionFromA
-                : Direction10.North,
+                : Direction10.Unknown,
             TraversalModeOverride = dto.TraversalModeOverride.HasValue && Enum.IsDefined(dto.TraversalModeOverride.Value)
                 ? dto.TraversalModeOverride.Value
                 : null,

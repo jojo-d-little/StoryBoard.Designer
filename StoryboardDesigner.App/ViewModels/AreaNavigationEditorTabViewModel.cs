@@ -1066,7 +1066,7 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
         {
             RoomAId = orderedA,
             RoomBId = orderedB,
-            BaseTraversalDirectionFromA = Direction10.North,
+            BaseTraversalDirectionFromA = Direction10.Unknown,
             TraversalAccessMode = TraversalAccessMode.TwoWay
         };
     }
@@ -1113,7 +1113,7 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
             Direction.SouthWest => Direction.NorthEast,
             Direction.West => Direction.East,
             Direction.NorthWest => Direction.SouthEast,
-            _ => Direction.North
+            _ => Direction.Unknown
         };
     }
 
@@ -1131,7 +1131,7 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
             Direction10.NorthWest => Direction10.SouthEast,
             Direction10.Up => Direction10.Down,
             Direction10.Down => Direction10.Up,
-            _ => Direction10.North
+            _ => Direction10.Unknown
         };
     }
 
@@ -1162,7 +1162,7 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
             (-1, 1) => Direction.SouthWest,
             (-1, 0) => Direction.West,
             (-1, -1) => Direction.NorthWest,
-            _ => Direction.North
+            _ => Direction.Unknown
         };
     }
 
@@ -1178,7 +1178,7 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
             Direction.SouthWest => Direction10.SouthWest,
             Direction.West => Direction10.West,
             Direction.NorthWest => Direction10.NorthWest,
-            _ => Direction10.North
+            _ => Direction10.Unknown
         };
     }
 
@@ -1194,10 +1194,11 @@ public sealed class AreaNavigationEditorTabViewModel : ViewModelBase
             Direction10.SouthWest => Direction.SouthWest,
             Direction10.West => Direction.West,
             Direction10.NorthWest => Direction.NorthWest,
-            _ => Direction.North
+            _ => Direction.Unknown
         };
 
-        return direction is not Direction10.Up and not Direction10.Down;
+        return Direction10Formatting.IsUsable(direction)
+            && direction is not Direction10.Up and not Direction10.Down;
     }
 
     private void ExecuteWithUndo(Action action)

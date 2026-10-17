@@ -138,7 +138,8 @@ public partial class ScopedTokenListDialog : Window
             return;
         }
 
-        if (!Enum.TryParse<Direction10>(selection, out var traversalDirection))
+        if (!Enum.TryParse<Direction10>(selection, out var traversalDirection)
+            || !Direction10Formatting.IsUsable(traversalDirection))
         {
             return;
         }
@@ -284,7 +285,8 @@ public partial class ScopedTokenListDialog : Window
     private static IReadOnlyList<string> BuildTraversalDirectionChoices()
     {
         var choices = new List<string> { "(unmapped)" };
-        choices.AddRange(Enum.GetNames<Direction10>());
+        choices.AddRange(Enum.GetNames<Direction10>()
+            .Where(static name => !string.Equals(name, nameof(Direction10.Unknown), StringComparison.Ordinal)));
         return choices;
     }
 

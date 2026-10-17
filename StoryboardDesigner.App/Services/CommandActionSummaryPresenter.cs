@@ -127,7 +127,7 @@ public static class CommandActionSummaryPresenter
         var verbs = action.VerbListText;
         var direction = action.DirectionQualifierText;
         if (!string.IsNullOrWhiteSpace(direction)
-            && GameCommandDirectionFormatting.TryParseToken(direction, out var parsedDirection))
+            && Direction10Formatting.TryParseToken(direction, out var parsedDirection))
         {
             direction = parsedDirection.ToDisplayLabel();
         }

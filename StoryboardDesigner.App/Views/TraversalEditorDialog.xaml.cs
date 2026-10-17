@@ -61,6 +61,7 @@ public partial class TraversalEditorDialog : Window
             InitializeComponent();
 
             _allowedDirections = (allowedDirections ?? DirectionValues.DefaultTraversalDirections)
+                .Where(Direction10Formatting.IsUsable)
                 .Distinct()
                 .ToList();
             if (_allowedDirections.Count == 0)
@@ -133,7 +134,7 @@ public partial class TraversalEditorDialog : Window
 
     public Direction10 BaseTraversalDirectionFromA => DirectionComboBox.SelectedItem is Direction10 direction
         ? direction
-        : Direction10.North;
+        : Direction10.Unknown;
 
     public TraversalAccessMode TraversalAccessMode => TraversalAccessModeComboBox.SelectedItem is TraversalAccessMode accessMode
         ? accessMode
@@ -335,8 +336,8 @@ public partial class TraversalEditorDialog : Window
                 RoomBComboBox.ItemsSource = _roomList;
                 RoomBComboBox.SelectedValue = selectedToRoomId;
                 DirectionComboBox.ItemsSource = _allowedDirections;
-                var selectedDirection = preferredDirection.HasValue && _allowedDirections.Contains(preferredDirection.Value)
-                    ? preferredDirection.Value
+                Direction10? selectedDirection = preferredDirection.HasValue
+                    ? _allowedDirections.Contains(preferredDirection.Value) ? preferredDirection.Value : null
                     : _allowedDirections.FirstOrDefault();
                 DirectionComboBox.SelectedItem = selectedDirection;
                 DirectionComboBox.IsEnabled = true;
@@ -482,7 +483,8 @@ public partial class TraversalEditorDialog : Window
             return;
         }
 
-        if (DirectionComboBox.SelectedItem is not Direction10)
+        if (DirectionComboBox.SelectedItem is not Direction10 selectedDirection
+            || !Direction10Formatting.IsUsable(selectedDirection))
         {
             System.Windows.MessageBox.Show(this,
                 "Select an adjacent destination or switch to Unguided to choose a direction.",

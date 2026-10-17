@@ -4,8 +4,12 @@ namespace StoryboardDesigner.App.ViewModels;
 
 public static class DirectionValues
 {
-    public static IReadOnlyList<Direction> All { get; } = Enum.GetValues<Direction>();
-    public static IReadOnlyList<Direction10> All10 { get; } = Enum.GetValues<Direction10>();
+    public static IReadOnlyList<Direction> All { get; } = Enum.GetValues<Direction>()
+        .Where(static direction => direction != Direction.Unknown)
+        .ToArray();
+    public static IReadOnlyList<Direction10> All10 { get; } = Enum.GetValues<Direction10>()
+        .Where(Direction10Formatting.IsUsable)
+        .ToArray();
 
     public static IReadOnlyList<Direction10> DefaultTraversalDirections { get; } = new[]
     {

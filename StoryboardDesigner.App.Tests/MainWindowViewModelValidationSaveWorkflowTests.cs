@@ -136,6 +136,7 @@ public sealed class MainWindowViewModelValidationSaveWorkflowTests
                 {
                     RoomAId = roomA.Id,
                     RoomBId = roomB.Id,
+                    BaseTraversalDirectionFromA = Direction10.North,
                     TraversalStateFromA = new TraversalLegState { Variables = new List<GamePropertyDefinition>() },
                     TraversalStateFromB = new TraversalLegState { Variables = new List<GamePropertyDefinition>() }
                 }

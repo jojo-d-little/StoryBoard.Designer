@@ -548,12 +548,12 @@ public sealed partial class CommandAction
             return string.Empty;
         }
 
-        if (GameCommandDirectionFormatting.TryParseToken(token, out var parsed))
+        if (Direction10Formatting.TryParseToken(token, out var parsed))
         {
             return parsed.ToToken();
         }
 
-        if (Enum.TryParse<GameCommandDirection>(token, true, out var byEnumName))
+        if (Enum.TryParse<Direction10>(token, true, out var byEnumName))
         {
             return byEnumName.ToToken();
         }
@@ -590,13 +590,13 @@ public sealed partial class CommandAction
             return mapped;
         }
 
-        if (GameCommandDirectionFormatting.TryParseToken(token, out var parsed)
+        if (Direction10Formatting.TryParseToken(token, out var parsed)
             && IsEightWayDirection(parsed))
         {
             return parsed.ToToken();
         }
 
-        if (Enum.TryParse<GameCommandDirection>(token, true, out var byEnumName)
+        if (Enum.TryParse<Direction10>(token, true, out var byEnumName)
             && IsEightWayDirection(byEnumName))
         {
             return byEnumName.ToToken();
@@ -605,16 +605,16 @@ public sealed partial class CommandAction
         return token;
     }
 
-    private static bool IsEightWayDirection(GameCommandDirection direction)
+    private static bool IsEightWayDirection(Direction10 direction)
     {
-        return direction is GameCommandDirection.North
-            or GameCommandDirection.NorthEast
-            or GameCommandDirection.East
-            or GameCommandDirection.SouthEast
-            or GameCommandDirection.South
-            or GameCommandDirection.SouthWest
-            or GameCommandDirection.West
-            or GameCommandDirection.NorthWest;
+        return direction is Direction10.North
+            or Direction10.NorthEast
+            or Direction10.East
+            or Direction10.SouthEast
+            or Direction10.South
+            or Direction10.SouthWest
+            or Direction10.West
+            or Direction10.NorthWest;
     }
 
     public Guid? SynonymTargetActionId

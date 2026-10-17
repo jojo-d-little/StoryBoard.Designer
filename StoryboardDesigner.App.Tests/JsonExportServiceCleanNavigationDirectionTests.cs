@@ -160,6 +160,36 @@ public sealed class JsonExportServiceCleanNavigationDirectionTests
         }
     }
 
+    [Fact]
+    public void SaveProjectModel_PreservesUnknownTraversalDirection()
+    {
+        var action = new CommandAction { Name = "Unspecified Direction", Direction = Direction10.Unknown };
+        var project = new ProjectModel
+        {
+            Name = "Unknown Direction Round Trip",
+            GlobalObjectAvailableActions = [action]
+        };
+        var service = new JsonExportService();
+        var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+
+        try
+        {
+            var projectFilePath = Path.Combine(tempRoot, "UnknownDirection.sbe.json");
+            service.SaveProjectModel(projectFilePath, project);
+
+            var loaded = Assert.IsType<ProjectModel>(service.TryLoadProjectModel(projectFilePath));
+            var loadedAction = Assert.Single(loaded.GlobalObjectAvailableActions);
+
+            Assert.Equal(Direction10.Unknown, loadedAction.Direction);
+            Assert.Equal(string.Empty, loadedAction.DirectionQualifierText);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
     private static string BuildScopeKindAreaPath(string projectFilePath, Guid areaId)
     {
         var folder = Path.Combine(Path.GetDirectoryName(projectFilePath) ?? string.Empty, "GameRuntimeJson", "Area");

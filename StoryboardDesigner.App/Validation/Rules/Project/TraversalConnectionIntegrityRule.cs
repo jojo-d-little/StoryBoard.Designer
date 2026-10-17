@@ -1,4 +1,5 @@
 using StoryboardDesigner.App.Models;
+using Storyboard.Shared.GameServices.Commands;
 using StoryboardDesigner.App.Validation.Contracts;
 
 namespace StoryboardDesigner.App.Validation.Rules.Project;
@@ -30,6 +31,16 @@ public sealed class TraversalConnectionIntegrityRule : IValidationRule
         foreach (var connection in area.TraversalConnections)
         {
             var connectionPath = $"{areaPath} / TraversalConnection/{connection.TraversalConnectionId:N}";
+
+            if (!Direction10Formatting.IsUsable(connection.BaseTraversalDirectionFromA))
+            {
+                yield return new ValidationIssue(
+                    Metadata.RuleId,
+                    Metadata.DefaultSeverity,
+                    connectionPath,
+                    "traversal connection has no usable base direction.",
+                    "Choose a real direction for BaseTraversalDirectionFromA.");
+            }
 
             if (connection.RoomAId == Guid.Empty || connection.RoomBId == Guid.Empty)
             {

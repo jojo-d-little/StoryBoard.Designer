@@ -1,4 +1,5 @@
 using Storyboard.Shared.RuntimeContracts.Enums;
+using Storyboard.Shared.GameServices.Commands;
 
 namespace StoryboardDesigner.App.Validation.Rules.Actions;
 
@@ -15,7 +16,7 @@ public static class CommandContextPayloadValidator
             CommandContextField.DirectionSpecified or CommandContextField.DestinationRoomQualifierResolved
                 when expectedBoolean.HasValue && expectedDirection is null => string.Empty,
             CommandContextField.Direction
-                when expectedBoolean is null && expectedDirection.HasValue && Enum.IsDefined(expectedDirection.Value) => string.Empty,
+                when expectedBoolean is null && expectedDirection.HasValue && Direction10Formatting.IsUsable(expectedDirection.Value) => string.Empty,
             CommandContextField.DirectionSpecified or CommandContextField.DestinationRoomQualifierResolved
                 => "This command detail requires a True/False value and no direction value.",
             CommandContextField.Direction

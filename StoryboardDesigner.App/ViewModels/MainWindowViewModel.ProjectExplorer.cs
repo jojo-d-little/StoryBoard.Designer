@@ -3700,10 +3700,11 @@ public sealed partial class MainWindowViewModel
             Direction10.SouthWest => Direction.SouthWest,
             Direction10.West => Direction.West,
             Direction10.NorthWest => Direction.NorthWest,
-            _ => Direction.North
+            _ => Direction.Unknown
         };
 
-        return direction is not Direction10.Up and not Direction10.Down;
+        return Direction10Formatting.IsUsable(direction)
+            && direction is not Direction10.Up and not Direction10.Down;
     }
 
     private static Direction10 ToDirection10(Direction direction)
@@ -3718,7 +3719,7 @@ public sealed partial class MainWindowViewModel
             Direction.SouthWest => Direction10.SouthWest,
             Direction.West => Direction10.West,
             Direction.NorthWest => Direction10.NorthWest,
-            _ => Direction10.North
+            _ => Direction10.Unknown
         };
     }
 

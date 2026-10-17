@@ -83,7 +83,9 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
 
     public IReadOnlyList<string> RoomChildObjectFilterOptions { get; } = ["All", "Visible", "Hidden"];
 
-    public IReadOnlyList<Direction10> SpawnPointFacingOptions { get; } = Enum.GetValues<Direction10>();
+    public IReadOnlyList<Direction10> SpawnPointFacingOptions { get; } = Enum.GetValues<Direction10>()
+        .Where(Direction10Formatting.IsUsable)
+        .ToArray();
 
     public bool HasDefaultSpawnPoint => Room.SpawnPoints.Any(static point => point.IsDefault);
 

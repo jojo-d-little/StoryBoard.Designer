@@ -461,6 +461,7 @@ public partial class RoomActionEditorDialog : Window
             new CommandContextBooleanOption(false, "False")
         };
         CommandContextDirectionValueComboBox.ItemsSource = Enum.GetValues<Direction10>()
+            .Where(Direction10Formatting.IsUsable)
             .Select(static direction => new CommandContextDirectionOption(direction, direction.ToString()))
             .ToList();
         EchoFunctionListBox.ItemsSource = BuiltInFunctions;
@@ -1564,8 +1565,8 @@ public partial class RoomActionEditorDialog : Window
         }
 
         if (!string.IsNullOrWhiteSpace(directionToken)
-            && GameCommandDirectionFormatting.TryParseToken(directionToken, out var parsedDirection)
-            && parsedDirection != GameCommandDirection.Unknown)
+            && Direction10Formatting.TryParseToken(directionToken, out var parsedDirection)
+            && Direction10Formatting.IsUsable(parsedDirection))
         {
             directionToken = parsedDirection.ToToken();
         }
@@ -1659,19 +1660,21 @@ public partial class RoomActionEditorDialog : Window
 
     private static bool IsMoveDirectionTokenValid(string token)
     {
-        if (GameCommandDirectionFormatting.TryParseToken(token, out _))
+        if (Direction10Formatting.TryParseToken(token, out var parsed)
+            && Direction10Formatting.IsUsable(parsed))
         {
             return true;
         }
 
-        return Enum.TryParse<GameCommandDirection>(token, true, out _);
+        return Enum.TryParse<Direction10>(token, true, out parsed)
+            && Direction10Formatting.IsUsable(parsed);
     }
 
     private static IReadOnlyList<string> BuildMoveDirectionChoices()
     {
         var values = new List<string> { string.Empty };
-        values.AddRange(Enum.GetValues<GameCommandDirection>()
-            .Where(static direction => direction != GameCommandDirection.Unknown)
+        values.AddRange(Enum.GetValues<Direction10>()
+            .Where(Direction10Formatting.IsUsable)
             .Select(static direction => direction.ToToken()));
         return values;
     }
@@ -1701,9 +1704,9 @@ public partial class RoomActionEditorDialog : Window
             return false;
         }
 
-        if (!GameCommandDirectionFormatting.TryParseToken(value, out var parsed))
+        if (!Direction10Formatting.TryParseToken(value, out var parsed))
         {
-            if (!Enum.TryParse<GameCommandDirection>(value, true, out parsed))
+            if (!Enum.TryParse<Direction10>(value, true, out parsed))
             {
                 return false;
             }
@@ -1718,16 +1721,16 @@ public partial class RoomActionEditorDialog : Window
         return true;
     }
 
-    private static bool IsEightWayDirection(GameCommandDirection direction)
+    private static bool IsEightWayDirection(Direction10 direction)
     {
-        return direction is GameCommandDirection.North
-            or GameCommandDirection.NorthEast
-            or GameCommandDirection.East
-            or GameCommandDirection.SouthEast
-            or GameCommandDirection.South
-            or GameCommandDirection.SouthWest
-            or GameCommandDirection.West
-            or GameCommandDirection.NorthWest;
+        return direction is Direction10.North
+            or Direction10.NorthEast
+            or Direction10.East
+            or Direction10.SouthEast
+            or Direction10.South
+            or Direction10.SouthWest
+            or Direction10.West
+            or Direction10.NorthWest;
     }
 
     private void RotateModeComboBox_OnSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)

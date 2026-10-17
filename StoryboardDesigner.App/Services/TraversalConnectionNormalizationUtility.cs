@@ -75,7 +75,7 @@ public static class TraversalConnectionNormalizationUtility
             Direction.SouthWest => Direction.NorthEast,
             Direction.West => Direction.East,
             Direction.NorthWest => Direction.SouthEast,
-            _ => Direction.North
+            _ => Direction.Unknown
         };
     }
 
@@ -91,7 +91,7 @@ public static class TraversalConnectionNormalizationUtility
             Direction.SouthWest => Direction10.SouthWest,
             Direction.West => Direction10.West,
             Direction.NorthWest => Direction10.NorthWest,
-            _ => Direction10.North
+            _ => Direction10.Unknown
         };
     }
 }
