@@ -2999,20 +2999,20 @@ public sealed class JsonExportService : IJsonExportService
         var moveDistanceInCellsFromPayload = TryGetMoveDistanceInCellsFromPayload(action.Payload);
         var moveAllowPartialMoveFromPayload = TryGetMoveAllowPartialMoveFromPayload(action.Payload);
         var moveAllowJumpOverFromPayload = TryGetMoveAllowJumpOverFromPayload(action.Payload);
-        var moveVisualTransitionHintFromPayload = TryGetMoveVisualTransitionHintFromPayload(action.Payload);
+        var moveMovementEffectKeyFromPayload = TryGetMoveMovementEffectKeyFromPayload(action.Payload);
         var moveTravelVisualizationModeFromPayload = TryGetMoveTravelVisualizationModeFromPayload(action.Payload);
         var moveTargetObjectIdFromPayload = TryGetMoveTargetObjectIdFromPayload(action.Payload);
         var moveByPointsTargetResolutionIntentFromPayload = TryGetMoveByPointsTargetResolutionIntentFromPayload(action.Payload);
         var moveByPointsAllowPartialMoveFromPayload = TryGetMoveByPointsAllowPartialMoveFromPayload(action.Payload);
         var moveByPointsAllowJumpOverFromPayload = TryGetMoveByPointsAllowJumpOverFromPayload(action.Payload);
-        var moveByPointsVisualTransitionHintFromPayload = TryGetMoveByPointsVisualTransitionHintFromPayload(action.Payload);
+        var moveByPointsMovementEffectKeyFromPayload = TryGetMoveByPointsMovementEffectKeyFromPayload(action.Payload);
         var moveByPointsTravelVisualizationModeFromPayload = TryGetMoveByPointsTravelVisualizationModeFromPayload(action.Payload);
         var rotateModeFromPayload = TryGetRotateModeFromPayload(action.Payload);
         var rotateTurnDegreesFromPayload = TryGetRotateTurnDegreesFromPayload(action.Payload);
         var rotateFacingDirectionTokenFromPayload = TryGetRotateFacingDirectionTokenFromPayload(action.Payload);
-        var rotateVisualTransitionHintFromPayload = TryGetRotateVisualTransitionHintFromPayload(action.Payload);
+        var rotateMovementEffectKeyFromPayload = TryGetRotateMovementEffectKeyFromPayload(action.Payload);
         var rotateTargetObjectIdFromPayload = TryGetRotateTargetObjectIdFromPayload(action.Payload);
-        var stackVisualTransitionHintFromPayload = TryGetStackVisualTransitionHintFromPayload(action.Payload);
+        var stackMovementEffectKeyFromPayload = TryGetStackMovementEffectKeyFromPayload(action.Payload);
         var clearActiveScopeFromPayload = TryGetClearActiveRoomObjectsScopeFromPayload(action.Payload);
         var setActiveSelectionCueEffectKeyFromPayload = TryGetSetActiveSelectionCueEffectKeyFromPayload(action.Payload);
         var selectByPointSelectionCueEffectKeyFromPayload = TryGetSelectByPointSelectionCueEffectKeyFromPayload(action.Payload);
@@ -3103,8 +3103,8 @@ public sealed class JsonExportService : IJsonExportService
 
         if (model.ActionType == CommandActionType.MoveRoomObjectOnGrid)
         {
-            var moveHint = moveVisualTransitionHintFromPayload
-                ?? RuntimeMovementVisualTransitionHint.Medium;
+            var moveHint = moveMovementEffectKeyFromPayload
+                ?? MovementPresentationEffectKeys.DefaultMedium;
             var moveTravelMode = moveTravelVisualizationModeFromPayload
                 ?? RuntimeMovementTravelVisualizationMode.LegByLeg;
             var moveDirectionSource = moveDirectionTokenFromPayload ?? action.Direction;
@@ -3124,8 +3124,8 @@ public sealed class JsonExportService : IJsonExportService
         {
             var rotateMode = rotateModeFromPayload
                 ?? RuntimeRotateRoomObjectOnGridAttemptMode.Turn;
-            var rotateHint = rotateVisualTransitionHintFromPayload
-                ?? RuntimeMovementVisualTransitionHint.Medium;
+            var rotateHint = rotateMovementEffectKeyFromPayload
+                ?? MovementPresentationEffectKeys.DefaultMedium;
             var rotateTurnDegrees = rotateMode == RuntimeRotateRoomObjectOnGridAttemptMode.Turn
                 ? rotateTurnDegreesFromPayload
                 : null;
@@ -3161,8 +3161,8 @@ public sealed class JsonExportService : IJsonExportService
 
         if (model.ActionType == CommandActionType.MoveRoomObjectByPoints)
         {
-            var moveHint = moveByPointsVisualTransitionHintFromPayload
-                ?? RuntimeMovementVisualTransitionHint.Medium;
+            var moveHint = moveByPointsMovementEffectKeyFromPayload
+                ?? MovementPresentationEffectKeys.DefaultMedium;
             var moveTravelMode = moveByPointsTravelVisualizationModeFromPayload
                 ?? RuntimeMovementTravelVisualizationMode.LegByLeg;
             ActionPayloadAccessors.SetMoveRoomObjectByPoints(
@@ -3176,8 +3176,8 @@ public sealed class JsonExportService : IJsonExportService
 
         if (model.ActionType == CommandActionType.StackRoomObjectOnAnother)
         {
-            var stackHint = stackVisualTransitionHintFromPayload
-                ?? RuntimeMovementVisualTransitionHint.Medium;
+            var stackHint = stackMovementEffectKeyFromPayload
+                ?? MovementPresentationEffectKeys.DefaultMedium;
 
             ActionPayloadAccessors.SetStackRoomObjectOnAnother(
                 model,
@@ -7696,7 +7696,7 @@ public sealed class JsonExportService : IJsonExportService
             DistanceInCells = movePayload.DistanceInCells,
             AllowPartialMove = movePayload.AllowPartialMove,
             AllowJumpOver = movePayload.AllowJumpOver,
-            VisualTransitionHint = movePayload.VisualTransitionHint.ToString(),
+            MovementEffectKey = movePayload.MovementEffectKey,
             TravelVisualizationMode = movePayload.TravelVisualizationMode.ToString(),
             TargetObjectId = movePayload.TargetObjectId
         };
@@ -7709,7 +7709,7 @@ public sealed class JsonExportService : IJsonExportService
             TargetResolutionIntent = movePayload.TargetResolutionIntent ?? string.Empty,
             AllowPartialMove = movePayload.AllowPartialMove,
             AllowJumpOver = movePayload.AllowJumpOver,
-            VisualTransitionHint = movePayload.VisualTransitionHint.ToString(),
+            MovementEffectKey = movePayload.MovementEffectKey,
             TravelVisualizationMode = movePayload.TravelVisualizationMode.ToString()
         };
     }
@@ -7721,7 +7721,7 @@ public sealed class JsonExportService : IJsonExportService
             Mode = rotatePayload.Mode.ToString(),
             TurnDegrees = rotatePayload.TurnDegrees ?? 90,
             FacingDirectionToken = rotatePayload.FacingDirectionToken ?? string.Empty,
-            VisualTransitionHint = rotatePayload.VisualTransitionHint.ToString(),
+            MovementEffectKey = rotatePayload.MovementEffectKey,
             TargetObjectId = rotatePayload.TargetObjectId
         };
     }
@@ -7730,7 +7730,7 @@ public sealed class JsonExportService : IJsonExportService
     {
         return new ProjectStackRoomObjectOnAnotherActionPayloadDto
         {
-            VisualTransitionHint = stackPayload.VisualTransitionHint.ToString()
+            MovementEffectKey = stackPayload.MovementEffectKey
         };
     }
 
@@ -8070,7 +8070,7 @@ public sealed class JsonExportService : IJsonExportService
             DistanceInCells = movePayload.DistanceInCells,
             AllowPartialMove = movePayload.AllowPartialMove,
             AllowJumpOver = movePayload.AllowJumpOver,
-            VisualTransitionHint = movePayload.VisualTransitionHint.ToString(),
+            MovementEffectKey = movePayload.MovementEffectKey,
             TravelVisualizationMode = movePayload.TravelVisualizationMode.ToString(),
             TargetObjectId = movePayload.TargetObjectId
         };
@@ -8083,7 +8083,7 @@ public sealed class JsonExportService : IJsonExportService
             TargetResolutionIntent = movePayload.TargetResolutionIntent ?? string.Empty,
             AllowPartialMove = movePayload.AllowPartialMove,
             AllowJumpOver = movePayload.AllowJumpOver,
-            VisualTransitionHint = movePayload.VisualTransitionHint.ToString(),
+            MovementEffectKey = movePayload.MovementEffectKey,
             TravelVisualizationMode = movePayload.TravelVisualizationMode.ToString()
         };
     }
@@ -8095,7 +8095,7 @@ public sealed class JsonExportService : IJsonExportService
             Mode = rotatePayload.Mode.ToString(),
             TurnDegrees = rotatePayload.TurnDegrees ?? 90,
             FacingDirectionToken = rotatePayload.FacingDirectionToken ?? string.Empty,
-            VisualTransitionHint = rotatePayload.VisualTransitionHint.ToString(),
+            MovementEffectKey = rotatePayload.MovementEffectKey,
             TargetObjectId = rotatePayload.TargetObjectId
         };
     }
@@ -8104,7 +8104,7 @@ public sealed class JsonExportService : IJsonExportService
     {
         return new RuntimeStackRoomObjectOnAnotherActionPayloadDto
         {
-            VisualTransitionHint = stackPayload.VisualTransitionHint.ToString()
+            MovementEffectKey = stackPayload.MovementEffectKey
         };
     }
 
@@ -8202,16 +8202,14 @@ public sealed class JsonExportService : IJsonExportService
         return movePayload.AllowJumpOver;
     }
 
-    private static RuntimeMovementVisualTransitionHint? TryGetMoveVisualTransitionHintFromPayload(ProjectCommandActionPayloadBaseDto? payload)
+    private static string? TryGetMoveMovementEffectKeyFromPayload(ProjectCommandActionPayloadBaseDto? payload)
     {
         if (payload is not ProjectMoveRoomObjectOnGridActionPayloadDto movePayload)
         {
             return null;
         }
 
-        return Enum.TryParse<RuntimeMovementVisualTransitionHint>(movePayload.VisualTransitionHint, true, out var parsedHint)
-            ? parsedHint
-            : null;
+        return NormalizeMovementEffectKey(movePayload.MovementEffectKey);
     }
 
     private static RuntimeMovementTravelVisualizationMode? TryGetMoveTravelVisualizationModeFromPayload(ProjectCommandActionPayloadBaseDto? payload)
@@ -8256,16 +8254,14 @@ public sealed class JsonExportService : IJsonExportService
         return moveByPointsPayload.AllowJumpOver;
     }
 
-    private static RuntimeMovementVisualTransitionHint? TryGetMoveByPointsVisualTransitionHintFromPayload(ProjectCommandActionPayloadBaseDto? payload)
+    private static string? TryGetMoveByPointsMovementEffectKeyFromPayload(ProjectCommandActionPayloadBaseDto? payload)
     {
         if (payload is not ProjectMoveRoomObjectByPointsActionPayloadDto moveByPointsPayload)
         {
             return null;
         }
 
-        return Enum.TryParse<RuntimeMovementVisualTransitionHint>(moveByPointsPayload.VisualTransitionHint, true, out var parsedHint)
-            ? parsedHint
-            : null;
+        return NormalizeMovementEffectKey(moveByPointsPayload.MovementEffectKey);
     }
 
     private static RuntimeMovementTravelVisualizationMode? TryGetMoveByPointsTravelVisualizationModeFromPayload(ProjectCommandActionPayloadBaseDto? payload)
@@ -8334,16 +8330,14 @@ public sealed class JsonExportService : IJsonExportService
         return rotatePayload.FacingDirectionToken;
     }
 
-    private static RuntimeMovementVisualTransitionHint? TryGetRotateVisualTransitionHintFromPayload(ProjectCommandActionPayloadBaseDto? payload)
+    private static string? TryGetRotateMovementEffectKeyFromPayload(ProjectCommandActionPayloadBaseDto? payload)
     {
         if (payload is not ProjectRotateRoomObjectOnGridActionPayloadDto rotatePayload)
         {
             return null;
         }
 
-        return Enum.TryParse<RuntimeMovementVisualTransitionHint>(rotatePayload.VisualTransitionHint, true, out var parsedHint)
-            ? parsedHint
-            : null;
+        return NormalizeMovementEffectKey(rotatePayload.MovementEffectKey);
     }
 
     private static Guid? TryGetRotateTargetObjectIdFromPayload(ProjectCommandActionPayloadBaseDto? payload)
@@ -8353,16 +8347,24 @@ public sealed class JsonExportService : IJsonExportService
             : null;
     }
 
-    private static RuntimeMovementVisualTransitionHint? TryGetStackVisualTransitionHintFromPayload(ProjectCommandActionPayloadBaseDto? payload)
+    private static string? TryGetStackMovementEffectKeyFromPayload(ProjectCommandActionPayloadBaseDto? payload)
     {
         if (payload is not ProjectStackRoomObjectOnAnotherActionPayloadDto stackPayload)
         {
             return null;
         }
 
-        return Enum.TryParse<RuntimeMovementVisualTransitionHint>(stackPayload.VisualTransitionHint, true, out var parsedHint)
-            ? parsedHint
-            : null;
+        return NormalizeMovementEffectKey(stackPayload.MovementEffectKey);
+    }
+
+    private static string? NormalizeMovementEffectKey(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return value.Trim();
     }
 
     private static Guid? TryGetCompositeTargetObjectIdFromPayload(ProjectCommandActionPayloadBaseDto? payload)

@@ -1013,9 +1013,21 @@ public class JsonExportServiceProjectStateTests
                 "north",
                 3,
                 true,
-                RuntimeMovementVisualTransitionHint.Fast,
+                "movement.speed.fast",
                 allowJumpOver: true,
                 travelVisualizationMode: RuntimeMovementTravelVisualizationMode.Direct);
+
+            var moveByPointsAction = new CommandAction
+            {
+                Name = "MoveByPoints",
+                ActionType = CommandActionType.MoveRoomObjectByPoints
+            };
+            ActionPayloadAccessors.SetMoveRoomObjectByPoints(
+                moveByPointsAction,
+                "PrimarySelection",
+                allowPartialMove: false,
+                allowJumpOver: false,
+                movementEffectKey: "movement.speed.medium");
 
             var rotateAction = new CommandAction
             {
@@ -1027,7 +1039,7 @@ public class JsonExportServiceProjectStateTests
                 RuntimeRotateRoomObjectOnGridAttemptMode.Face,
                 null,
                 "southwest",
-                RuntimeMovementVisualTransitionHint.Slow);
+                "movement.speed.slow");
 
             var stackAction = new CommandAction
             {
@@ -1036,7 +1048,7 @@ public class JsonExportServiceProjectStateTests
             };
             ActionPayloadAccessors.SetStackRoomObjectOnAnother(
                 stackAction,
-                RuntimeMovementVisualTransitionHint.Quantum);
+                "movement.speed.quantum");
 
             var compositeTargetId = Guid.NewGuid();
             var compositePartA = Guid.NewGuid();
@@ -1089,7 +1101,7 @@ public class JsonExportServiceProjectStateTests
             var room = new Room
             {
                 Name = "Room A",
-                AvailableActions = [echoAction, checkAction, setFlagAction, setAction, synonymAction, containerAction, navigateAction, moveAction, rotateAction, stackAction, compositePartsAction, materializeAction, invokeProcedureAction]
+                AvailableActions = [echoAction, checkAction, setFlagAction, setAction, synonymAction, containerAction, navigateAction, moveAction, moveByPointsAction, rotateAction, stackAction, compositePartsAction, materializeAction, invokeProcedureAction]
             };
 
             var area = new Area { Name = "Area A", Rooms = [room] };
@@ -1129,6 +1141,9 @@ public class JsonExportServiceProjectStateTests
             var synonymPayload = synonymJson.GetProperty("payload");
             var containerPayload = containerJson.GetProperty("payload");
             var movePayload = moveJson.GetProperty("payload");
+            var moveByPointsPayload = actions
+                .Single(action => string.Equals(action.GetProperty("name").GetString(), "MoveByPoints", StringComparison.Ordinal))
+                .GetProperty("payload");
             var rotatePayload = rotateJson.GetProperty("payload");
             var stackPayload = stackJson.GetProperty("payload");
             var materializePayload = materializeJson.GetProperty("payload");
@@ -1157,13 +1172,16 @@ public class JsonExportServiceProjectStateTests
             Assert.Equal(3, movePayload.GetProperty("distanceInCells").GetInt32());
             Assert.True(movePayload.GetProperty("allowPartialMove").GetBoolean());
             Assert.True(movePayload.GetProperty("allowJumpOver").GetBoolean());
-            Assert.Equal("Fast", movePayload.GetProperty("visualTransitionHint").GetString());
+            Assert.Equal("movement.speed.fast", movePayload.GetProperty("movementEffectKey").GetString());
+            Assert.False(movePayload.TryGetProperty("visualTransitionHint", out _));
+            Assert.Equal("movement.speed.medium", moveByPointsPayload.GetProperty("movementEffectKey").GetString());
+            Assert.False(moveByPointsPayload.TryGetProperty("visualTransitionHint", out _));
             Assert.Equal("Direct", movePayload.GetProperty("travelVisualizationMode").GetString());
             Assert.Equal("Face", rotatePayload.GetProperty("mode").GetString());
             Assert.Equal("SW", rotatePayload.GetProperty("facingDirectionToken").GetString());
-            Assert.Equal("Slow", rotatePayload.GetProperty("visualTransitionHint").GetString());
+            Assert.Equal("movement.speed.slow", rotatePayload.GetProperty("movementEffectKey").GetString());
             Assert.False(rotateJson.TryGetProperty("rotateTurnDegrees", out _));
-            Assert.Equal("Quantum", stackPayload.GetProperty("visualTransitionHint").GetString());
+            Assert.Equal("movement.speed.quantum", stackPayload.GetProperty("movementEffectKey").GetString());
             Assert.Equal(invokeProcedureId.ToString(), invokePayload.GetProperty("procedureId").GetString());
             Assert.False(compositeJson.TryGetProperty("compositeMatchMode", out _));
             Assert.False(compositeJson.TryGetProperty("compositeAmbiguityPolicy", out _));
@@ -1203,6 +1221,25 @@ public class JsonExportServiceProjectStateTests
             Assert.Contains(compositePartA.ToString(), requiredParts);
             Assert.Contains(compositePartB.ToString(), requiredParts);
 
+            var legacyRoomNode = JsonNode.Parse(File.ReadAllText(roomFilePath, Encoding.UTF8))!.AsObject();
+            var legacyActions = legacyRoomNode["availableGameActions"]!.AsArray();
+            foreach (var (actionName, legacyHint) in new[]
+                     {
+                         ("Move", "Fast"),
+                         ("MoveByPoints", "Medium"),
+                         ("Rotate", "Slow"),
+                         ("Stack", "Quantum")
+                     })
+            {
+                var payloadNode = legacyActions
+                    .Single(actionNode => string.Equals(actionNode!["name"]!.GetValue<string>(), actionName, StringComparison.Ordinal))!["payload"]!
+                    .AsObject();
+                payloadNode.Remove("movementEffectKey");
+                payloadNode["visualTransitionHint"] = legacyHint;
+            }
+
+            File.WriteAllText(roomFilePath, legacyRoomNode.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), Encoding.UTF8);
+
             var loaded = service.TryLoadProjectModel(projectFilePath);
             var loadedPlanet = Assert.Single(loaded!.Planets);
             var loadedCountry = Assert.Single(loadedPlanet.Countries);
@@ -1216,6 +1253,7 @@ public class JsonExportServiceProjectStateTests
             var loadedContainer = loadedRoom.AvailableActions.Single(action => action.Name == "Put");
             var loadedNavigate = loadedRoom.AvailableActions.Single(action => action.Name == "Navigate");
             var loadedMove = loadedRoom.AvailableActions.Single(action => action.Name == "Move");
+            var loadedMoveByPoints = loadedRoom.AvailableActions.Single(action => action.Name == "MoveByPoints");
             var loadedRotate = loadedRoom.AvailableActions.Single(action => action.Name == "Rotate");
             var loadedStack = loadedRoom.AvailableActions.Single(action => action.Name == "Stack");
             var loadedComposite = loadedRoom.AvailableActions.Single(action => action.Name == "CompositeParts");
@@ -1250,15 +1288,16 @@ public class JsonExportServiceProjectStateTests
             Assert.Equal(3, loadedMovePayload.DistanceInCells);
             Assert.True(loadedMovePayload.AllowPartialMove);
             Assert.True(loadedMovePayload.AllowJumpOver);
-            Assert.Equal(RuntimeMovementVisualTransitionHint.Fast, loadedMovePayload.VisualTransitionHint);
+            Assert.Equal("movement.speed.fast", loadedMovePayload.MovementEffectKey);
             Assert.Equal(RuntimeMovementTravelVisualizationMode.Direct, loadedMovePayload.TravelVisualizationMode);
+            Assert.Equal("movement.speed.medium", ActionPayloadAccessors.GetMoveRoomObjectByPointsPayload(loadedMoveByPoints).MovementEffectKey);
             var loadedRotatePayload = ActionPayloadAccessors.GetRotateRoomObjectOnGridPayload(loadedRotate);
             Assert.Equal(RuntimeRotateRoomObjectOnGridAttemptMode.Face, loadedRotatePayload.Mode);
             Assert.Null(loadedRotatePayload.TurnDegrees);
             Assert.Equal("SW", loadedRotatePayload.FacingDirectionToken);
-            Assert.Equal(RuntimeMovementVisualTransitionHint.Slow, loadedRotatePayload.VisualTransitionHint);
+            Assert.Equal("movement.speed.slow", loadedRotatePayload.MovementEffectKey);
             var loadedStackPayload = ActionPayloadAccessors.GetStackRoomObjectOnAnotherPayload(loadedStack);
-            Assert.Equal(RuntimeMovementVisualTransitionHint.Quantum, loadedStackPayload.VisualTransitionHint);
+            Assert.Equal("movement.speed.quantum", loadedStackPayload.MovementEffectKey);
             var loadedCompositePayload = ActionPayloadAccessors.GetCompositeByPartsPayload(loadedComposite);
             Assert.Equal("payload-match-mode", loadedCompositePayload.CompositeMatchMode);
             Assert.Equal("payload-ambiguity", loadedCompositePayload.CompositeAmbiguityPolicy);
@@ -1267,6 +1306,25 @@ public class JsonExportServiceProjectStateTests
             Assert.Equal(invokeProcedureId, ActionPayloadAccessors.GetProcedureId(loadedInvoke));
             Assert.Contains(compositePartA, loadedCompositePayload.CompositeRequiredPartObjectIds);
             Assert.Contains(compositePartB, loadedCompositePayload.CompositeRequiredPartObjectIds);
+
+            service.SaveProjectModel(projectFilePath, loaded);
+            using var migratedRoomDoc = JsonDocument.Parse(File.ReadAllText(roomFilePath, Encoding.UTF8));
+            foreach (var (actionName, expectedKey) in new[]
+                     {
+                         ("Move", "movement.speed.fast"),
+                         ("MoveByPoints", "movement.speed.medium"),
+                         ("Rotate", "movement.speed.slow"),
+                         ("Stack", "movement.speed.quantum")
+                     })
+            {
+                var migratedPayload = migratedRoomDoc.RootElement
+                    .GetProperty("availableGameActions")
+                    .EnumerateArray()
+                    .Single(actionJson => string.Equals(actionJson.GetProperty("name").GetString(), actionName, StringComparison.Ordinal))
+                    .GetProperty("payload");
+                Assert.Equal(expectedKey, migratedPayload.GetProperty("movementEffectKey").GetString());
+                Assert.False(migratedPayload.TryGetProperty("visualTransitionHint", out _));
+            }
         }
         finally
         {

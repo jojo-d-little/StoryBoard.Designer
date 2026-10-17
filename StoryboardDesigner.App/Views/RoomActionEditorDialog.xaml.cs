@@ -309,9 +309,9 @@ public partial class RoomActionEditorDialog : Window
             MoveAllowJumpOver = sourceAction.ActionType == CommandActionType.MoveRoomObjectByPoints
                 ? sourceMoveByPointsPayload.AllowJumpOver
                 : sourceMovePayload.AllowJumpOver,
-            MoveVisualTransitionHint = sourceAction.ActionType == CommandActionType.MoveRoomObjectByPoints
-                ? sourceMoveByPointsPayload.VisualTransitionHint
-                : sourceMovePayload.VisualTransitionHint,
+            MoveMovementEffectKey = sourceAction.ActionType == CommandActionType.MoveRoomObjectByPoints
+                ? sourceMoveByPointsPayload.MovementEffectKey
+                : sourceMovePayload.MovementEffectKey,
             MoveTravelVisualizationMode = sourceAction.ActionType == CommandActionType.MoveRoomObjectByPoints
                 ? sourceMoveByPointsPayload.TravelVisualizationMode
                 : sourceMovePayload.TravelVisualizationMode,
@@ -319,9 +319,9 @@ public partial class RoomActionEditorDialog : Window
             RotateMode = sourceRotatePayload.Mode,
             RotateTurnDegrees = sourceRotatePayload.TurnDegrees,
             RotateFacingDirectionToken = sourceRotatePayload.FacingDirectionToken,
-            RotateVisualTransitionHint = sourceRotatePayload.VisualTransitionHint,
+            RotateMovementEffectKey = sourceRotatePayload.MovementEffectKey,
             RotateTargetObjectId = sourceRotatePayload.TargetObjectId,
-            StackVisualTransitionHint = sourceStackPayload.VisualTransitionHint,
+            StackMovementEffectKey = sourceStackPayload.MovementEffectKey,
             SelectionCueEffectKey = sourceAction.ActionType == CommandActionType.SelectRoomObjectByPoint
                 ? sourceSelectByPointPayload.SelectionCueEffectKey
                 : sourceSetActivePayload.SelectionCueEffectKey,
@@ -366,7 +366,7 @@ public partial class RoomActionEditorDialog : Window
             sourceMovePayload.DirectionToken,
             sourceMovePayload.DistanceInCells,
             sourceMovePayload.AllowPartialMove,
-            sourceMovePayload.VisualTransitionHint,
+            sourceMovePayload.MovementEffectKey,
             sourceMovePayload.AllowJumpOver,
             sourceMovePayload.TravelVisualizationMode,
             sourceMovePayload.TargetObjectId);
@@ -375,18 +375,18 @@ public partial class RoomActionEditorDialog : Window
             sourceMoveByPointsPayload.TargetResolutionIntent,
             sourceMoveByPointsPayload.AllowPartialMove,
             sourceMoveByPointsPayload.AllowJumpOver,
-            sourceMoveByPointsPayload.VisualTransitionHint,
+            sourceMoveByPointsPayload.MovementEffectKey,
             sourceMoveByPointsPayload.TravelVisualizationMode);
         ActionPayloadAccessors.SetRotateRoomObjectOnGrid(
             _workingCopy,
             sourceRotatePayload.Mode,
             sourceRotatePayload.TurnDegrees,
             sourceRotatePayload.FacingDirectionToken,
-            sourceRotatePayload.VisualTransitionHint,
+            sourceRotatePayload.MovementEffectKey,
             sourceRotatePayload.TargetObjectId);
         ActionPayloadAccessors.SetStackRoomObjectOnAnother(
             _workingCopy,
-            sourceStackPayload.VisualTransitionHint);
+            sourceStackPayload.MovementEffectKey);
         ActionPayloadAccessors.SetSetActiveRoomObject(
             _workingCopy,
             sourceSetActivePayload.SelectionCueEffectKey);
@@ -418,20 +418,28 @@ public partial class RoomActionEditorDialog : Window
         VariableReferenceListBox.ItemsSource = _variableReferenceTokens;
         VariableValueBooleanComboBox.ItemsSource = new[] { "true", "false" };
         MoveDirectionOverrideComboBox.ItemsSource = BuildMoveDirectionChoices();
-        var configuredMovementHints = _presentationEffectsCatalogService.GetConfiguredMovementHints();
-        MoveVisualTransitionHintComboBox.ItemsSource = configuredMovementHints;
+        var configuredMovementEffects = _presentationEffectsCatalogService.GetConfiguredMovementEffects();
+        MoveMovementEffectKeyComboBox.ItemsSource = configuredMovementEffects;
+        MoveMovementEffectKeyComboBox.DisplayMemberPath = nameof(MovementEffectChoiceItem.DisplayName);
+        MoveMovementEffectKeyComboBox.SelectedValuePath = nameof(MovementEffectChoiceItem.EffectKey);
         MoveTravelVisualizationModeComboBox.ItemsSource = Enum.GetValues<RuntimeMovementTravelVisualizationMode>();
         MoveByPointsTargetResolutionIntentComboBox.ItemsSource = MoveByPointsTargetResolutionIntentChoices;
         RotateModeComboBox.ItemsSource = Enum.GetValues<RuntimeRotateRoomObjectOnGridAttemptMode>();
         RotateFacingDirectionComboBox.ItemsSource = BuildRotateFacingDirectionChoices();
-        RotateVisualTransitionHintComboBox.ItemsSource = configuredMovementHints;
-        StackVisualTransitionHintComboBox.ItemsSource = configuredMovementHints;
+        RotateMovementEffectKeyComboBox.ItemsSource = configuredMovementEffects;
+        RotateMovementEffectKeyComboBox.DisplayMemberPath = nameof(MovementEffectChoiceItem.DisplayName);
+        RotateMovementEffectKeyComboBox.SelectedValuePath = nameof(MovementEffectChoiceItem.EffectKey);
+        StackMovementEffectKeyComboBox.ItemsSource = configuredMovementEffects;
+        StackMovementEffectKeyComboBox.DisplayMemberPath = nameof(MovementEffectChoiceItem.DisplayName);
+        StackMovementEffectKeyComboBox.SelectedValuePath = nameof(MovementEffectChoiceItem.EffectKey);
         SetActiveSelectionCueEffectKeyComboBox.ItemsSource = BuildSelectionCueEffectKeyChoices();
         SelectByPointSelectionCueEffectKeyComboBox.ItemsSource = BuildSelectionCueEffectKeyChoices();
         ObjectPresentationCueEffectKeyComboBox.ItemsSource = _presentationEffectsCatalogService.GetObjectCueEligibleEffectKeys();
         ObjectPresentationCueObjectIdComboBox.ItemsSource = BuildPresentationCueObjectChoices();
         ClearActiveScopeComboBox.ItemsSource = ClearRoomObjectSelectionsScopeChoices.ClearActiveRoomObjects;
-        MoveByPointsVisualTransitionHintComboBox.ItemsSource = configuredMovementHints;
+        MoveByPointsMovementEffectKeyComboBox.ItemsSource = configuredMovementEffects;
+        MoveByPointsMovementEffectKeyComboBox.DisplayMemberPath = nameof(MovementEffectChoiceItem.DisplayName);
+        MoveByPointsMovementEffectKeyComboBox.SelectedValuePath = nameof(MovementEffectChoiceItem.EffectKey);
         MoveByPointsTravelVisualizationModeComboBox.ItemsSource = Enum.GetValues<RuntimeMovementTravelVisualizationMode>();
         ClearRoomObjectSelectionsScopeComboBox.ItemsSource = ClearRoomObjectSelectionsScopeChoices.ClearRoomObjectSelections;
         LoadMoveByPointsEditorInputs();
@@ -1006,6 +1014,20 @@ public partial class RoomActionEditorDialog : Window
             return;
         }
 
+        var movementEffectKey = _workingCopy.ActionType switch
+        {
+            CommandActionType.MoveRoomObjectOnGrid or CommandActionType.MoveRoomObjectByPoints => _workingCopy.MoveMovementEffectKey,
+            CommandActionType.RotateRoomObjectOnGrid => _workingCopy.RotateMovementEffectKey,
+            CommandActionType.StackRoomObjectOnAnother => _workingCopy.StackMovementEffectKey,
+            _ => null
+        };
+        if (movementEffectKey is not null
+            && !_presentationEffectsCatalogService.IsConfiguredMovementEffectKey(movementEffectKey))
+        {
+            System.Windows.MessageBox.Show(this, "Choose a configured movement presentation effect.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         if (_workingCopy.ActionType == CommandActionType.SelectRoomObjectByPoint
             && !TryApplySelectRoomObjectByPointInputs())
         {
@@ -1114,7 +1136,7 @@ public partial class RoomActionEditorDialog : Window
             _workingCopy.MoveDirectionToken,
             _workingCopy.MoveDistanceInCells,
             _workingCopy.MoveAllowPartialMove,
-            _workingCopy.MoveVisualTransitionHint,
+            _workingCopy.MoveMovementEffectKey,
             _workingCopy.MoveAllowJumpOver,
             _workingCopy.MoveTravelVisualizationMode,
             _workingCopy.MoveTargetObjectId);
@@ -1123,18 +1145,18 @@ public partial class RoomActionEditorDialog : Window
             workingMoveByPointsPayload.TargetResolutionIntent,
             workingMoveByPointsPayload.AllowPartialMove,
             workingMoveByPointsPayload.AllowJumpOver,
-            workingMoveByPointsPayload.VisualTransitionHint,
+            workingMoveByPointsPayload.MovementEffectKey,
             workingMoveByPointsPayload.TravelVisualizationMode);
         ActionPayloadAccessors.SetRotateRoomObjectOnGrid(
             _sourceAction,
             _workingCopy.RotateMode,
             _workingCopy.RotateTurnDegrees,
             _workingCopy.RotateFacingDirectionToken,
-            _workingCopy.RotateVisualTransitionHint,
+            _workingCopy.RotateMovementEffectKey,
             _workingCopy.RotateTargetObjectId);
         ActionPayloadAccessors.SetStackRoomObjectOnAnother(
             _sourceAction,
-            _workingCopy.StackVisualTransitionHint);
+            _workingCopy.StackMovementEffectKey);
         ActionPayloadAccessors.SetSetActiveRoomObject(
             _sourceAction,
             _workingCopy.SelectionCueEffectKey);
@@ -1470,7 +1492,7 @@ public partial class RoomActionEditorDialog : Window
             : MoveByPointsTargetResolutionIntentChoices[0];
         MoveByPointsAllowPartialCheckBox.IsChecked = payload.AllowPartialMove;
         MoveByPointsAllowJumpOverCheckBox.IsChecked = payload.AllowJumpOver;
-        MoveByPointsVisualTransitionHintComboBox.SelectedItem = payload.VisualTransitionHint;
+        MoveByPointsMovementEffectKeyComboBox.SelectedValue = payload.MovementEffectKey;
         MoveByPointsTravelVisualizationModeComboBox.SelectedItem = payload.TravelVisualizationMode;
     }
 
@@ -1484,9 +1506,8 @@ public partial class RoomActionEditorDialog : Window
             return false;
         }
 
-        var visualTransitionHint = MoveByPointsVisualTransitionHintComboBox.SelectedItem is RuntimeMovementVisualTransitionHint selectedHint
-            ? selectedHint
-            : RuntimeMovementVisualTransitionHint.Medium;
+        var movementEffectKey = MoveByPointsMovementEffectKeyComboBox.SelectedValue as string
+            ?? _presentationEffectsCatalogService.GetDefaultMovementEffectKey();
         var travelVisualizationMode = MoveByPointsTravelVisualizationModeComboBox.SelectedItem is RuntimeMovementTravelVisualizationMode selectedTravelMode
             ? selectedTravelMode
             : RuntimeMovementTravelVisualizationMode.LegByLeg;
@@ -1496,7 +1517,7 @@ public partial class RoomActionEditorDialog : Window
             targetResolutionIntent,
             MoveByPointsAllowPartialCheckBox.IsChecked == true,
             MoveByPointsAllowJumpOverCheckBox.IsChecked == true,
-            visualTransitionHint,
+            movementEffectKey,
             travelVisualizationMode);
 
         return true;
@@ -1575,9 +1596,8 @@ public partial class RoomActionEditorDialog : Window
         _workingCopy.MoveDistanceInCells = parsedDistance;
         _workingCopy.MoveAllowPartialMove = MoveAllowPartialCheckBox.IsChecked == true;
         _workingCopy.MoveAllowJumpOver = MoveAllowJumpOverCheckBox.IsChecked == true;
-        _workingCopy.MoveVisualTransitionHint = MoveVisualTransitionHintComboBox.SelectedItem is RuntimeMovementVisualTransitionHint selectedHint
-            ? selectedHint
-            : RuntimeMovementVisualTransitionHint.Medium;
+        _workingCopy.MoveMovementEffectKey = MoveMovementEffectKeyComboBox.SelectedValue as string
+            ?? _presentationEffectsCatalogService.GetDefaultMovementEffectKey();
         _workingCopy.MoveTravelVisualizationMode = MoveTravelVisualizationModeComboBox.SelectedItem is RuntimeMovementTravelVisualizationMode selectedTravelMode
             ? selectedTravelMode
             : RuntimeMovementTravelVisualizationMode.LegByLeg;
@@ -1644,17 +1664,15 @@ public partial class RoomActionEditorDialog : Window
         _workingCopy.RotateFacingDirectionToken = mode == RuntimeRotateRoomObjectOnGridAttemptMode.Face
             ? facingToken
             : string.Empty;
-        _workingCopy.RotateVisualTransitionHint = RotateVisualTransitionHintComboBox.SelectedItem is RuntimeMovementVisualTransitionHint selectedHint
-            ? selectedHint
-            : RuntimeMovementVisualTransitionHint.Medium;
+        _workingCopy.RotateMovementEffectKey = RotateMovementEffectKeyComboBox.SelectedValue as string
+            ?? _presentationEffectsCatalogService.GetDefaultMovementEffectKey();
         return true;
     }
 
     private bool TryApplyStackRoomObjectOnAnotherInputs()
     {
-        _workingCopy.StackVisualTransitionHint = StackVisualTransitionHintComboBox.SelectedItem is RuntimeMovementVisualTransitionHint selectedHint
-            ? selectedHint
-            : RuntimeMovementVisualTransitionHint.Medium;
+        _workingCopy.StackMovementEffectKey = StackMovementEffectKeyComboBox.SelectedValue as string
+            ?? _presentationEffectsCatalogService.GetDefaultMovementEffectKey();
         return true;
     }
 

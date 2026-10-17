@@ -1,6 +1,6 @@
 using System.IO;
 using Storyboard.GameEngine.Configuration.Catalogs;
-using Storyboard.Shared.GameServices.RuntimeContext;
+using StoryboardDesigner.App.Models;
 
 namespace StoryboardDesigner.App.Services;
 
@@ -22,27 +22,48 @@ public sealed class PresentationEffectsCatalogService
         return _catalog.Value;
     }
 
-    public IReadOnlyList<RuntimeMovementVisualTransitionHint> GetConfiguredMovementHints()
+    public IReadOnlyList<MovementEffectChoiceItem> GetConfiguredMovementEffects()
     {
-        var ordered = _catalog.Value.Effects
+        return _catalog.Value.Effects
             .Where(static effect => string.Equals(effect.Category, "Movement", StringComparison.OrdinalIgnoreCase))
-            .Select(static effect => Enum.TryParse<RuntimeMovementVisualTransitionHint>(effect.MovementHint, true, out var hint)
-                ? (RuntimeMovementVisualTransitionHint?)hint
-                : null)
-            .Where(static hint => hint.HasValue)
-            .Select(static hint => hint!.Value)
-            .Distinct()
+            .Select(static effect => new MovementEffectChoiceItem(
+                effect.EffectKey?.Trim() ?? string.Empty,
+                string.IsNullOrWhiteSpace(effect.DisplayName) ? effect.EffectKey?.Trim() ?? string.Empty : effect.DisplayName.Trim()))
+            .Where(static effect => !string.IsNullOrWhiteSpace(effect.EffectKey))
+            .GroupBy(static effect => effect.EffectKey, StringComparer.OrdinalIgnoreCase)
+            .Select(static group => group.First())
+            .OrderBy(static effect => effect.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
 
-        foreach (var fallback in Enum.GetValues<RuntimeMovementVisualTransitionHint>())
+    public string GetDefaultMovementEffectKey()
+    {
+        return GetConfiguredMovementEffects()
+            .FirstOrDefault(static effect => string.Equals(
+                effect.EffectKey,
+                MovementPresentationEffectKeys.DefaultMedium,
+                StringComparison.OrdinalIgnoreCase))?.EffectKey
+            ?? string.Empty;
+    }
+
+    public bool IsConfiguredMovementEffectKey(string? effectKey)
+    {
+        if (string.IsNullOrWhiteSpace(effectKey))
         {
-            if (!ordered.Contains(fallback))
-            {
-                ordered.Add(fallback);
-            }
+            return false;
         }
 
-        return ordered;
+        return _catalog.Value.Effects.Any(effect =>
+            string.Equals(effect.Category, "Movement", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(effect.EffectKey?.Trim(), effectKey.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    public string GetMovementEffectDisplayName(string? effectKey)
+    {
+        return GetConfiguredMovementEffects()
+            .FirstOrDefault(effect => string.Equals(effect.EffectKey, effectKey?.Trim(), StringComparison.OrdinalIgnoreCase))?.DisplayName
+            ?? effectKey?.Trim()
+            ?? string.Empty;
     }
 
     public IReadOnlyList<string> GetConfiguredRoomTransitionEffectKeys()

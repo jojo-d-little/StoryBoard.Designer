@@ -1,6 +1,5 @@
 using Storyboard.Shared.GameServices.Actions;
 using Storyboard.Shared.GameServices.References;
-using Storyboard.Shared.GameServices.RuntimeContext;
 
 namespace StoryboardDesigner.App.Models;
 
@@ -11,7 +10,7 @@ public sealed record MoveRoomObjectOnGridPayload : IActionPayload
         int distanceInCells = 1,
         bool allowPartialMove = false,
         bool allowJumpOver = false,
-        RuntimeMovementVisualTransitionHint visualTransitionHint = RuntimeMovementVisualTransitionHint.Medium,
+        string movementEffectKey = MovementPresentationEffectKeys.DefaultMedium,
         RuntimeMovementTravelVisualizationMode travelVisualizationMode = RuntimeMovementTravelVisualizationMode.LegByLeg,
         Guid? targetObjectId = null)
     {
@@ -19,7 +18,7 @@ public sealed record MoveRoomObjectOnGridPayload : IActionPayload
         DistanceInCells = distanceInCells < 1 ? 1 : distanceInCells;
         AllowPartialMove = allowPartialMove;
         AllowJumpOver = allowJumpOver;
-        VisualTransitionHint = visualTransitionHint;
+        MovementEffectKey = movementEffectKey?.Trim() ?? string.Empty;
         TravelVisualizationMode = travelVisualizationMode;
         TargetObjectId = targetObjectId is Guid id && id != Guid.Empty ? id : null;
     }
@@ -34,7 +33,7 @@ public sealed record MoveRoomObjectOnGridPayload : IActionPayload
 
     public bool AllowJumpOver { get; init; }
 
-    public RuntimeMovementVisualTransitionHint VisualTransitionHint { get; init; }
+    public string MovementEffectKey { get; init; }
 
     public RuntimeMovementTravelVisualizationMode TravelVisualizationMode { get; init; }
 

@@ -1967,6 +1967,7 @@ public sealed partial class MainWindowViewModel
         registry.Register(new ScopedSoundEffectReferenceRule());
         registry.Register(new SequenceActionTargetExistsRule());
         registry.Register(new CheckCommandContextPayloadRule());
+        registry.Register(new MovementPresentationEffectKeyRule());
         registry.Register(new ScriptUnknownReferenceRule());
         registry.Register(new ScriptMalformedIndexedReferenceRule());
         registry.Register(new ScriptIfElseBlockIntegrityRule());

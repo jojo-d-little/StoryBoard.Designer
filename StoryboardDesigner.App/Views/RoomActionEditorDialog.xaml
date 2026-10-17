@@ -565,12 +565,12 @@
                              VerticalContentAlignment="Center"
                              Text="{Binding MoveDistanceInCells, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-                    <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Transition Hint" ToolTip="Host-side visual speed/style hint for movement presentation." />
-                    <ComboBox x:Name="MoveVisualTransitionHintComboBox"
+                    <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Movement Effect" ToolTip="Presentation effect used when this movement succeeds." />
+                    <ComboBox x:Name="MoveMovementEffectKeyComboBox"
                               Grid.Row="3"
                               Grid.Column="1"
                               Margin="0,0,0,10"
-                              SelectedItem="{Binding MoveVisualTransitionHint, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                              SelectedValue="{Binding MoveMovementEffectKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Partial Movement" ToolTip="Allow stopping early when blocked before full distance." />
                     <CheckBox x:Name="MoveAllowPartialCheckBox"
@@ -639,12 +639,12 @@
                               IsEditable="False"
                               ToolTip="Choose whether point movement resolves from primary selection, object at first point, or player." />
 
-                    <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Transition Hint" ToolTip="Host-side visual speed/style hint for movement presentation." />
-                    <ComboBox x:Name="MoveByPointsVisualTransitionHintComboBox"
+                    <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Movement Effect" ToolTip="Presentation effect used when this movement succeeds." />
+                    <ComboBox x:Name="MoveByPointsMovementEffectKeyComboBox"
                               Grid.Row="2"
                               Grid.Column="1"
                               Margin="0,0,0,10"
-                              ToolTip="Visual hint for point-based movement presentation." />
+                              ToolTip="Presentation effect used when point movement succeeds." />
 
                     <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Partial Movement" ToolTip="Allow stopping early when blocked before full point sequence completion." />
                     <CheckBox x:Name="MoveByPointsAllowPartialCheckBox"
@@ -730,12 +730,12 @@
                               Text="{Binding RotateFacingDirectionToken, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               ToolTip="Optional in Face mode. Leave blank to require direction from the player command." />
 
-                    <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Transition Hint" ToolTip="Host-side visual speed/style hint for rotation presentation." />
-                    <ComboBox x:Name="RotateVisualTransitionHintComboBox"
+                    <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Movement Effect" ToolTip="Presentation effect used when this rotation succeeds." />
+                    <ComboBox x:Name="RotateMovementEffectKeyComboBox"
                               Grid.Row="4"
                               Grid.Column="1"
                               Margin="0,0,0,10"
-                              SelectedItem="{Binding RotateVisualTransitionHint, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                              SelectedValue="{Binding RotateMovementEffectKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Target Object" ToolTip="Optional. Choose the exact room object this action should rotate." />
                     <Grid Grid.Row="5" Grid.Column="1" Margin="0,0,0,10">
@@ -768,12 +768,12 @@
                                TextWrapping="Wrap"
                                Text="Stacks the resolved subject object onto the resolved target object from command secondary token. This action is all-or-fail in v1." />
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Transition Hint" ToolTip="Host-side visual speed/style hint for stack presentation." />
-                    <ComboBox x:Name="StackVisualTransitionHintComboBox"
+                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Movement Effect" ToolTip="Presentation effect used when this stack succeeds." />
+                    <ComboBox x:Name="StackMovementEffectKeyComboBox"
                               Grid.Row="1"
                               Grid.Column="1"
                               Margin="0,0,0,10"
-                              SelectedItem="{Binding StackVisualTransitionHint, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                              SelectedValue="{Binding StackMovementEffectKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 </Grid>
 
                 <Grid x:Name="SetActiveRoomObjectEditorPanel" Visibility="Collapsed">

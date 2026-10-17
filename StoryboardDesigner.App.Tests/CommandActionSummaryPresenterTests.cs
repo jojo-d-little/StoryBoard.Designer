@@ -142,12 +142,12 @@ public sealed class CommandActionSummaryPresenterTests
             "west",
             4,
             true,
-            RuntimeMovementVisualTransitionHint.Slow,
+            "movement.speed.slow",
             allowJumpOver: true);
 
         var summary = CommandActionSummaryPresenter.BuildSummary(action);
 
-        Assert.Contains("Move -> dir: west; cells: 4; allow partial; jump-over path; hint: Slow", summary, StringComparison.Ordinal);
+        Assert.Contains("Move -> dir: west; cells: 4; allow partial; jump-over path; effect: Slow", summary, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -163,11 +163,11 @@ public sealed class CommandActionSummaryPresenterTests
             RuntimeRotateRoomObjectOnGridAttemptMode.Face,
             null,
             "NW",
-            RuntimeMovementVisualTransitionHint.Fast);
+            "movement.speed.fast");
 
         var summary = CommandActionSummaryPresenter.BuildSummary(action);
 
-        Assert.Contains("Rotate -> mode: Face; facing: NW; hint: Fast", summary, StringComparison.Ordinal);
+        Assert.Contains("Rotate -> mode: Face; facing: NW; effect: Fast", summary, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -180,12 +180,12 @@ public sealed class CommandActionSummaryPresenterTests
 
         ActionPayloadAccessors.SetStackRoomObjectOnAnother(
             action,
-            RuntimeMovementVisualTransitionHint.Quantum);
+            "movement.speed.quantum");
 
         var summary = CommandActionSummaryPresenter.BuildSummary(action);
 
         Assert.Contains("Stack ->", summary, StringComparison.Ordinal);
-        Assert.Contains("hint: Quantum", summary, StringComparison.Ordinal);
+        Assert.Contains("effect: Quantum", summary, StringComparison.Ordinal);
     }
 }
 

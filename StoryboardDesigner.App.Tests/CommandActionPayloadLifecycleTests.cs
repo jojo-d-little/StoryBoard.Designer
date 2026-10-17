@@ -268,7 +268,7 @@ public sealed class CommandActionPayloadLifecycleTests
             "north",
             3,
             true,
-            RuntimeMovementVisualTransitionHint.Fast,
+            "movement.speed.fast",
             allowJumpOver: true);
 
         var payload = ActionPayloadAccessors.GetMoveRoomObjectOnGridPayload(action);
@@ -276,7 +276,7 @@ public sealed class CommandActionPayloadLifecycleTests
         Assert.Equal(3, payload.DistanceInCells);
         Assert.True(payload.AllowPartialMove);
         Assert.True(payload.AllowJumpOver);
-        Assert.Equal(RuntimeMovementVisualTransitionHint.Fast, payload.VisualTransitionHint);
+        Assert.Equal("movement.speed.fast", payload.MovementEffectKey);
     }
 
     [Fact]
@@ -292,13 +292,13 @@ public sealed class CommandActionPayloadLifecycleTests
             RuntimeRotateRoomObjectOnGridAttemptMode.Face,
             null,
             "east",
-            RuntimeMovementVisualTransitionHint.Slow);
+            "movement.speed.slow");
 
         var payload = ActionPayloadAccessors.GetRotateRoomObjectOnGridPayload(action);
         Assert.Equal(RuntimeRotateRoomObjectOnGridAttemptMode.Face, payload.Mode);
         Assert.Null(payload.TurnDegrees);
         Assert.Equal("E", payload.FacingDirectionToken);
-        Assert.Equal(RuntimeMovementVisualTransitionHint.Slow, payload.VisualTransitionHint);
+        Assert.Equal("movement.speed.slow", payload.MovementEffectKey);
     }
 
     [Fact]
@@ -334,10 +334,10 @@ public sealed class CommandActionPayloadLifecycleTests
 
         ActionPayloadAccessors.SetStackRoomObjectOnAnother(
             action,
-            RuntimeMovementVisualTransitionHint.Fast);
+            "movement.speed.fast");
 
         var payload = ActionPayloadAccessors.GetStackRoomObjectOnAnotherPayload(action);
-        Assert.Equal(RuntimeMovementVisualTransitionHint.Fast, payload.VisualTransitionHint);
+        Assert.Equal("movement.speed.fast", payload.MovementEffectKey);
     }
 
     [Fact]

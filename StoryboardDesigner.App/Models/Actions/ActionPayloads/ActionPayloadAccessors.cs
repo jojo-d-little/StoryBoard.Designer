@@ -211,7 +211,7 @@ public static class ActionPayloadAccessors
                 TargetResolutionIntent: "PrimarySelection",
                 AllowPartialMove: movePayload.AllowPartialMove,
                 AllowJumpOver: movePayload.AllowJumpOver,
-                VisualTransitionHint: movePayload.VisualTransitionHint,
+                MovementEffectKey: movePayload.MovementEffectKey,
                 TravelVisualizationMode: movePayload.TravelVisualizationMode);
         }
 
@@ -219,7 +219,7 @@ public static class ActionPayloadAccessors
             TargetResolutionIntent: "PrimarySelection",
             AllowPartialMove: action.MoveAllowPartialMove,
             AllowJumpOver: action.MoveAllowJumpOver,
-            VisualTransitionHint: action.MoveVisualTransitionHint,
+            MovementEffectKey: action.MoveMovementEffectKey,
             TravelVisualizationMode: action.MoveTravelVisualizationMode);
     }
 
@@ -239,7 +239,7 @@ public static class ActionPayloadAccessors
             mode: fallbackMode,
             turnDegrees: 90,
             facingDirectionToken: fallbackFacing,
-            visualTransitionHint: Storyboard.Shared.GameServices.RuntimeContext.RuntimeMovementVisualTransitionHint.Medium,
+            movementEffectKey: MovementPresentationEffectKeys.DefaultMedium,
             targetObjectId: action.RotateTargetObjectId);
     }
 
@@ -251,7 +251,7 @@ public static class ActionPayloadAccessors
         }
 
         return new StackRoomObjectOnAnotherPayload(
-            RuntimeMovementVisualTransitionHint.Medium);
+            MovementPresentationEffectKeys.DefaultMedium);
     }
 
     public static SetActiveRoomObjectPayload GetSetActiveRoomObjectPayload(CommandAction action)
@@ -304,7 +304,7 @@ public static class ActionPayloadAccessors
         string directionToken,
         int distanceInCells,
         bool allowPartialMove,
-        Storyboard.Shared.GameServices.RuntimeContext.RuntimeMovementVisualTransitionHint visualTransitionHint,
+        string movementEffectKey,
         bool allowJumpOver = false,
         Storyboard.Shared.GameServices.RuntimeContext.RuntimeMovementTravelVisualizationMode travelVisualizationMode = Storyboard.Shared.GameServices.RuntimeContext.RuntimeMovementTravelVisualizationMode.LegByLeg,
         Guid? targetObjectId = null)
@@ -319,7 +319,7 @@ public static class ActionPayloadAccessors
             distanceInCells,
             allowPartialMove,
             allowJumpOver,
-            visualTransitionHint,
+            movementEffectKey,
             travelVisualizationMode,
             targetObjectId);
     }
@@ -329,7 +329,7 @@ public static class ActionPayloadAccessors
         string targetResolutionIntent,
         bool allowPartialMove,
         bool allowJumpOver,
-        RuntimeMovementVisualTransitionHint visualTransitionHint,
+        string movementEffectKey,
         RuntimeMovementTravelVisualizationMode travelVisualizationMode = RuntimeMovementTravelVisualizationMode.LegByLeg)
     {
         if (action.ActionType != CommandActionType.MoveRoomObjectByPoints)
@@ -341,7 +341,7 @@ public static class ActionPayloadAccessors
             targetResolutionIntent?.Trim() ?? string.Empty,
             allowPartialMove,
             allowJumpOver,
-            visualTransitionHint,
+            movementEffectKey,
             travelVisualizationMode);
     }
 
@@ -350,7 +350,7 @@ public static class ActionPayloadAccessors
         RuntimeRotateRoomObjectOnGridAttemptMode mode,
         int? turnDegrees,
         string facingDirectionToken,
-        Storyboard.Shared.GameServices.RuntimeContext.RuntimeMovementVisualTransitionHint visualTransitionHint,
+        string movementEffectKey,
         Guid? targetObjectId = null)
     {
         if (action.ActionType != CommandActionType.RotateRoomObjectOnGrid)
@@ -362,20 +362,20 @@ public static class ActionPayloadAccessors
             mode,
             turnDegrees,
             NormalizeRotateFacingDirectionToken(facingDirectionToken),
-            visualTransitionHint,
+            movementEffectKey,
             targetObjectId);
     }
 
     public static void SetStackRoomObjectOnAnother(
         CommandAction action,
-        RuntimeMovementVisualTransitionHint visualTransitionHint)
+        string movementEffectKey)
     {
         if (action.ActionType != CommandActionType.StackRoomObjectOnAnother)
         {
             return;
         }
 
-        action.Payload = new StackRoomObjectOnAnotherPayload(visualTransitionHint);
+        action.Payload = new StackRoomObjectOnAnotherPayload(movementEffectKey);
     }
 
     public static void SetSetActiveRoomObject(

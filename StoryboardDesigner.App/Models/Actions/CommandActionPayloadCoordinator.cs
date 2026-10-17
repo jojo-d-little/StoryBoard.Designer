@@ -47,7 +47,7 @@ internal static class CommandActionPayloadCoordinator
         nameof(CommandAction.MoveDistanceInCells),
         nameof(CommandAction.MoveAllowPartialMove),
         nameof(CommandAction.MoveAllowJumpOver),
-        nameof(CommandAction.MoveVisualTransitionHint),
+        nameof(CommandAction.MoveMovementEffectKey),
         nameof(CommandAction.MoveTravelVisualizationMode),
         nameof(CommandAction.MoveTargetObjectId)
     ];
@@ -56,7 +56,7 @@ internal static class CommandActionPayloadCoordinator
     [
         nameof(CommandAction.MoveAllowPartialMove),
         nameof(CommandAction.MoveAllowJumpOver),
-        nameof(CommandAction.MoveVisualTransitionHint),
+        nameof(CommandAction.MoveMovementEffectKey),
         nameof(CommandAction.MoveTravelVisualizationMode)
     ];
 
@@ -65,13 +65,13 @@ internal static class CommandActionPayloadCoordinator
         nameof(CommandAction.RotateMode),
         nameof(CommandAction.RotateTurnDegrees),
         nameof(CommandAction.RotateFacingDirectionToken),
-        nameof(CommandAction.RotateVisualTransitionHint),
+        nameof(CommandAction.RotateMovementEffectKey),
         nameof(CommandAction.RotateTargetObjectId)
     ];
 
     private static readonly string[] StackProjectionProperties =
     [
-        nameof(CommandAction.StackVisualTransitionHint)
+        nameof(CommandAction.StackMovementEffectKey)
     ];
 
     private static readonly string[] ObjectPresentationCueProjectionProperties =
@@ -174,7 +174,7 @@ internal static class CommandActionPayloadCoordinator
                 TargetResolutionIntent: "PrimarySelection",
                 AllowPartialMove: false,
                 AllowJumpOver: false,
-                VisualTransitionHint: RuntimeMovementVisualTransitionHint.Medium,
+                MovementEffectKey: MovementPresentationEffectKeys.DefaultMedium,
                 TravelVisualizationMode: RuntimeMovementTravelVisualizationMode.LegByLeg),
             CommandActionType.RotateRoomObjectOnGrid => new RotateRoomObjectOnGridPayload(),
             CommandActionType.StackRoomObjectOnAnother => new StackRoomObjectOnAnotherPayload(),
@@ -228,23 +228,23 @@ internal static class CommandActionPayloadCoordinator
                 move.DistanceInCells,
                 move.AllowPartialMove,
                 move.AllowJumpOver,
-                move.VisualTransitionHint,
+                move.MovementEffectKey,
                 move.TravelVisualizationMode,
                 move.TargetObjectId),
             MoveRoomObjectByPointsPayload moveByPoints => new MoveRoomObjectByPointsPayload(
                 moveByPoints.TargetResolutionIntent,
                 moveByPoints.AllowPartialMove,
                 moveByPoints.AllowJumpOver,
-                moveByPoints.VisualTransitionHint,
+                moveByPoints.MovementEffectKey,
                 moveByPoints.TravelVisualizationMode),
             RotateRoomObjectOnGridPayload rotate => new RotateRoomObjectOnGridPayload(
                 rotate.Mode,
                 rotate.TurnDegrees,
                 rotate.FacingDirectionToken,
-                rotate.VisualTransitionHint,
+                rotate.MovementEffectKey,
                 rotate.TargetObjectId),
             StackRoomObjectOnAnotherPayload stack => new StackRoomObjectOnAnotherPayload(
-                stack.VisualTransitionHint),
+                stack.MovementEffectKey),
             AddObjectPresentationCuePayload addCue => new AddObjectPresentationCuePayload(addCue.ObjectId, addCue.EffectKey),
             RemoveObjectPresentationCuePayload removeCue => new RemoveObjectPresentationCuePayload(removeCue.ObjectId, removeCue.EffectKey),
             ClearObjectPresentationCuesPayload clearCues => new ClearObjectPresentationCuesPayload(clearCues.ObjectId),

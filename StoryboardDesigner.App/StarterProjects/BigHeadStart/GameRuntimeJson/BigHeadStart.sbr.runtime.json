@@ -267,7 +267,7 @@
         "distanceInCells": 1,
         "allowPartialMove": true,
         "allowJumpOver": true,
-        "visualTransitionHint": "Slow",
+        "movementEffectKey": "movement.speed.slow",
         "travelVisualizationMode": "LegByLeg"
       },
       "actionType": "MoveRoomObjectOnGrid",
@@ -452,7 +452,7 @@
         "mode": "Turn",
         "turnDegrees": 90,
         "facingDirectionToken": "",
-        "visualTransitionHint": "Medium"
+        "movementEffectKey": "movement.speed.medium"
       },
       "actionType": "RotateRoomObjectOnGrid",
       "noVerbLinkage": false,
@@ -502,7 +502,7 @@
       "name": "stack_object",
       "payload": {
         "$payloadType": "stackRoomObjectOnAnother",
-        "visualTransitionHint": "Medium"
+        "movementEffectKey": "movement.speed.medium"
       },
       "actionType": "StackRoomObjectOnAnother",
       "noVerbLinkage": false,
@@ -534,7 +534,7 @@
         "targetResolutionIntent": "PrimarySelection",
         "allowPartialMove": false,
         "allowJumpOver": false,
-        "visualTransitionHint": "Medium",
+        "movementEffectKey": "movement.speed.medium",
         "travelVisualizationMode": "LegByLeg"
       },
       "actionType": "MoveRoomObjectByPoints",

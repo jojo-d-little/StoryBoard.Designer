@@ -8,6 +8,8 @@ namespace StoryboardDesigner.App.Services;
 
 public static class CommandActionSummaryPresenter
 {
+    private static readonly PresentationEffectsCatalogService PresentationEffectsCatalogService = new();
+
     public static string BuildSummary(CommandAction action)
     {
         return BuildSummaryCore(action, previewMode: false);
@@ -212,7 +214,7 @@ public static class CommandActionSummaryPresenter
         var direction = string.IsNullOrWhiteSpace(payload.DirectionToken) ? "heading" : payload.DirectionToken;
         var partial = payload.AllowPartialMove ? "allow partial" : "full only";
         var jump = payload.AllowJumpOver ? "jump-over path" : "no jump-over";
-        return $"Move -> dir: {direction}; cells: {payload.DistanceInCells}; {partial}; {jump}; hint: {payload.VisualTransitionHint}";
+        return $"Move -> dir: {direction}; cells: {payload.DistanceInCells}; {partial}; {jump}; effect: {PresentationEffectsCatalogService.GetMovementEffectDisplayName(payload.MovementEffectKey)}";
     }
 
     private static string BuildMoveRoomObjectByPointsSummary(CommandAction action)
@@ -220,7 +222,7 @@ public static class CommandActionSummaryPresenter
         var payload = ActionPayloadAccessors.GetMoveRoomObjectByPointsPayload(action);
         var partial = payload.AllowPartialMove ? "allow partial" : "full only";
         var jump = payload.AllowJumpOver ? "jump-over path" : "no jump-over";
-        return $"Move by points -> {partial}; {jump}; hint: {payload.VisualTransitionHint}";
+        return $"Move by points -> {partial}; {jump}; effect: {PresentationEffectsCatalogService.GetMovementEffectDisplayName(payload.MovementEffectKey)}";
     }
 
     private static string BuildRotateRoomObjectOnGridSummary(CommandAction action)
@@ -231,19 +233,19 @@ public static class CommandActionSummaryPresenter
             var facing = string.IsNullOrWhiteSpace(payload.FacingDirectionToken)
                 ? "(unset)"
                 : payload.FacingDirectionToken;
-            return $"Rotate -> mode: Face; facing: {facing}; hint: {payload.VisualTransitionHint}";
+            return $"Rotate -> mode: Face; facing: {facing}; effect: {PresentationEffectsCatalogService.GetMovementEffectDisplayName(payload.MovementEffectKey)}";
         }
 
         var turnText = payload.TurnDegrees.HasValue
             ? payload.TurnDegrees.Value.ToString()
             : "(from command)";
-        return $"Rotate -> mode: Turn; degrees: {turnText}; hint: {payload.VisualTransitionHint}";
+        return $"Rotate -> mode: Turn; degrees: {turnText}; effect: {PresentationEffectsCatalogService.GetMovementEffectDisplayName(payload.MovementEffectKey)}";
     }
 
     private static string BuildStackRoomObjectOnAnotherSummary(CommandAction action)
     {
         var payload = ActionPayloadAccessors.GetStackRoomObjectOnAnotherPayload(action);
-        return $"Stack -> subject: command/object scope; target: command secondary; hint: {payload.VisualTransitionHint}";
+        return $"Stack -> subject: command/object scope; target: command secondary; effect: {PresentationEffectsCatalogService.GetMovementEffectDisplayName(payload.MovementEffectKey)}";
     }
 
     private static string BuildObjectPresentationCueSummary(CommandAction action, string operation)

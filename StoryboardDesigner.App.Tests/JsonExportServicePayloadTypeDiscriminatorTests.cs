@@ -188,14 +188,14 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
                 MoveDistanceInCells = 2,
                 MoveAllowPartialMove = true,
                 MoveAllowJumpOver = true,
-                MoveVisualTransitionHint = RuntimeMovementVisualTransitionHint.Fast,
+                MoveMovementEffectKey = "movement.speed.fast",
                 MoveTravelVisualizationMode = RuntimeMovementTravelVisualizationMode.Direct,
                 Payload = new MoveRoomObjectOnGridPayload(
                     directionToken: "E",
                     distanceInCells: 2,
                     allowPartialMove: true,
                     allowJumpOver: true,
-                    visualTransitionHint: RuntimeMovementVisualTransitionHint.Fast,
+                    movementEffectKey: "movement.speed.fast",
                     travelVisualizationMode: RuntimeMovementTravelVisualizationMode.Direct)
             };
 
@@ -205,20 +205,20 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
                 ActionType = CommandActionType.RotateRoomObjectOnGrid,
                 RotateMode = RuntimeRotateRoomObjectOnGridAttemptMode.Face,
                 RotateFacingDirectionToken = "SE",
-                RotateVisualTransitionHint = RuntimeMovementVisualTransitionHint.Fast,
+                RotateMovementEffectKey = "movement.speed.fast",
                 Payload = new RotateRoomObjectOnGridPayload(
                     mode: RuntimeRotateRoomObjectOnGridAttemptMode.Face,
                     turnDegrees: null,
                     facingDirectionToken: "SE",
-                    visualTransitionHint: RuntimeMovementVisualTransitionHint.Fast)
+                    movementEffectKey: "movement.speed.fast")
             };
 
             var stackAction = new CommandAction
             {
                 Name = "Stack",
                 ActionType = CommandActionType.StackRoomObjectOnAnother,
-                StackVisualTransitionHint = RuntimeMovementVisualTransitionHint.Slow,
-                Payload = new StackRoomObjectOnAnotherPayload(RuntimeMovementVisualTransitionHint.Slow)
+                StackMovementEffectKey = "movement.speed.slow",
+                Payload = new StackRoomObjectOnAnotherPayload("movement.speed.slow")
             };
 
             var compositeTargetObjectId = Guid.NewGuid();
@@ -456,7 +456,7 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
                     actionNode.Remove("moveDistanceInCells");
                     actionNode.Remove("moveAllowPartialMove");
                     actionNode.Remove("moveAllowJumpOver");
-                    actionNode.Remove("moveVisualTransitionHint");
+                    actionNode.Remove("moveMovementEffectKey");
                     actionNode.Remove("moveTravelVisualizationMode");
                 }
 
@@ -465,12 +465,12 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
                     actionNode.Remove("rotateMode");
                     actionNode.Remove("rotateTurnDegrees");
                     actionNode.Remove("rotateFacingDirectionToken");
-                    actionNode.Remove("rotateVisualTransitionHint");
+                    actionNode.Remove("rotateMovementEffectKey");
                 }
 
                 if (string.Equals(actionName, "Stack", StringComparison.Ordinal))
                 {
-                    actionNode.Remove("stackVisualTransitionHint");
+                    actionNode.Remove("stackMovementEffectKey");
                 }
 
                 if (string.Equals(actionName, "BuildByTarget", StringComparison.Ordinal)
@@ -577,18 +577,18 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
             Assert.Equal(2, loadedMovePayload.DistanceInCells);
             Assert.True(loadedMovePayload.AllowPartialMove);
             Assert.True(loadedMovePayload.AllowJumpOver);
-            Assert.Equal(RuntimeMovementVisualTransitionHint.Fast, loadedMovePayload.VisualTransitionHint);
+            Assert.Equal("movement.speed.fast", loadedMovePayload.MovementEffectKey);
             Assert.Equal(RuntimeMovementTravelVisualizationMode.Direct, loadedMovePayload.TravelVisualizationMode);
 
             var loadedRotatePayload = ActionPayloadAccessors.GetRotateRoomObjectOnGridPayload(loadedRotate);
             Assert.IsType<RotateRoomObjectOnGridPayload>(loadedRotate.Payload);
             Assert.Equal(RuntimeRotateRoomObjectOnGridAttemptMode.Face, loadedRotatePayload.Mode);
             Assert.Equal("SE", loadedRotatePayload.FacingDirectionToken);
-            Assert.Equal(RuntimeMovementVisualTransitionHint.Fast, loadedRotatePayload.VisualTransitionHint);
+            Assert.Equal("movement.speed.fast", loadedRotatePayload.MovementEffectKey);
 
             var loadedStackPayload = ActionPayloadAccessors.GetStackRoomObjectOnAnotherPayload(loadedStack);
             Assert.IsType<StackRoomObjectOnAnotherPayload>(loadedStack.Payload);
-            Assert.Equal(RuntimeMovementVisualTransitionHint.Slow, loadedStackPayload.VisualTransitionHint);
+            Assert.Equal("movement.speed.slow", loadedStackPayload.MovementEffectKey);
 
             var loadedBuildByTargetPayload = ActionPayloadAccessors.GetCompositeByTargetPayload(loadedBuildByTarget);
             Assert.IsType<CompositeByTargetPayload>(loadedBuildByTarget.Payload);

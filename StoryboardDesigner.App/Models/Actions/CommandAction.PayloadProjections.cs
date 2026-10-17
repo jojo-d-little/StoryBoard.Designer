@@ -311,17 +311,18 @@ public sealed partial class CommandAction
         }
     }
 
-    public RuntimeMovementVisualTransitionHint MoveVisualTransitionHint
+    public string MoveMovementEffectKey
     {
-        get => _moveFacet.VisualTransitionHint;
+        get => _moveFacet.MovementEffectKey;
         set
         {
-            if (_moveFacet.VisualTransitionHint == value)
+            var normalized = value?.Trim() ?? string.Empty;
+            if (_moveFacet.MovementEffectKey == normalized)
             {
                 return;
             }
 
-            _moveFacet = _moveFacet with { VisualTransitionHint = value };
+            _moveFacet = _moveFacet with { MovementEffectKey = normalized };
             OnPropertyChanged();
             RaiseSummaryChanged();
         }
@@ -413,17 +414,18 @@ public sealed partial class CommandAction
         }
     }
 
-    public RuntimeMovementVisualTransitionHint RotateVisualTransitionHint
+    public string RotateMovementEffectKey
     {
-        get => _rotateFacet.VisualTransitionHint;
+        get => _rotateFacet.MovementEffectKey;
         set
         {
-            if (_rotateFacet.VisualTransitionHint == value)
+            var normalized = value?.Trim() ?? string.Empty;
+            if (_rotateFacet.MovementEffectKey == normalized)
             {
                 return;
             }
 
-            _rotateFacet = _rotateFacet with { VisualTransitionHint = value };
+            _rotateFacet = _rotateFacet with { MovementEffectKey = normalized };
             OnPropertyChanged();
             RaiseSummaryChanged();
         }
@@ -446,17 +448,18 @@ public sealed partial class CommandAction
         }
     }
 
-    public RuntimeMovementVisualTransitionHint StackVisualTransitionHint
+    public string StackMovementEffectKey
     {
-        get => _stackFacet.VisualTransitionHint;
+        get => _stackFacet.MovementEffectKey;
         set
         {
-            if (_stackFacet.VisualTransitionHint == value)
+            var normalized = value?.Trim() ?? string.Empty;
+            if (_stackFacet.MovementEffectKey == normalized)
             {
                 return;
             }
 
-            _stackFacet = _stackFacet with { VisualTransitionHint = value };
+            _stackFacet = _stackFacet with { MovementEffectKey = normalized };
             OnPropertyChanged();
             RaiseSummaryChanged();
         }
