@@ -187,7 +187,7 @@ internal static class CommandActionPayloadCoordinator
             CommandActionType.LockObject => new EchoPayload(),
             CommandActionType.SetActiveRoomObject => new SetActiveRoomObjectPayload(string.Empty),
             CommandActionType.SelectRoomObjectByPoint => new SelectRoomObjectByPointPayload(string.Empty),
-            CommandActionType.ClearActiveRoomObjects => new ClearActiveRoomObjectsPayload(RuntimeClearActiveRoomObjectsScope.Both),
+            CommandActionType.ClearActiveRoomObjects => new ClearActiveRoomObjectsPayload(ClearRoomObjectSelectionsScope.All),
             CommandActionType.ClearRoomObjectSelections => new ClearRoomObjectSelectionsPayload(ClearRoomObjectSelectionsScope.All),
             CommandActionType.StartTimer => new StartTimerPayload(string.Empty, null),
             CommandActionType.CancelTimer => new CancelTimerPayload(string.Empty, null, null),

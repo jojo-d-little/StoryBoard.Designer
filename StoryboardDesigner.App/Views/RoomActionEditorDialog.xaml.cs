@@ -430,10 +430,10 @@ public partial class RoomActionEditorDialog : Window
         SelectByPointSelectionCueEffectKeyComboBox.ItemsSource = BuildSelectionCueEffectKeyChoices();
         ObjectPresentationCueEffectKeyComboBox.ItemsSource = _presentationEffectsCatalogService.GetObjectCueEligibleEffectKeys();
         ObjectPresentationCueObjectIdComboBox.ItemsSource = BuildPresentationCueObjectChoices();
-        ClearActiveScopeComboBox.ItemsSource = Enum.GetValues<RuntimeClearActiveRoomObjectsScope>();
+        ClearActiveScopeComboBox.ItemsSource = ClearRoomObjectSelectionsScopeChoices.ClearActiveRoomObjects;
         MoveByPointsVisualTransitionHintComboBox.ItemsSource = configuredMovementHints;
         MoveByPointsTravelVisualizationModeComboBox.ItemsSource = Enum.GetValues<RuntimeMovementTravelVisualizationMode>();
-        ClearRoomObjectSelectionsScopeComboBox.ItemsSource = Enum.GetValues<ClearRoomObjectSelectionsScope>();
+        ClearRoomObjectSelectionsScopeComboBox.ItemsSource = ClearRoomObjectSelectionsScopeChoices.ClearRoomObjectSelections;
         LoadMoveByPointsEditorInputs();
         LoadSelectByPointEditorInputs();
         LoadClearRoomObjectSelectionsEditorInputs();

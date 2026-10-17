@@ -48,7 +48,7 @@ public sealed partial class CommandAction
 
     private ClearActiveRoomObjectsPayload _clearActiveRoomObjectsFacet
     {
-        get => GetFacet(static () => new ClearActiveRoomObjectsPayload(RuntimeClearActiveRoomObjectsScope.Both));
+        get => GetFacet(static () => new ClearActiveRoomObjectsPayload(ClearRoomObjectSelectionsScope.All));
         set => SetFacet(value);
     }
 

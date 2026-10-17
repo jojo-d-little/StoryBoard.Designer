@@ -6,7 +6,7 @@ namespace StoryboardDesigner.App.Models;
 /// <summary>
 /// Designer payload for ClearActiveRoomObjects action authoring.
 /// </summary>
-public sealed record ClearActiveRoomObjectsPayload(RuntimeClearActiveRoomObjectsScope ClearScope) : IActionPayload
+public sealed record ClearActiveRoomObjectsPayload(ClearRoomObjectSelectionsScope ClearScope) : IActionPayload
 {
 	public CommandActionType ActionType => CommandActionType.ClearActiveRoomObjects;
 

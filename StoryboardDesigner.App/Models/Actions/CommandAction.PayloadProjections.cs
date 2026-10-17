@@ -524,7 +524,7 @@ public sealed partial class CommandAction
         }
     }
 
-    public RuntimeClearActiveRoomObjectsScope ClearActiveRoomObjectsScope
+    public ClearRoomObjectSelectionsScope ClearActiveRoomObjectsScope
     {
         get => _clearActiveRoomObjectsFacet.ClearScope;
         set

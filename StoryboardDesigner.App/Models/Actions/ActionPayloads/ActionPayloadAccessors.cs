@@ -406,7 +406,7 @@ public static class ActionPayloadAccessors
 
     public static void SetClearActiveRoomObjects(
         CommandAction action,
-        RuntimeClearActiveRoomObjectsScope clearScope)
+        ClearRoomObjectSelectionsScope clearScope)
     {
         if (action.ActionType != CommandActionType.ClearActiveRoomObjects)
         {

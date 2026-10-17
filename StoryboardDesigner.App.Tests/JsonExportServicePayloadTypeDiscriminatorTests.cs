@@ -9,6 +9,54 @@ namespace StoryboardDesigner.App.Tests;
 public sealed class JsonExportServicePayloadTypeDiscriminatorTests
 {
     [Fact]
+    public void ClearActiveRoomObjects_ImportsBothAlias_AndExportsCanonicalAll()
+    {
+        var service = new JsonExportService();
+        var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+        try
+        {
+            var action = new CommandAction
+            {
+                Name = "ClearActive",
+                ActionType = CommandActionType.ClearActiveRoomObjects,
+                ClearActiveRoomObjectsScope = ClearRoomObjectSelectionsScope.All,
+                Payload = new ClearActiveRoomObjectsPayload(ClearRoomObjectSelectionsScope.All)
+            };
+            var room = new Room { Name = "Room", AvailableActions = [action] };
+            var area = new Area { Name = "Area", Rooms = [room] };
+            var country = new Country { Name = "Country", Areas = [area] };
+            var planet = new Planet { Name = "Planet", Countries = [country] };
+            var project = new ProjectModel { Name = "ClearActiveScope", Planets = [planet] };
+            var projectFilePath = Path.Combine(tempRoot, "ClearActiveScope.sbe.json");
+
+            service.SaveProjectModel(projectFilePath, project);
+
+            var roomFilePath = Path.Combine(BuildRoomsFolderPath(projectFilePath), $"{room.Id:N}.room.json");
+            var roomNode = JsonNode.Parse(File.ReadAllText(roomFilePath, Encoding.UTF8))!.AsObject();
+            var actionNode = roomNode["availableGameActions"]!.AsArray().OfType<JsonObject>().Single();
+            Assert.Equal("All", actionNode["payload"]!["clearScope"]!.GetValue<string>());
+
+            actionNode["payload"]!["clearScope"] = "Both";
+            File.WriteAllText(roomFilePath, roomNode.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), Encoding.UTF8);
+
+            var loaded = Assert.IsType<ProjectModel>(service.TryLoadProjectModel(projectFilePath));
+            var loadedAction = Assert.Single(loaded.Planets.Single().Countries.Single().Areas.Single().Rooms.Single().AvailableActions);
+            Assert.Equal(ClearRoomObjectSelectionsScope.All, loadedAction.ClearActiveRoomObjectsScope);
+
+            service.ExportCleanProjectV1(projectFilePath, loaded);
+            var runtimeRoomPath = Path.Combine(tempRoot, "GameRuntimeJson", "Room", room.Id.ToString("D").ToUpperInvariant() + ".runtime.json");
+            using var runtimeRoomDoc = JsonDocument.Parse(File.ReadAllText(runtimeRoomPath, Encoding.UTF8));
+            var runtimeAction = runtimeRoomDoc.RootElement.GetProperty("availableGameActions").EnumerateArray().Single();
+            Assert.Equal("All", runtimeAction.GetProperty("payload").GetProperty("clearScope").GetString());
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
     public void SaveAndLoadProjectModel_UsesPayloadTypeDiscriminator_ForEchoOpenCloseUnlockLockSetFlagCheckGamePropertySetGamePropertySetActiveClearActiveNavigateAndNavigateAdjacentMovePutRemoveContainerInvokeProcedureMaterializeStartTimerCancelTimerSynonymAndLinkedActions()
     {
         var service = new JsonExportService();
@@ -97,8 +145,8 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
             {
                 Name = "ClearActive",
                 ActionType = CommandActionType.ClearActiveRoomObjects,
-                ClearActiveRoomObjectsScope = RuntimeClearActiveRoomObjectsScope.SecondaryOnly,
-                Payload = new ClearActiveRoomObjectsPayload(RuntimeClearActiveRoomObjectsScope.SecondaryOnly)
+                ClearActiveRoomObjectsScope = ClearRoomObjectSelectionsScope.SecondaryOnly,
+                Payload = new ClearActiveRoomObjectsPayload(ClearRoomObjectSelectionsScope.SecondaryOnly)
             };
 
             var putInContainerAction = new CommandAction
@@ -517,7 +565,7 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
             Assert.Equal("selection-outline-blue", loadedSetActive.SelectionCueEffectKey);
             Assert.IsType<SetActiveRoomObjectPayload>(loadedSetActive.Payload);
 
-            Assert.Equal(RuntimeClearActiveRoomObjectsScope.SecondaryOnly, loadedClearActive.ClearActiveRoomObjectsScope);
+            Assert.Equal(ClearRoomObjectSelectionsScope.SecondaryOnly, loadedClearActive.ClearActiveRoomObjectsScope);
             Assert.IsType<ClearActiveRoomObjectsPayload>(loadedClearActive.Payload);
 
             Assert.IsType<NavigatePayload>(loadedNavigate.Payload);

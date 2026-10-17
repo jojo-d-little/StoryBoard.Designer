@@ -3199,7 +3199,7 @@ public sealed class JsonExportService : IJsonExportService
         if (model.ActionType == CommandActionType.ClearActiveRoomObjects)
         {
             var clearScope = clearActiveScopeFromPayload
-                ?? RuntimeClearActiveRoomObjectsScope.Both;
+                ?? ClearRoomObjectSelectionsScope.All;
             ActionPayloadAccessors.SetClearActiveRoomObjects(model, clearScope);
         }
 
@@ -7621,11 +7621,11 @@ public sealed class JsonExportService : IJsonExportService
         };
     }
 
-    private static ProjectCommandActionPayloadBaseDto BuildClearActiveRoomObjectsPayloadElement(RuntimeClearActiveRoomObjectsScope clearScope)
+    private static ProjectCommandActionPayloadBaseDto BuildClearActiveRoomObjectsPayloadElement(ClearRoomObjectSelectionsScope clearScope)
     {
         return new ProjectClearActiveRoomObjectsActionPayloadDto
         {
-            ClearScope = clearScope.ToString()
+            ClearScope = NormalizeClearActiveRoomObjectsScope(clearScope).ToString()
         };
     }
 
@@ -7983,11 +7983,23 @@ public sealed class JsonExportService : IJsonExportService
         };
     }
 
-    private static RuntimeCommandActionPayloadBaseDto BuildCleanClearActiveRoomObjectsPayloadElement(RuntimeClearActiveRoomObjectsScope clearScope)
+    private static RuntimeCommandActionPayloadBaseDto BuildCleanClearActiveRoomObjectsPayloadElement(ClearRoomObjectSelectionsScope clearScope)
     {
         return new RuntimeClearActiveRoomObjectsActionPayloadDto
         {
-            ClearScope = clearScope.ToString()
+            ClearScope = NormalizeClearActiveRoomObjectsScope(clearScope).ToString()
+        };
+    }
+
+    private static ClearRoomObjectSelectionsScope NormalizeClearActiveRoomObjectsScope(ClearRoomObjectSelectionsScope scope)
+    {
+        return scope switch
+        {
+            ClearRoomObjectSelectionsScope.All or
+            ClearRoomObjectSelectionsScope.PrimaryOnly or
+            ClearRoomObjectSelectionsScope.SecondaryOnly => scope,
+            _ => throw new InvalidOperationException(
+                $"ClearActiveRoomObjects does not support scope '{scope}'.")
         };
     }
 
@@ -8476,14 +8488,23 @@ public sealed class JsonExportService : IJsonExportService
         return selectByPointPayload.SelectionCueEffectKey;
     }
 
-    private static RuntimeClearActiveRoomObjectsScope? TryGetClearActiveRoomObjectsScopeFromPayload(ProjectCommandActionPayloadBaseDto? payload)
+    private static ClearRoomObjectSelectionsScope? TryGetClearActiveRoomObjectsScopeFromPayload(ProjectCommandActionPayloadBaseDto? payload)
     {
         if (payload is not ProjectClearActiveRoomObjectsActionPayloadDto clearActivePayload)
         {
             return null;
         }
 
-        return Enum.TryParse<RuntimeClearActiveRoomObjectsScope>(clearActivePayload.ClearScope, true, out var parsedScope)
+        var token = clearActivePayload.ClearScope?.Trim();
+        if (string.Equals(token, "Both", StringComparison.OrdinalIgnoreCase))
+        {
+            return ClearRoomObjectSelectionsScope.All;
+        }
+
+        return Enum.TryParse<ClearRoomObjectSelectionsScope>(token, true, out var parsedScope)
+            && parsedScope is ClearRoomObjectSelectionsScope.All
+                or ClearRoomObjectSelectionsScope.PrimaryOnly
+                or ClearRoomObjectSelectionsScope.SecondaryOnly
             ? parsedScope
             : null;
     }
