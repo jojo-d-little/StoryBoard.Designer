@@ -920,7 +920,7 @@ public sealed class QuantifiableRenamePropagationTests
     }
 
     [Fact]
-    public void EditObjectBasicProperties_TemplateObject_IncludesChooserVariableChoicesAndSelfAliasTokens()
+    public void EditObjectBasicProperties_TemplateObject_UsesLocalAndSessionAnchorReferences()
     {
         var templateObject = new GameObject
         {
@@ -930,9 +930,26 @@ public sealed class QuantifiableRenamePropagationTests
         };
         templateObject.ApplyFeatureVariableContract();
 
+        var room = new Room
+        {
+            Name = "ReferenceRoom",
+            Variables =
+            [
+                new GamePropertyDefinition
+                {
+                    Name = "isLit",
+                    DefaultValue = "false",
+                    ValueRestriction = GamePropertyValueRestriction.TrueFalse
+                }
+            ]
+        };
+        var area = new Area { Name = "ReferenceArea", Rooms = [room] };
+        var country = new Country { Name = "ReferenceCountry", Areas = [area] };
+        var planet = new Planet { Name = "ReferencePlanet", Countries = [country] };
         var project = new ProjectModel
         {
-            ObjectTemplates = [templateObject]
+            ObjectTemplates = [templateObject],
+            Planets = [planet]
         };
 
         ScopeHierarchy.AttachParents(project);
@@ -957,10 +974,18 @@ public sealed class QuantifiableRenamePropagationTests
         var request = Assert.IsType<ObjectBasicPropertiesEditRequest>(treeContext.LastObjectBasicPropertiesRequest);
         Assert.NotNull(request.ImageVariantChooserPickerContext);
         Assert.NotNull(request.ImageVariantChooserReferenceTokens);
-        Assert.Contains(request.ImageVariantChooserPickerContext!.DiscoverChoices(false), choice =>
-            string.Equals(choice.Value, "owner.isOpen", StringComparison.OrdinalIgnoreCase));
+        Assert.True(request.ImageVariantChooserPickerContext!.AllowReferenceModes);
+        Assert.False(request.ImageVariantChooserPickerContext.AllowFixedReferenceMode);
+        Assert.Equal(templateObject.ObjectId, request.ImageVariantChooserPickerContext.RelativeOwnerId);
+        Assert.Contains(request.ImageVariantChooserPickerContext.DiscoverChoices(true), choice =>
+            choice.OwnerId == templateObject.ObjectId
+            && string.Equals(choice.PropertyName, "isOpen", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(request.ImageVariantChooserReferenceTokens!, token =>
-            string.Equals(token, "owner.isOpen", StringComparison.OrdinalIgnoreCase));
+            string.Equals(token, "self.isOpen", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(request.ImageVariantChooserReferenceTokens!, token =>
+            string.Equals(token, "currentRoom.isLit", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(request.ImageVariantChooserReferenceTokens!, token =>
+            token.StartsWith("owner[", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

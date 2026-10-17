@@ -13,18 +13,18 @@ public static class GamePropertyComputationFormatter
         "All" => "(" + string.Join(" AND ", (condition.Conditions ?? new()).Select(FormatCondition)) + ")",
         "Any" => "(" + string.Join(" OR ", (condition.Conditions ?? new()).Select(FormatCondition)) + ")",
         "Not" => "NOT (" + (condition.Condition is null ? "<missing>" : FormatCondition(condition.Condition)) + ")",
-        "Exists" => "exists(" + FormatSource(condition.GamePropertySource) + ")",
-        "Compare" => FormatSource(condition.GamePropertySource)
+        "Exists" => "exists(" + FormatSourceReference(condition.GamePropertySource) + ")",
+        "Compare" => FormatSourceReference(condition.GamePropertySource)
             + " " + (condition.Operator ?? "?")
             + (condition.RightOperand is null
                 ? string.Empty
                 : " " + (condition.RightOperand.GamePropertySource is not null
-                    ? FormatSource(condition.RightOperand.GamePropertySource)
+                    ? FormatSourceReference(condition.RightOperand.GamePropertySource)
                     : condition.RightOperand.Value ?? string.Empty)),
         _ => "<unknown condition>"
     };
 
-    private static string FormatSource(ProjectGamePropertySourceReferenceDto? source) => source is null
+    public static string FormatSourceReference(ProjectGamePropertySourceReferenceDto? source) => source is null
         ? "<choose property>"
         : (source.AnchorKey is not null ? source.AnchorKey + "." : source.OwnerId.HasValue ? $"owner[{source.OwnerId.Value:N}]." : "self.")
             + (source.PropertyName ?? "<missing>");

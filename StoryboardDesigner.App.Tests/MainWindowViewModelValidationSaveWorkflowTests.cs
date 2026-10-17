@@ -392,9 +392,9 @@ public sealed class MainWindowViewModelValidationSaveWorkflowTests
     }
 
     [Fact]
-    public void TryExportCleanProject_WithValidationErrors_BlocksRuntimeExport()
+    public void TryExportCleanProject_WithValidationErrors_AllowsRuntimeExportWhenUserConfirms()
     {
-        var project = new ProjectModel { Name = "Validation Export Block" };
+        var project = new ProjectModel { Name = "Validation Export Confirmed" };
         var bundle = MainWindowViewModelTestHarness.CreateViewModelBundle(
             project,
             new TreeContextInteractionServiceStub(),
@@ -408,9 +408,11 @@ public sealed class MainWindowViewModelValidationSaveWorkflowTests
         var args = new object?[] { string.Empty, string.Empty, false };
         var exported = (bool)method!.Invoke(bundle.ViewModel, args)!;
 
-        Assert.False(exported);
-        Assert.Equal(0, bundle.JsonExport.ExportCleanProjectCallCount);
-        Assert.Contains("error(s)", (string?)args[1] ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        Assert.True(exported);
+        Assert.Equal(1, bundle.JsonExport.ExportCleanProjectCallCount);
+        Assert.Equal("runtime export", bundle.ProjectUi.LastValidationWorkflowName);
+        Assert.True(bundle.ProjectUi.LastValidationErrorCount > 0);
+        Assert.Equal(string.Empty, (string?)args[1] ?? string.Empty);
     }
 
     [Fact]

@@ -16,6 +16,7 @@ public partial class VariableChooserDialog : Window
     private readonly Guid? _relativeOwnerId;
     private readonly IReadOnlyList<string> _anchorKeys;
     private readonly bool _allowReferenceModes;
+    private readonly bool _allowFixedReferenceMode;
     private bool _allowSelf = true;
     private bool _allowChildren = true;
     private bool _allowDescendants = true;
@@ -37,11 +38,13 @@ public partial class VariableChooserDialog : Window
         bool allowReferenceModes = false,
         Guid? relativeOwnerId = null,
         IReadOnlyList<string>? anchorKeys = null,
-        ProjectGamePropertySourceReferenceDto? selectedReference = null)
+        ProjectGamePropertySourceReferenceDto? selectedReference = null,
+        bool allowFixedReferenceMode = true)
     {
         InitializeComponent();
         Title = title;
         _allowReferenceModes = allowReferenceModes;
+        _allowFixedReferenceMode = allowFixedReferenceMode;
         _relativeOwnerId = relativeOwnerId;
         _anchorKeys = (anchorKeys ?? Array.Empty<string>()).Where(static key => !string.IsNullOrWhiteSpace(key)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         _allChoices = BuildDistinctDisplayChoices(choices, selectedValue);
@@ -93,7 +96,8 @@ public partial class VariableChooserDialog : Window
             context.AllowReferenceModes,
             context.RelativeOwnerId,
             context.AnchorKeys,
-            context.SelectedReference)
+            context.SelectedReference,
+            context.AllowFixedReferenceMode)
     {
         _allowSelf = allowSelf;
         _allowChildren = allowChildren;
@@ -164,6 +168,10 @@ public partial class VariableChooserDialog : Window
         if (ReferenceModeComboBox.Items.Count > 1 && ReferenceModeComboBox.Items[1] is System.Windows.Controls.ComboBoxItem ownerRelativeMode)
         {
             ownerRelativeMode.IsEnabled = _relativeOwnerId.HasValue;
+        }
+        if (ReferenceModeComboBox.Items.Count > 0 && ReferenceModeComboBox.Items[0] is System.Windows.Controls.ComboBoxItem fixedMode)
+        {
+            fixedMode.IsEnabled = _allowFixedReferenceMode || selectedReference?.OwnerId.HasValue == true;
         }
         if (ReferenceModeComboBox.Items.Count > 2 && ReferenceModeComboBox.Items[2] is System.Windows.Controls.ComboBoxItem anchorMode)
         {

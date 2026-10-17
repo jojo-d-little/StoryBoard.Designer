@@ -18,4 +18,5 @@ public sealed record GamePropertyPickerContext(
     bool AllowReferenceModes = false,
     Guid? RelativeOwnerId = null,
     IReadOnlyList<string>? AnchorKeys = null,
-    ProjectGamePropertySourceReferenceDto? SelectedReference = null);
+    ProjectGamePropertySourceReferenceDto? SelectedReference = null,
+    bool AllowFixedReferenceMode = true);

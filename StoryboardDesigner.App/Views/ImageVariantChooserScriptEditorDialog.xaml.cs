@@ -45,7 +45,9 @@ public partial class ImageVariantChooserScriptEditorDialog : Window
             Owner = this
         };
 
-        return dialog.ShowDialog() == true ? dialog.SelectedValue : null;
+        return dialog.ShowDialog() == true
+            ? GamePropertyComputationFormatter.FormatSourceReference(dialog.SelectedReference)
+            : null;
     }
 
     private void InsertVariantName_OnClick(object sender, RoutedEventArgs e)

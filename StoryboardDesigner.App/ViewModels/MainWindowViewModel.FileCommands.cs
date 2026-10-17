@@ -1927,7 +1927,6 @@ public sealed partial class MainWindowViewModel
         registry.Register(new TraversalRequireOpenSharedIsOpenRule());
         registry.Register(new TraversalConnectionIntegrityRule());
         registry.Register(new RoomSpawnPointTraversalIntegrityRule());
-        registry.Register(new TraversalDirectionalTargetUniquenessRule());
         registry.Register(new TraversalLegPassableContractRule());
         registry.Register(new TraversalDoorLinkIntegrityRule());
         registry.Register(new TraversalDoorOpenStateLinkConventionRule());

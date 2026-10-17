@@ -9704,13 +9704,8 @@ public sealed partial class MainWindowViewModel
 
         if (includeImageVariantChooserOptions)
         {
-            var imageVariantChooserPickerContext = CreateGamePropertyPickerContext(gameObject, PropertyResolutionScope.Object);
-            var imageVariantChooserReferenceTokens = imageVariantChooserPickerContext.DiscoverChoices(false)
-                .Select(choice => choice.Value)
-                .Where(static token => !string.IsNullOrWhiteSpace(token))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(static token => token, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            var imageVariantChooserPickerContext = CreateImageVariantChooserPickerContext(gameObject);
+            var imageVariantChooserReferenceTokens = BuildImageVariantChooserReferenceTokens(imageVariantChooserPickerContext);
 
             return new ObjectBasicPropertiesEditRequest(
                 currentName,
@@ -9849,7 +9844,7 @@ public sealed partial class MainWindowViewModel
             PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults),
             HideContainedObjects: gameObject.HideContainedObjects,
             ShowWhenContained: gameObject.ShowWhenContained,
-            ImageVariantChooserPickerContext: CreateGamePropertyPickerContext(gameObject, PropertyResolutionScope.Object),
+            ImageVariantChooserPickerContext: CreateImageVariantChooserPickerContext(gameObject),
             SoundEmitters: gameObject.SoundEmitters.Select(CloneObjectSoundEmitter).ToList(),
             SoundEffectChoices: GetSoundEffectChoicesForScopeNode(gameObject),
             SoundEmitterActivationPickerContext: CreateGamePropertyPickerContext(
@@ -10299,13 +10294,8 @@ public sealed partial class MainWindowViewModel
         var currentName = EffectiveObjectFieldResolver.GetEffectiveName(objectNode.GameObject, ResolveLinkedDefinition);
         var currentNameInGame = EffectiveObjectFieldResolver.GetEffectiveNameInGame(objectNode.GameObject, ResolveLinkedDefinition);
         var currentDescription = EffectiveObjectFieldResolver.GetEffectiveDescription(objectNode.GameObject, ResolveLinkedDefinition);
-        var imageVariantChooserPickerContext = CreateGamePropertyPickerContext(objectNode.GameObject, PropertyResolutionScope.Object);
-        var imageVariantChooserReferenceTokens = imageVariantChooserPickerContext.DiscoverChoices(false)
-            .Select(choice => choice.Value)
-            .Where(static token => !string.IsNullOrWhiteSpace(token))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(static token => token, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var imageVariantChooserPickerContext = CreateImageVariantChooserPickerContext(objectNode.GameObject);
+        var imageVariantChooserReferenceTokens = BuildImageVariantChooserReferenceTokens(imageVariantChooserPickerContext);
         var (stackScaleStepOverride, minStackScaleOverride) = ResolveObjectStackScaleEditorDefaults(objectNode.GameObject);
 
         var current = new ObjectBasicPropertiesEditRequest(
@@ -13076,13 +13066,8 @@ public sealed partial class MainWindowViewModel
     {
         configuredName = string.Empty;
         var (stackScaleStepOverride, minStackScaleOverride) = ResolveObjectStackScaleEditorDefaults(target);
-        var imageVariantChooserPickerContext = CreateGamePropertyPickerContext(target, PropertyResolutionScope.Object);
-        var imageVariantChooserReferenceTokens = imageVariantChooserPickerContext.DiscoverChoices(false)
-            .Select(static choice => choice.Value)
-            .Where(static token => !string.IsNullOrWhiteSpace(token))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(static token => token, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var imageVariantChooserPickerContext = CreateImageVariantChooserPickerContext(target);
+        var imageVariantChooserReferenceTokens = BuildImageVariantChooserReferenceTokens(imageVariantChooserPickerContext);
 
         var initial = new ObjectBasicPropertiesEditRequest(
             defaultName,
@@ -13300,13 +13285,8 @@ public sealed partial class MainWindowViewModel
         var linkedDefinition = TryResolveDefinitionObject(target);
         var effectiveDefinitionOwnedSource = linkedDefinition ?? target;
         var (stackScaleStepOverride, minStackScaleOverride) = ResolveObjectStackScaleEditorDefaults(target);
-        var imageVariantChooserPickerContext = CreateGamePropertyPickerContext(target, PropertyResolutionScope.Object);
-        var imageVariantChooserReferenceTokens = imageVariantChooserPickerContext.DiscoverChoices(false)
-            .Select(static choice => choice.Value)
-            .Where(static token => !string.IsNullOrWhiteSpace(token))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(static token => token, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var imageVariantChooserPickerContext = CreateImageVariantChooserPickerContext(target);
+        var imageVariantChooserReferenceTokens = BuildImageVariantChooserReferenceTokens(imageVariantChooserPickerContext);
 
         var initial = new ObjectBasicPropertiesEditRequest(
             target.Name,
@@ -15380,6 +15360,51 @@ public sealed partial class MainWindowViewModel
         return choices.OrderBy(static choice => GetComputedChoiceScopeOrder(choice.Scope))
             .ThenBy(static choice => choice.ScopePath, StringComparer.OrdinalIgnoreCase)
             .ThenBy(static choice => choice.OwnerVariable, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private GamePropertyPickerContext CreateImageVariantChooserPickerContext(GameObject ownerObject) =>
+        CreateGamePropertyPickerContext(
+            ownerObject,
+            PropertyResolutionScope.Object,
+            allowReferenceModes: true,
+            relativeOwnerId: ownerObject.ObjectId,
+            anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" })
+        with
+        {
+            AllowFixedReferenceMode = false
+        };
+
+    private static IReadOnlyList<string> BuildImageVariantChooserReferenceTokens(GamePropertyPickerContext pickerContext)
+    {
+        var tokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var choice in pickerContext.DiscoverChoices(true))
+        {
+            if (string.IsNullOrWhiteSpace(choice.PropertyName))
+            {
+                continue;
+            }
+
+            if (choice.OwnerId == pickerContext.RelativeOwnerId)
+            {
+                tokens.Add(GamePropertyComputationFormatter.FormatSourceReference(
+                    new ProjectGamePropertySourceReferenceDto { PropertyName = choice.PropertyName }));
+            }
+
+            foreach (var anchorKey in choice.EligibleAnchors)
+            {
+                tokens.Add(GamePropertyComputationFormatter.FormatSourceReference(
+                    new ProjectGamePropertySourceReferenceDto
+                    {
+                        AnchorKey = anchorKey,
+                        PropertyName = choice.PropertyName
+                    }));
+            }
+        }
+
+        return tokens
+            .Where(static token => !string.IsNullOrWhiteSpace(token))
+            .OrderBy(static token => token, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private static int GetComputedChoiceScopeOrder(PropertyResolutionScope scope) => scope switch
