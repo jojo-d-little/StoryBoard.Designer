@@ -38,10 +38,11 @@ jobs:
           dotnet restore StoryboardDesigner.App.Tests/StoryboardDesigner.App.Tests.csproj --configfile NuGet.Config
           dotnet restore StoryboardDesigner.App.SmokeTests/StoryboardDesigner.App.SmokeTests.csproj --configfile NuGet.Config
 
-      - name: Build
-        run: |
-          dotnet build StoryboardDesigner.App.Tests/StoryboardDesigner.App.Tests.csproj --configuration Release --no-restore
-          dotnet build StoryboardDesigner.App.SmokeTests/StoryboardDesigner.App.SmokeTests.csproj --configuration Release --no-restore
+      - name: Build unit tests
+        run: dotnet build StoryboardDesigner.App.Tests/StoryboardDesigner.App.Tests.csproj --configuration Release --no-restore
+
+      - name: Build smoke tests
+        run: dotnet build StoryboardDesigner.App.SmokeTests/StoryboardDesigner.App.SmokeTests.csproj --configuration Release --no-restore
 
       - name: Test
         run: dotnet test StoryboardDesigner.App.Tests/StoryboardDesigner.App.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=unit-tests.trx" --results-directory TestResults
