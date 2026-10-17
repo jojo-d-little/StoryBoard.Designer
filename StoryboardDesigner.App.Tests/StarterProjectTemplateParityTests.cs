@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using StoryboardDesigner.App.Services;
 using Storyboard.Shared.GameServices.Actions;
 using Storyboard.Shared.RuntimeContracts.Enums;
 
@@ -42,7 +43,7 @@ public sealed class StarterProjectTemplateParityTests
                     continue;
                 }
 
-                var expectedTokens = RuntimeCommandActionExecutor
+                var expectedTokens = ActionManifestCatalog
                     .GetSupportedResultCodes(actionType)
                     .Select(static descriptor => descriptor.Token)
                     .Where(static token => !string.IsNullOrWhiteSpace(token))
