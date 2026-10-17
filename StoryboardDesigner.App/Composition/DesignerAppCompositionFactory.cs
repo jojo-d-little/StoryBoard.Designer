@@ -15,7 +15,6 @@ internal static class DesignerAppCompositionFactory
         IRecentProjectsService recentProjectsService = new RecentProjectsService();
         IProjectCreationPreferencesService projectCreationPreferencesService = new ProjectCreationPreferencesService();
         IWindowPlacementService windowPlacementService = new WindowPlacementService();
-        IActionScriptEvaluationService actionScriptEvaluationService = new ActionScriptEvaluationService();
         IMainWindowDialogWorkflowService dialogWorkflowService = new MainWindowDialogWorkflowService();
         IProjectUiService projectUiService = new ProjectUiService(projectCreationPreferencesService);
         IRoomDesignerDirectionImageDialogService roomDesignerDirectionImageDialogService = new RoomDesignerDirectionImageDialogService();
@@ -33,7 +32,6 @@ internal static class DesignerAppCompositionFactory
             projectUiService,
             roomDesignerDirectionImageDialogService,
             treeContextInteractionService,
-            actionScriptEvaluationService,
             phaseTextPresentationCueCatalogService: phaseTextPresentationCueCatalogService,
             gameObjectSelectionOptionDiscoveryService: gameObjectSelectionOptionDiscoveryService,
             eventSubscriptionActionNameSuggestionDiscoveryService: eventSubscriptionActionNameSuggestionDiscoveryService,

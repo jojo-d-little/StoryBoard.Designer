@@ -9,7 +9,7 @@ public static class ActionEchoEditorEntryBuilder
         IReadOnlyDictionary<string, string>? sourceMap)
     {
         var normalizedSource = NormalizeSourceMap(actionType, sourceMap);
-        var supported = RuntimeCommandActionExecutor.GetSupportedResultCodes(actionType);
+        var supported = RuntimeActionResultCodeRegistry.GetSupportedResultCodes(actionType);
 
         var entries = new List<ActionEchoEditorEntry>();
         foreach (var descriptor in supported)
@@ -25,7 +25,7 @@ public static class ActionEchoEditorEntryBuilder
 
         foreach (var (token, script) in normalizedSource.OrderBy(static pair => pair.Key, StringComparer.OrdinalIgnoreCase))
         {
-            if (RuntimeCommandActionExecutor.TryGetResultCodeDescriptor(actionType, token, out _))
+            if (RuntimeActionResultCodeRegistry.TryGetDescriptor(actionType, token, out _))
             {
                 continue;
             }
@@ -77,7 +77,7 @@ public static class ActionEchoEditorEntryBuilder
                 continue;
             }
 
-            if (RuntimeCommandActionExecutor.TryGetResultCodeDescriptor(actionType, token, out var descriptor))
+            if (RuntimeActionResultCodeRegistry.TryGetDescriptor(actionType, token, out var descriptor))
             {
                 normalized[descriptor.Token] = value ?? string.Empty;
                 continue;

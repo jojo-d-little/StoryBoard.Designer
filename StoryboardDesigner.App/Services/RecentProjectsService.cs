@@ -8,10 +8,7 @@ public sealed class RecentProjectsService : IRecentProjectsService
 {
     private readonly JsonSerializerOptions _jsonOptions = StoryboardJsonSerializerOptions.Create();
 
-    private readonly string _settingsPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "StoryboardDesigner",
-        "recent-projects.json");
+    private readonly string _settingsPath = DesignerUserDataPaths.GetFilePath("recent-projects.json");
 
     public List<string> Load()
     {

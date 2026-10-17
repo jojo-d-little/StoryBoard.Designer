@@ -7,7 +7,7 @@ public static class ActionOutcomeMessageStatusFormatter
 {
     public static IReadOnlyList<ActionOutcomeMessageStatus> BuildStatuses(CommandAction action)
     {
-        var supportedCodes = RuntimeCommandActionExecutor.GetSupportedResultCodes(action.ActionType);
+        var supportedCodes = RuntimeActionResultCodeRegistry.GetSupportedResultCodes(action.ActionType);
         if (supportedCodes.Count == 0)
         {
             return Array.Empty<ActionOutcomeMessageStatus>();
@@ -61,7 +61,7 @@ public static class ActionOutcomeMessageStatusFormatter
         var count = 0;
         foreach (var token in normalized.Keys)
         {
-            if (!RuntimeCommandActionExecutor.TryGetResultCodeDescriptor(action.ActionType, token, out _))
+            if (!RuntimeActionResultCodeRegistry.TryGetDescriptor(action.ActionType, token, out _))
             {
                 count++;
             }
@@ -103,7 +103,7 @@ public static class ActionOutcomeMessageStatusFormatter
                 continue;
             }
 
-            if (RuntimeCommandActionExecutor.TryGetResultCodeDescriptor(actionType, token, out var descriptor))
+            if (RuntimeActionResultCodeRegistry.TryGetDescriptor(actionType, token, out var descriptor))
             {
                 normalized[descriptor.Token] = value ?? string.Empty;
                 continue;

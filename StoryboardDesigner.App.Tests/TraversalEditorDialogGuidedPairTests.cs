@@ -5,6 +5,7 @@ using StoryboardDesigner.App.Views;
 
 namespace StoryboardDesigner.App.Tests;
 
+[Collection("WPF STA")]
 public sealed class TraversalEditorDialogGuidedPairTests
 {
     [Fact]

@@ -1,7 +1,6 @@
 using FlaUI.Core;
 using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Definitions;
-using FlaUI.Core.Input;
 using FlaUI.Core.Tools;
 using FlaUI.UIA3;
 using System.Runtime.InteropServices;
@@ -9,6 +8,7 @@ using System.Text.RegularExpressions;
 
 namespace StoryboardDesigner.App.SmokeTests;
 
+[Collection("Designer UI Smoke")]
 public sealed class Bite4BaselineCoverageSmokeTests
 {
     private const string SmokeProjectPathEnvironmentVariable = "STORYBOARD_DESIGNER_SMOKE_PROJECT_PATH";
@@ -30,43 +30,55 @@ public sealed class Bite4BaselineCoverageSmokeTests
             try
             {
                 using var automation = new UIA3Automation();
-                var mainWindow = SmokeUiRetryHelpers.WaitForMainWindow(app, automation);
-                Assert.NotNull(mainWindow);
+                var mainWindow = RequireFound(
+                    SmokeUiRetryHelpers.WaitForMainWindow(app, automation),
+                    "Could not find the Designer main window.");
 
                 var hierarchyTree = Retry.WhileNull(
-                    () => TryFindFirstByAutomationId(mainWindow!, "MainWindow.HierarchyTree")?.AsTree(),
+                    () => TryFindFirstByAutomationId(mainWindow!, "MainWindow.HierarchyTree")?.AsTree()
+                          ?? TryFindFirstTree(mainWindow!),
                     timeout: TimeSpan.FromSeconds(10),
                     interval: TimeSpan.FromMilliseconds(100),
                     throwOnTimeout: false).Result;
-                Assert.NotNull(hierarchyTree);
+                if (hierarchyTree is null)
+                {
+                    var windowTitles = string.Join(", ", app.GetAllTopLevelWindows(automation)
+                        .Select(window => $"'{window.Title}'"));
+                    throw new Xunit.Sdk.XunitException(
+                        $"Could not find the hierarchy TreeView by AutomationId or control type. "
+                        + $"AppExited={app.HasExited}; mainWindowTitle='{mainWindow!.Title}'; topLevelWindows=[{windowTitles}].");
+                }
                 SmokeUiRetryHelpers.AssertAppStillRunning(app, "finding hierarchy tree");
 
                 SelectWorkspaceTab(mainWindow!, "MainWindow.Tab.RoomDesigner");
 
-                var roomWorkspacePane = Retry.WhileNull(
+                var roomWorkspacePane = RequireFound(Retry.WhileNull(
                     () => TryFindFirstByAutomationId(mainWindow!, "MainWindow.RoomDesigner.WorkspacePane"),
                     timeout: TimeSpan.FromSeconds(10),
                     interval: TimeSpan.FromMilliseconds(100),
-                    throwOnTimeout: false).Result;
-                Assert.NotNull(roomWorkspacePane);
+                    throwOnTimeout: false).Result,
+                    "Could not find MainWindow.RoomDesigner.WorkspacePane after selecting the Room Designer tab.");
                 SmokeUiRetryHelpers.AssertAppStillRunning(app, "opening room workspace pane");
 
-                var roomTabs = Retry.WhileNull(
+                var roomTabs = RequireFound(Retry.WhileNull(
                     () => TryFindFirstByAutomationId(mainWindow!, "MainWindow.RoomDesigner.OpenEditorsTabs")?.AsTab(),
                     timeout: TimeSpan.FromSeconds(10),
                     interval: TimeSpan.FromMilliseconds(100),
-                    throwOnTimeout: false).Result;
-                Assert.NotNull(roomTabs);
+                    throwOnTimeout: false).Result,
+                    "Could not find MainWindow.RoomDesigner.OpenEditorsTabs.");
                 SmokeUiRetryHelpers.AssertAppStillRunning(app, "finding room editor tabs");
 
                 var initialRoomTabCount = roomTabs!.TabItems.Length;
+                var roomExpansionDiagnostics = new List<string>();
                 var roomTreeItem = Retry.WhileNull(
-                    () => FindHierarchyTreeItemByRegex(hierarchyTree!, new[] { "^kitchen$", "^foyer$" }),
+                    () => FindHierarchyTreeItemByRegex(hierarchyTree!, new[] { "^kitchen$", "^foyer$" }, roomExpansionDiagnostics),
                     timeout: TimeSpan.FromSeconds(15),
                     interval: TimeSpan.FromMilliseconds(150),
                     throwOnTimeout: false).Result;
-                Assert.True(roomTreeItem is not null, $"Could not locate a MapDemo1 room hierarchy node. Visible tree names: {BuildTreeItemNameSnapshot(hierarchyTree!)}");
-                ActivateHierarchyTreeItem(roomTreeItem!);
+                Assert.True(roomTreeItem is not null,
+                    $"Could not locate a MapDemo1 room hierarchy node. Visible tree names: {BuildTreeItemNameSnapshot(hierarchyTree!)}. "
+                    + $"Expansion diagnostics: {string.Join(" | ", roomExpansionDiagnostics.Distinct().Take(8))}");
+                ActivateHierarchyTreeItem(roomTreeItem!, mainWindow!);
 
                 var roomOpened = Retry.WhileFalse(
                     () => roomTabs.TabItems.Length > initialRoomTabCount
@@ -76,7 +88,7 @@ public sealed class Bite4BaselineCoverageSmokeTests
                     throwOnTimeout: false).Result;
                 if (!roomOpened)
                 {
-                    ActivateHierarchyTreeItem(roomTreeItem!);
+                    ActivateHierarchyTreeItem(roomTreeItem!, mainWindow!);
                     roomOpened = Retry.WhileFalse(
                         () => roomTabs.TabItems.Length > initialRoomTabCount
                               || roomTabs.TabItems.Length > 0,
@@ -90,30 +102,33 @@ public sealed class Bite4BaselineCoverageSmokeTests
 
                 SelectWorkspaceTab(mainWindow!, "MainWindow.Tab.AreaDesigner");
 
-                var areaTabs = Retry.WhileNull(
+                var areaTabs = RequireFound(Retry.WhileNull(
                     () => TryFindFirstByAutomationId(mainWindow!, "MainWindow.AreaDesigner.OpenEditorsTabs")?.AsTab(),
                     timeout: TimeSpan.FromSeconds(10),
                     interval: TimeSpan.FromMilliseconds(100),
-                    throwOnTimeout: false).Result;
-                Assert.NotNull(areaTabs);
+                    throwOnTimeout: false).Result,
+                    "Could not find MainWindow.AreaDesigner.OpenEditorsTabs after selecting the Area Designer tab.");
                 SmokeUiRetryHelpers.AssertAppStillRunning(app, "finding area editor tabs");
 
-                var areaSelectedNameText = Retry.WhileNull(
+                var areaSelectedNameText = RequireFound(Retry.WhileNull(
                     () => TryFindFirstByAutomationId(mainWindow!, "MainWindow.AreaDesigner.SelectedEditorName"),
                     timeout: TimeSpan.FromSeconds(10),
                     interval: TimeSpan.FromMilliseconds(100),
-                    throwOnTimeout: false).Result;
-                Assert.NotNull(areaSelectedNameText);
+                    throwOnTimeout: false).Result,
+                    "Could not find MainWindow.AreaDesigner.SelectedEditorName after selecting the Area Designer tab.");
                 SmokeUiRetryHelpers.AssertAppStillRunning(app, "reading selected area name");
 
                 var initialAreaTabCount = areaTabs!.TabItems.Length;
+                var areaExpansionDiagnostics = new List<string>();
                 var areaTreeItem = Retry.WhileNull(
-                    () => FindHierarchyTreeItemByRegex(hierarchyTree!, new[] { "^freebird\\s+farm$" }),
+                    () => FindHierarchyTreeItemByRegex(hierarchyTree!, new[] { "^freebird\\s+farm$" }, areaExpansionDiagnostics),
                     timeout: TimeSpan.FromSeconds(15),
                     interval: TimeSpan.FromMilliseconds(150),
                     throwOnTimeout: false).Result;
-                Assert.True(areaTreeItem is not null, $"Could not locate the MapDemo1 area hierarchy node. Visible tree names: {BuildTreeItemNameSnapshot(hierarchyTree!)}");
-                ActivateHierarchyTreeItem(areaTreeItem!);
+                Assert.True(areaTreeItem is not null,
+                    $"Could not locate the MapDemo1 area hierarchy node. Visible tree names: {BuildTreeItemNameSnapshot(hierarchyTree!)}. "
+                    + $"Expansion diagnostics: {string.Join(" | ", areaExpansionDiagnostics.Distinct().Take(8))}");
+                ActivateHierarchyTreeItem(areaTreeItem!, mainWindow!);
 
                 var areaOpened = Retry.WhileFalse(
                     () => HasAnyExpectedText(areaSelectedNameText!, new[] { "freebird farm" })
@@ -124,7 +139,7 @@ public sealed class Bite4BaselineCoverageSmokeTests
                     throwOnTimeout: false).Result;
                 if (!areaOpened)
                 {
-                    ActivateHierarchyTreeItem(areaTreeItem!);
+                    ActivateHierarchyTreeItem(areaTreeItem!, mainWindow!);
                     areaOpened = Retry.WhileFalse(
                         () => HasAnyExpectedText(areaSelectedNameText!, new[] { "freebird farm" })
                               || areaTabs.TabItems.Length > initialAreaTabCount
@@ -247,12 +262,15 @@ public sealed class Bite4BaselineCoverageSmokeTests
         });
     }
 
-    private static TreeItem? FindHierarchyTreeItemByRegex(Tree hierarchyTree, IReadOnlyList<string> preferredPatterns)
+    private static TreeItem? FindHierarchyTreeItemByRegex(
+        Tree hierarchyTree,
+        IReadOnlyList<string> preferredPatterns,
+        ICollection<string> expansionDiagnostics)
     {
         return Retry.WhileNull(
             () =>
             {
-                ExpandVisibleTreeItems(hierarchyTree);
+                ExpandVisibleTreeItems(hierarchyTree, expansionDiagnostics);
                 var candidates = hierarchyTree.FindAllDescendants(cf => cf.ByControlType(ControlType.TreeItem))
                     .Select(treeItem => treeItem.AsTreeItem())
                     .ToList();
@@ -362,30 +380,92 @@ public sealed class Bite4BaselineCoverageSmokeTests
             : new List<string> { fallback };
     }
 
-    private static void ExpandVisibleTreeItems(Tree hierarchyTree)
+    private static void ExpandVisibleTreeItems(Tree hierarchyTree, ICollection<string> diagnostics)
     {
         var items = hierarchyTree.FindAllDescendants(cf => cf.ByControlType(ControlType.TreeItem));
         foreach (var item in items)
         {
             try
             {
-                item.AsTreeItem().Expand();
+                var treeItem = item.AsTreeItem();
+                if (treeItem.ExpandCollapseState != ExpandCollapseState.Collapsed)
+                {
+                    continue;
+                }
+
+                var name = GetTreeItemDisplayName(treeItem);
+                treeItem.Expand();
+                if (treeItem.ExpandCollapseState == ExpandCollapseState.Collapsed)
+                {
+                    diagnostics.Add($"'{name}' remained collapsed after Expand().");
+                }
             }
-            catch
+            catch (Exception ex)
             {
+                diagnostics.Add($"Expand failed: {ex.GetType().Name}: {ex.Message}");
             }
         }
     }
 
-    private static void ActivateHierarchyTreeItem(TreeItem item)
+    private static void ActivateHierarchyTreeItem(TreeItem item, Window mainWindow)
     {
-        var clickTarget = item;
-        var clickable = clickTarget.TryGetClickablePoint(out var point)
-            ? point
-            : clickTarget.BoundingRectangle.Center();
+        var mainWindowHandle = mainWindow.Properties.NativeWindowHandle.ValueOrDefault;
+        if (mainWindowHandle == 0)
+        {
+            throw new Xunit.Sdk.XunitException("Cannot activate hierarchy item: Designer main window has no native handle.");
+        }
 
-        Mouse.Click(clickable);
-        Mouse.DoubleClick(clickable);
+        var clickable = item.TryGetClickablePoint(out var point)
+            ? point
+            : item.BoundingRectangle.Center();
+
+        var clientPoint = new NativePoint((int)Math.Round((double)clickable.X), (int)Math.Round((double)clickable.Y));
+        if (!ScreenToClient(mainWindowHandle, ref clientPoint))
+        {
+            throw new Xunit.Sdk.XunitException(
+                $"Could not map hierarchy item point to Designer client coordinates (Win32 error {Marshal.GetLastWin32Error()}).");
+        }
+
+        var coordinates = (nint)(((clientPoint.Y & 0xFFFF) << 16) | (clientPoint.X & 0xFFFF));
+        PostHierarchyMouseMessage(mainWindowHandle, WmLButtonDown, MkLButton, coordinates);
+        PostHierarchyMouseMessage(mainWindowHandle, WmLButtonUp, 0, coordinates);
+        PostHierarchyMouseMessage(mainWindowHandle, WmLButtonDoubleClick, MkLButton, coordinates);
+        PostHierarchyMouseMessage(mainWindowHandle, WmLButtonUp, 0, coordinates);
+    }
+
+    private static void PostHierarchyMouseMessage(nint windowHandle, uint message, nuint wParam, nint lParam)
+    {
+        if (!PostMessage(windowHandle, message, wParam, lParam))
+        {
+            throw new Xunit.Sdk.XunitException(
+                $"Could not post hierarchy mouse message 0x{message:X} to the Designer window (Win32 error {Marshal.GetLastWin32Error()}).");
+        }
+    }
+
+    private const uint WmLButtonDown = 0x0201;
+    private const uint WmLButtonUp = 0x0202;
+    private const uint WmLButtonDoubleClick = 0x0203;
+    private const nuint MkLButton = 0x0001;
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ScreenToClient(nint hWnd, ref NativePoint lpPoint);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool PostMessage(nint hWnd, uint msg, nuint wParam, nint lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint
+    {
+        public NativePoint(int x, int y)
+        {
+            X = x;
+            Y = y;
+        }
+
+        public int X;
+        public int Y;
     }
 
     private static bool HasAnyExpectedText(AutomationElement element, IReadOnlyList<string> expectedValues)
@@ -408,22 +488,28 @@ public sealed class Bite4BaselineCoverageSmokeTests
 
     private static void SelectWorkspaceTab(Window mainWindow, string tabAutomationId)
     {
-        var workspaceTabs = Retry.WhileNull(
+        var workspaceTabs = RequireFound(Retry.WhileNull(
             () => TryFindFirstByAutomationId(mainWindow, "MainWindow.WorkspaceTabs")?.AsTab(),
             timeout: TimeSpan.FromSeconds(10),
             interval: TimeSpan.FromMilliseconds(100),
-            throwOnTimeout: false).Result;
-        Assert.NotNull(workspaceTabs);
+            throwOnTimeout: false).Result,
+            "Could not find MainWindow.WorkspaceTabs.");
 
-        var workspaceTabItem = Retry.WhileNull(
+        var workspaceTabItem = RequireFound(Retry.WhileNull(
             () => workspaceTabs!.TabItems.FirstOrDefault(item =>
                 string.Equals(item.AutomationId, tabAutomationId, StringComparison.Ordinal)),
             timeout: TimeSpan.FromSeconds(10),
             interval: TimeSpan.FromMilliseconds(100),
-            throwOnTimeout: false).Result;
-        Assert.NotNull(workspaceTabItem);
+            throwOnTimeout: false).Result,
+            $"Could not find workspace tab '{tabAutomationId}'.");
 
-        workspaceTabItem!.Select();
+        workspaceTabItem.Select();
+    }
+
+    private static T RequireFound<T>(T? value, string message)
+        where T : class
+    {
+        return value ?? throw new Xunit.Sdk.XunitException(message);
     }
 
     private static AutomationElement? TryFindFirstByAutomationId(AutomationElement root, string automationId)
@@ -431,6 +517,18 @@ public sealed class Bite4BaselineCoverageSmokeTests
         try
         {
             return root.FindFirstDescendant(cf => cf.ByAutomationId(automationId));
+        }
+        catch (COMException)
+        {
+            return null;
+        }
+    }
+
+    private static Tree? TryFindFirstTree(AutomationElement root)
+    {
+        try
+        {
+            return root.FindFirstDescendant(cf => cf.ByControlType(ControlType.Tree))?.AsTree();
         }
         catch (COMException)
         {

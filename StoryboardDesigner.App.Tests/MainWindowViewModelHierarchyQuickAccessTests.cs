@@ -4,6 +4,7 @@ using StoryboardDesigner.App.Views.Controls;
 
 namespace StoryboardDesigner.App.Tests;
 
+[Collection("WPF STA")]
 public class MainWindowViewModelHierarchyQuickAccessTests
 {
     [Fact]

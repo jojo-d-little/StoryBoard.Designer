@@ -9,10 +9,7 @@ public sealed class WindowPlacementService : IWindowPlacementService
 {
     private readonly JsonSerializerOptions _jsonOptions = StoryboardJsonSerializerOptions.Create();
 
-    private readonly string _settingsPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "StoryboardDesigner",
-        "window-placement.json");
+    private readonly string _settingsPath = DesignerUserDataPaths.GetFilePath("window-placement.json");
 
     public void Save(Window window, double? leftPaneWidth = null, double? rightPaneWidth = null)
     {

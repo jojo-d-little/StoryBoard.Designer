@@ -1,4 +1,5 @@
 using System.IO;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using FlaUI.Core;
 using FlaUI.Core.AutomationElements;
@@ -8,6 +9,12 @@ using FlaUI.UIA3;
 
 namespace StoryboardDesigner.App.SmokeTests;
 
+[CollectionDefinition("Designer UI Smoke", DisableParallelization = true)]
+public sealed class DesignerUiSmokeTestCollection
+{
+}
+
+[Collection("Designer UI Smoke")]
 public sealed class Bite0LaunchSmokeTests
 {
     [Fact]
@@ -75,8 +82,23 @@ internal static class SmokeUiRetryHelpers
             throwOnTimeout: false).Result;
 
         AssertAppStillRunning(app, "waiting for main window");
+        if (window is not null)
+        {
+            var windowHandle = window.Properties.NativeWindowHandle.ValueOrDefault;
+            if (windowHandle != 0)
+            {
+                _ = ShowWindow(windowHandle, SwMaximize);
+            }
+        }
+
         return window;
     }
+
+    private const int SwMaximize = 3;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool ShowWindow(nint hWnd, int nCmdShow);
 
     internal static AutomationElement? WaitForDesktopElementByAutomationId(
         UIA3Automation automation,
@@ -214,19 +236,43 @@ internal static class SmokeUiRetryHelpers
 
 internal static class StaTestRunner
 {
+    private const string UserDataRootEnvironmentVariable = "STORYBOARD_DESIGNER_USER_DATA_ROOT";
+
     internal static void Run(Action action)
     {
         Exception? captured = null;
 
         var thread = new Thread(() =>
         {
+            var priorUserDataRoot = Environment.GetEnvironmentVariable(UserDataRootEnvironmentVariable);
+            var userDataRoot = Path.Combine(
+                Path.GetTempPath(),
+                "StoryboardDesigner.SmokeTests",
+                Guid.NewGuid().ToString("N"));
+
             try
             {
+                Directory.CreateDirectory(userDataRoot);
+                Environment.SetEnvironmentVariable(UserDataRootEnvironmentVariable, userDataRoot);
                 action();
             }
             catch (Exception ex)
             {
                 captured = ex;
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(UserDataRootEnvironmentVariable, priorUserDataRoot);
+                try
+                {
+                    if (Directory.Exists(userDataRoot))
+                    {
+                        Directory.Delete(userDataRoot, recursive: true);
+                    }
+                }
+                catch
+                {
+                }
             }
         });
 
@@ -236,7 +282,7 @@ internal static class StaTestRunner
 
         if (captured is not null)
         {
-            throw new Xunit.Sdk.XunitException($"STA smoke execution failed: {captured}");
+            ExceptionDispatchInfo.Capture(captured).Throw();
         }
     }
 }

@@ -38,7 +38,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly IExternalSimulatorWorkflowService _externalSimulatorWorkflowService;
     private readonly IDevelopmentGameHostWorkflowService _developmentGameHostWorkflowService;
     private readonly IProjectCreationPreferencesService _projectCreationPreferencesService;
-    private readonly IActionScriptEvaluationService _actionScriptEvaluationService;
     private IMainWindowShellOrchestrator? _shellOrchestrator;
     private bool _isShellWorkflowBusy;
     private bool _isDevelopmentLaunchBusy;
@@ -104,7 +103,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         IProjectUiService projectUiService,
         IRoomDesignerDirectionImageDialogService roomDesignerDirectionImageDialogService,
         ITreeContextInteractionService treeContextInteractionService,
-        IActionScriptEvaluationService actionScriptEvaluationService,
         IPhaseTextPresentationCueCatalogService? phaseTextPresentationCueCatalogService = null,
         IGameObjectSelectionOptionDiscoveryService? gameObjectSelectionOptionDiscoveryService = null,
         IEventSubscriptionActionNameSuggestionDiscoveryService? eventSubscriptionActionNameSuggestionDiscoveryService = null,
@@ -124,7 +122,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _externalSimulatorWorkflowService = externalSimulatorWorkflowService ?? new ExternalSimulatorWorkflowService(new ProjectCreationPreferencesService());
         _developmentGameHostWorkflowService = developmentGameHostWorkflowService ?? new DevelopmentGameHostWorkflowService(new ProjectCreationPreferencesService());
         _projectCreationPreferencesService = projectCreationPreferencesService ?? new ProjectCreationPreferencesService();
-        _actionScriptEvaluationService = actionScriptEvaluationService;
         _project = new ProjectModel
         {
             Name = "Untitled Project",

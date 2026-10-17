@@ -8,10 +8,7 @@ public sealed class ProjectCreationPreferencesService : IProjectCreationPreferen
 {
     private readonly JsonSerializerOptions _jsonOptions = StoryboardJsonSerializerOptions.Create();
 
-    private readonly string _settingsPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "StoryboardDesigner",
-        "project-creation.preferences.json");
+    private readonly string _settingsPath = DesignerUserDataPaths.GetFilePath("project-creation.preferences.json");
 
     public ProjectCreationPreferences Load()
     {

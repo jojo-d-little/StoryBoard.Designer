@@ -5,6 +5,7 @@ using FlaUI.UIA3;
 
 namespace StoryboardDesigner.App.SmokeTests;
 
+[Collection("Designer UI Smoke")]
 public sealed class Bite2GameSimulatorTabInteractionSmokeTests
 {
     [Fact]

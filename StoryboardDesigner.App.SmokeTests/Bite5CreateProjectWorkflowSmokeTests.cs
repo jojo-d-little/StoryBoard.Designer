@@ -6,6 +6,7 @@ using FlaUI.UIA3;
 
 namespace StoryboardDesigner.App.SmokeTests;
 
+[Collection("Designer UI Smoke")]
 public sealed class Bite5CreateProjectWorkflowSmokeTests
 {
     [Fact]
@@ -121,10 +122,13 @@ public sealed class Bite5CreateProjectWorkflowSmokeTests
 
     private static string GetProjectCreationPreferencesPath()
     {
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "StoryboardDesigner",
-            "project-creation.preferences.json");
+        const string userDataRootEnvironmentVariable = "STORYBOARD_DESIGNER_USER_DATA_ROOT";
+        var configuredUserDataRoot = Environment.GetEnvironmentVariable(userDataRootEnvironmentVariable);
+        var userDataRoot = string.IsNullOrWhiteSpace(configuredUserDataRoot)
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "StoryboardDesigner")
+            : Path.GetFullPath(configuredUserDataRoot);
+
+        return Path.Combine(userDataRoot, "project-creation.preferences.json");
     }
 
     private static void WriteProjectCreationPreferences(string preferencesPath, string projectParentFolder)

@@ -1,5 +1,10 @@
 namespace StoryboardDesigner.App.Tests;
 
+[CollectionDefinition("WPF STA", DisableParallelization = true)]
+public sealed class WpfStaTestCollection
+{
+}
+
 internal static class StaTestThreadRunner
 {
     private static readonly TimeSpan CompletionTimeout = TimeSpan.FromSeconds(30);

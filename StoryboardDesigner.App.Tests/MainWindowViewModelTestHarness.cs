@@ -42,7 +42,6 @@ internal static class MainWindowViewModelTestHarness
             projectUi,
             roomDesignerDirectionImageDialogService,
             treeContext,
-            new ActionScriptEvaluationService(),
             phaseTextPresentationCueCatalogService: null,
             gameObjectSelectionOptionDiscoveryService: discoveryService);
 

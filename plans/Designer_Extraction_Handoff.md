@@ -76,3 +76,13 @@ After package migration is stable, inventory the coupling by category:
 - test-only dependencies.
 
 Use that inventory to decide whether the future boundary should be interfaces, an adapter layer, a process/service boundary, or a separate orchestration package.
+
+## Runtime test loader cleanup (2026-10-16)
+
+The runtime-only tests were moved to GameEngine. Following the user's confirmation that the Engine test copies had been run and passed, the obsolete Designer test-loader adapter and its app service contract were removed:
+
+- `StoryboardDesigner.App/GameServices/GameProjectRuntimeLoaderService.cs`
+- `StoryboardDesigner.App/GameServices/IGameProjectRuntimeLoaderService.cs`
+- `StoryboardDesigner.App.Tests/CleanProjectRuntimeLoadedGameLoader.cs`
+
+The full Designer solution search found no remaining references to these types after removal. The app's `Storyboard.GameEngine` package reference remains in place because production code still uses Engine types. The Engine test result was confirmed by the user; its command, case count, and raw output were not recorded in this repository.

@@ -6,6 +6,7 @@ using FlaUI.UIA3;
 
 namespace StoryboardDesigner.App.SmokeTests;
 
+[Collection("Designer UI Smoke")]
 public sealed class Bite3SimulatorHappyPathSmokeTests
 {
     private const string SmokeProjectPathEnvironmentVariable = "STORYBOARD_DESIGNER_SMOKE_PROJECT_PATH";

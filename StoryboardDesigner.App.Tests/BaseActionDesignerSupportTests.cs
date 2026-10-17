@@ -13,6 +13,7 @@ using StoryboardDesigner.App.ViewModels;
 
 namespace StoryboardDesigner.App.Tests;
 
+[Collection("WPF STA")]
 public sealed class BaseActionDesignerSupportTests
 {
     [Fact]
@@ -85,17 +86,27 @@ public sealed class BaseActionDesignerSupportTests
                             defaultCurrentObjectId: baseObject.ObjectId);
                         dialog.Loaded += (_, _) =>
                         {
-                            var combo = (ComboBox)dialog.FindName("ObjectPresentationCueObjectIdComboBox")!;
-                            Assert.Equal(savedOutside, combo.SelectedValue);
-                            Assert.Contains("Saved target (absolute)", combo.SelectedItem!.GetType()
-                                .GetProperty("DisplayName")!.GetValue(combo.SelectedItem)!.ToString());
-                            if (selected != savedOutside)
+                            try
                             {
-                                combo.SelectedValue = selected;
+                                var combo = (ComboBox)dialog.FindName("ObjectPresentationCueObjectIdComboBox")!;
+                                Assert.Equal(savedOutside, combo.SelectedValue);
+                                Assert.Contains("Saved target (absolute)", combo.SelectedItem!.GetType()
+                                    .GetProperty("DisplayName")!.GetValue(combo.SelectedItem)!.ToString());
+                                if (selected != savedOutside)
+                                {
+                                    combo.SelectedValue = selected;
+                                }
+                                typeof(RoomActionEditorDialog)
+                                    .GetMethod("Save_OnClick", BindingFlags.Instance | BindingFlags.NonPublic)!
+                                    .Invoke(dialog, [dialog, new System.Windows.RoutedEventArgs()]);
                             }
-                            typeof(RoomActionEditorDialog)
-                                .GetMethod("Save_OnClick", BindingFlags.Instance | BindingFlags.NonPublic)!
-                                .Invoke(dialog, [dialog, new System.Windows.RoutedEventArgs()]);
+                            finally
+                            {
+                                if (dialog.IsVisible)
+                                {
+                                    dialog.Close();
+                                }
+                            }
                         };
                         Assert.True(dialog.ShowDialog());
                         Assert.Equal(selected, action.ObjectPresentationCueObjectId);
@@ -130,9 +141,22 @@ public sealed class BaseActionDesignerSupportTests
                     [],
                     [],
                     []);
-                dialog.Loaded += (_, _) => typeof(RoomActionEditorDialog)
-                    .GetMethod("Save_OnClick", BindingFlags.Instance | BindingFlags.NonPublic)!
-                    .Invoke(dialog, [dialog, new System.Windows.RoutedEventArgs()]);
+                dialog.Loaded += (_, _) =>
+                {
+                    try
+                    {
+                        typeof(RoomActionEditorDialog)
+                            .GetMethod("Save_OnClick", BindingFlags.Instance | BindingFlags.NonPublic)!
+                            .Invoke(dialog, [dialog, new System.Windows.RoutedEventArgs()]);
+                    }
+                    finally
+                    {
+                        if (dialog.IsVisible)
+                        {
+                            dialog.Close();
+                        }
+                    }
+                };
                 Assert.True(dialog.ShowDialog());
             }
             catch (Exception ex)

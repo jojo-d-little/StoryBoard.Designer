@@ -1,7 +1,3 @@
-using Storyboard.Shared.GameManager;
-using Storyboard.Shared.GameServices;
-using Storyboard.Shared.GameStateData;
-using Storyboard.Shared.HostContracts;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
@@ -11,6 +7,14 @@ namespace StoryboardDesigner.App.Tests;
 
 public sealed class DesignerRuntimeDoorPlacementParityDiagnosticsTests
 {
+    private static readonly ExpectedDoorPlacement[] ExpectedPlacements =
+    [
+        new("Door_N", "Closed", 280, 0, 6, 0, 0, 286, 0),
+        new("Door_E", "Open", 760, 160, 40, 25, 90, 800, 185),
+        new("Door_S", "Closed", 280, 560, 234, 40, 180, 514, 600),
+        new("Door_W", "Closed", 0, 160, 0, 255, 270, 0, 415)
+    ];
+
     private readonly ITestOutputHelper _output;
 
     public DesignerRuntimeDoorPlacementParityDiagnosticsTests(ITestOutputHelper output)
@@ -19,177 +23,52 @@ public sealed class DesignerRuntimeDoorPlacementParityDiagnosticsTests
     }
 
     [Fact]
-    public void WorkshopTutorialAtrium_Doors_DesignerVsRuntime_DrawDeltaReport()
+    public void WorkshopTutorialAtrium_Doors_DesignerSourceAndPreviewMatchExpectedPlacements()
     {
-        var root = FindRepositoryRoot();
-        var authoredProjectPath = Path.Combine(root, "Samples", "WorkshopTutorial", "WorkshopTutorial.sbe.json");
-        var cleanProjectPath = Path.Combine(root, "Samples", "WorkshopTutorial", "GameRuntimeJson", "WorkshopTutorial.sbr.runtime.json");
-
-        var authoredProject = LoadAuthoredProject(authoredProjectPath);
+        var authoredProject = LoadAuthoredProject(GetAuthoredProjectPath());
         var authoredAtrium = FindRoomByName(authoredProject, "Atrium");
-
-        var manager = CreateGameManager();
-        var loadResult = Assert.IsAssignableFrom<IHostRuntimeGameDebugger>(manager).LoadGameRuntimeProject(cleanProjectPath);
-        Assert.True(loadResult.Success, string.Join(" | ", loadResult.Diagnostics));
-        var debugger = Assert.IsAssignableFrom<IHostRuntimeGameDebugger>(manager);
-
-        // Force runtime placement normalization pass so render* variables are populated.
-        _ = manager.ProcessCommand(new HostRequestContext(), "look", includeTechnicalDiagnostics: true);
-
-        var runtimeAtrium = debugger.CurrentSession?.CurrentRoom;
-        Assert.NotNull(runtimeAtrium);
-
-        var doorNames = new[] { "Door_N", "Door_E", "Door_S", "Door_W" };
         var reportLines = new List<string>();
 
-        foreach (var doorName in doorNames)
+        foreach (var expected in ExpectedPlacements)
         {
-            var authoredDoor = authoredAtrium.GameObjects.FirstOrDefault(obj =>
-                string.Equals(obj.Name, doorName, StringComparison.OrdinalIgnoreCase));
-            Assert.NotNull(authoredDoor);
+            var authoredDoor = FindAuthoredDoor(authoredAtrium, expected.Name);
+            var variantName = ResolveDoorVariantName(authoredDoor);
+            Assert.Equal(expected.VariantName, variantName);
 
-            var runtimeDoor = runtimeAtrium!.Children.FirstOrDefault(node =>
-                node.Kind == ScopeNodeKind.GameObject
-                && string.Equals(node.Name, doorName, StringComparison.OrdinalIgnoreCase));
-            Assert.NotNull(runtimeDoor);
+            var preview = new RoomDesignerPreviewObjectViewModel(authoredDoor)
+            {
+                SelectedPreviewVariantName = variantName
+            };
+            var drawX = authoredDoor.PositionX + preview.ImageLocalAlignmentOffsetX;
+            var drawY = authoredDoor.PositionY + preview.ImageLocalAlignmentOffsetY;
 
-            var variantName = ResolveDoorVariantName(authoredDoor!);
-            var previewVm = new RoomDesignerPreviewObjectViewModel(authoredDoor!);
-            previewVm.SelectedPreviewVariantName = variantName;
-
-            var designerDrawX = authoredDoor!.PositionX + previewVm.ImageLocalAlignmentOffsetX;
-            var designerDrawY = authoredDoor.PositionY + previewVm.ImageLocalAlignmentOffsetY;
-
-            var runtimeDrawX = ResolveDoubleVariable(runtimeDoor!, "renderPositionX", "x", "positionX", "offsetX");
-            var runtimeDrawY = ResolveDoubleVariable(runtimeDoor!, "renderPositionY", "y", "positionY", "offsetY");
-            var runtimeAnchorX = ResolveDoubleVariable(runtimeDoor!, "renderAnchorX");
-            var runtimeAnchorY = ResolveDoubleVariable(runtimeDoor!, "renderAnchorY");
-            var runtimeIconOffsetX = ResolveDoubleVariable(runtimeDoor!, "renderIconOffsetX");
-            var runtimeIconOffsetY = ResolveDoubleVariable(runtimeDoor!, "renderIconOffsetY");
-            var runtimeRotation = ResolveDoubleVariable(runtimeDoor!, "renderRotationDegrees", "imageRotationDegrees");
-
-            var deltaX = runtimeDrawX - designerDrawX;
-            var deltaY = runtimeDrawY - designerDrawY;
-
-            Assert.Equal(0d, deltaX, 6);
-            Assert.Equal(0d, deltaY, 6);
+            Assert.Equal(expected.AnchorX, authoredDoor.PositionX, 6);
+            Assert.Equal(expected.AnchorY, authoredDoor.PositionY, 6);
+            Assert.Equal(expected.IconOffsetX, preview.ImageLocalAlignmentOffsetX, 6);
+            Assert.Equal(expected.IconOffsetY, preview.ImageLocalAlignmentOffsetY, 6);
+            Assert.Equal(expected.RotationDegrees, authoredDoor.ImageRotationDegrees, 6);
+            Assert.Equal(expected.DrawX, drawX, 6);
+            Assert.Equal(expected.DrawY, drawY, 6);
 
             reportLines.Add(
-                $"{doorName}: variant={variantName}; designerDraw=({designerDrawX:0.###},{designerDrawY:0.###}); "
-                + $"runtimeDraw=({runtimeDrawX:0.###},{runtimeDrawY:0.###}); delta=({deltaX:0.###},{deltaY:0.###}); "
-                + $"runtimeAnchor=({runtimeAnchorX:0.###},{runtimeAnchorY:0.###}); "
-                + $"runtimeIconOffset=({runtimeIconOffsetX:0.###},{runtimeIconOffsetY:0.###}); "
-                + $"runtimeRotation={runtimeRotation:0.###}; "
-                + $"previewCompare={previewVm.PlacementComparisonSnapshot}");
+                $"{expected.Name}: variant={variantName}; anchor=({authoredDoor.PositionX:0.###},{authoredDoor.PositionY:0.###}); "
+                + $"iconOffset=({preview.ImageLocalAlignmentOffsetX:0.###},{preview.ImageLocalAlignmentOffsetY:0.###}); "
+                + $"draw=({drawX:0.###},{drawY:0.###}); rotation={authoredDoor.ImageRotationDegrees:0.###}; "
+                + $"previewCompare={preview.PlacementComparisonSnapshot}");
         }
 
-        Assert.Equal(4, reportLines.Count);
+        Assert.Equal(ExpectedPlacements.Length, reportLines.Count);
         foreach (var line in reportLines)
         {
             _output.WriteLine(line);
         }
     }
 
-    [Fact]
-    public void WorkshopTutorialAtrium_Doors_DesignerVsRuntime_NormalizedFrameDeltaReport()
+    private static GameObject FindAuthoredDoor(Room room, string doorName)
     {
-        var root = FindRepositoryRoot();
-        var authoredProjectPath = Path.Combine(root, "Samples", "WorkshopTutorial", "WorkshopTutorial.sbe.json");
-        var cleanProjectPath = Path.Combine(root, "Samples", "WorkshopTutorial", "GameRuntimeJson", "WorkshopTutorial.sbr.runtime.json");
-
-        var authoredProject = LoadAuthoredProject(authoredProjectPath);
-        var authoredAtrium = FindRoomByName(authoredProject, "Atrium");
-        var gridCellSize = Math.Max(1, authoredProject.RoomDesignerGridCellSize);
-
-        var manager = CreateGameManager();
-        var loadResult = Assert.IsAssignableFrom<IHostRuntimeGameDebugger>(manager).LoadGameRuntimeProject(cleanProjectPath);
-        Assert.True(loadResult.Success, string.Join(" | ", loadResult.Diagnostics));
-        var debugger = Assert.IsAssignableFrom<IHostRuntimeGameDebugger>(manager);
-
-        _ = manager.ProcessCommand(new HostRequestContext(), "look", includeTechnicalDiagnostics: true);
-
-        var runtimeAtrium = debugger.CurrentSession?.CurrentRoom;
-        Assert.NotNull(runtimeAtrium);
-
-        var doorNames = new[] { "Door_N", "Door_E", "Door_S", "Door_W" };
-        var reportLines = new List<string>();
-
-        foreach (var doorName in doorNames)
-        {
-            var authoredDoor = authoredAtrium.GameObjects.FirstOrDefault(obj =>
-                string.Equals(obj.Name, doorName, StringComparison.OrdinalIgnoreCase));
-            Assert.NotNull(authoredDoor);
-
-            var runtimeDoor = runtimeAtrium!.Children.FirstOrDefault(node =>
-                node.Kind == ScopeNodeKind.GameObject
-                && string.Equals(node.Name, doorName, StringComparison.OrdinalIgnoreCase));
-            Assert.NotNull(runtimeDoor);
-
-            var variantName = ResolveDoorVariantName(authoredDoor!);
-            var previewVm = new RoomDesignerPreviewObjectViewModel(authoredDoor!);
-            previewVm.SelectedPreviewVariantName = variantName;
-
-            var designerAnchorX = authoredDoor!.PositionX;
-            var designerAnchorY = authoredDoor.PositionY;
-            var designerIconOffsetX = previewVm.ImageLocalAlignmentOffsetX;
-            var designerIconOffsetY = previewVm.ImageLocalAlignmentOffsetY;
-            var designerDrawX = designerAnchorX + designerIconOffsetX;
-            var designerDrawY = designerAnchorY + designerIconOffsetY;
-
-            var runtimeAnchorX = ResolveDoubleVariable(runtimeDoor!, "renderAnchorX");
-            var runtimeAnchorY = ResolveDoubleVariable(runtimeDoor!, "renderAnchorY");
-            var runtimeIconOffsetX = ResolveDoubleVariable(runtimeDoor!, "renderIconOffsetX");
-            var runtimeIconOffsetY = ResolveDoubleVariable(runtimeDoor!, "renderIconOffsetY");
-            var runtimeRotation = ResolveDoubleVariable(runtimeDoor!, "renderRotationDegrees", "imageRotationDegrees");
-            var runtimeDrawX = ResolveDoubleVariable(runtimeDoor!, "renderPositionX");
-            var runtimeDrawY = ResolveDoubleVariable(runtimeDoor!, "renderPositionY");
-
-            AssertFinite(runtimeAnchorX, $"Missing renderAnchorX for {doorName}");
-            AssertFinite(runtimeAnchorY, $"Missing renderAnchorY for {doorName}");
-            AssertFinite(runtimeIconOffsetX, $"Missing renderIconOffsetX for {doorName}");
-            AssertFinite(runtimeIconOffsetY, $"Missing renderIconOffsetY for {doorName}");
-            AssertFinite(runtimeRotation, $"Missing renderRotationDegrees/imageRotationDegrees for {doorName}");
-            AssertFinite(runtimeDrawX, $"Missing renderPositionX for {doorName}");
-            AssertFinite(runtimeDrawY, $"Missing renderPositionY for {doorName}");
-
-            var anchorDeltaX = runtimeAnchorX - designerAnchorX;
-            var anchorDeltaY = runtimeAnchorY - designerAnchorY;
-            var iconDeltaX = runtimeIconOffsetX - designerIconOffsetX;
-            var iconDeltaY = runtimeIconOffsetY - designerIconOffsetY;
-            var drawDeltaX = runtimeDrawX - designerDrawX;
-            var drawDeltaY = runtimeDrawY - designerDrawY;
-
-            Assert.Equal(0d, anchorDeltaX, 6);
-            Assert.Equal(0d, anchorDeltaY, 6);
-            Assert.Equal(0d, iconDeltaX, 6);
-            Assert.Equal(0d, iconDeltaY, 6);
-            Assert.Equal(0d, drawDeltaX, 6);
-            Assert.Equal(0d, drawDeltaY, 6);
-
-            var localAnchorDelta = RotateVectorDegrees(anchorDeltaX, anchorDeltaY, -runtimeRotation);
-            var localIconDelta = RotateVectorDegrees(iconDeltaX, iconDeltaY, -runtimeRotation);
-
-            reportLines.Add(
-                $"{doorName}: variant={variantName}; rot={runtimeRotation:0.###}; "
-                + $"designerAnchor=({designerAnchorX:0.###},{designerAnchorY:0.###}); "
-                + $"runtimeAnchor=({runtimeAnchorX:0.###},{runtimeAnchorY:0.###}); "
-                + $"designerIconOffset=({designerIconOffsetX:0.###},{designerIconOffsetY:0.###}); "
-                + $"runtimeIconOffset=({runtimeIconOffsetX:0.###},{runtimeIconOffsetY:0.###}); "
-                + $"anchorDeltaWorld=({anchorDeltaX:0.###},{anchorDeltaY:0.###}); "
-                + $"anchorDeltaCells=({(anchorDeltaX / gridCellSize):0.###},{(anchorDeltaY / gridCellSize):0.###}); "
-                + $"anchorDeltaLocal=({localAnchorDelta.X:0.###},{localAnchorDelta.Y:0.###}); "
-                + $"anchorDeltaLocalCells=({(localAnchorDelta.X / gridCellSize):0.###},{(localAnchorDelta.Y / gridCellSize):0.###}); "
-                + $"iconDeltaWorld=({iconDeltaX:0.###},{iconDeltaY:0.###}); "
-                + $"iconDeltaLocal=({localIconDelta.X:0.###},{localIconDelta.Y:0.###}); "
-                + $"drawDeltaWorld=({drawDeltaX:0.###},{drawDeltaY:0.###}); "
-                + $"previewCompare={previewVm.PlacementComparisonSnapshot}");
-        }
-
-        Assert.Equal(4, reportLines.Count);
-        foreach (var line in reportLines)
-        {
-            _output.WriteLine(line);
-        }
+        return room.GameObjects.FirstOrDefault(obj =>
+                   string.Equals(obj.Name, doorName, StringComparison.OrdinalIgnoreCase))
+               ?? throw new InvalidOperationException($"Unable to resolve authored door '{doorName}'.");
     }
 
     private static string ResolveDoorVariantName(GameObject door)
@@ -204,34 +83,6 @@ public sealed class DesignerRuntimeDoorPlacementParityDiagnosticsTests
         return door.ImageVariants.Any(v => string.Equals(v.VariantName, "Closed", StringComparison.OrdinalIgnoreCase))
             ? "Closed"
             : string.Empty;
-    }
-
-    private static double ResolveDoubleVariable(GameStateScopeNode node, params string[] variableNames)
-    {
-        foreach (var variableName in variableNames)
-        {
-            if (node.Variables.TryGetVariable(variableName, out var runtime)
-                && double.TryParse(runtime.Value?.Trim(), out var parsed)
-                && double.IsFinite(parsed))
-            {
-                return parsed;
-            }
-        }
-
-        return double.NaN;
-    }
-
-    private static (double X, double Y) RotateVectorDegrees(double x, double y, double degrees)
-    {
-        var radians = degrees * (Math.PI / 180d);
-        var cos = Math.Cos(radians);
-        var sin = Math.Sin(radians);
-        return ((x * cos) - (y * sin), (x * sin) + (y * cos));
-    }
-
-    private static void AssertFinite(double value, string message)
-    {
-        Assert.True(double.IsFinite(value), message);
     }
 
     private static Room FindRoomByName(ProjectModel project, string roomName)
@@ -256,8 +107,7 @@ public sealed class DesignerRuntimeDoorPlacementParityDiagnosticsTests
 
     private static ProjectModel LoadAuthoredProject(string authoredProjectPath)
     {
-        var jsonService = new JsonExportService();
-        var project = jsonService.TryLoadProjectModel(authoredProjectPath);
+        var project = new JsonExportService().TryLoadProjectModel(authoredProjectPath);
         if (project is null)
         {
             throw new InvalidOperationException($"Unable to load authored project '{authoredProjectPath}'.");
@@ -267,18 +117,20 @@ public sealed class DesignerRuntimeDoorPlacementParityDiagnosticsTests
         return project;
     }
 
-    private static IHostRuntimeCommandProcessorClient CreateGameManager()
-    {
-        IGameCommandPreprocessorService preprocessor = new GameCommandPreprocessorService();
-        IActionScriptEvaluationService evaluator = new ActionScriptEvaluationService();
-        IRuntimeCommandProcessorService processor = new GameCommandProcessorService(evaluator, preprocessor);
-        IGameProjectRuntimeLoaderService loader = new GameProjectRuntimeLoaderService();
-        IRuntimeLoadedGameLoader runtimeLoadedGameLoader = new CleanProjectRuntimeLoadedGameLoader(loader);
-        return new Storyboard.Shared.GameManager.GameManager(runtimeLoadedGameLoader, processor);
-    }
+    private static string GetAuthoredProjectPath() => Path.Combine(
+        AppContext.BaseDirectory,
+        "Samples",
+        "WorkshopTutorial",
+        "WorkshopTutorial.sbe.json");
 
-    private static string FindRepositoryRoot()
-    {
-        return AppContext.BaseDirectory;
-    }
+    private sealed record ExpectedDoorPlacement(
+        string Name,
+        string VariantName,
+        double AnchorX,
+        double AnchorY,
+        double IconOffsetX,
+        double IconOffsetY,
+        double RotationDegrees,
+        double DrawX,
+        double DrawY);
 }

@@ -1,90 +1,98 @@
-using Storyboard.Shared.GameServices;
-using Storyboard.Shared.HostContracts;
-using StoryboardDesigner.App.Models;
+using System.Text.Json.Nodes;
 using StoryboardDesigner.App.Services;
+using Direction10 = Storyboard.Shared.RuntimeContracts.Enums.Direction10;
 
 namespace StoryboardDesigner.App.Tests;
 
 public sealed class AreaMapMultiCellTraversalRuntimeSmokeTests
 {
+    private static readonly Guid TripleWideId = Guid.Parse("5ba31fc8-19f5-4aa9-8aea-94319aa5bcd2");
+    private static readonly Guid AreWeThereYetId = Guid.Parse("5ab1177b-da1e-4e2c-a310-134a67f2caf5");
+
     [Fact]
-    public void ExportedNorthLink_EntersMultiCellRoomAndCanReturnSouth()
+    public void LargeRoomTraversals_SavedProjectLoadsAndCanBeReExported()
     {
+        var projectFilePath = GetAuthoredProjectPath();
+        Assert.True(File.Exists(projectFilePath), $"Authored sample project is missing: {projectFilePath}");
+
+        var jsonExportService = new JsonExportService();
+        var project = jsonExportService.TryLoadProjectModel(projectFilePath);
+        Assert.NotNull(project);
+
+        var area = Assert.Single(project!.Planets.Single().Countries.Single().Areas);
+        var tripleWide = Assert.Single(area.Rooms, room => room.Id == TripleWideId);
+        var areWeThereYet = Assert.Single(area.Rooms, room => room.Id == AreWeThereYetId);
+        Assert.Contains(area.TraversalConnections, connection =>
+            connection.BaseTraversalDirectionFromA == Direction10.South
+            && connection.RoomAId == tripleWide.Id
+            && connection.RoomBId == areWeThereYet.Id);
+
         var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempRoot);
         try
         {
-            var hallway = new Room { Name = "North Hallway", NameInGame = "North Hallway" };
-            var foyer = new Room { Name = "Elevator Foyer", NameInGame = "Elevator Foyer" };
-            var area = new Area
-            {
-                Name = "Area",
-                AdditionalDirectionals = ["north", "south"],
-                AdditionalDirectionalTraversalMappings =
-                [
-                    new DirectionalTraversalMapping { Token = "north", TraversalDirection = Direction10.North },
-                    new DirectionalTraversalMapping { Token = "south", TraversalDirection = Direction10.South }
-                ],
-                AvailableActions =
-                [
-                    new CommandAction
-                    {
-                        Name = "GoAdjacent",
-                        ActionType = CommandActionType.NavigateToAdjacent,
-                        Verbs = ["go"]
-                    }
-                ],
-                Rooms = [hallway, foyer],
-                StartingRoomId = hallway.Id,
-                RoomPlacements =
-                [
-                    new AreaRoomPlacement { RoomId = hallway.Id, X = 384, Y = 304 },
-                    new AreaRoomPlacement { RoomId = foyer.Id, X = 204, Y = 164, ColumnSpan = 2 }
-                ],
-                TraversalConnections =
-                [
-                    new TraversalConnection
-                    {
-                        RoomAId = hallway.Id,
-                        RoomBId = foyer.Id,
-                        BaseTraversalDirectionFromA = Direction10.North,
-                        TraversalAccessMode = TraversalAccessMode.TwoWay
-                    }
-                ]
-            };
-            var project = new ProjectModel
-            {
-                Name = "Elevator Foyer Traversal",
-                CommandVerbs = ["go"],
-                Planets = [new Planet { Name = "Planet", Countries =
-                    [new Country { Name = "Country", Areas = [area] }] }]
-            };
-            var projectFilePath = Path.Combine(tempRoot, "Foyer.sbe.json");
-            var runtimePath = new JsonExportService().ExportCleanProjectV1(projectFilePath, project);
+            var runtimePath = jsonExportService.ExportCleanProjectV1(
+                Path.Combine(tempRoot, "LargeRoomTraversals.sbe.json"),
+                project);
 
-            IGameCommandPreprocessorService preprocessor = new GameCommandPreprocessorService();
-            IActionScriptEvaluationService evaluator = new ActionScriptEvaluationService();
-            IRuntimeCommandProcessorService processor = new GameCommandProcessorService(evaluator, preprocessor);
-            IGameProjectRuntimeLoaderService loader = new GameProjectRuntimeLoaderService();
-            IRuntimeLoadedGameLoader loadedGameLoader = new CleanProjectRuntimeLoadedGameLoader(loader);
-            IHostRuntimeCommandProcessorClient manager = new Storyboard.Shared.GameManager.GameManager(loadedGameLoader, processor);
-            var debugger = Assert.IsAssignableFrom<IHostRuntimeGameDebugger>(manager);
-            var loadResult = debugger.LoadGameRuntimeProject(runtimePath);
-            Assert.True(loadResult.Success, string.Join(" | ", loadResult.Diagnostics));
-            Assert.Equal(hallway.Id, debugger.CurrentSession?.CurrentRoom?.ScopeNodeId);
-            Assert.Equal(2, debugger.CurrentSession?.CurrentArea?.TraversalLegs.Count);
-
-            var north = manager.ProcessCommand(new HostRequestContext(), "go north", includeTechnicalDiagnostics: true);
-            Assert.True(north.Success, north.ResultCode + " | " + string.Join(" | ", north.Diagnostics));
-            Assert.Equal(foyer.Id, debugger.CurrentSession?.CurrentRoom?.ScopeNodeId);
-
-            var south = manager.ProcessCommand(new HostRequestContext(), "go south", includeTechnicalDiagnostics: true);
-            Assert.True(south.Success, string.Join(" | ", south.Diagnostics));
-            Assert.Equal(hallway.Id, debugger.CurrentSession?.CurrentRoom?.ScopeNodeId);
+            Assert.True(File.Exists(runtimePath), $"Temporary runtime export is missing: {runtimePath}");
+            var packagedRuntimePath = GetPackagedRuntimePath();
+            Assert.True(File.Exists(packagedRuntimePath), $"Packaged runtime export is missing: {packagedRuntimePath}");
+            AssertRuntimeExportsMatch(runtimePath, packagedRuntimePath);
         }
         finally
         {
-            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
         }
     }
+
+    private static void AssertRuntimeExportsMatch(string temporaryRuntimePath, string packagedRuntimePath)
+    {
+        var temporaryRoot = Path.GetDirectoryName(temporaryRuntimePath)
+            ?? throw new InvalidOperationException("Unable to resolve temporary runtime export folder.");
+        var packagedRoot = Path.GetDirectoryName(packagedRuntimePath)
+            ?? throw new InvalidOperationException("Unable to resolve packaged runtime export folder.");
+
+        var temporaryFiles = GetRelativeJsonFiles(temporaryRoot);
+        var packagedFiles = GetRelativeJsonFiles(packagedRoot);
+        Assert.Equal(packagedFiles.Keys.OrderBy(path => path, StringComparer.OrdinalIgnoreCase),
+            temporaryFiles.Keys.OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+
+        foreach (var relativePath in packagedFiles.Keys)
+        {
+            var packagedJson = JsonNode.Parse(File.ReadAllText(packagedFiles[relativePath]));
+            var temporaryJson = JsonNode.Parse(File.ReadAllText(temporaryFiles[relativePath]));
+            Assert.True(
+                JsonNode.DeepEquals(packagedJson, temporaryJson),
+                $"Temporary and packaged runtime exports differ in '{relativePath}'.");
+        }
+    }
+
+    private static Dictionary<string, string> GetRelativeJsonFiles(string root)
+    {
+        return Directory.EnumerateFiles(root, "*.json", SearchOption.AllDirectories)
+            .Where(path => !Path.GetFileName(path).EndsWith(
+                ".sbr.runtime.direct-command-echoes.json",
+                StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(
+                path => Path.GetRelativePath(root, path),
+                path => path,
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string GetAuthoredProjectPath() => Path.Combine(
+        AppContext.BaseDirectory,
+        "Samples",
+        "LargeRoomTraversals",
+        "LargeRoomTraversals.sbe.json");
+
+    private static string GetPackagedRuntimePath() => Path.Combine(
+        AppContext.BaseDirectory,
+        "Samples",
+        "LargeRoomTraversals",
+        "GameRuntimeJson",
+        "LargeRoomTraversals.sbr.runtime.json");
 }
