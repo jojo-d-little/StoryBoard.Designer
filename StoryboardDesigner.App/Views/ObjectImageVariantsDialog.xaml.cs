@@ -11,7 +11,6 @@ using System.Windows.Shapes;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
-using Storyboard.Shared.Config;
 using Storyboard.Shared.RuntimeContracts.Enums;
 
 namespace StoryboardDesigner.App.Views;
@@ -1214,11 +1213,11 @@ public partial class ObjectImageVariantsDialog : Window
             return;
         }
 
-        if (parsedStackScaleStep.HasValue && !StackScalePolicy.IsStackScaleStepWithinBounds(parsedStackScaleStep.Value))
+        if (parsedStackScaleStep.HasValue && !FoundationStackScalePolicy.IsStackScaleStepWithinBounds(parsedStackScaleStep.Value))
         {
             System.Windows.MessageBox.Show(
                 this,
-                $"Stack scale step override must be blank or between {StackScalePolicy.MinStackScaleStep:0.##} and {StackScalePolicy.MaxStackScaleStep:0.##}.",
+                $"Stack scale step override must be blank or between {FoundationStackScalePolicy.MinStackScaleStep:0.##} and {FoundationStackScalePolicy.MaxStackScaleStep:0.##}.",
                 "Object Appearance",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -1235,11 +1234,11 @@ public partial class ObjectImageVariantsDialog : Window
             return;
         }
 
-        if (parsedMinStackScale.HasValue && !StackScalePolicy.IsMinStackScaleWithinBounds(parsedMinStackScale.Value))
+        if (parsedMinStackScale.HasValue && !FoundationStackScalePolicy.IsMinStackScaleWithinBounds(parsedMinStackScale.Value))
         {
             System.Windows.MessageBox.Show(
                 this,
-                $"Min stack scale override must be blank or between {StackScalePolicy.MinMinStackScale:0.##} and {StackScalePolicy.MaxMinStackScale:0.##}.",
+                $"Min stack scale override must be blank or between {FoundationStackScalePolicy.MinMinStackScale:0.##} and {FoundationStackScalePolicy.MaxMinStackScale:0.##}.",
                 "Object Appearance",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -1420,13 +1419,13 @@ public partial class ObjectImageVariantsDialog : Window
     private static double? SanitizeOptionalStackScaleStep(double? value)
     {
         var finite = SanitizeOptionalFinite(value);
-        return finite.HasValue ? StackScalePolicy.ClampStackScaleStep(finite.Value) : null;
+        return finite.HasValue ? FoundationStackScalePolicy.ClampStackScaleStep(finite.Value) : null;
     }
 
     private static double? SanitizeOptionalMinStackScale(double? value)
     {
         var finite = SanitizeOptionalFinite(value);
-        return finite.HasValue ? StackScalePolicy.ClampMinStackScale(finite.Value) : null;
+        return finite.HasValue ? FoundationStackScalePolicy.ClampMinStackScale(finite.Value) : null;
     }
 
     private void WholeNumberTextBox_OnPreviewTextInput(object sender, TextCompositionEventArgs e)

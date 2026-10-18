@@ -6,8 +6,6 @@ using System.Text.Json;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Storyboard.Shared.DesignerContracts;
-using Storyboard.Shared.GameServices;
-using Storyboard.Shared.GameServices.References;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Orchestration;
 using StoryboardDesigner.App.Services;

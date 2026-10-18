@@ -1,13 +1,10 @@
 using System.Windows.Input;
 using System.IO;
 using System.Text.Json;
-using Storyboard.Shared.Serialization;
 using Storyboard.Shared.DesignerContracts;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Orchestration.Workflows;
 using StoryboardDesigner.App.Services;
-using Storyboard.Shared.GameServices;
-using Storyboard.Shared.GameServices.Actions;
 using Storyboard.Shared.RuntimeContracts.Dtos;
 using StoryboardDesigner.App.Validation.Contracts;
 using StoryboardDesigner.App.Validation.Execution;
@@ -313,7 +310,7 @@ public sealed partial class MainWindowViewModel
     private static EchoDefaultsRefreshSummary RefreshDefaultEchoMessagesFile(string filePath)
     {
         var desired = BuildDefaultEchoMessagesSkeleton();
-        var options = StoryboardJsonSerializerOptions.Create();
+        var options = FoundationStoryboardJsonSerializerOptions.Create();
 
         Dictionary<string, Dictionary<string, string>> current;
         var raw = File.ReadAllText(filePath);
@@ -420,7 +417,7 @@ public sealed partial class MainWindowViewModel
             PrimarySelectionCueEffectKey = presentationEffectsCatalogService.GetDefaultSelectionOutlineEffectKey(),
             SecondarySelectionCueEffectKey = presentationEffectsCatalogService.GetDefaultSecondarySelectionOutlineEffectKey()
         };
-        var options = StoryboardJsonSerializerOptions.Create();
+        var options = FoundationStoryboardJsonSerializerOptions.Create();
         var json = JsonSerializer.Serialize(defaults, options);
         File.WriteAllText(filePath, json);
     }
@@ -440,7 +437,7 @@ public sealed partial class MainWindowViewModel
 
         var defaults = Storyboard.GameEngine.Configuration.Catalogs.PresentationEffectsCatalogLoader.Load(
             Path.Combine(AppContext.BaseDirectory, "Config"));
-        var options = StoryboardJsonSerializerOptions.Create();
+        var options = FoundationStoryboardJsonSerializerOptions.Create();
         var json = JsonSerializer.Serialize(defaults, options);
         File.WriteAllText(filePath, json);
     }
@@ -467,7 +464,7 @@ public sealed partial class MainWindowViewModel
         }
 
         var defaults = BuildDefaultEchoMessagesSkeleton();
-        var options = StoryboardJsonSerializerOptions.Create();
+        var options = FoundationStoryboardJsonSerializerOptions.Create();
         var json = JsonSerializer.Serialize(defaults, options);
         File.WriteAllText(filePath, json);
     }

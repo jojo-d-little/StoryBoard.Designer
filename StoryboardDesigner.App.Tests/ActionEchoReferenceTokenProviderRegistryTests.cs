@@ -1,6 +1,6 @@
+using Storyboard.Shared.GameServices.References;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
-using Storyboard.Shared.GameServices.References;
 using Storyboard.GameEngine.Configuration.ActionManifest;
 
 namespace StoryboardDesigner.App.Tests;

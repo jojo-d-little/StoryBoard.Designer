@@ -1,7 +1,6 @@
 using System.Windows.Input;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
-using Storyboard.Shared.GameServices.References;
 using StoryboardDesigner.App.Validation.Execution;
 
 namespace StoryboardDesigner.App.ViewModels;

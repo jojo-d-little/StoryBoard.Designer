@@ -1,7 +1,5 @@
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
-using Storyboard.Shared.GameServices.References;
-
 namespace StoryboardDesigner.App.Validation.Rules.Scripting;
 
 internal static class ScriptRuleSupport

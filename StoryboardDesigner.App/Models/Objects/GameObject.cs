@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using Storyboard.Shared.Config;
 using Storyboard.Shared.RuntimeContracts.Enums;
 
 namespace StoryboardDesigner.App.Models;
@@ -454,7 +453,7 @@ public sealed class GameObject : ScopeNodeBase, INotifyPropertyChanged
         set
         {
             var sanitized = value.HasValue && double.IsFinite(value.Value)
-                ? StackScalePolicy.ClampStackScaleStep(value.Value)
+                ? FoundationStackScalePolicy.ClampStackScaleStep(value.Value)
                 : (double?)null;
             if (Nullable.Equals(_stackScaleStepOverride, sanitized))
             {
@@ -472,7 +471,7 @@ public sealed class GameObject : ScopeNodeBase, INotifyPropertyChanged
         set
         {
             var sanitized = value.HasValue && double.IsFinite(value.Value)
-                ? StackScalePolicy.ClampMinStackScale(value.Value)
+                ? FoundationStackScalePolicy.ClampMinStackScale(value.Value)
                 : (double?)null;
             if (Nullable.Equals(_minStackScaleOverride, sanitized))
             {

@@ -6,7 +6,6 @@ using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Models.Enums;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.Validation.Rules.Project;
-using Storyboard.Shared.GameServices.References;
 using Storyboard.Shared.DesignerContracts;
 using Storyboard.Shared.RuntimeContracts.Enums;
 

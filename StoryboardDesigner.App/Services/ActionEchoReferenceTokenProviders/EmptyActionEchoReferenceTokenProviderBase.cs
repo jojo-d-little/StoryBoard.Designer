@@ -1,5 +1,3 @@
-using Storyboard.Shared.GameServices.References;
-
 namespace StoryboardDesigner.App.Services;
 
 public abstract class EmptyActionEchoReferenceTokenProviderBase : IActionEchoReferenceTokenProvider

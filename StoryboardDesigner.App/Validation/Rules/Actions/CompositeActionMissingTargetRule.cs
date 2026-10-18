@@ -1,4 +1,3 @@
-using Storyboard.Shared.GameStateData;
 using Storyboard.Shared.RuntimeContracts;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Validation.Contracts;

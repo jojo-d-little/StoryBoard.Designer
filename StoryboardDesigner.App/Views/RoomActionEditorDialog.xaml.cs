@@ -7,10 +7,6 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using Storyboard.Shared.DesignerContracts;
-using Storyboard.Shared.GameServices;
-using Storyboard.Shared.GameServices.Commands;
-using Storyboard.Shared.GameServices.References;
-using Storyboard.Shared.GameServices.RuntimeContext;
 using Storyboard.Shared.RuntimeContracts.Enums;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
@@ -469,7 +465,7 @@ public partial class RoomActionEditorDialog : Window
             new CommandContextBooleanOption(false, "False")
         };
         CommandContextDirectionValueComboBox.ItemsSource = Enum.GetValues<Direction10>()
-            .Where(Direction10Formatting.IsUsable)
+            .Where(FoundationDirection10Formatting.IsUsable)
             .Select(static direction => new CommandContextDirectionOption(direction, direction.ToString()))
             .ToList();
         EchoFunctionListBox.ItemsSource = BuiltInFunctions;
@@ -1586,10 +1582,10 @@ public partial class RoomActionEditorDialog : Window
         }
 
         if (!string.IsNullOrWhiteSpace(directionToken)
-            && Direction10Formatting.TryParseToken(directionToken, out var parsedDirection)
-            && Direction10Formatting.IsUsable(parsedDirection))
+            && FoundationDirection10Formatting.TryParseToken(directionToken, out var parsedDirection)
+            && FoundationDirection10Formatting.IsUsable(parsedDirection))
         {
-            directionToken = parsedDirection.ToToken();
+            directionToken = FoundationDirection10Formatting.ToToken(parsedDirection);
         }
 
         _workingCopy.MoveDirectionToken = directionToken;
@@ -1678,22 +1674,22 @@ public partial class RoomActionEditorDialog : Window
 
     private static bool IsMoveDirectionTokenValid(string token)
     {
-        if (Direction10Formatting.TryParseToken(token, out var parsed)
-            && Direction10Formatting.IsUsable(parsed))
+        if (FoundationDirection10Formatting.TryParseToken(token, out var parsed)
+            && FoundationDirection10Formatting.IsUsable(parsed))
         {
             return true;
         }
 
         return Enum.TryParse<Direction10>(token, true, out parsed)
-            && Direction10Formatting.IsUsable(parsed);
+            && FoundationDirection10Formatting.IsUsable(parsed);
     }
 
     private static IReadOnlyList<string> BuildMoveDirectionChoices()
     {
         var values = new List<string> { string.Empty };
         values.AddRange(Enum.GetValues<Direction10>()
-            .Where(Direction10Formatting.IsUsable)
-            .Select(static direction => direction.ToToken()));
+            .Where(FoundationDirection10Formatting.IsUsable)
+            .Select(static direction => FoundationDirection10Formatting.ToToken(direction)));
         return values;
     }
 
@@ -1722,7 +1718,7 @@ public partial class RoomActionEditorDialog : Window
             return false;
         }
 
-        if (!Direction10Formatting.TryParseToken(value, out var parsed))
+        if (!FoundationDirection10Formatting.TryParseToken(value, out var parsed))
         {
             if (!Enum.TryParse<Direction10>(value, true, out parsed))
             {
@@ -1735,7 +1731,7 @@ public partial class RoomActionEditorDialog : Window
             return false;
         }
 
-        normalized = parsed.ToToken();
+        normalized = FoundationDirection10Formatting.ToToken(parsed);
         return true;
     }
 

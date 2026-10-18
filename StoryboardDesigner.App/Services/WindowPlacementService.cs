@@ -1,13 +1,12 @@
 using System.IO;
 using System.Text.Json;
 using System.Windows;
-using Storyboard.Shared.Serialization;
 
 namespace StoryboardDesigner.App.Services;
 
 public sealed class WindowPlacementService : IWindowPlacementService
 {
-    private readonly JsonSerializerOptions _jsonOptions = StoryboardJsonSerializerOptions.Create();
+    private readonly JsonSerializerOptions _jsonOptions = FoundationStoryboardJsonSerializerOptions.Create();
 
     private readonly string _settingsPath = DesignerUserDataPaths.GetFilePath("window-placement.json");
 

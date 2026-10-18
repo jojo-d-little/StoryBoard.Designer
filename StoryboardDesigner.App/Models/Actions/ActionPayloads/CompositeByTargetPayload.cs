@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Storyboard.Shared.GameServices.References;
-
 namespace StoryboardDesigner.App.Models;
 
 public sealed record CompositeByTargetPayload(

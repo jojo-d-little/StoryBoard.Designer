@@ -3,7 +3,6 @@ using StoryboardDesigner.App.Orchestration.Diagnostics;
 using StoryboardDesigner.App.Orchestration.SaveGuard;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
-using Storyboard.Shared.GameServices;
 
 namespace StoryboardDesigner.App.Composition;
 

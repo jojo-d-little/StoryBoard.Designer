@@ -1,7 +1,6 @@
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.ViewModels;
 using StoryboardDesigner.App.Views;
-using Storyboard.Shared.GameServices.Spatial;
 using System.ComponentModel;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -265,7 +264,7 @@ public sealed class RoomDesignerPreviewObjectViewModelRotationOffsetTests
             footprintHeightCells,
             footprintOrientation);
 
-        var expected = RuntimeRenderablePlacementMath.ComputeIconLocalOffset(
+        var expected = FoundationRenderablePlacementMath.ComputeIconLocalOffset(
             roomRotationDegrees,
             localRotationDegrees,
             rawOffsetX,

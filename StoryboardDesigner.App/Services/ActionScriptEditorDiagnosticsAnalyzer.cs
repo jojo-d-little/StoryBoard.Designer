@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using Storyboard.Shared.GameServices.Actions;
 
 namespace StoryboardDesigner.App.Services;
 
@@ -11,7 +10,8 @@ public static class ActionScriptEditorDiagnosticsAnalyzer
     public static ActionScriptEditorDiagnosticsResult Analyze(string scriptText, IEnumerable<string>? referenceTokens)
     {
         var result = new ActionScriptEditorDiagnosticsResult();
-        var validation = ActionScriptSyntaxValidator.Validate(scriptText ?? string.Empty, referenceTokens);
+        Storyboard.Foundation.Actions.ActionScriptSyntaxValidationResult validation =
+            FoundationActionScriptSyntaxValidator.Validate(scriptText ?? string.Empty, referenceTokens);
 
         foreach (var error in validation.Errors)
         {

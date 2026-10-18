@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Storyboard.Shared.GameServices;
 using StoryboardDesigner.App.Models;
 
 namespace StoryboardDesigner.App.Services;
@@ -129,9 +128,9 @@ public static class CommandActionSummaryPresenter
         var verbs = action.VerbListText;
         var direction = action.DirectionQualifierText;
         if (!string.IsNullOrWhiteSpace(direction)
-            && Direction10Formatting.TryParseToken(direction, out var parsedDirection))
+            && FoundationDirection10Formatting.TryParseToken(direction, out var parsedDirection))
         {
-            direction = parsedDirection.ToDisplayLabel();
+            direction = FoundationDirection10Formatting.ToDisplayLabel(parsedDirection);
         }
 
         if (string.IsNullOrWhiteSpace(verbs) && string.IsNullOrWhiteSpace(direction))

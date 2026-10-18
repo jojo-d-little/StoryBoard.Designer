@@ -3,7 +3,6 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
-using Storyboard.Shared.GameServices.Spatial;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 
@@ -510,7 +509,7 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
         var localRotationDegrees = _effectiveDefinitionOwnedSource.ResolveImageLocalAlignmentRotationDegrees(SelectedPreviewVariantName);
         var roomRotationDegrees = GameObject.ImageRotationDegrees;
 
-        return RuntimeRenderablePlacementMath.ComputeIconLocalOffset(
+        return FoundationRenderablePlacementMath.ComputeIconLocalOffset(
             roomRotationDegrees,
             localRotationDegrees,
             rawOffsetX,

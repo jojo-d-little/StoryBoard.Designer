@@ -4,7 +4,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Storyboard.Shared.GameServices.Spatial;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 
@@ -341,7 +340,7 @@ public partial class LargeObjectVisualGuideDialog : Window
         double renderedBitmapWidthPixels,
         double renderedBitmapHeightPixels)
     {
-        return RuntimeRenderablePlacementMath.ComputeIconLocalOffset(
+        return FoundationRenderablePlacementMath.ComputeIconLocalOffset(
             0d,
             localRotationDegrees,
             localOffsetX,

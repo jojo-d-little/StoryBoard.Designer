@@ -1,7 +1,5 @@
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.ViewModels;
-using Storyboard.Shared.GameStateData;
-
 namespace StoryboardDesigner.App.Services;
 
 public interface IMainWindowDialogWorkflowService

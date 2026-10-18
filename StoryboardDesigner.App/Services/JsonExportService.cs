@@ -8,14 +8,9 @@ using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using System.Collections.ObjectModel;
 using System.Globalization;
-using Storyboard.Shared.GameServices;
-using Storyboard.Shared.GameServices.Actions;
-using Storyboard.Shared.GameServices.RuntimeContext;
-using Storyboard.Shared.GameStateData;
 using Storyboard.Shared.RuntimeContracts.Dtos;
 using Storyboard.Shared.RuntimeContracts.Enums;
 using Storyboard.Shared.DesignerContracts;
-using Storyboard.Shared.Serialization;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Validation.Contracts;
 using StoryboardDesigner.App.Validation.Execution;
@@ -288,7 +283,7 @@ public sealed class JsonExportService : IJsonExportService
 
     internal static JsonSerializerOptions CreateJsonOptions(bool propertyNameCaseInsensitive = false)
     {
-        var options = StoryboardJsonSerializerOptions.Create(propertyNameCaseInsensitive);
+        var options = FoundationStoryboardJsonSerializerOptions.Create(propertyNameCaseInsensitive);
         var resolver = new DefaultJsonTypeInfoResolver();
         resolver.Modifiers.Add(static typeInfo =>
         {
@@ -3391,14 +3386,14 @@ public sealed class JsonExportService : IJsonExportService
             return string.Empty;
         }
 
-        if (Direction10Formatting.TryParseToken(token, out var parsed))
+        if (FoundationDirection10Formatting.TryParseToken(token, out var parsed))
         {
-            return parsed.ToToken();
+            return FoundationDirection10Formatting.ToToken(parsed);
         }
 
         if (Enum.TryParse<Direction10>(token, out var byEnumName))
         {
-            return byEnumName.ToToken();
+            return FoundationDirection10Formatting.ToToken(byEnumName);
         }
 
         return token;

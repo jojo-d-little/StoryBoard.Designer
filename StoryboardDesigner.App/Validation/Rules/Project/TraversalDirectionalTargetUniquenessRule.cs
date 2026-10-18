@@ -1,8 +1,6 @@
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.Validation.Contracts;
-using Storyboard.Shared.GameServices.Commands;
-
 namespace StoryboardDesigner.App.Validation.Rules.Project;
 
 public sealed class TraversalDirectionalTargetUniquenessRule : IValidationRule
@@ -32,7 +30,7 @@ public sealed class TraversalDirectionalTargetUniquenessRule : IValidationRule
 
         foreach (var connection in area.TraversalConnections)
         {
-            if (!Direction10Formatting.IsUsable(connection.BaseTraversalDirectionFromA))
+            if (!FoundationDirection10Formatting.IsUsable(connection.BaseTraversalDirectionFromA))
             {
                 continue;
             }

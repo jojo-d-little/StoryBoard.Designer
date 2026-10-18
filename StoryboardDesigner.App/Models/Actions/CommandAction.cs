@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using Storyboard.Shared.GameServices;
 using StoryboardDesigner.App.Services;
 
 namespace StoryboardDesigner.App.Models;
@@ -158,13 +157,13 @@ public sealed partial class CommandAction : INotifyPropertyChanged,
     {
         get
         {
-            return Direction10Formatting.TryParseToken(_directionQualifierText, out var parsed)
+            return FoundationDirection10Formatting.TryParseToken(_directionQualifierText, out var parsed)
                 ? parsed
                 : Direction10.Unknown;
         }
         set
         {
-            DirectionQualifierText = value.ToToken();
+            DirectionQualifierText = FoundationDirection10Formatting.ToToken(value);
         }
     }
 

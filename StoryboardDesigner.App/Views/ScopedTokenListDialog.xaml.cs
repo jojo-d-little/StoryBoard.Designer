@@ -139,7 +139,7 @@ public partial class ScopedTokenListDialog : Window
         }
 
         if (!Enum.TryParse<Direction10>(selection, out var traversalDirection)
-            || !Direction10Formatting.IsUsable(traversalDirection))
+            || !FoundationDirection10Formatting.IsUsable(traversalDirection))
         {
             return;
         }

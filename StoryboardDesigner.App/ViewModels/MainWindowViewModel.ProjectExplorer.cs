@@ -3703,7 +3703,7 @@ public sealed partial class MainWindowViewModel
             _ => Direction.Unknown
         };
 
-        return Direction10Formatting.IsUsable(direction)
+        return FoundationDirection10Formatting.IsUsable(direction)
             && direction is not Direction10.Up and not Direction10.Down;
     }
 

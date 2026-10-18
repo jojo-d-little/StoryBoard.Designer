@@ -1,6 +1,4 @@
 using System.Windows;
-using Storyboard.Shared.GameServices;
-using Storyboard.Shared.GameStateData;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.ViewModels;
 using StoryboardDesigner.App.Views;

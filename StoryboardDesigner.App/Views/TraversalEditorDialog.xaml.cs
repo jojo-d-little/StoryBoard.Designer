@@ -61,7 +61,7 @@ public partial class TraversalEditorDialog : Window
             InitializeComponent();
 
             _allowedDirections = (allowedDirections ?? DirectionValues.DefaultTraversalDirections)
-                .Where(Direction10Formatting.IsUsable)
+                .Where(FoundationDirection10Formatting.IsUsable)
                 .Distinct()
                 .ToList();
             if (_allowedDirections.Count == 0)
@@ -484,7 +484,7 @@ public partial class TraversalEditorDialog : Window
         }
 
         if (DirectionComboBox.SelectedItem is not Direction10 selectedDirection
-            || !Direction10Formatting.IsUsable(selectedDirection))
+            || !FoundationDirection10Formatting.IsUsable(selectedDirection))
         {
             System.Windows.MessageBox.Show(this,
                 "Select an adjacent destination or switch to Unguided to choose a direction.",

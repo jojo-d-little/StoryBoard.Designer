@@ -1,6 +1,3 @@
-using Storyboard.Shared.GameServices.Actions;
-using Storyboard.Shared.GameServices.References;
-
 namespace StoryboardDesigner.App.Models;
 
 public sealed record StackRoomObjectOnAnotherPayload : IActionPayload

@@ -4,8 +4,8 @@ namespace StoryboardDesigner.App.Models;
 
 public sealed class ProjectModel : ScopeNodeBase
 {
-    public const double DefaultStackScaleStep = Storyboard.Shared.Config.StackScalePolicy.DefaultStackScaleStep;
-    public const double DefaultMinStackScale = Storyboard.Shared.Config.StackScalePolicy.DefaultMinStackScale;
+    public const double DefaultStackScaleStep = FoundationStackScalePolicy.DefaultStackScaleStep;
+    public const double DefaultMinStackScale = FoundationStackScalePolicy.DefaultMinStackScale;
 
     private int _autoSaveSeconds = 60;
     private int _roomImageCanvasWidth = 800;
@@ -73,13 +73,13 @@ public sealed class ProjectModel : ScopeNodeBase
     public double StackScaleStepDefault
     {
         get => _stackScaleStepDefault;
-        set => _stackScaleStepDefault = Storyboard.Shared.Config.StackScalePolicy.NormalizeStackScaleStepOrDefault(value);
+        set => _stackScaleStepDefault = FoundationStackScalePolicy.NormalizeStackScaleStepOrDefault(value);
     }
 
     public double MinStackScaleDefault
     {
         get => _minStackScaleDefault;
-        set => _minStackScaleDefault = Storyboard.Shared.Config.StackScalePolicy.NormalizeMinStackScaleOrDefault(value);
+        set => _minStackScaleDefault = FoundationStackScalePolicy.NormalizeMinStackScaleOrDefault(value);
     }
 
     public List<string> CommandVerbs { get; set; } = new();

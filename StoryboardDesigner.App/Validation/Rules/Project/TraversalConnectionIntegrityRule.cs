@@ -1,5 +1,4 @@
 using StoryboardDesigner.App.Models;
-using Storyboard.Shared.GameServices.Commands;
 using StoryboardDesigner.App.Validation.Contracts;
 
 namespace StoryboardDesigner.App.Validation.Rules.Project;
@@ -32,7 +31,7 @@ public sealed class TraversalConnectionIntegrityRule : IValidationRule
         {
             var connectionPath = $"{areaPath} / TraversalConnection/{connection.TraversalConnectionId:N}";
 
-            if (!Direction10Formatting.IsUsable(connection.BaseTraversalDirectionFromA))
+            if (!FoundationDirection10Formatting.IsUsable(connection.BaseTraversalDirectionFromA))
             {
                 yield return new ValidationIssue(
                     Metadata.RuleId,

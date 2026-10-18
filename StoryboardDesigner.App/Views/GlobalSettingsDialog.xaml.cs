@@ -3,7 +3,6 @@ using System.Windows;
 using System.Windows.Media;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
-using Storyboard.Shared.Config;
 
 namespace StoryboardDesigner.App.Views;
 
@@ -120,13 +119,13 @@ public partial class GlobalSettingsDialog : Window
 
         if (!TryParseStackScaleStep(StackScaleStepDefaultTextBox.Text.Trim(), out _))
         {
-            System.Windows.MessageBox.Show(this, $"Please enter a decimal number from {StackScalePolicy.MinStackScaleStep:0.##} to {StackScalePolicy.MaxStackScaleStep:0.##} for stack scale step.", "Global Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+            System.Windows.MessageBox.Show(this, $"Please enter a decimal number from {FoundationStackScalePolicy.MinStackScaleStep:0.##} to {FoundationStackScalePolicy.MaxStackScaleStep:0.##} for stack scale step.", "Global Settings", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
         if (!TryParseMinStackScale(MinStackScaleDefaultTextBox.Text.Trim(), out _))
         {
-            System.Windows.MessageBox.Show(this, $"Please enter a decimal number from {StackScalePolicy.MinMinStackScale:0.##} to {StackScalePolicy.MaxMinStackScale:0.##} for min stack scale.", "Global Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+            System.Windows.MessageBox.Show(this, $"Please enter a decimal number from {FoundationStackScalePolicy.MinMinStackScale:0.##} to {FoundationStackScalePolicy.MaxMinStackScale:0.##} for min stack scale.", "Global Settings", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -297,13 +296,13 @@ public partial class GlobalSettingsDialog : Window
     private static bool TryParseStackScaleStep(string text, out double value)
     {
         return TryParsePositiveFiniteDouble(text, out value)
-               && StackScalePolicy.IsStackScaleStepWithinBounds(value);
+               && FoundationStackScalePolicy.IsStackScaleStepWithinBounds(value);
     }
 
     private static bool TryParseMinStackScale(string text, out double value)
     {
         return TryParsePositiveFiniteDouble(text, out value)
-               && StackScalePolicy.IsMinStackScaleWithinBounds(value);
+               && FoundationStackScalePolicy.IsMinStackScaleWithinBounds(value);
     }
 
     private static List<int> GetValidGridCellSizes(int width, int height)

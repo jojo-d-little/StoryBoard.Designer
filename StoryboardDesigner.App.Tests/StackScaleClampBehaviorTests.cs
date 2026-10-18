@@ -1,5 +1,4 @@
 using StoryboardDesigner.App.Models;
-using Storyboard.Shared.Config;
 
 namespace StoryboardDesigner.App.Tests;
 
@@ -14,8 +13,8 @@ public sealed class StackScaleClampBehaviorTests
             MinStackScaleDefault = 0.01
         };
 
-        Assert.Equal(StackScalePolicy.MaxStackScaleStep, project.StackScaleStepDefault, precision: 6);
-        Assert.Equal(StackScalePolicy.MinMinStackScale, project.MinStackScaleDefault, precision: 6);
+        Assert.Equal(FoundationStackScalePolicy.MaxStackScaleStep, project.StackScaleStepDefault, precision: 6);
+        Assert.Equal(FoundationStackScalePolicy.MinMinStackScale, project.MinStackScaleDefault, precision: 6);
     }
 
     [Fact]
@@ -27,7 +26,7 @@ public sealed class StackScaleClampBehaviorTests
             MinStackScaleOverride = 0.01
         };
 
-        Assert.Equal(StackScalePolicy.MaxStackScaleStep, obj.StackScaleStepOverride);
-        Assert.Equal(StackScalePolicy.MinMinStackScale, obj.MinStackScaleOverride);
+        Assert.Equal(FoundationStackScalePolicy.MaxStackScaleStep, obj.StackScaleStepOverride);
+        Assert.Equal(FoundationStackScalePolicy.MinMinStackScale, obj.MinStackScaleOverride);
     }
 }

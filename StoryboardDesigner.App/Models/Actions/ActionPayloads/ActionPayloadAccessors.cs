@@ -457,15 +457,15 @@ public static class ActionPayloadAccessors
             return mapped;
         }
 
-        if (Direction10Formatting.TryParseToken(normalized, out var parsed)
+        if (FoundationDirection10Formatting.TryParseToken(normalized, out var parsed)
             && IsEightWayDirection(parsed))
         {
-            return parsed.ToToken();
+            return FoundationDirection10Formatting.ToToken(parsed);
         }
 
         return Enum.TryParse<Direction10>(normalized, true, out var byEnumName)
             && IsEightWayDirection(byEnumName)
-            ? byEnumName.ToToken()
+            ? FoundationDirection10Formatting.ToToken(byEnumName)
             : normalized;
     }
 

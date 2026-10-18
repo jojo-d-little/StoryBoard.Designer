@@ -1,6 +1,3 @@
-using Storyboard.Shared.GameServices.Actions;
-using Storyboard.Shared.GameServices.Commands;
-using Storyboard.Shared.GameServices.RuntimeContext;
 using System.Text.Json.Serialization;
 
 namespace StoryboardDesigner.App.Models;
@@ -551,14 +548,14 @@ public sealed partial class CommandAction
             return string.Empty;
         }
 
-        if (Direction10Formatting.TryParseToken(token, out var parsed))
+        if (FoundationDirection10Formatting.TryParseToken(token, out var parsed))
         {
-            return parsed.ToToken();
+            return FoundationDirection10Formatting.ToToken(parsed);
         }
 
         if (Enum.TryParse<Direction10>(token, true, out var byEnumName))
         {
-            return byEnumName.ToToken();
+            return FoundationDirection10Formatting.ToToken(byEnumName);
         }
 
         return token;
@@ -593,16 +590,16 @@ public sealed partial class CommandAction
             return mapped;
         }
 
-        if (Direction10Formatting.TryParseToken(token, out var parsed)
+        if (FoundationDirection10Formatting.TryParseToken(token, out var parsed)
             && IsEightWayDirection(parsed))
         {
-            return parsed.ToToken();
+            return FoundationDirection10Formatting.ToToken(parsed);
         }
 
         if (Enum.TryParse<Direction10>(token, true, out var byEnumName)
             && IsEightWayDirection(byEnumName))
         {
-            return byEnumName.ToToken();
+            return FoundationDirection10Formatting.ToToken(byEnumName);
         }
 
         return token;

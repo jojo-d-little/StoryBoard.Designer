@@ -1,8 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using System.Windows;
-using Storyboard.Shared.GameServices;
-using Storyboard.Shared.GameServices.References;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.ViewModels;

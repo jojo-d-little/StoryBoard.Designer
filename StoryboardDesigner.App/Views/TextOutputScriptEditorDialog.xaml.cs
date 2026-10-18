@@ -1,5 +1,4 @@
 using System.Windows;
-using Storyboard.Shared.GameServices;
 using StoryboardDesigner.App.Services;
 
 namespace StoryboardDesigner.App.Views;
