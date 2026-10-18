@@ -7,7 +7,7 @@ public sealed record MoveRoomObjectByPointsPayload(
     bool AllowPartialMove,
     bool AllowJumpOver,
     string MovementEffectKey,
-    RuntimeMovementTravelVisualizationMode TravelVisualizationMode) : IActionPayload
+    MovementTravelVisualizationMode TravelVisualizationMode) : IActionPayload
 {
     public CommandActionType ActionType => CommandActionType.MoveRoomObjectByPoints;
 }

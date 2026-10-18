@@ -3106,7 +3106,7 @@ public sealed class JsonExportService : IJsonExportService
             var moveHint = moveMovementEffectKeyFromPayload
                 ?? MovementPresentationEffectKeys.DefaultMedium;
             var moveTravelMode = moveTravelVisualizationModeFromPayload
-                ?? RuntimeMovementTravelVisualizationMode.LegByLeg;
+                ?? MovementTravelVisualizationMode.LegByLeg;
             var moveDirectionSource = moveDirectionTokenFromPayload ?? action.Direction;
             var moveDirection = NormalizeDirectionToken(moveDirectionSource);
             ActionPayloadAccessors.SetMoveRoomObjectOnGrid(
@@ -3123,13 +3123,13 @@ public sealed class JsonExportService : IJsonExportService
         if (model.ActionType == CommandActionType.RotateRoomObjectOnGrid)
         {
             var rotateMode = rotateModeFromPayload
-                ?? RuntimeRotateRoomObjectOnGridAttemptMode.Turn;
+                ?? RoomObjectRotationMode.Turn;
             var rotateHint = rotateMovementEffectKeyFromPayload
                 ?? MovementPresentationEffectKeys.DefaultMedium;
-            var rotateTurnDegrees = rotateMode == RuntimeRotateRoomObjectOnGridAttemptMode.Turn
+            var rotateTurnDegrees = rotateMode == RoomObjectRotationMode.Turn
                 ? rotateTurnDegreesFromPayload
                 : null;
-            var rotateFacingDirection = rotateMode == RuntimeRotateRoomObjectOnGridAttemptMode.Face
+            var rotateFacingDirection = rotateMode == RoomObjectRotationMode.Face
                 ? NormalizeDirectionToken(rotateFacingDirectionTokenFromPayload)
                 : string.Empty;
 
@@ -3164,7 +3164,7 @@ public sealed class JsonExportService : IJsonExportService
             var moveHint = moveByPointsMovementEffectKeyFromPayload
                 ?? MovementPresentationEffectKeys.DefaultMedium;
             var moveTravelMode = moveByPointsTravelVisualizationModeFromPayload
-                ?? RuntimeMovementTravelVisualizationMode.LegByLeg;
+                ?? MovementTravelVisualizationMode.LegByLeg;
             ActionPayloadAccessors.SetMoveRoomObjectByPoints(
                 model,
                 moveByPointsTargetResolutionIntentFromPayload ?? string.Empty,
@@ -7697,7 +7697,7 @@ public sealed class JsonExportService : IJsonExportService
             AllowPartialMove = movePayload.AllowPartialMove,
             AllowJumpOver = movePayload.AllowJumpOver,
             MovementEffectKey = movePayload.MovementEffectKey,
-            TravelVisualizationMode = movePayload.TravelVisualizationMode.ToString(),
+            TravelVisualizationMode = movePayload.TravelVisualizationMode,
             TargetObjectId = movePayload.TargetObjectId
         };
     }
@@ -7710,7 +7710,7 @@ public sealed class JsonExportService : IJsonExportService
             AllowPartialMove = movePayload.AllowPartialMove,
             AllowJumpOver = movePayload.AllowJumpOver,
             MovementEffectKey = movePayload.MovementEffectKey,
-            TravelVisualizationMode = movePayload.TravelVisualizationMode.ToString()
+            TravelVisualizationMode = movePayload.TravelVisualizationMode
         };
     }
 
@@ -7718,7 +7718,7 @@ public sealed class JsonExportService : IJsonExportService
     {
         return new ProjectRotateRoomObjectOnGridActionPayloadDto
         {
-            Mode = rotatePayload.Mode.ToString(),
+            Mode = rotatePayload.Mode,
             TurnDegrees = rotatePayload.TurnDegrees ?? 90,
             FacingDirectionToken = rotatePayload.FacingDirectionToken ?? string.Empty,
             MovementEffectKey = rotatePayload.MovementEffectKey,
@@ -8071,7 +8071,7 @@ public sealed class JsonExportService : IJsonExportService
             AllowPartialMove = movePayload.AllowPartialMove,
             AllowJumpOver = movePayload.AllowJumpOver,
             MovementEffectKey = movePayload.MovementEffectKey,
-            TravelVisualizationMode = movePayload.TravelVisualizationMode.ToString(),
+            TravelVisualizationMode = movePayload.TravelVisualizationMode,
             TargetObjectId = movePayload.TargetObjectId
         };
     }
@@ -8084,7 +8084,7 @@ public sealed class JsonExportService : IJsonExportService
             AllowPartialMove = movePayload.AllowPartialMove,
             AllowJumpOver = movePayload.AllowJumpOver,
             MovementEffectKey = movePayload.MovementEffectKey,
-            TravelVisualizationMode = movePayload.TravelVisualizationMode.ToString()
+            TravelVisualizationMode = movePayload.TravelVisualizationMode
         };
     }
 
@@ -8092,7 +8092,7 @@ public sealed class JsonExportService : IJsonExportService
     {
         return new RuntimeRotateRoomObjectOnGridActionPayloadDto
         {
-            Mode = rotatePayload.Mode.ToString(),
+            Mode = rotatePayload.Mode,
             TurnDegrees = rotatePayload.TurnDegrees ?? 90,
             FacingDirectionToken = rotatePayload.FacingDirectionToken ?? string.Empty,
             MovementEffectKey = rotatePayload.MovementEffectKey,
@@ -8212,15 +8212,15 @@ public sealed class JsonExportService : IJsonExportService
         return NormalizeMovementEffectKey(movePayload.MovementEffectKey);
     }
 
-    private static RuntimeMovementTravelVisualizationMode? TryGetMoveTravelVisualizationModeFromPayload(ProjectCommandActionPayloadBaseDto? payload)
+    private static MovementTravelVisualizationMode? TryGetMoveTravelVisualizationModeFromPayload(ProjectCommandActionPayloadBaseDto? payload)
     {
         if (payload is not ProjectMoveRoomObjectOnGridActionPayloadDto movePayload)
         {
             return null;
         }
 
-        return Enum.TryParse<RuntimeMovementTravelVisualizationMode>(movePayload.TravelVisualizationMode, true, out var parsedMode)
-            ? parsedMode
+        return Enum.IsDefined(movePayload.TravelVisualizationMode)
+            ? movePayload.TravelVisualizationMode
             : null;
     }
 
@@ -8264,15 +8264,15 @@ public sealed class JsonExportService : IJsonExportService
         return NormalizeMovementEffectKey(moveByPointsPayload.MovementEffectKey);
     }
 
-    private static RuntimeMovementTravelVisualizationMode? TryGetMoveByPointsTravelVisualizationModeFromPayload(ProjectCommandActionPayloadBaseDto? payload)
+    private static MovementTravelVisualizationMode? TryGetMoveByPointsTravelVisualizationModeFromPayload(ProjectCommandActionPayloadBaseDto? payload)
     {
         if (payload is not ProjectMoveRoomObjectByPointsActionPayloadDto moveByPointsPayload)
         {
             return null;
         }
 
-        return Enum.TryParse<RuntimeMovementTravelVisualizationMode>(moveByPointsPayload.TravelVisualizationMode, true, out var parsedMode)
-            ? parsedMode
+        return Enum.IsDefined(moveByPointsPayload.TravelVisualizationMode)
+            ? moveByPointsPayload.TravelVisualizationMode
             : null;
     }
 
@@ -8296,15 +8296,15 @@ public sealed class JsonExportService : IJsonExportService
         return removeObjectFromContainerPayload.TargetContainerId;
     }
 
-    private static RuntimeRotateRoomObjectOnGridAttemptMode? TryGetRotateModeFromPayload(ProjectCommandActionPayloadBaseDto? payload)
+    private static RoomObjectRotationMode? TryGetRotateModeFromPayload(ProjectCommandActionPayloadBaseDto? payload)
     {
         if (payload is not ProjectRotateRoomObjectOnGridActionPayloadDto rotatePayload)
         {
             return null;
         }
 
-        return Enum.TryParse<RuntimeRotateRoomObjectOnGridAttemptMode>(rotatePayload.Mode, true, out var parsedMode)
-            ? parsedMode
+        return Enum.IsDefined(rotatePayload.Mode)
+            ? rotatePayload.Mode
             : null;
     }
 

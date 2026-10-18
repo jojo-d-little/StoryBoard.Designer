@@ -160,7 +160,7 @@ public sealed class CommandActionSummaryPresenterTests
 
         ActionPayloadAccessors.SetRotateRoomObjectOnGrid(
             action,
-            RuntimeRotateRoomObjectOnGridAttemptMode.Face,
+            RoomObjectRotationMode.Face,
             null,
             "NW",
             "movement.speed.fast");

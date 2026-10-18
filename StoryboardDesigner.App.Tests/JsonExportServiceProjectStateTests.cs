@@ -1015,7 +1015,7 @@ public class JsonExportServiceProjectStateTests
                 true,
                 "movement.speed.fast",
                 allowJumpOver: true,
-                travelVisualizationMode: RuntimeMovementTravelVisualizationMode.Direct);
+                travelVisualizationMode: MovementTravelVisualizationMode.Direct);
 
             var moveByPointsAction = new CommandAction
             {
@@ -1036,7 +1036,7 @@ public class JsonExportServiceProjectStateTests
             };
             ActionPayloadAccessors.SetRotateRoomObjectOnGrid(
                 rotateAction,
-                RuntimeRotateRoomObjectOnGridAttemptMode.Face,
+                RoomObjectRotationMode.Face,
                 null,
                 "southwest",
                 "movement.speed.slow");
@@ -1289,10 +1289,10 @@ public class JsonExportServiceProjectStateTests
             Assert.True(loadedMovePayload.AllowPartialMove);
             Assert.True(loadedMovePayload.AllowJumpOver);
             Assert.Equal("movement.speed.fast", loadedMovePayload.MovementEffectKey);
-            Assert.Equal(RuntimeMovementTravelVisualizationMode.Direct, loadedMovePayload.TravelVisualizationMode);
+            Assert.Equal(MovementTravelVisualizationMode.Direct, loadedMovePayload.TravelVisualizationMode);
             Assert.Equal("movement.speed.medium", ActionPayloadAccessors.GetMoveRoomObjectByPointsPayload(loadedMoveByPoints).MovementEffectKey);
             var loadedRotatePayload = ActionPayloadAccessors.GetRotateRoomObjectOnGridPayload(loadedRotate);
-            Assert.Equal(RuntimeRotateRoomObjectOnGridAttemptMode.Face, loadedRotatePayload.Mode);
+            Assert.Equal(RoomObjectRotationMode.Face, loadedRotatePayload.Mode);
             Assert.Null(loadedRotatePayload.TurnDegrees);
             Assert.Equal("SW", loadedRotatePayload.FacingDirectionToken);
             Assert.Equal("movement.speed.slow", loadedRotatePayload.MovementEffectKey);

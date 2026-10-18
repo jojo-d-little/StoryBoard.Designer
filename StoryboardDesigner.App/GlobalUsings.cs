@@ -12,3 +12,4 @@ global using Storyboard.Shared.GameServices.Commands;
 global using Storyboard.Shared.GameServices.Containers;
 global using Storyboard.Shared.GameServices.RuntimeContext;
 global using Storyboard.Shared.GameServices.TextAndDiagnostics;
+global using Storyboard.Shared.Contracts.Enums;

@@ -328,7 +328,7 @@ public sealed partial class CommandAction
         }
     }
 
-    public RuntimeMovementTravelVisualizationMode MoveTravelVisualizationMode
+    public MovementTravelVisualizationMode MoveTravelVisualizationMode
     {
         get => _moveFacet.TravelVisualizationMode;
         set
@@ -361,14 +361,14 @@ public sealed partial class CommandAction
         }
     }
 
-    public RuntimeRotateRoomObjectOnGridAttemptMode RotateMode
+    public RoomObjectRotationMode RotateMode
     {
         get => _rotateFacet.Mode;
         set
         {
             var normalized = Enum.IsDefined(value)
                 ? value
-                : RuntimeRotateRoomObjectOnGridAttemptMode.Turn;
+                : RoomObjectRotationMode.Turn;
 
             if (_rotateFacet.Mode == normalized)
             {

@@ -7,7 +7,7 @@ namespace StoryboardDesigner.App.Models;
 public sealed record RotateRoomObjectOnGridPayload : IActionPayload
 {
     public RotateRoomObjectOnGridPayload(
-        RuntimeRotateRoomObjectOnGridAttemptMode mode = RuntimeRotateRoomObjectOnGridAttemptMode.Turn,
+        RoomObjectRotationMode mode = RoomObjectRotationMode.Turn,
         int? turnDegrees = null,
         string facingDirectionToken = "",
         string movementEffectKey = MovementPresentationEffectKeys.DefaultMedium,
@@ -15,7 +15,7 @@ public sealed record RotateRoomObjectOnGridPayload : IActionPayload
     {
         Mode = Enum.IsDefined(mode)
             ? mode
-            : RuntimeRotateRoomObjectOnGridAttemptMode.Turn;
+            : RoomObjectRotationMode.Turn;
         TurnDegrees = turnDegrees;
         FacingDirectionToken = facingDirectionToken?.Trim() ?? string.Empty;
         MovementEffectKey = movementEffectKey?.Trim() ?? string.Empty;
@@ -24,7 +24,7 @@ public sealed record RotateRoomObjectOnGridPayload : IActionPayload
 
     public CommandActionType ActionType => CommandActionType.RotateRoomObjectOnGrid;
 
-    public RuntimeRotateRoomObjectOnGridAttemptMode Mode { get; init; }
+    public RoomObjectRotationMode Mode { get; init; }
 
     public int? TurnDegrees { get; init; }
 

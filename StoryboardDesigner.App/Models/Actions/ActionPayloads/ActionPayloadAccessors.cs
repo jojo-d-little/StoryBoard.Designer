@@ -232,8 +232,8 @@ public static class ActionPayloadAccessors
 
         var fallbackFacing = NormalizeRotateFacingDirectionToken(action.DirectionQualifierText);
         var fallbackMode = string.IsNullOrWhiteSpace(fallbackFacing)
-            ? RuntimeRotateRoomObjectOnGridAttemptMode.Turn
-            : RuntimeRotateRoomObjectOnGridAttemptMode.Face;
+            ? RoomObjectRotationMode.Turn
+            : RoomObjectRotationMode.Face;
 
         return new RotateRoomObjectOnGridPayload(
             mode: fallbackMode,
@@ -306,7 +306,7 @@ public static class ActionPayloadAccessors
         bool allowPartialMove,
         string movementEffectKey,
         bool allowJumpOver = false,
-        Storyboard.Shared.GameServices.RuntimeContext.RuntimeMovementTravelVisualizationMode travelVisualizationMode = Storyboard.Shared.GameServices.RuntimeContext.RuntimeMovementTravelVisualizationMode.LegByLeg,
+        MovementTravelVisualizationMode travelVisualizationMode = MovementTravelVisualizationMode.LegByLeg,
         Guid? targetObjectId = null)
     {
         if (action.ActionType != CommandActionType.MoveRoomObjectOnGrid)
@@ -330,7 +330,7 @@ public static class ActionPayloadAccessors
         bool allowPartialMove,
         bool allowJumpOver,
         string movementEffectKey,
-        RuntimeMovementTravelVisualizationMode travelVisualizationMode = RuntimeMovementTravelVisualizationMode.LegByLeg)
+        MovementTravelVisualizationMode travelVisualizationMode = MovementTravelVisualizationMode.LegByLeg)
     {
         if (action.ActionType != CommandActionType.MoveRoomObjectByPoints)
         {
@@ -347,7 +347,7 @@ public static class ActionPayloadAccessors
 
     public static void SetRotateRoomObjectOnGrid(
         CommandAction action,
-        RuntimeRotateRoomObjectOnGridAttemptMode mode,
+        RoomObjectRotationMode mode,
         int? turnDegrees,
         string facingDirectionToken,
         string movementEffectKey,

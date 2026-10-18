@@ -11,7 +11,7 @@ public sealed record MoveRoomObjectOnGridPayload : IActionPayload
         bool allowPartialMove = false,
         bool allowJumpOver = false,
         string movementEffectKey = MovementPresentationEffectKeys.DefaultMedium,
-        RuntimeMovementTravelVisualizationMode travelVisualizationMode = RuntimeMovementTravelVisualizationMode.LegByLeg,
+        MovementTravelVisualizationMode travelVisualizationMode = MovementTravelVisualizationMode.LegByLeg,
         Guid? targetObjectId = null)
     {
         DirectionToken = directionToken?.Trim() ?? string.Empty;
@@ -35,7 +35,7 @@ public sealed record MoveRoomObjectOnGridPayload : IActionPayload
 
     public string MovementEffectKey { get; init; }
 
-    public RuntimeMovementTravelVisualizationMode TravelVisualizationMode { get; init; }
+    public MovementTravelVisualizationMode TravelVisualizationMode { get; init; }
 
     public Guid? TargetObjectId { get; init; }
 

@@ -175,7 +175,7 @@ internal static class CommandActionPayloadCoordinator
                 AllowPartialMove: false,
                 AllowJumpOver: false,
                 MovementEffectKey: MovementPresentationEffectKeys.DefaultMedium,
-                TravelVisualizationMode: RuntimeMovementTravelVisualizationMode.LegByLeg),
+                TravelVisualizationMode: MovementTravelVisualizationMode.LegByLeg),
             CommandActionType.RotateRoomObjectOnGrid => new RotateRoomObjectOnGridPayload(),
             CommandActionType.StackRoomObjectOnAnother => new StackRoomObjectOnAnotherPayload(),
             CommandActionType.AddObjectPresentationCue => new AddObjectPresentationCuePayload(null, string.Empty),

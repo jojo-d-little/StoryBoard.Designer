@@ -189,25 +189,25 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
                 MoveAllowPartialMove = true,
                 MoveAllowJumpOver = true,
                 MoveMovementEffectKey = "movement.speed.fast",
-                MoveTravelVisualizationMode = RuntimeMovementTravelVisualizationMode.Direct,
+                MoveTravelVisualizationMode = MovementTravelVisualizationMode.Direct,
                 Payload = new MoveRoomObjectOnGridPayload(
                     directionToken: "E",
                     distanceInCells: 2,
                     allowPartialMove: true,
                     allowJumpOver: true,
                     movementEffectKey: "movement.speed.fast",
-                    travelVisualizationMode: RuntimeMovementTravelVisualizationMode.Direct)
+                    travelVisualizationMode: MovementTravelVisualizationMode.Direct)
             };
 
             var rotateAction = new CommandAction
             {
                 Name = "Rotate",
                 ActionType = CommandActionType.RotateRoomObjectOnGrid,
-                RotateMode = RuntimeRotateRoomObjectOnGridAttemptMode.Face,
+                RotateMode = RoomObjectRotationMode.Face,
                 RotateFacingDirectionToken = "SE",
                 RotateMovementEffectKey = "movement.speed.fast",
                 Payload = new RotateRoomObjectOnGridPayload(
-                    mode: RuntimeRotateRoomObjectOnGridAttemptMode.Face,
+                    mode: RoomObjectRotationMode.Face,
                     turnDegrees: null,
                     facingDirectionToken: "SE",
                     movementEffectKey: "movement.speed.fast")
@@ -578,11 +578,11 @@ public sealed class JsonExportServicePayloadTypeDiscriminatorTests
             Assert.True(loadedMovePayload.AllowPartialMove);
             Assert.True(loadedMovePayload.AllowJumpOver);
             Assert.Equal("movement.speed.fast", loadedMovePayload.MovementEffectKey);
-            Assert.Equal(RuntimeMovementTravelVisualizationMode.Direct, loadedMovePayload.TravelVisualizationMode);
+            Assert.Equal(MovementTravelVisualizationMode.Direct, loadedMovePayload.TravelVisualizationMode);
 
             var loadedRotatePayload = ActionPayloadAccessors.GetRotateRoomObjectOnGridPayload(loadedRotate);
             Assert.IsType<RotateRoomObjectOnGridPayload>(loadedRotate.Payload);
-            Assert.Equal(RuntimeRotateRoomObjectOnGridAttemptMode.Face, loadedRotatePayload.Mode);
+            Assert.Equal(RoomObjectRotationMode.Face, loadedRotatePayload.Mode);
             Assert.Equal("SE", loadedRotatePayload.FacingDirectionToken);
             Assert.Equal("movement.speed.fast", loadedRotatePayload.MovementEffectKey);
 

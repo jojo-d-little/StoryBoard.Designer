@@ -228,7 +228,7 @@ public static class CommandActionSummaryPresenter
     private static string BuildRotateRoomObjectOnGridSummary(CommandAction action)
     {
         var payload = ActionPayloadAccessors.GetRotateRoomObjectOnGridPayload(action);
-        if (payload.Mode == RuntimeRotateRoomObjectOnGridAttemptMode.Face)
+        if (payload.Mode == RoomObjectRotationMode.Face)
         {
             var facing = string.IsNullOrWhiteSpace(payload.FacingDirectionToken)
                 ? "(unset)"

@@ -422,9 +422,9 @@ public partial class RoomActionEditorDialog : Window
         MoveMovementEffectKeyComboBox.ItemsSource = configuredMovementEffects;
         MoveMovementEffectKeyComboBox.DisplayMemberPath = nameof(MovementEffectChoiceItem.DisplayName);
         MoveMovementEffectKeyComboBox.SelectedValuePath = nameof(MovementEffectChoiceItem.EffectKey);
-        MoveTravelVisualizationModeComboBox.ItemsSource = Enum.GetValues<RuntimeMovementTravelVisualizationMode>();
+        MoveTravelVisualizationModeComboBox.ItemsSource = Enum.GetValues<MovementTravelVisualizationMode>();
         MoveByPointsTargetResolutionIntentComboBox.ItemsSource = MoveByPointsTargetResolutionIntentChoices;
-        RotateModeComboBox.ItemsSource = Enum.GetValues<RuntimeRotateRoomObjectOnGridAttemptMode>();
+        RotateModeComboBox.ItemsSource = Enum.GetValues<RoomObjectRotationMode>();
         RotateFacingDirectionComboBox.ItemsSource = BuildRotateFacingDirectionChoices();
         RotateMovementEffectKeyComboBox.ItemsSource = configuredMovementEffects;
         RotateMovementEffectKeyComboBox.DisplayMemberPath = nameof(MovementEffectChoiceItem.DisplayName);
@@ -440,7 +440,7 @@ public partial class RoomActionEditorDialog : Window
         MoveByPointsMovementEffectKeyComboBox.ItemsSource = configuredMovementEffects;
         MoveByPointsMovementEffectKeyComboBox.DisplayMemberPath = nameof(MovementEffectChoiceItem.DisplayName);
         MoveByPointsMovementEffectKeyComboBox.SelectedValuePath = nameof(MovementEffectChoiceItem.EffectKey);
-        MoveByPointsTravelVisualizationModeComboBox.ItemsSource = Enum.GetValues<RuntimeMovementTravelVisualizationMode>();
+        MoveByPointsTravelVisualizationModeComboBox.ItemsSource = Enum.GetValues<MovementTravelVisualizationMode>();
         ClearRoomObjectSelectionsScopeComboBox.ItemsSource = ClearRoomObjectSelectionsScopeChoices.ClearRoomObjectSelections;
         LoadMoveByPointsEditorInputs();
         LoadSelectByPointEditorInputs();
@@ -1508,9 +1508,9 @@ public partial class RoomActionEditorDialog : Window
 
         var movementEffectKey = MoveByPointsMovementEffectKeyComboBox.SelectedValue as string
             ?? _presentationEffectsCatalogService.GetDefaultMovementEffectKey();
-        var travelVisualizationMode = MoveByPointsTravelVisualizationModeComboBox.SelectedItem is RuntimeMovementTravelVisualizationMode selectedTravelMode
+        var travelVisualizationMode = MoveByPointsTravelVisualizationModeComboBox.SelectedItem is MovementTravelVisualizationMode selectedTravelMode
             ? selectedTravelMode
-            : RuntimeMovementTravelVisualizationMode.LegByLeg;
+            : MovementTravelVisualizationMode.LegByLeg;
 
         ActionPayloadAccessors.SetMoveRoomObjectByPoints(
             _workingCopy,
@@ -1598,22 +1598,22 @@ public partial class RoomActionEditorDialog : Window
         _workingCopy.MoveAllowJumpOver = MoveAllowJumpOverCheckBox.IsChecked == true;
         _workingCopy.MoveMovementEffectKey = MoveMovementEffectKeyComboBox.SelectedValue as string
             ?? _presentationEffectsCatalogService.GetDefaultMovementEffectKey();
-        _workingCopy.MoveTravelVisualizationMode = MoveTravelVisualizationModeComboBox.SelectedItem is RuntimeMovementTravelVisualizationMode selectedTravelMode
+        _workingCopy.MoveTravelVisualizationMode = MoveTravelVisualizationModeComboBox.SelectedItem is MovementTravelVisualizationMode selectedTravelMode
             ? selectedTravelMode
-            : RuntimeMovementTravelVisualizationMode.LegByLeg;
+            : MovementTravelVisualizationMode.LegByLeg;
         return true;
     }
 
     private bool TryApplyRotateRoomObjectOnGridInputs()
     {
-        var mode = RotateModeComboBox.SelectedItem is RuntimeRotateRoomObjectOnGridAttemptMode selectedMode
+        var mode = RotateModeComboBox.SelectedItem is RoomObjectRotationMode selectedMode
             ? selectedMode
             : _workingCopy.RotateMode;
         var turnDegreesText = RotateTurnDegreesTextBox.Text?.Trim() ?? string.Empty;
         var facingToken = RotateFacingDirectionComboBox.Text?.Trim() ?? string.Empty;
         int? turnDegrees = null;
 
-        if (mode == RuntimeRotateRoomObjectOnGridAttemptMode.Turn)
+        if (mode == RoomObjectRotationMode.Turn)
         {
             if (!string.IsNullOrWhiteSpace(turnDegreesText)
                 && !int.TryParse(turnDegreesText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedTurnDegrees))
@@ -1661,7 +1661,7 @@ public partial class RoomActionEditorDialog : Window
 
         _workingCopy.RotateMode = mode;
         _workingCopy.RotateTurnDegrees = turnDegrees;
-        _workingCopy.RotateFacingDirectionToken = mode == RuntimeRotateRoomObjectOnGridAttemptMode.Face
+        _workingCopy.RotateFacingDirectionToken = mode == RoomObjectRotationMode.Face
             ? facingToken
             : string.Empty;
         _workingCopy.RotateMovementEffectKey = RotateMovementEffectKeyComboBox.SelectedValue as string
@@ -1758,10 +1758,10 @@ public partial class RoomActionEditorDialog : Window
 
     private void RefreshRotateInputState()
     {
-        var mode = RotateModeComboBox.SelectedItem is RuntimeRotateRoomObjectOnGridAttemptMode selected
+        var mode = RotateModeComboBox.SelectedItem is RoomObjectRotationMode selected
             ? selected
             : _workingCopy.RotateMode;
-        var isTurn = mode == RuntimeRotateRoomObjectOnGridAttemptMode.Turn;
+        var isTurn = mode == RoomObjectRotationMode.Turn;
 
         RotateTurnDegreesTextBox.IsEnabled = isTurn;
         RotateFacingDirectionComboBox.IsEnabled = !isTurn;

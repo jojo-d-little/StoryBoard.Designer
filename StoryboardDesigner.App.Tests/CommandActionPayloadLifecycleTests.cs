@@ -289,13 +289,13 @@ public sealed class CommandActionPayloadLifecycleTests
 
         ActionPayloadAccessors.SetRotateRoomObjectOnGrid(
             action,
-            RuntimeRotateRoomObjectOnGridAttemptMode.Face,
+            RoomObjectRotationMode.Face,
             null,
             "east",
             "movement.speed.slow");
 
         var payload = ActionPayloadAccessors.GetRotateRoomObjectOnGridPayload(action);
-        Assert.Equal(RuntimeRotateRoomObjectOnGridAttemptMode.Face, payload.Mode);
+        Assert.Equal(RoomObjectRotationMode.Face, payload.Mode);
         Assert.Null(payload.TurnDegrees);
         Assert.Equal("E", payload.FacingDirectionToken);
         Assert.Equal("movement.speed.slow", payload.MovementEffectKey);
