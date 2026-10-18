@@ -1,7 +1,6 @@
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Validation.Execution;
 using StoryboardDesigner.App.Validation.Rules.Actions;
-using Storyboard.Shared.GameStateData;
 using System.Collections.ObjectModel;
 
 namespace StoryboardDesigner.App.Tests;

@@ -22,8 +22,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\StoryboardDesigner.App\StoryboardDesigner.App.csproj" />
-    <PackageReference Include="Storyboard.GameEngine" Version="1.0.*-*" />
-
   </ItemGroup>
 
 </Project>

@@ -9,7 +9,7 @@ public sealed class MovementPresentationEffectKeyRule : IValidationRule
     private readonly PresentationEffectsCatalogService _catalogService = new();
 
     public ValidationRuleMetadata Metadata { get; } = new(
-        "ACT-017",
+        "ACT-022",
         "Movement Presentation Effect",
         ValidationSeverity.Error,
         "Actions");

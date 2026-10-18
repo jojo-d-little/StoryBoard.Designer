@@ -1,6 +1,7 @@
 using FlaUI.Core;
 using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Definitions;
+using FlaUI.Core.Exceptions;
 using FlaUI.Core.Tools;
 using FlaUI.UIA3;
 using System.Runtime.InteropServices;
@@ -481,6 +482,10 @@ public sealed class Bite4BaselineCoverageSmokeTests
             return expectedValues.Any(expected => value.Contains(expected, StringComparison.OrdinalIgnoreCase));
         }
         catch (COMException)
+        {
+            return false;
+        }
+        catch (PropertyNotSupportedException)
         {
             return false;
         }

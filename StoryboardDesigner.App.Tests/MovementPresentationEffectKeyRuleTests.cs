@@ -21,7 +21,7 @@ public sealed class MovementPresentationEffectKeyRuleTests
 
         var issue = Assert.Single(rule.Evaluate(context));
 
-        Assert.Equal("ACT-017", issue.RuleId);
+        Assert.Equal("ACT-022", issue.RuleId);
 
         ActionPayloadAccessors.SetMoveRoomObjectOnGrid(action, "north", 1, false, "unknown.effect.key");
         Assert.Single(rule.Evaluate(context));
