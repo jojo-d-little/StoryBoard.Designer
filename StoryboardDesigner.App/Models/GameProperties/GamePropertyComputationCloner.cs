@@ -14,7 +14,7 @@ public static class GamePropertyComputationCloner
 
     public static void RemapOwnerIds(ProjectGamePropertyComputationDto? computation, IReadOnlyDictionary<Guid, Guid> ownerIdMap)
     {
-        if (computation?.Condition is null || ownerIdMap.Count == 0)
+        if (computation is null || ownerIdMap.Count == 0)
         {
             return;
         }
@@ -35,6 +35,14 @@ public static class GamePropertyComputationCloner
             foreach (var child in condition.Conditions ?? []) RemapCondition(child);
         }
 
-        RemapCondition(computation.Condition);
+        void RemapOperand(ProjectGamePropertyOperandDto? operand) => RemapSource(operand?.GamePropertySource);
+
+        if (computation.Condition is not null) RemapCondition(computation.Condition);
+        foreach (var branch in computation.ResultBranches ?? [])
+        {
+            if (branch.Condition is not null) RemapCondition(branch.Condition);
+            RemapOperand(branch.Result);
+        }
+        RemapOperand(computation.ElseResult);
     }
 }

@@ -6435,8 +6435,8 @@ public sealed class JsonExportService : IJsonExportService
         {
             Id = variable.Id,
             Name = variable.Name,
-            DefaultValue = variable.Computation is null ? variable.DefaultValue : "false",
-            ValueRestriction = variable.Computation is null ? variable.ValueRestriction : GamePropertyValueRestriction.TrueFalse,
+            DefaultValue = GetComputedDefaultValue(variable),
+            ValueRestriction = GetComputedValueRestriction(variable),
             Lifetime = variable.Lifetime,
             SharedVariableId = variable.SharedVariableId,
             Computation = CloneContractValue(variable.Computation)
@@ -6708,13 +6708,29 @@ public sealed class JsonExportService : IJsonExportService
         {
             Id = variableId,
             Name = variable.Name,
-            DefaultValue = variable.Computation is null ? variable.DefaultValue : "false",
-            ValueRestriction = variable.Computation is null ? variable.ValueRestriction : GamePropertyValueRestriction.TrueFalse,
+            DefaultValue = GetComputedDefaultValue(variable),
+            ValueRestriction = GetComputedValueRestriction(variable),
             Lifetime = variable.Lifetime,
             SharedVariableId = variable.SharedVariableId,
             Computation = ConvertComputationToRuntime(variable.Computation)
         };
     }
+
+    private static string GetComputedDefaultValue(GamePropertyDefinition variable) => variable.Computation?.ResultKind switch
+    {
+        "Numeric" => "0",
+        "String" => string.Empty,
+        "Boolean" => "false",
+        _ => variable.Computation is null ? variable.DefaultValue : "false"
+    };
+
+    private static GamePropertyValueRestriction GetComputedValueRestriction(GamePropertyDefinition variable) => variable.Computation?.ResultKind switch
+    {
+        "Numeric" => GamePropertyValueRestriction.Numeric,
+        "String" => GamePropertyValueRestriction.Unrestricted,
+        "Boolean" => GamePropertyValueRestriction.TrueFalse,
+        _ => variable.ValueRestriction
+    };
 
     private static bool IsBuiltInObjectVariableName(string? variableName)
     {

@@ -12,7 +12,7 @@ public sealed class GamePropertyDefinition
     [JsonIgnore]
     public string ComputationSummary => Computation is null
         ? string.Empty
-        : GamePropertyComputationFormatter.Format(Computation.Condition);
+        : GamePropertyComputationFormatter.Format(Computation);
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "newVariable";
     public string DefaultValue { get; set; } = "false";

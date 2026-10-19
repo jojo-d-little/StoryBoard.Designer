@@ -67,8 +67,7 @@ public partial class VariableEditorDialog : Window
         ComputationPreviewTextBlock.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
         if (enabled)
         {
-            DefaultValueTextBox.Text = "false";
-            ValueRestrictionComboBox.SelectedValue = GamePropertyValueRestriction.TrueFalse;
+            ApplyComputationDefaults();
         }
     }
 
@@ -84,6 +83,7 @@ public partial class VariableEditorDialog : Window
         if (updated is not null)
         {
             _computation = updated;
+            ApplyComputationDefaults();
             UpdateComputationPreview();
         }
     }
@@ -91,7 +91,7 @@ public partial class VariableEditorDialog : Window
     private void UpdateComputationPreview()
     {
         ComputationPreviewTextBlock.Visibility = IsComputed ? Visibility.Visible : Visibility.Collapsed;
-        ComputationPreviewTextBlock.Text = "Computation: " + GamePropertyComputationFormatter.Format(_computation?.Condition);
+        ComputationPreviewTextBlock.Text = "Computation: " + GamePropertyComputationFormatter.Format(_computation);
     }
 
     private void Save_OnClick(object sender, RoutedEventArgs e)
@@ -122,8 +122,7 @@ public partial class VariableEditorDialog : Window
 
         if (IsComputed)
         {
-            DefaultValueTextBox.Text = "false";
-            ValueRestrictionComboBox.SelectedValue = GamePropertyValueRestriction.TrueFalse;
+            ApplyComputationDefaults();
         }
 
         if (!VariableValueRestrictionValidator.IsAllowed(ValueRestriction, DefaultValue))
@@ -138,6 +137,18 @@ public partial class VariableEditorDialog : Window
     private void Cancel_OnClick(object sender, RoutedEventArgs e)
     {
         DialogResult = false;
+    }
+
+    private void ApplyComputationDefaults()
+    {
+        var (defaultValue, restriction) = (_computation?.ResultKind ?? "Boolean") switch
+        {
+            "Numeric" => ("0", GamePropertyValueRestriction.Numeric),
+            "String" => (string.Empty, GamePropertyValueRestriction.Unrestricted),
+            _ => ("false", GamePropertyValueRestriction.TrueFalse)
+        };
+        DefaultValueTextBox.Text = defaultValue;
+        ValueRestrictionComboBox.SelectedValue = restriction;
     }
 
     private void ManageSharedVariables_OnClick(object sender, RoutedEventArgs e)

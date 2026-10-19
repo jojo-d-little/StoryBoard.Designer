@@ -24,14 +24,52 @@ public sealed class ComputedGamePropertyIntegrityRule : IValidationRule
         foreach (var (owner, property) in allDefinitions.Where(static entry => entry.Property.Computation is not null))
         {
             var path = $"{owner.Path}.Game Properties.{property.Name}";
-            if (!string.Equals(property.Computation?.ResultKind, "Boolean", StringComparison.OrdinalIgnoreCase))
-                yield return Issue(path, "Only Boolean computed results are supported.");
-            if (property.ValueRestriction != GamePropertyValueRestriction.TrueFalse)
-                yield return Issue(path, "Computed Boolean properties must use the TrueFalse value restriction.");
-            if (!string.Equals(property.DefaultValue, "false", StringComparison.OrdinalIgnoreCase))
-                yield return Issue(path, "A computed Boolean property must serialize false as its compatibility default.");
-            foreach (var message in ValidateCondition(property.Computation?.Condition, owner.Id, owner.Scope, allDefinitions))
-                yield return Issue(path, message);
+            var computation = property.Computation!;
+            var resultKind = computation.ResultKind ?? string.Empty;
+            var expectedRestriction = resultKind switch
+            {
+                "Boolean" => GamePropertyValueRestriction.TrueFalse,
+                "Numeric" => GamePropertyValueRestriction.Numeric,
+                "String" => GamePropertyValueRestriction.Unrestricted,
+                _ => (GamePropertyValueRestriction?)null
+            };
+            if (expectedRestriction is null)
+            {
+                yield return Issue(path, $"Unsupported computed result kind '{resultKind}'.");
+                continue;
+            }
+            if (property.ValueRestriction != expectedRestriction)
+                yield return Issue(path, $"Computed {resultKind} properties must use the {expectedRestriction} value restriction.");
+
+            var expectedDefault = resultKind switch { "Boolean" => "false", "Numeric" => "0", _ => string.Empty };
+            if (!string.Equals(property.DefaultValue, expectedDefault, StringComparison.OrdinalIgnoreCase))
+                yield return Issue(path, $"A computed {resultKind} property must use '{expectedDefault}' as its compatibility default.");
+
+            if (resultKind == "Boolean")
+            {
+                if (computation.ResultBranches is not null || computation.ElseResult is not null)
+                    yield return Issue(path, "Boolean computations use a condition tree and cannot contain result branches or an else result.");
+                foreach (var message in ValidateCondition(computation.Condition, owner.Id, owner.Scope, allDefinitions))
+                    yield return Issue(path, message);
+                continue;
+            }
+
+            if (computation.Condition is not null)
+                yield return Issue(path, $"Computed {resultKind} properties use result branches instead of a root condition.");
+            if (computation.ResultBranches is null || computation.ResultBranches.Count == 0)
+                yield return Issue(path, $"Computed {resultKind} properties require at least one ordered result branch.");
+            foreach (var branch in computation.ResultBranches ?? new())
+            {
+                foreach (var message in ValidateCondition(branch.Condition, owner.Id, owner.Scope, allDefinitions))
+                    yield return Issue(path, $"Result branch condition: {message}");
+                foreach (var message in ValidateResult(branch.Result, resultKind, owner.Id, owner.Scope, allDefinitions))
+                    yield return Issue(path, $"Result branch output: {message}");
+            }
+            if (computation.ElseResult is null)
+                yield return Issue(path, $"Computed {resultKind} properties require a final else result.");
+            else
+                foreach (var message in ValidateResult(computation.ElseResult, resultKind, owner.Id, owner.Scope, allDefinitions))
+                    yield return Issue(path, $"Else output: {message}");
         }
 
         foreach (var group in allDefinitions.Where(static entry => entry.Property.SharedVariableId.HasValue)
@@ -40,8 +78,14 @@ public sealed class ComputedGamePropertyIntegrityRule : IValidationRule
             var computed = group.Where(static entry => entry.Property.Computation is not null).ToList();
             if (computed.Count > 1)
                 yield return Issue("Shared Variables", $"Shared property group '{group.Key:N}' has more than one computed writer.");
-            if (computed.Count > 0 && group.Any(static entry => entry.Property.ValueRestriction != GamePropertyValueRestriction.TrueFalse))
-                yield return Issue("Shared Variables", $"Shared property group '{group.Key:N}' has a computed member but not every member is TrueFalse.");
+            if (computed.Count > 0)
+            {
+                var expectedRestriction = ComputedRestriction(computed[0].Property.Computation?.ResultKind);
+                if (computed.Any(entry => ComputedRestriction(entry.Property.Computation?.ResultKind) != expectedRestriction))
+                    yield return Issue("Shared Variables", $"Shared property group '{group.Key:N}' has computed members with different result types.");
+                if (expectedRestriction is not null && group.Any(entry => entry.Property.ValueRestriction != expectedRestriction))
+                    yield return Issue("Shared Variables", $"Shared property group '{group.Key:N}' does not use a consistent value restriction for its computed result type.");
+            }
         }
 
         foreach (var owner in owners)
@@ -71,6 +115,53 @@ public sealed class ComputedGamePropertyIntegrityRule : IValidationRule
                     yield return Issue($"{owner.Path}.Actions.{action.Name}", $"Action '{action.Name}' writes computed game property '{propertyName}'.");
             }
         }
+    }
+
+    private static GamePropertyValueRestriction? ComputedRestriction(string? resultKind) => resultKind switch
+    {
+        "Boolean" => GamePropertyValueRestriction.TrueFalse,
+        "Numeric" => GamePropertyValueRestriction.Numeric,
+        "String" => GamePropertyValueRestriction.Unrestricted,
+        _ => null
+    };
+
+    private static IEnumerable<string> ValidateResult(
+        ProjectGamePropertyOperandDto? operand,
+        string resultKind,
+        Guid computedOwnerId,
+        PropertyResolutionScope computedScope,
+        IReadOnlyList<(OwnerInfo Owner, GamePropertyDefinition Property)> definitions)
+    {
+        if (operand is null)
+        {
+            yield return "A typed output is missing.";
+            yield break;
+        }
+
+        var expectedRestriction = ComputedRestriction(resultKind);
+        if (operand.GamePropertySource is not null)
+        {
+            if (operand.Value is not null || operand.ValueKind is not null)
+                yield return "A property output must omit its literal value and value kind.";
+            GamePropertyDefinition? source = null;
+            foreach (var message in ValidateSource(operand.GamePropertySource, computedOwnerId, computedScope, definitions, out source))
+                yield return message;
+            if (source is not null && source.ValueRestriction != expectedRestriction)
+                yield return $"Output source '{source.Name}' has type {source.ValueRestriction}; {resultKind} output requires {expectedRestriction}.";
+            yield break;
+        }
+
+        var expectedValueKind = resultKind == "String" ? "Text" : resultKind;
+        if (!string.Equals(operand.ValueKind, expectedValueKind, StringComparison.OrdinalIgnoreCase))
+            yield return $"A {resultKind} literal must use value kind '{expectedValueKind}'.";
+        if (operand.Value is null)
+        {
+            yield return "A typed literal is missing its value.";
+            yield break;
+        }
+        if (resultKind == "Numeric"
+            && (!double.TryParse(operand.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) || !double.IsFinite(number)))
+            yield return "A Numeric output must be a finite invariant-culture number.";
     }
 
     private static bool IsEligibleAnchorOwner(OwnerInfo owner, string anchorKey) => anchorKey.ToLowerInvariant() switch

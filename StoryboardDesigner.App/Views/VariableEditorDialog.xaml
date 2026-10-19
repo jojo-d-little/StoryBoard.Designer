@@ -32,7 +32,7 @@
         <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,12">
             <CheckBox x:Name="ComputedCheckBox"
                       Margin="0,0,0,6"
-                      Content="Computed Boolean property"
+                      Content="Computed property"
                       Checked="Computed_OnChanged"
                       Unchecked="Computed_OnChanged" />
             <Button x:Name="EditComputationButton"

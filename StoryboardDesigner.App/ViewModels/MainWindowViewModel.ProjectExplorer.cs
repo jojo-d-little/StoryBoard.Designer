@@ -15194,23 +15194,14 @@ public sealed partial class MainWindowViewModel
             anchorKeys: anchors);
         return computation =>
         {
-            var conditionDialog = new StoryboardDesigner.App.Views.GamePropertyConditionEditorDialog(
-                computation?.Condition,
+            var computationDialog = new StoryboardDesigner.App.Views.GamePropertyComputationEditorDialog(
+                computation,
                 ChooseGamePropertySourceReference,
                 FormatGamePropertySourceReference)
             {
                 Owner = System.Windows.Application.Current?.MainWindow
             };
-            if (conditionDialog.ShowDialog() != true || conditionDialog.Condition is null)
-            {
-                return null;
-            }
-
-            return new ProjectGamePropertyComputationDto
-            {
-                ResultKind = "Boolean",
-                Condition = conditionDialog.Condition
-            };
+            return computationDialog.ShowDialog() == true ? computationDialog.Computation : null;
         };
 
         ProjectGamePropertySourceReferenceDto? ChooseGamePropertySourceReference(ProjectGamePropertySourceReferenceDto? selectedReference)
