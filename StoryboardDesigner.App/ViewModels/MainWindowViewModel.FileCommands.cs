@@ -1917,6 +1917,7 @@ public sealed partial class MainWindowViewModel
         registry.Register(new SequenceIdentityUniquenessRule());
         registry.Register(new SequenceActionReferenceReachabilityRule());
         registry.Register(new PhaseAmbientTimerKeyCrossTierWarningRule());
+        registry.Register(new PhaseWindSpeedDirectionRule());
         registry.Register(new ScopedActionNameUniquenessRule());
         registry.Register(new RuntimeExportIdUniquenessRule());
         registry.Register(new SoundEffectIdentityUniquenessWarningRule());

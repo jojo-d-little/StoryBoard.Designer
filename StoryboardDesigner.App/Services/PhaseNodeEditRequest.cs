@@ -24,4 +24,6 @@ public sealed record PhaseNodeEditRequest(
     WeatherIntensity? WeatherIntensity,
     Temperature? Temperature,
     Storming? Storming,
-    int? WindDirection);
+    int? WindDirection,
+    double? WindSpeed,
+    double? InheritedWindSpeed = null);

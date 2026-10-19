@@ -10,7 +10,7 @@ namespace StoryboardDesigner.App.Views;
 public partial class ManageWeatherDialog : Window
 {
     public sealed record WeatherValues(SkyCondition? SkyCondition, Precipitation? Precipitation, WeatherIntensity? WeatherIntensity,
-        Temperature? Temperature, Storming? Storming, int? WindDirection);
+        Temperature? Temperature, Storming? Storming, int? WindDirection, double? WindSpeed, double? InheritedWindSpeed);
 
     private readonly WeatherValues _initial;
 
@@ -24,11 +24,15 @@ public partial class ManageWeatherDialog : Window
         Setup(TemperatureComboBox, initial.Temperature);
         Setup(StormingComboBox, initial.Storming);
         WindDirectionTextBox.Text = initial.WindDirection?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        WindSpeedTextBox.Text = initial.WindSpeed?.ToString("R", CultureInfo.InvariantCulture) ?? string.Empty;
+        UpdateEffectiveWindSpeedText();
     }
 
     public WeatherValues Values => new(Read<SkyCondition>(SkyConditionComboBox), Read<Precipitation>(PrecipitationComboBox),
         Read<WeatherIntensity>(WeatherIntensityComboBox), Read<Temperature>(TemperatureComboBox), Read<Storming>(StormingComboBox),
-        int.TryParse(WindDirectionTextBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var wind) ? wind : null);
+        int.TryParse(WindDirectionTextBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var wind) ? wind : null,
+        double.TryParse(WindSpeedTextBox.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var speed) ? speed : null,
+        _initial.InheritedWindSpeed);
 
     private static void Setup<T>(WpfComboBox combo, T? value) where T : struct, Enum
     {
@@ -48,7 +52,28 @@ public partial class ManageWeatherDialog : Window
             WindDirectionTextBox.Focus();
             return;
         }
+        var speedText = WindSpeedTextBox.Text.Trim();
+        if (speedText.Length > 0 && (!double.TryParse(speedText, NumberStyles.Float, CultureInfo.InvariantCulture, out var speed)
+            || !double.IsFinite(speed) || speed < 0))
+        {
+            MessageBox.Show(this, "Wind speed must be a finite nonnegative number, or blank to inherit.", "Manage Weather", MessageBoxButton.OK, MessageBoxImage.Information);
+            WindSpeedTextBox.Focus();
+            return;
+        }
         DialogResult = true;
+    }
+
+    private void WindSpeedTextBox_OnTextChanged(object sender, TextChangedEventArgs e) => UpdateEffectiveWindSpeedText();
+
+    private void UpdateEffectiveWindSpeedText()
+    {
+        var text = WindSpeedTextBox.Text.Trim();
+        var effective = double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var authored) && double.IsFinite(authored)
+            ? authored
+            : _initial.InheritedWindSpeed;
+        EffectiveWindSpeedTextBlock.Text = effective is double speed
+            ? $"Effective: {speed.ToString("0.###", CultureInfo.InvariantCulture)} px/s{(text.Length == 0 ? " (inherited)" : " (phase value)")}"
+            : "Effective: not set";
     }
 
     private void Cancel_OnClick(object sender, RoutedEventArgs e) => DialogResult = false;

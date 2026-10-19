@@ -2608,7 +2608,9 @@ public sealed partial class MainWindowViewModel
             node.PhaseNode.WeatherIntensity,
             node.PhaseNode.Temperature,
             node.PhaseNode.Storming,
-            node.PhaseNode.WindDirection);
+            node.PhaseNode.WindDirection,
+            node.PhaseNode.WindSpeed,
+            ResolveInheritedPhaseWindSpeed(node.PhaseNode));
 
         if (!_treeContextInteractionService.TryEditPhaseNode(
                 current,
@@ -2665,7 +2667,8 @@ public sealed partial class MainWindowViewModel
             || node.PhaseNode.WeatherIntensity != updated.WeatherIntensity
             || node.PhaseNode.Temperature != updated.Temperature
             || node.PhaseNode.Storming != updated.Storming
-            || node.PhaseNode.WindDirection != updated.WindDirection;
+            || node.PhaseNode.WindDirection != updated.WindDirection
+            || node.PhaseNode.WindSpeed != updated.WindSpeed;
 
         if (!hasChanges)
         {
@@ -2692,8 +2695,22 @@ public sealed partial class MainWindowViewModel
         node.PhaseNode.Temperature = updated.Temperature;
         node.PhaseNode.Storming = updated.Storming;
         node.PhaseNode.WindDirection = updated.WindDirection;
+        node.PhaseNode.WindSpeed = updated.WindSpeed;
 
         return ReloadAndSelectPhaseNode(node.PhaseNode.Id, "Updated phase settings.");
+    }
+
+    private static double? ResolveInheritedPhaseWindSpeed(PhaseNode phase)
+    {
+        for (var current = phase.ParentScope as PhaseNode; current is not null; current = current.ParentScope as PhaseNode)
+        {
+            if (current.WindSpeed is double speed)
+            {
+                return speed;
+            }
+        }
+
+        return null;
     }
 
     private static bool ArePhaseAmbientOverlayEquivalent(PhaseAmbientOverlay? left, PhaseAmbientOverlay? right)

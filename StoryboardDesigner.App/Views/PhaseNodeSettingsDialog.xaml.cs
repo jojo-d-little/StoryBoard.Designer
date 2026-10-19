@@ -26,6 +26,8 @@ public partial class PhaseNodeSettingsDialog : Window
     private Temperature? _temperature;
     private Storming? _storming;
     private int? _windDirection;
+    private double? _windSpeed;
+    private readonly double? _inheritedWindSpeed;
 
     public PhaseNodeSettingsDialog(
         PhaseNodeEditRequest initialValues,
@@ -111,6 +113,8 @@ public partial class PhaseNodeSettingsDialog : Window
         _temperature = initialValues.Temperature;
         _storming = initialValues.Storming;
         _windDirection = initialValues.WindDirection;
+        _windSpeed = initialValues.WindSpeed;
+        _inheritedWindSpeed = initialValues.InheritedWindSpeed;
         PhaseAmbientTransitionDurationTextBox.Text = overlay?.TransitionDurationMs?.ToString(CultureInfo.InvariantCulture)
             ?? (overlay is null ? "10000" : "0");
         PhaseAmbientColorModeComboBox.SelectedValue = overlay?.ColorMode;
@@ -163,7 +167,9 @@ public partial class PhaseNodeSettingsDialog : Window
         _weatherIntensity,
         _temperature,
         _storming,
-        _windDirection);
+        _windDirection,
+        _windSpeed,
+        _inheritedWindSpeed);
 
     private PhaseAmbientOverlay? ReadPhaseAmbientOverlayForValues()
     {
@@ -418,7 +424,7 @@ public partial class PhaseNodeSettingsDialog : Window
     private void ManageWeather_OnClick(object sender, RoutedEventArgs e)
     {
         var dialog = new ManageWeatherDialog(new ManageWeatherDialog.WeatherValues(_skyCondition, _precipitation,
-            _weatherIntensity, _temperature, _storming, _windDirection)) { Owner = this };
+            _weatherIntensity, _temperature, _storming, _windDirection, _windSpeed, _inheritedWindSpeed)) { Owner = this };
         if (dialog.ShowDialog() != true) return;
         var values = dialog.Values;
         _skyCondition = values.SkyCondition;
@@ -427,6 +433,7 @@ public partial class PhaseNodeSettingsDialog : Window
         _temperature = values.Temperature;
         _storming = values.Storming;
         _windDirection = values.WindDirection;
+        _windSpeed = values.WindSpeed;
     }
 
     private static bool TryReadOptionalNumber(WpfTextBox textBox, string label, double minimum, double maximum, out double? value)

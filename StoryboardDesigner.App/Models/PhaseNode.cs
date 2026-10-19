@@ -41,6 +41,7 @@ public sealed class PhaseNode : ScopeNodeBase
     public Temperature? Temperature { get; set; }
     public Storming? Storming { get; set; }
     public int? WindDirection { get; set; }
+    public double? WindSpeed { get; set; }
     public List<GamePropertyDefinition> Variables { get; set; } = new();
     public List<CommandAction> AvailableActions { get; set; } = new();
     public List<string> AdditionalVerbs { get; set; } = new();

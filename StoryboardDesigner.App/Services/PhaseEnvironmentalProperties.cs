@@ -22,7 +22,8 @@ internal static class PhaseEnvironmentalProperties
         new("WeatherIntensity", phase => phase.WeatherIntensity?.ToString()),
         new("Temperature", phase => phase.Temperature?.ToString()),
         new("Storming", phase => phase.Storming?.ToString()),
-        new("WindDirection", phase => phase.WindDirection?.ToString(System.Globalization.CultureInfo.InvariantCulture), GamePropertyValueRestriction.Numeric)
+        new("WindDirection", phase => phase.WindDirection?.ToString(System.Globalization.CultureInfo.InvariantCulture), GamePropertyValueRestriction.Numeric),
+        new("WindSpeed", phase => phase.WindSpeed?.ToString("R", System.Globalization.CultureInfo.InvariantCulture), GamePropertyValueRestriction.Numeric)
     ];
 
     private static readonly (string Name, string Source, string Value)[] DirectConditions =
@@ -65,7 +66,11 @@ internal static class PhaseEnvironmentalProperties
         properties.Add(ComputedPredicate("IsStorming", "Storming", ["Lightning", "Thunder", "Both"]));
         properties.Add(ComputedPredicate("IsLightning", "Storming", ["Lightning", "Both"]));
         properties.Add(ComputedPredicate("IsThundering", "Storming", ["Thunder", "Both"]));
-        properties.Add(ComputedNotEquals("IsWindy", "WindDirection", "-1"));
+        properties.Add(ComputedAll("IsWindy",
+        [
+            ComputedComparison("WindDirection", "GreaterThanOrEqual", "Numeric", "0"),
+            ComputedComparison("WindSpeed", "GreaterThan", "Numeric", "0")
+        ]));
         foreach (var property in properties)
         {
             property.Id = StableId(page.Id, property.Name);
@@ -80,7 +85,14 @@ internal static class PhaseEnvironmentalProperties
         if (condition == "IsStorming") return values.TryGetValue("Storming", out var storming) && storming != "None";
         if (condition == "IsLightning") return values.TryGetValue("Storming", out var lightning) && lightning is "Lightning" or "Both";
         if (condition == "IsThundering") return values.TryGetValue("Storming", out var thundering) && thundering is "Thunder" or "Both";
-        if (condition == "IsWindy") return values.TryGetValue("WindDirection", out var wind) && wind != "-1";
+        if (condition == "IsWindy")
+            return values.TryGetValue("WindDirection", out var directionText)
+                && int.TryParse(directionText, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var direction)
+                && direction >= 0
+                && values.TryGetValue("WindSpeed", out var speedText)
+                && double.TryParse(speedText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var speed)
+                && double.IsFinite(speed)
+                && speed > 0;
         var direct = DirectConditions.FirstOrDefault(item => item.Name == condition);
         return direct.Name is not null && values.TryGetValue(direct.Source, out var value) && value == direct.Value;
     }
@@ -109,12 +121,14 @@ internal static class PhaseEnvironmentalProperties
             RightOperand = new ProjectGamePropertyOperandDto { ValueKind = "Text", Value = value }
         });
 
-    private static GamePropertyDefinition ComputedNotEquals(string name, string source, string value) => Computed(name,
-        new ProjectGamePropertyConditionDto
-        {
-            Kind = "Compare", GamePropertySource = Source(source), Operator = "NotEquals",
-            RightOperand = new ProjectGamePropertyOperandDto { ValueKind = "Numeric", Value = value }
-        });
+    private static GamePropertyDefinition ComputedAll(string name, List<ProjectGamePropertyConditionDto> conditions) => Computed(name,
+        new ProjectGamePropertyConditionDto { Kind = "All", Conditions = conditions });
+
+    private static ProjectGamePropertyConditionDto ComputedComparison(string source, string operation, string valueKind, string value) => new()
+    {
+        Kind = "Compare", GamePropertySource = Source(source), Operator = operation,
+        RightOperand = new ProjectGamePropertyOperandDto { ValueKind = valueKind, Value = value }
+    };
 
     private static GamePropertyDefinition ComputedPredicate(string name, string source, string[] values)
     {

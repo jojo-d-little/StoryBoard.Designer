@@ -9263,7 +9263,7 @@ public sealed class JsonExportService : IJsonExportService
             PhaseAmbienceMode = phaseNode.PhaseAmbienceMode,
             PhaseAmbientOverlay = LightingContractMapper.ToProjectPhaseAmbientOverlayDto(phaseNode.PhaseAmbientOverlay),
             Time = phaseNode.TimeOfDay is null && phaseNode.TimeOfYear is null ? null : new PhaseTimeDto { TimeOfDay = phaseNode.TimeOfDay, TimeOfYear = phaseNode.TimeOfYear },
-            Weather = phaseNode.SkyCondition is null && phaseNode.Precipitation is null && phaseNode.WeatherIntensity is null && phaseNode.Temperature is null && phaseNode.Storming is null && phaseNode.WindDirection is null ? null : new PhaseWeatherDto { SkyCondition = phaseNode.SkyCondition, Precipitation = phaseNode.Precipitation, WeatherIntensity = phaseNode.WeatherIntensity, Temperature = phaseNode.Temperature, Storming = phaseNode.Storming, WindDirection = phaseNode.WindDirection },
+            Weather = phaseNode.SkyCondition is null && phaseNode.Precipitation is null && phaseNode.WeatherIntensity is null && phaseNode.Temperature is null && phaseNode.Storming is null && phaseNode.WindDirection is null && phaseNode.WindSpeed is null ? null : new PhaseWeatherDto { SkyCondition = phaseNode.SkyCondition, Precipitation = phaseNode.Precipitation, WeatherIntensity = phaseNode.WeatherIntensity, Temperature = phaseNode.Temperature, Storming = phaseNode.Storming, WindDirection = phaseNode.WindDirection, WindSpeed = phaseNode.WindSpeed },
             ParentPhaseId = phaseNode.ParentScope is PhaseNode parent ? parent.Id : null,
             ChildPhaseIds = phaseNode.Children
                 .Select(static child => child.Id)
@@ -9313,6 +9313,7 @@ public sealed class JsonExportService : IJsonExportService
             Temperature = dto.Weather?.Temperature,
             Storming = dto.Weather?.Storming,
             WindDirection = dto.Weather?.WindDirection,
+            WindSpeed = dto.Weather?.WindSpeed,
             Variables = (dto.GameProperties ?? new List<GamePropertyDefinitionDto>())
                 .Select(ToVariableModel)
                 .ToList(),
@@ -9575,7 +9576,7 @@ public sealed class JsonExportService : IJsonExportService
             PhaseAmbienceMode = source.PhaseAmbienceMode,
             PhaseAmbientOverlay = source.PhaseAmbientOverlay,
             Time = source.Time is null ? null : new PhaseTimeDto { TimeOfDay = source.Time.TimeOfDay, TimeOfYear = source.Time.TimeOfYear },
-            Weather = source.Weather is null ? null : new PhaseWeatherDto { SkyCondition = source.Weather.SkyCondition, Precipitation = source.Weather.Precipitation, WeatherIntensity = source.Weather.WeatherIntensity, Temperature = source.Weather.Temperature, Storming = source.Weather.Storming, WindDirection = source.Weather.WindDirection },
+            Weather = source.Weather is null ? null : new PhaseWeatherDto { SkyCondition = source.Weather.SkyCondition, Precipitation = source.Weather.Precipitation, WeatherIntensity = source.Weather.WeatherIntensity, Temperature = source.Weather.Temperature, Storming = source.Weather.Storming, WindDirection = source.Weather.WindDirection, WindSpeed = source.Weather.WindSpeed },
             BaseObjectIds = source.BaseObjectIds,
             GameObjectIds = source.GameObjectIds,
             ProcedureIds = source.ProcedureIds,
