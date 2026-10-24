@@ -41,10 +41,12 @@ public partial class VariableEditorDialog : Window
         ManageSharedVariablesButton.Visibility = _manageSharedVariablesAction is null ? Visibility.Collapsed : Visibility.Visible;
         if (IsReadOnly)
         {
-            Title = "Game Property (Read-only)";
+            Title = "Generated Game Property (Read-only)";
+            GeneratedPropertyInfoTextBlock.Visibility = Visibility.Visible;
             VariableNameTextBox.IsEnabled = false;
             ComputedCheckBox.IsEnabled = false;
-            EditComputationButton.IsEnabled = false;
+            EditComputationButton.Content = "Review computation...";
+            EditComputationButton.IsEnabled = _computation is not null && _editComputation is not null;
             LifetimeComboBox.IsEnabled = false;
             DefaultValueTextBox.IsEnabled = false;
             ValueRestrictionComboBox.IsEnabled = false;
@@ -76,6 +78,12 @@ public partial class VariableEditorDialog : Window
         if (_editComputation is null)
         {
             System.Windows.MessageBox.Show(this, "A condition editor is not available for this game property.", "Computed Game Property", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (IsReadOnly)
+        {
+            _editComputation(_computation);
             return;
         }
 

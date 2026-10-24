@@ -133,10 +133,12 @@
         </Grid>
 
         <TextBlock Grid.Row="11" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Environment" />
-        <ComboBox x:Name="EnvironmentTypeComboBox" Grid.Row="11" Grid.Column="1" Margin="0,0,0,12">
-            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">Indoor</sys:String>
-            <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">Outdoor</sys:String>
-        </ComboBox>
+        <StackPanel Grid.Row="11" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,12">
+            <ComboBox x:Name="EnvironmentTypeComboBox" Width="140">
+                <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">Indoor</sys:String>
+                <sys:String xmlns:sys="clr-namespace:System;assembly=mscorlib">Outdoor</sys:String>
+            </ComboBox>
+        </StackPanel>
 
         <TextBlock Grid.Row="12" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Sound loss override (%)" />
         <TextBox x:Name="SoundLossOverrideTextBox" Grid.Row="12" Grid.Column="1" Margin="0,0,0,12" ToolTip="0 means no loss; 100 means fully dampened. Leave blank to inherit the project default." />

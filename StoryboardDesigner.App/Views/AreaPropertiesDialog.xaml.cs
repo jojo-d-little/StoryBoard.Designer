@@ -8,12 +8,20 @@ public partial class AreaPropertiesDialog : Window
 {
     private readonly IReadOnlyList<AreaStartingRoomOption> _startingRoomOptions;
     private readonly IReadOnlyList<RoomDropBehaviorChoice> _roomDropBehaviorChoices;
+    private List<EnvironmentalEffectDefinition> _environmentalEffects;
+    private readonly Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?>? _environmentalEffectComputationEditor;
+    private readonly IReadOnlyList<SharedVariableChoiceOption> _environmentalEffectSharedVariableOptions;
+    private readonly GamePropertyPickerContext? _environmentalEffectVariablePickerContext;
 
     public AreaPropertiesDialog(AreaBasicPropertiesEditRequest initialValues, IReadOnlyList<AreaStartingRoomOption> startingRoomOptions)
     {
         InitializeComponent();
+        _environmentalEffectComputationEditor = initialValues.EnvironmentalEffectComputationEditor;
+        _environmentalEffectSharedVariableOptions = initialValues.EnvironmentalEffectSharedVariableOptions ?? Array.Empty<SharedVariableChoiceOption>();
+        _environmentalEffectVariablePickerContext = initialValues.EnvironmentalEffectVariablePickerContext;
 
         _startingRoomOptions = startingRoomOptions;
+        _environmentalEffects = (initialValues.EnvironmentalEffects ?? new List<EnvironmentalEffectDefinition>()).ToList();
 
         AreaNameTextBox.Text = initialValues.Name;
         ProducerNotesTextBox.Text = initialValues.ProducerNotes;
@@ -50,7 +58,17 @@ public partial class AreaPropertiesDialog : Window
         RoomDropBehaviorComboBox.SelectedItem is RoomDropBehaviorChoice roomDropBehaviorChoice
             ? roomDropBehaviorChoice.Behavior
             : AreaRoomDropBehavior.KeepDisconnected,
-        StartingRoomComboBox.SelectedValue as Guid?);
+        StartingRoomComboBox.SelectedValue as Guid?,
+        _environmentalEffects.Select(CloneEnvironmentalEffect).ToList(), _environmentalEffectComputationEditor, _environmentalEffectSharedVariableOptions);
+
+    private void ManageEnvironmentalEffects_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new EnvironmentalEffectsAuthoringDialog(_environmentalEffects, _environmentalEffectVariablePickerContext) { Owner = this };
+        if (dialog.ShowDialog() == true) _environmentalEffects = dialog.Effects;
+    }
+
+    private static EnvironmentalEffectDefinition CloneEnvironmentalEffect(EnvironmentalEffectDefinition source) =>
+        ParticleEffectControlSettingCloner.CloneEnvironmentalEffect(source);
 
     private void Save_OnClick(object sender, RoutedEventArgs e)
     {

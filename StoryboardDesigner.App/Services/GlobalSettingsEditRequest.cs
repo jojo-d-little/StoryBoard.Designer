@@ -16,4 +16,9 @@ public sealed record GlobalSettingsEditRequest(
 	List<string> GamePreviewImages,
 	PointLightDefaults? PointLightDefaults,
 	RoomAmbientLighting? DefaultRoomAmbientLighting = null,
-	RoomSoundLossDefaults? RoomSoundLossDefaults = null);
+	RoomSoundLossDefaults? RoomSoundLossDefaults = null,
+	List<EnvironmentalEffectDefinition>? EnvironmentalEffects = null,
+	List<ParticleEffectImageChoice>? ParticleEffectImageChoices = null,
+	Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?>? EnvironmentalEffectComputationEditor = null,
+	IReadOnlyList<SharedVariableChoiceOption>? EnvironmentalEffectSharedVariableOptions = null,
+	GamePropertyPickerContext? EnvironmentalEffectVariablePickerContext = null);

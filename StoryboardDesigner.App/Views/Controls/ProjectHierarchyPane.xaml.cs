@@ -274,6 +274,22 @@ public partial class ProjectHierarchyPane : System.Windows.Controls.UserControl
             return;
         }
 
+        if (treeViewItem?.DataContext is ScopedEnvironmentalEffectsNodeViewModel environmentalEffectsNode)
+        {
+            viewModel.SelectedNode = environmentalEffectsNode;
+            viewModel.ExecuteTreeContextAction("edit-scoped-environmental-effects", environmentalEffectsNode);
+            e.Handled = true;
+            return;
+        }
+
+        if (treeViewItem?.DataContext is ScopedEnvironmentalEffectEntryNodeViewModel environmentalEffectEntryNode)
+        {
+            viewModel.SelectedNode = environmentalEffectEntryNode;
+            viewModel.ExecuteTreeContextAction("edit-scoped-environmental-effect-entry", environmentalEffectEntryNode);
+            e.Handled = true;
+            return;
+        }
+
         if (treeViewItem?.DataContext is ScopedEventSubscriptionsNodeViewModel eventSubscriptionsNode)
         {
             viewModel.SelectedNode = eventSubscriptionsNode;
@@ -520,7 +536,7 @@ public partial class ProjectHierarchyPane : System.Windows.Controls.UserControl
             siblingNames,
             _ => viewModel.OpenSharedRelationshipManager(variableNode),
             computation: variableNode.Variable.Computation,
-            editComputation: viewModel.CreateComputationEditor(variableNode),
+            editComputation: viewModel.CreateComputationEditor(variableNode, readOnly: variableNode.IsGeneratedEnvironmentalProperty),
             readOnly: variableNode.IsGeneratedEnvironmentalProperty)
         {
             Owner = Window.GetWindow(this)

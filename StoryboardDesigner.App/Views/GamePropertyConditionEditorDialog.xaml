@@ -41,7 +41,7 @@
                         <TextBlock FontWeight="SemiBold" Text="Selected condition" Margin="0,0,0,8" />
                         <TextBlock Text="Source property" />
                         <DockPanel Margin="0,4,0,12">
-                            <Button DockPanel.Dock="Right" Margin="6,0,0,0" Padding="9,4" Content="Choose..." Click="ChooseSource_OnClick" />
+                            <Button x:Name="ChooseSourceButton" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="9,4" Content="Choose..." Click="ChooseSource_OnClick" />
                             <TextBox x:Name="SourceTextBox" IsReadOnly="True" />
                         </DockPanel>
                         <TextBlock Text="Operator" />
@@ -57,7 +57,7 @@
                         </ComboBox>
                         <CheckBox x:Name="RightOperandIsSourceCheckBox" Content="Compare with another game property" Margin="0,0,0,8" Checked="OperandMode_OnChanged" Unchecked="OperandMode_OnChanged" />
                         <DockPanel x:Name="RightSourcePanel" Margin="0,0,0,12">
-                            <Button DockPanel.Dock="Right" Margin="6,0,0,0" Padding="9,4" Content="Choose..." Click="ChooseRightSource_OnClick" />
+                            <Button x:Name="ChooseRightSourceButton" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="9,4" Content="Choose..." Click="ChooseRightSource_OnClick" />
                             <TextBox x:Name="RightSourceTextBox" IsReadOnly="True" />
                         </DockPanel>
                         <StackPanel x:Name="RightConstantPanel">
@@ -78,8 +78,8 @@
         </Grid>
         <TextBlock Grid.Row="2" Margin="0,10,0,0" Foreground="#6B7280" TextWrapping="Wrap" Text="AND/OR groups show explicit grouping. Sources are stored by owner identity or anchor plus property name; the displayed path is only a label." />
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-            <Button Width="90" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
-            <Button Width="90" Content="Cancel" Click="Cancel_OnClick" />
+            <Button x:Name="SaveButton" Width="90" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
+            <Button x:Name="CancelButton" Width="90" Content="Cancel" Click="Cancel_OnClick" />
         </StackPanel>
     </Grid>
 </Window>

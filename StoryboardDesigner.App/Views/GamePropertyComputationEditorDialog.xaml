@@ -16,7 +16,7 @@
         <Grid Grid.Row="1">
             <StackPanel x:Name="BooleanPanel">
                 <TextBlock Margin="0,0,0,10" TextWrapping="Wrap" Text="Boolean computations return the condition result directly. Existing Boolean computations remain unchanged."/>
-                <Button Width="190" HorizontalAlignment="Left" Padding="10,5" Content="Edit condition tree..." Click="EditBooleanCondition_OnClick"/>
+                <Button x:Name="EditBooleanConditionButton" Width="190" HorizontalAlignment="Left" Padding="10,5" Content="Edit condition tree..." Click="EditBooleanCondition_OnClick"/>
                 <TextBlock x:Name="BooleanConditionTextBlock" Margin="0,12,0,0" TextWrapping="Wrap" Foreground="#374151"/>
             </StackPanel>
             <Grid x:Name="ResultPanel" Visibility="Collapsed">
@@ -25,22 +25,22 @@
                 <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,10" TextWrapping="Wrap" Text="Branches are evaluated in order. The first matching condition returns its result; the required else result is used when none match."/>
                 <ListBox x:Name="BranchesListBox" Grid.Row="1" Grid.Column="0" Margin="0,0,12,0" DisplayMemberPath="Label" SelectionChanged="BranchesListBox_OnSelectionChanged"/>
                 <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Margin="0,8,0,10">
-                    <Button Margin="0,0,6,0" Padding="8,4" Content="Add branch" Click="AddBranch_OnClick"/>
-                    <Button Margin="0,0,6,0" Padding="8,4" Content="Move up" Click="MoveBranchUp_OnClick"/>
-                    <Button Margin="0,0,6,0" Padding="8,4" Content="Move down" Click="MoveBranchDown_OnClick"/>
-                    <Button Padding="8,4" Content="Remove" Click="RemoveBranch_OnClick"/>
+                    <Button x:Name="AddBranchButton" Margin="0,0,6,0" Padding="8,4" Content="Add branch" Click="AddBranch_OnClick"/>
+                    <Button x:Name="MoveBranchUpButton" Margin="0,0,6,0" Padding="8,4" Content="Move up" Click="MoveBranchUp_OnClick"/>
+                    <Button x:Name="MoveBranchDownButton" Margin="0,0,6,0" Padding="8,4" Content="Move down" Click="MoveBranchDown_OnClick"/>
+                    <Button x:Name="RemoveBranchButton" Padding="8,4" Content="Remove" Click="RemoveBranch_OnClick"/>
                 </StackPanel>
                 <StackPanel Grid.Row="1" Grid.Column="1" Grid.RowSpan="2" Margin="0,0,0,10">
                     <TextBlock FontWeight="SemiBold" Text="Selected branch" Margin="0,0,0,8"/>
                     <TextBlock Text="Condition"/>
                     <DockPanel Margin="0,4,0,12">
-                        <Button DockPanel.Dock="Right" Margin="6,0,0,0" Padding="8,4" Content="Edit..." Click="EditBranchCondition_OnClick"/>
+                        <Button x:Name="EditBranchConditionButton" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="8,4" Content="Edit..." Click="EditBranchCondition_OnClick"/>
                         <TextBox x:Name="BranchConditionTextBox" IsReadOnly="True"/>
                     </DockPanel>
                     <TextBlock Text="Result"/>
                     <CheckBox x:Name="BranchUsesPropertyCheckBox" Margin="0,5,0,6" Content="Use another game property" Checked="BranchOutputMode_OnChanged" Unchecked="BranchOutputMode_OnChanged"/>
                     <DockPanel x:Name="BranchSourcePanel" Margin="0,0,0,10" IsEnabled="False">
-                        <Button DockPanel.Dock="Right" Margin="6,0,0,0" Padding="8,4" Content="Choose..." Click="ChooseBranchSource_OnClick"/>
+                        <Button x:Name="ChooseBranchSourceButton" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="8,4" Content="Choose..." Click="ChooseBranchSource_OnClick"/>
                         <TextBox x:Name="BranchSourceTextBox" IsReadOnly="True"/>
                     </DockPanel>
                     <StackPanel x:Name="BranchLiteralPanel">
@@ -61,8 +61,8 @@
             </Grid>
         </Grid>
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-            <Button Width="90" Margin="0,0,8,0" Content="Save" Click="Save_OnClick"/>
-            <Button Width="90" Content="Cancel" Click="Cancel_OnClick"/>
+            <Button x:Name="SaveButton" Width="90" Margin="0,0,8,0" Content="Save" Click="Save_OnClick"/>
+            <Button x:Name="CancelButton" Width="90" Content="Cancel" Click="Cancel_OnClick"/>
         </StackPanel>
     </Grid>
 </Window>

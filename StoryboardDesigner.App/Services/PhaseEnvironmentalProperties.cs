@@ -66,11 +66,14 @@ internal static class PhaseEnvironmentalProperties
         properties.Add(ComputedPredicate("IsStorming", "Storming", ["Lightning", "Thunder", "Both"]));
         properties.Add(ComputedPredicate("IsLightning", "Storming", ["Lightning", "Both"]));
         properties.Add(ComputedPredicate("IsThundering", "Storming", ["Thunder", "Both"]));
-        properties.Add(ComputedAll("IsWindy",
-        [
-            ComputedComparison("WindDirection", "GreaterThanOrEqual", "Numeric", "0"),
-            ComputedComparison("WindSpeed", "GreaterThan", "Numeric", "0")
-        ]));
+        if (effective.ContainsKey("WindDirection") && effective.ContainsKey("WindSpeed"))
+        {
+            properties.Add(ComputedAll("IsWindy",
+            [
+                ComputedComparison("WindDirection", "GreaterThanOrEqual", "Numeric", "0"),
+                ComputedComparison("WindSpeed", "GreaterThan", "Numeric", "0")
+            ]));
+        }
         foreach (var property in properties)
         {
             property.Id = StableId(page.Id, property.Name);

@@ -13,4 +13,8 @@ public sealed record RoomSettingsEditRequest(
 	string NameSynonyms = "",
 	RoomSpawnPoint? SpawnPoint = null,
 	RoomEnvironmentType EnvironmentType = RoomEnvironmentType.Indoor,
-	double? SoundLossPercentOverride = null);
+    double? SoundLossPercentOverride = null,
+    List<EnvironmentalEffectDefinition>? EnvironmentalEffects = null,
+    Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?>? EnvironmentalEffectComputationEditor = null,
+    IReadOnlyList<SharedVariableChoiceOption>? EnvironmentalEffectSharedVariableOptions = null,
+    GamePropertyPickerContext? EnvironmentalEffectVariablePickerContext = null);

@@ -18,12 +18,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private const string DesignerProjectFileSuffix = ".sbe.json";
     private const string DesignerLoadDiagnosticsReportSuffix = ".designer-load-diagnostics.csv";
 
-    private enum SaveValidationInteractionMode
-    {
-        FullReport,
-        LightweightSummary
-    }
-    
+    private enum SaveValidationInteractionMode { FullReport, LightweightSummary }
+
     private readonly IJsonExportService _jsonExportService;
     private readonly IRecentProjectsService _recentProjectsService;
     private readonly IMainWindowDialogWorkflowService _dialogWorkflowService;
@@ -972,16 +968,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public bool SaveProject()
     {
-        return SaveProjectInternal(isAutoSave: false, validationInteractionMode: SaveValidationInteractionMode.FullReport);
+        return SaveProjectInternal(isAutoSave: false, SaveValidationInteractionMode.FullReport);
     }
 
-    private bool SaveProjectWithValidationSummary(string workflowName)
-    {
-        return SaveProjectInternal(
-            isAutoSave: false,
-            validationInteractionMode: SaveValidationInteractionMode.LightweightSummary,
-            validationSummaryWorkflowName: workflowName);
-    }
+    private bool SaveProjectWithValidationSummary(string workflowName) =>
+        SaveProjectInternal(isAutoSave: false, SaveValidationInteractionMode.LightweightSummary, workflowName);
 
     public bool SaveProjectAs(string baseFolder, string projectName)
     {
@@ -1003,7 +994,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             _project.Name = normalizedProjectName;
             RefreshFileCommandCanExecuteStates();
 
-            if (!SaveProjectInternal(isAutoSave: false, validationInteractionMode: SaveValidationInteractionMode.FullReport))
+            if (!SaveProjectInternal(isAutoSave: false, SaveValidationInteractionMode.FullReport))
             {
                 _projectFilePath = previousProjectFilePath;
                 _project.Name = previousProjectName;
@@ -1181,16 +1172,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        if (!SaveProjectInternal(isAutoSave: true, validationInteractionMode: SaveValidationInteractionMode.FullReport) && _isProjectDirty)
+        if (!SaveProjectInternal(isAutoSave: true, SaveValidationInteractionMode.FullReport) && _isProjectDirty)
         {
             ConfigureAutoSaveTimerForCurrentSettings();
         }
     }
 
-    private bool SaveProjectInternal(
-        bool isAutoSave,
-        SaveValidationInteractionMode validationInteractionMode,
-        string validationSummaryWorkflowName = "")
+    private bool SaveProjectInternal(bool isAutoSave, SaveValidationInteractionMode validationInteractionMode, string validationSummaryWorkflowName = "")
     {
         if (string.IsNullOrWhiteSpace(_projectFilePath))
         {
@@ -1217,16 +1205,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         var popupEligibleErrorCount = popupEligibleValidationIssues.Count(issue => issue.Severity == ValidationSeverity.Error);
         var popupEligibleWarningCount = popupEligibleValidationIssues.Count(issue => issue.Severity == ValidationSeverity.Warning);
         var validationReportPath = string.Empty;
-        var computedPropertyIssues = validationIssues
-            .Where(issue => string.Equals(issue.RuleId, "CGP-001", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-        if (isAutoSave && computedPropertyIssues.Count > 0)
-        {
-            ExportStatus = "Auto-save paused because computed game property findings need author review. Use Save to review and override them.";
-            return false;
-        }
-        var allowComputedPropertyRuntimeExport = true;
-
         if (validationIssues.Count > 0)
         {
             validationReportPath = WriteValidationReportFile(validationIssues, validationResult.ExecutionResult);
@@ -1241,37 +1219,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 else if (validationInteractionMode == SaveValidationInteractionMode.LightweightSummary)
                 {
                     shouldContinue = _projectUiService.ConfirmContinueWithValidationSummary(
-                        validationSummaryWorkflowName,
-                        popupEligibleValidationIssues.Count,
-                        popupEligibleErrorCount,
-                        popupEligibleWarningCount);
+                        validationSummaryWorkflowName, popupEligibleValidationIssues.Count,
+                        popupEligibleErrorCount, popupEligibleWarningCount);
                 }
                 else
                 {
-                    _projectUiService.ShowValidationReport(
-                        "Validation Report",
-                        popupEligibleValidationIssues,
-                        validationReportPath,
-                        NavigateToValidationIssue);
+                    _projectUiService.ShowValidationReport("Validation Report", popupEligibleValidationIssues,
+                        validationReportPath, NavigateToValidationIssue);
                     shouldContinue = _projectUiService.ConfirmContinueSaveWithValidation(
-                        popupEligibleErrorCount,
-                        popupEligibleWarningCount,
-                        validationReportPath);
+                        popupEligibleErrorCount, popupEligibleWarningCount, validationReportPath);
                 }
 
                 if (!shouldContinue)
                 {
                     ExportStatus = $"Save canceled after validation ({validationErrorCount} error(s), {validationWarningCount} warning(s)).";
                     return false;
-                }
-
-                if (computedPropertyIssues.Count > 0)
-                {
-                    allowComputedPropertyRuntimeExport = _projectUiService.ConfirmContinueWithValidationSummary(
-                        "clean Runtime export",
-                        computedPropertyIssues.Count,
-                        computedPropertyIssues.Count(issue => issue.Severity == ValidationSeverity.Error),
-                        computedPropertyIssues.Count(issue => issue.Severity == ValidationSeverity.Warning));
                 }
             }
 
@@ -1303,23 +1265,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
 
         string cleanProjectPath;
-        if (!allowComputedPropertyRuntimeExport)
-        {
-            _isProjectDirty = false;
-            _autoSaveTimer.Stop();
-            ExportStatus = $"Project saved. Clean Runtime export was not updated because computed-property validation was not overridden. Report: {validationReportPath}";
-            UpdateProjectSummary();
-            return true;
-        }
-
         try
         {
             cleanProjectPath = _jsonExportService.ExportCleanProjectV1(_projectFilePath, _project);
         }
         catch (Exception ex)
         {
-            ExportStatus = $"Save succeeded but runtime export failed: {ex.Message}";
-            return false;
+            _isProjectDirty = false;
+            _autoSaveTimer.Stop();
+            ExportStatus = $"Project saved. Runtime export failed: {ex.Message}";
+            UpdateProjectSummary();
+            return true;
         }
 
         _isProjectDirty = false;
@@ -4406,6 +4362,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         projectRootNode.Children.Add(CreateVerbsNode(projectRootNode, PropertyResolutionScope.Global, project.CommandVerbs));
         projectRootNode.Children.Add(CreateDirectionalsNode(projectRootNode, PropertyResolutionScope.Global, project.Directionals));
         projectRootNode.Children.Add(CreateSoundEffectsNode(projectRootNode, PropertyResolutionScope.Global, project.GlobalScope.SoundEffectLibraryEntries));
+        projectRootNode.Children.Add(CreateEnvironmentalEffectsNode(projectRootNode, PropertyResolutionScope.Global, project.EnvironmentalEffects));
         projectRootNode.Children.Add(CreateEventSubscriptionsNode(projectRootNode, PropertyResolutionScope.Global, project.GlobalScope.EventSubscriptions));
         projectRootNode.Children.Add(CreateTimerDefinitionsNode(projectRootNode, PropertyResolutionScope.Global, project.GlobalScope.TimerDefinitions));
         projectRootNode.Children.Add(CreateProceduresNode(projectRootNode, PropertyResolutionScope.Global, project.ProcedureIds));
@@ -4465,6 +4422,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             planetNode.Children.Add(CreateVerbsNode(planetNode, PropertyResolutionScope.Planet, planet.AdditionalVerbs));
             planetNode.Children.Add(CreateDirectionalsNode(planetNode, PropertyResolutionScope.Planet, planet.AdditionalDirectionals));
             planetNode.Children.Add(CreateSoundEffectsNode(planetNode, PropertyResolutionScope.Planet, planet.SoundEffectLibraryEntries));
+            planetNode.Children.Add(CreateEnvironmentalEffectsNode(planetNode, PropertyResolutionScope.Planet, planet.EnvironmentalEffects));
             planetNode.Children.Add(CreateEventSubscriptionsNode(planetNode, PropertyResolutionScope.Planet, planet.EventSubscriptions));
             planetNode.Children.Add(CreateTimerDefinitionsNode(planetNode, PropertyResolutionScope.Planet, planet.TimerDefinitions));
 
@@ -4513,6 +4471,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 countryNode.Children.Add(CreateVerbsNode(countryNode, PropertyResolutionScope.Country, country.AdditionalVerbs));
                 countryNode.Children.Add(CreateDirectionalsNode(countryNode, PropertyResolutionScope.Country, country.AdditionalDirectionals));
                 countryNode.Children.Add(CreateSoundEffectsNode(countryNode, PropertyResolutionScope.Country, country.SoundEffectLibraryEntries));
+                countryNode.Children.Add(CreateEnvironmentalEffectsNode(countryNode, PropertyResolutionScope.Country, country.EnvironmentalEffects));
                 countryNode.Children.Add(CreateEventSubscriptionsNode(countryNode, PropertyResolutionScope.Country, country.EventSubscriptions));
                 countryNode.Children.Add(CreateTimerDefinitionsNode(countryNode, PropertyResolutionScope.Country, country.TimerDefinitions));
 
@@ -4561,6 +4520,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                     areaNode.Children.Add(CreateVerbsNode(areaNode, PropertyResolutionScope.Area, area.AdditionalVerbs));
                     areaNode.Children.Add(CreateDirectionalsNode(areaNode, PropertyResolutionScope.Area, area.AdditionalDirectionals));
                     areaNode.Children.Add(CreateSoundEffectsNode(areaNode, PropertyResolutionScope.Area, area.SoundEffectLibraryEntries));
+                    areaNode.Children.Add(CreateEnvironmentalEffectsNode(areaNode, PropertyResolutionScope.Area, area.EnvironmentalEffects));
                     areaNode.Children.Add(CreateEventSubscriptionsNode(areaNode, PropertyResolutionScope.Area, area.EventSubscriptions));
                     areaNode.Children.Add(CreateTimerDefinitionsNode(areaNode, PropertyResolutionScope.Area, area.TimerDefinitions));
 
@@ -4593,6 +4553,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                         roomNode.Children.Add(CreateVerbsNode(roomNode, PropertyResolutionScope.Room, room.AdditionalVerbs));
                         roomNode.Children.Add(CreateDirectionalsNode(roomNode, PropertyResolutionScope.Room, room.AdditionalDirectionals));
                         roomNode.Children.Add(CreateSoundEffectsNode(roomNode, PropertyResolutionScope.Room, room.SoundEffectLibraryEntries));
+                        roomNode.Children.Add(CreateEnvironmentalEffectsNode(roomNode, PropertyResolutionScope.Room, room.EnvironmentalEffects));
                         roomNode.Children.Add(CreateEventSubscriptionsNode(roomNode, PropertyResolutionScope.Room, room.EventSubscriptions));
                         roomNode.Children.Add(CreateTimerDefinitionsNode(roomNode, PropertyResolutionScope.Room, room.TimerDefinitions));
 

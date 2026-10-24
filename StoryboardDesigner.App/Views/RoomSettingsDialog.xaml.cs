@@ -26,16 +26,25 @@ public partial class RoomSettingsDialog : Window
     private int _roomCanvasHeight;
     private bool _isApplyingPreset;
     private bool _updatingAmbientControl;
+    private List<EnvironmentalEffectDefinition> _environmentalEffects;
+    private readonly Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?>? _environmentalEffectComputationEditor;
+    private readonly IReadOnlyList<SharedVariableChoiceOption> _environmentalEffectSharedVariableOptions;
+    private readonly GamePropertyPickerContext? _environmentalEffectVariablePickerContext;
 
     public RoomSettingsDialog(RoomSettingsEditRequest initialValues)
     {
         InitializeComponent();
+        _environmentalEffectComputationEditor = initialValues.EnvironmentalEffectComputationEditor;
+        _environmentalEffectSharedVariableOptions = initialValues.EnvironmentalEffectSharedVariableOptions ?? Array.Empty<SharedVariableChoiceOption>();
+        _environmentalEffectVariablePickerContext = initialValues.EnvironmentalEffectVariablePickerContext;
         _projectDefaultCanvasWidth = initialValues.RoomCanvasWidth > 0 ? initialValues.RoomCanvasWidth : 800;
         _projectDefaultCanvasHeight = initialValues.RoomCanvasHeight > 0 ? initialValues.RoomCanvasHeight : 600;
         _roomCanvasWidth = _projectDefaultCanvasWidth;
         _roomCanvasHeight = _projectDefaultCanvasHeight;
         _projectGridCellSize = initialValues.ProjectRoomGridCellSize > 0 ? initialValues.ProjectRoomGridCellSize : 40;
         _spawnPointRenderZOrder = initialValues.SpawnPoint?.RenderZOrder;
+        _environmentalEffects = (initialValues.EnvironmentalEffects ?? new List<EnvironmentalEffectDefinition>())
+            .Select(CloneEnvironmentalEffect).ToList();
 
         RoomNameTextBox.Text = initialValues.Name;
         RoomNameInGameTextBox.Text = initialValues.NameInGame;
@@ -68,7 +77,17 @@ public partial class RoomSettingsDialog : Window
             ? new RoomSpawnPoint(spawnX, spawnY, _spawnPointRenderZOrder)
             : null,
         Enum.TryParse<RoomEnvironmentType>(EnvironmentTypeComboBox.SelectedItem as string, out var environmentType) ? environmentType : RoomEnvironmentType.Indoor,
-        TryReadPercent(SoundLossOverrideTextBox.Text, out var soundLoss) ? soundLoss : null);
+        TryReadPercent(SoundLossOverrideTextBox.Text, out var soundLoss) ? soundLoss : null,
+        _environmentalEffects.Select(CloneEnvironmentalEffect).ToList(), _environmentalEffectComputationEditor, _environmentalEffectSharedVariableOptions);
+
+    private void ManageEnvironmentalEffects_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new EnvironmentalEffectsAuthoringDialog(_environmentalEffects, _environmentalEffectVariablePickerContext) { Owner = this };
+        if (dialog.ShowDialog() == true) _environmentalEffects = dialog.Effects;
+    }
+
+    private static EnvironmentalEffectDefinition CloneEnvironmentalEffect(EnvironmentalEffectDefinition source) =>
+        ParticleEffectControlSettingCloner.CloneEnvironmentalEffect(source);
 
     private static string NormalizeSynonymsText(string? raw)
     {

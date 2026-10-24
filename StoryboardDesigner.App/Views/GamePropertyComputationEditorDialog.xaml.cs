@@ -29,13 +29,16 @@ public partial class GamePropertyComputationEditorDialog : Window
     private bool _elseUsesProperty;
     private BranchRow? _lastSelectedBranch;
     private bool _refreshing;
+    private readonly bool _isReadOnly;
 
     public GamePropertyComputationEditorDialog(
         ProjectGamePropertyComputationDto? computation,
         Func<ProjectGamePropertySourceReferenceDto?, ProjectGamePropertySourceReferenceDto?> chooseSource,
-        Func<ProjectGamePropertySourceReferenceDto?, string> formatSource)
+        Func<ProjectGamePropertySourceReferenceDto?, string> formatSource,
+        bool readOnly = false)
     {
         InitializeComponent();
+        _isReadOnly = readOnly;
         _chooseSource = chooseSource;
         _formatSource = formatSource;
         BranchesListBox.ItemsSource = _branchRows;
@@ -51,6 +54,25 @@ public partial class GamePropertyComputationEditorDialog : Window
         RefreshBooleanCondition();
         RefreshBranchEditor();
         RefreshElseEditor();
+        if (_isReadOnly)
+        {
+            Title = "Computed Game Property (Read-only)";
+            ResultKindComboBox.IsEnabled = false;
+            EditBooleanConditionButton.Content = "Review condition tree...";
+            SaveButton.Content = "Close";
+            CancelButton.Visibility = Visibility.Collapsed;
+            AddBranchButton.IsEnabled = false;
+            MoveBranchUpButton.IsEnabled = false;
+            MoveBranchDownButton.IsEnabled = false;
+            RemoveBranchButton.IsEnabled = false;
+            EditBranchConditionButton.Content = "Review...";
+            BranchUsesPropertyCheckBox.IsEnabled = false;
+            ChooseBranchSourceButton.IsEnabled = false;
+            BranchLiteralTextBox.IsReadOnly = true;
+            ElseUsesPropertyCheckBox.IsEnabled = false;
+            ElseLiteralTextBox.IsReadOnly = true;
+            ChooseElseSourceButton.IsEnabled = false;
+        }
     }
 
     public ProjectGamePropertyComputationDto? Computation => DialogResult == true ? BuildComputation() : null;
@@ -117,7 +139,8 @@ public partial class GamePropertyComputationEditorDialog : Window
     private GamePropertyConditionEditorDialog CreateConditionDialog(ProjectGamePropertyConditionDto? condition) => new(
         condition,
         _chooseSource,
-        _formatSource)
+        _formatSource,
+        _isReadOnly)
     {
         Owner = this
     };
@@ -185,11 +208,12 @@ public partial class GamePropertyComputationEditorDialog : Window
             _branchUsesProperty = true;
         }
         BranchUsesPropertyCheckBox.IsChecked = _branchUsesProperty;
+        EditBranchConditionButton.IsEnabled = row is not null;
         BranchSourcePanel.IsEnabled = row is not null && _branchUsesProperty;
         BranchSourceTextBox.Text = _branchUsesProperty ? _formatSource(result?.GamePropertySource) : string.Empty;
         BranchLiteralTextBox.Text = _branchUsesProperty ? string.Empty : result?.Value ?? string.Empty;
         BranchLiteralTextBox.IsEnabled = row is not null && !_branchUsesProperty;
-        BranchUsesPropertyCheckBox.IsEnabled = row is not null;
+        BranchUsesPropertyCheckBox.IsEnabled = row is not null && !_isReadOnly;
         _refreshing = false;
     }
 
@@ -281,6 +305,12 @@ public partial class GamePropertyComputationEditorDialog : Window
 
     private void Save_OnClick(object sender, RoutedEventArgs e)
     {
+        if (_isReadOnly)
+        {
+            DialogResult = true;
+            return;
+        }
+
         if (IsBoolean)
         {
             if (_booleanCondition is null)

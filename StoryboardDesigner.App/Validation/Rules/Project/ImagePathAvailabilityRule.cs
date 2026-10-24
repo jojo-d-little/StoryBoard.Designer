@@ -1,3 +1,4 @@
+using System.IO;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.Validation.Contracts;
@@ -7,7 +8,7 @@ namespace StoryboardDesigner.App.Validation.Rules.Project;
 public sealed class ImagePathAvailabilityRule : IValidationRule
 {
     public IReadOnlySet<ScopeNodeKind> SupportedCandidateScopeKinds { get; } =
-        new HashSet<ScopeNodeKind> { ScopeNodeKind.Room, ScopeNodeKind.GameObject };
+        new HashSet<ScopeNodeKind> { ScopeNodeKind.Global, ScopeNodeKind.Room, ScopeNodeKind.GameObject };
 
     public ValidationRuleMetadata Metadata { get; } = new(
         RuleId: "IMG-001",
@@ -20,6 +21,40 @@ public sealed class ImagePathAvailabilityRule : IValidationRule
         ArgumentNullException.ThrowIfNull(context);
 
         var projectFilePath = context.Request.ProjectFilePath;
+
+        if (context.CandidateNode is ProjectModel project)
+        {
+            foreach (var choice in project.ParticleEffectImageChoices)
+            {
+                var path = string.IsNullOrWhiteSpace(choice.EffectKey) || string.IsNullOrWhiteSpace(choice.ImageSlot)
+                    ? "Global / Particle effect artwork"
+                    : $"Global / Particle effect '{choice.EffectKey}' / image slot '{choice.ImageSlot}'";
+                var extension = Path.GetExtension(choice.AssetPath);
+                if (!string.IsNullOrWhiteSpace(choice.AssetPath)
+                    && !string.Equals(extension, ".png", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(extension, ".webp", StringComparison.OrdinalIgnoreCase))
+                {
+                    yield return new ValidationIssue(
+                        Metadata.RuleId,
+                        ValidationSeverity.Error,
+                        path,
+                        "Particle effect image overrides must use PNG or WebP files.");
+                    continue;
+                }
+
+                foreach (var issue in EvaluateImageReference(
+                             projectFilePath,
+                             path,
+                             choice.AssetPath,
+                             "particle effect image override",
+                             preferredSourceBucket: "particle-effects"))
+                {
+                    yield return issue;
+                }
+            }
+
+            yield break;
+        }
 
         if (context.CandidateNode is Room room)
         {

@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 
@@ -22,6 +23,12 @@ public partial class LargeObjectVisualGuideDialog : Window
     private readonly Action<int, int>? _onFootprintChanged;
     private PointLight? _pointLight;
     private readonly Action<PointLight?>? _onPointLightChanged;
+    private readonly List<StructuralPartPlacementEditItem> _structuralPartPlacements;
+    private StructuralPartPlacementEditItem? _selectedStructuralPartPlacement;
+    private bool _isDraggingStructuralPart;
+    private System.Windows.Point _structuralPartDragStartPoint;
+    private double _structuralPartDragStartOffsetX;
+    private double _structuralPartDragStartOffsetY;
     private int _gridColumns;
     private int _gridRows;
     private bool _isRefreshingEditors;
@@ -39,7 +46,8 @@ public partial class LargeObjectVisualGuideDialog : Window
         string preferredImageSourceBucket,
         Action<int, int>? onFootprintChanged = null,
         PointLight? pointLight = null,
-        Action<PointLight?>? onPointLightChanged = null)
+        Action<PointLight?>? onPointLightChanged = null,
+        IReadOnlyList<StructuralPartPlacementEditItem>? structuralPartPlacements = null)
     {
         InitializeComponent();
         _variant = variant;
@@ -53,6 +61,8 @@ public partial class LargeObjectVisualGuideDialog : Window
         _onFootprintChanged = onFootprintChanged;
         _pointLight = LightingModelCloner.ClonePointLight(pointLight);
         _onPointLightChanged = onPointLightChanged;
+        _structuralPartPlacements = CloneStructuralPartPlacements(structuralPartPlacements);
+        StructuralPartsListBox.ItemsSource = _structuralPartPlacements;
 
         _gridColumns = Math.Max(1, (projectCanvasWidth > 0 ? projectCanvasWidth : 800) / _cellSize);
         _gridRows = Math.Max(1, (projectCanvasHeight > 0 ? projectCanvasHeight : 600) / _cellSize);
@@ -62,6 +72,8 @@ public partial class LargeObjectVisualGuideDialog : Window
         RefreshEditors();
         RefreshPreview();
     }
+
+    public IReadOnlyList<StructuralPartPlacementEditItem> StructuralPartPlacements => CloneStructuralPartPlacements(_structuralPartPlacements);
 
     private void RefreshEditors()
     {
@@ -83,27 +95,19 @@ public partial class LargeObjectVisualGuideDialog : Window
         GetOrientedDimensions(out var footprintWidth, out var footprintHeight);
         GuideSurfaceGrid.Width = _gridColumns * _cellSize;
         GuideSurfaceGrid.Height = _gridRows * _cellSize;
-        GuideCellGrid.Columns = _gridColumns;
-        GuideCellGrid.Rows = _gridRows;
+        GuideCellGrid.Width = GuideSurfaceGrid.Width;
+        GuideCellGrid.Height = GuideSurfaceGrid.Height;
         GuideCellGrid.Children.Clear();
-        for (var i = 0; i < _gridColumns * _gridRows; i++)
-        {
-            GuideCellGrid.Children.Add(new Border
-            {
-                BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(209, 213, 219)),
-                BorderThickness = new Thickness(0.5),
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(249, 250, 251)),
-                Margin = new Thickness(0.5)
-            });
-        }
 
         var footprintWidthPixels = footprintWidth * _cellSize;
         var footprintHeightPixels = footprintHeight * _cellSize;
         var footprintLeft = (_gridColumns * _cellSize - footprintWidthPixels) / 2d;
         var footprintTop = (_gridRows * _cellSize - footprintHeightPixels) / 2d;
+        DrawSurfaceGrid(footprintLeft, footprintTop);
         FootprintOverlay.Width = footprintWidthPixels;
         FootprintOverlay.Height = footprintHeightPixels;
         FootprintOverlay.Margin = new Thickness(footprintLeft, footprintTop, 0, 0);
+        RefreshPreciseFootprintGrid(footprintLeft, footprintTop, footprintWidth, footprintHeight);
 
         var source = LoadImage(_variant.FullImagePath);
         GuideImage.Source = source;
@@ -135,6 +139,7 @@ public partial class LargeObjectVisualGuideDialog : Window
             ? Visibility.Visible
             : Visibility.Collapsed;
         UpdatePointLightMarker(footprintLeft, footprintTop, footprintWidthPixels, footprintHeightPixels);
+        UpdateStructuralPartMarker(footprintLeft, footprintTop);
         HeadingArrow.RenderTransform = new RotateTransform(DirectionToDegrees(_headingDirection));
         ImageMetricsTextBlock.Text = source is null
             ? $"Bitmap: unavailable; rendered fallback: {FormatPixels(renderedWidth)} × {FormatPixels(renderedHeight)}px at scale {Format(scale)}."
@@ -258,6 +263,38 @@ public partial class LargeObjectVisualGuideDialog : Window
             return;
         }
 
+        if (_selectedStructuralPartPlacement is { } selectedPart)
+        {
+            if (selectedPart.Placement.Mode != StructuralPartPlacementKind.ParentRelative)
+            {
+                StructuralPartsHintTextBlock.Text = "This part uses fixed room coordinates. Change its placement mode to Relative to parent in Object Properties to place it here.";
+                e.Handled = true;
+                return;
+            }
+
+            var partWidth = Math.Max(1, selectedPart.FootprintWidthCells) * _cellSize;
+            var partHeight = Math.Max(1, selectedPart.FootprintHeightCells) * _cellSize;
+            if (selectedPart.FootprintOrientation is "E" or "W")
+            {
+                (partWidth, partHeight) = (partHeight, partWidth);
+            }
+            var maxOffsetX = Math.Max(0, footprintWidthPixels - partWidth);
+            var maxOffsetY = Math.Max(0, footprintHeightPixels - partHeight);
+            if (partWidth > footprintWidthPixels || partHeight > footprintHeightPixels)
+            {
+                StructuralPartsHintTextBlock.Text = "This child's footprint is larger than the parent footprint and cannot fit inside it.";
+                e.Handled = true;
+                return;
+            }
+            selectedPart.Placement.ParentRelativeOffsetX = SnapPartOffset(point.X - footprintLeft - partWidth / 2d, maxOffsetX);
+            selectedPart.Placement.ParentRelativeOffsetY = SnapPartOffset(point.Y - footprintTop - partHeight / 2d, maxOffsetY);
+            UpdateStructuralPartMarker(footprintLeft, footprintTop);
+            StructuralPartsHintTextBlock.Text = $"Placed {selectedPart.Name}. Select another part or clear the list selection.";
+            StatusTextBlock.Text = $"Footprint: {footprintWidth} × {footprintHeight} cells; placed {selectedPart.Name} at {selectedPart.Placement.ParentRelativeOffsetX:0} × {selectedPart.Placement.ParentRelativeOffsetY:0}px from the parent footprint's top-left.";
+            e.Handled = true;
+            return;
+        }
+
         _pointLight ??= new PointLight();
         _pointLight.OffsetXPx = Math.Clamp(point.X - footprintLeft, 0, footprintWidthPixels);
         _pointLight.OffsetYPx = Math.Clamp(point.Y - footprintTop, 0, footprintHeightPixels);
@@ -266,6 +303,251 @@ public partial class LargeObjectVisualGuideDialog : Window
         _onPointLightChanged?.Invoke(LightingModelCloner.ClonePointLight(_pointLight));
         e.Handled = true;
     }
+
+    private void StructuralPartsListBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        _selectedStructuralPartPlacement = StructuralPartsListBox.SelectedItem as StructuralPartPlacementEditItem;
+        StructuralPartsHintTextBlock.Text = _selectedStructuralPartPlacement?.Placement.Mode == StructuralPartPlacementKind.RoomCoordinates
+            ? "This part uses fixed room coordinates. Change its placement mode to Relative to parent in Object Properties to place it here."
+            : _selectedStructuralPartPlacement is null
+                ? "Select a part, then click its position on the parent footprint."
+                : $"Click to place {_selectedStructuralPartPlacement.Name}, or drag its purple outline. Its footprint snaps to the parent-aligned grid.";
+        GetOrientedDimensions(out var footprintWidth, out var footprintHeight);
+        if (_selectedStructuralPartPlacement is { } selectedPart)
+        {
+            var partWidth = Math.Max(1, selectedPart.FootprintWidthCells);
+            var partHeight = Math.Max(1, selectedPart.FootprintHeightCells);
+            if (selectedPart.FootprintOrientation is "E" or "W")
+            {
+                (partWidth, partHeight) = (partHeight, partWidth);
+            }
+            if (partWidth > footprintWidth || partHeight > footprintHeight)
+            {
+                StructuralPartsHintTextBlock.Text = "This child's footprint is larger than the parent footprint and cannot fit inside it.";
+            }
+        }
+        var footprintLeft = (_gridColumns - footprintWidth) * _cellSize / 2d;
+        var footprintTop = (_gridRows - footprintHeight) * _cellSize / 2d;
+        UpdateStructuralPartMarker(footprintLeft, footprintTop);
+    }
+
+    private void UpdateStructuralPartMarker(double footprintLeft, double footprintTop)
+    {
+        if (_selectedStructuralPartPlacement is not { Placement.Mode: StructuralPartPlacementKind.ParentRelative } part
+            || part.Placement.ParentRelativeOffsetX is not double offsetX
+            || part.Placement.ParentRelativeOffsetY is not double offsetY)
+        {
+            StructuralPartMarker.Visibility = Visibility.Collapsed;
+            StructuralPartMarkerLabel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var width = Math.Max(1, part.FootprintWidthCells) * _cellSize;
+        var height = Math.Max(1, part.FootprintHeightCells) * _cellSize;
+        if (part.FootprintOrientation is "E" or "W")
+        {
+            (width, height) = (height, width);
+        }
+        GetOrientedDimensions(out var parentWidthCells, out var parentHeightCells);
+        if (width > parentWidthCells * _cellSize || height > parentHeightCells * _cellSize)
+        {
+            StructuralPartMarker.Visibility = Visibility.Collapsed;
+            StructuralPartMarkerLabel.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var maxOffsetX = Math.Max(0, (parentWidthCells * _cellSize) - width);
+        var maxOffsetY = Math.Max(0, (parentHeightCells * _cellSize) - height);
+        offsetX = SnapPartOffset(offsetX, maxOffsetX);
+        offsetY = SnapPartOffset(offsetY, maxOffsetY);
+        part.Placement.ParentRelativeOffsetX = offsetX;
+        part.Placement.ParentRelativeOffsetY = offsetY;
+        StructuralPartMarker.Width = width;
+        StructuralPartMarker.Height = height;
+        StructuralPartMarker.Margin = new Thickness(footprintLeft + offsetX, footprintTop + offsetY, 0, 0);
+        StructuralPartMarkerLabel.Width = width;
+        StructuralPartMarkerLabel.Height = height;
+        StructuralPartMarkerLabel.Margin = new Thickness(footprintLeft + offsetX, footprintTop + offsetY, 0, 0);
+        StructuralPartMarkerLabel.Text = part.Name;
+        StructuralPartMarker.Visibility = Visibility.Visible;
+        StructuralPartMarkerLabel.Visibility = Visibility.Visible;
+    }
+
+    private void RefreshPreciseFootprintGrid(double footprintLeft, double footprintTop, int footprintWidthCells, int footprintHeightCells)
+    {
+        FootprintCellLinesCanvas.Children.Clear();
+        FootprintCellLinesCanvas.Width = footprintWidthCells * _cellSize;
+        FootprintCellLinesCanvas.Height = footprintHeightCells * _cellSize;
+        FootprintCellLinesCanvas.Margin = new Thickness(footprintLeft, footprintTop, 0, 0);
+        FootprintCellLinesCanvas.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+        FootprintCellLinesCanvas.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+
+        var lineBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(210, 51, 65, 85));
+        lineBrush.Freeze();
+        for (var column = 1; column < footprintWidthCells; column++)
+        {
+            var x = column * _cellSize;
+            FootprintCellLinesCanvas.Children.Add(new Line
+            {
+                X1 = x,
+                Y1 = 0,
+                X2 = x,
+                Y2 = footprintHeightCells * _cellSize,
+                Stroke = lineBrush,
+                StrokeThickness = 1,
+                SnapsToDevicePixels = true
+            });
+        }
+
+        for (var row = 1; row < footprintHeightCells; row++)
+        {
+            var y = row * _cellSize;
+            FootprintCellLinesCanvas.Children.Add(new Line
+            {
+                X1 = 0,
+                Y1 = y,
+                X2 = footprintWidthCells * _cellSize,
+                Y2 = y,
+                Stroke = lineBrush,
+                StrokeThickness = 1,
+                SnapsToDevicePixels = true
+            });
+        }
+    }
+
+    private void DrawSurfaceGrid(double originX, double originY)
+    {
+        var gridBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(209, 213, 219));
+        gridBrush.Freeze();
+        var firstColumn = (int)Math.Ceiling(-originX / _cellSize);
+        var lastColumn = (int)Math.Floor((GuideSurfaceGrid.Width - originX) / _cellSize);
+        for (var column = firstColumn; column <= lastColumn; column++)
+        {
+            var x = originX + column * _cellSize;
+            GuideCellGrid.Children.Add(new Line
+            {
+                X1 = x,
+                Y1 = 0,
+                X2 = x,
+                Y2 = GuideSurfaceGrid.Height,
+                Stroke = gridBrush,
+                StrokeThickness = 1,
+                SnapsToDevicePixels = true
+            });
+        }
+
+        var firstRow = (int)Math.Ceiling(-originY / _cellSize);
+        var lastRow = (int)Math.Floor((GuideSurfaceGrid.Height - originY) / _cellSize);
+        for (var row = firstRow; row <= lastRow; row++)
+        {
+            var y = originY + row * _cellSize;
+            GuideCellGrid.Children.Add(new Line
+            {
+                X1 = 0,
+                Y1 = y,
+                X2 = GuideSurfaceGrid.Width,
+                Y2 = y,
+                Stroke = gridBrush,
+                StrokeThickness = 1,
+                SnapsToDevicePixels = true
+            });
+        }
+    }
+
+    private void StructuralPartMarker_OnPreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button marker
+            || _selectedStructuralPartPlacement is not { Placement.Mode: StructuralPartPlacementKind.ParentRelative } part)
+        {
+            return;
+        }
+
+        _isDraggingStructuralPart = true;
+        _structuralPartDragStartPoint = e.GetPosition(GuideSurfaceGrid);
+        _structuralPartDragStartOffsetX = part.Placement.ParentRelativeOffsetX ?? 0;
+        _structuralPartDragStartOffsetY = part.Placement.ParentRelativeOffsetY ?? 0;
+        marker.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void StructuralPartMarker_OnPreviewMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (!_isDraggingStructuralPart || sender is not System.Windows.Controls.Button marker)
+        {
+            return;
+        }
+
+        var current = e.GetPosition(GuideSurfaceGrid);
+        var deltaX = current.X - _structuralPartDragStartPoint.X;
+        var deltaY = current.Y - _structuralPartDragStartPoint.Y;
+        if (_selectedStructuralPartPlacement is { } part)
+        {
+            GetOrientedDimensions(out var parentWidth, out var parentHeight);
+            var partWidth = Math.Max(1, part.FootprintWidthCells) * _cellSize;
+            var partHeight = Math.Max(1, part.FootprintHeightCells) * _cellSize;
+            if (part.FootprintOrientation is "E" or "W")
+            {
+                (partWidth, partHeight) = (partHeight, partWidth);
+            }
+
+            part.Placement.ParentRelativeOffsetX = SnapPartOffset(
+                _structuralPartDragStartOffsetX + deltaX,
+                Math.Max(0, parentWidth * _cellSize - partWidth));
+            part.Placement.ParentRelativeOffsetY = SnapPartOffset(
+                _structuralPartDragStartOffsetY + deltaY,
+                Math.Max(0, parentHeight * _cellSize - partHeight));
+            GetOrientedDimensions(out var footprintWidth, out var footprintHeight);
+            UpdateStructuralPartMarker(
+                (_gridColumns - footprintWidth) * _cellSize / 2d,
+                (_gridRows - footprintHeight) * _cellSize / 2d);
+        }
+
+        e.Handled = true;
+    }
+
+    private void StructuralPartMarker_OnPreviewMouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (!_isDraggingStructuralPart)
+        {
+            return;
+        }
+
+        if (_selectedStructuralPartPlacement is { } part)
+        {
+            StructuralPartsHintTextBlock.Text = $"Placed {part.Name} at {part.Placement.ParentRelativeOffsetX:0} × {part.Placement.ParentRelativeOffsetY:0}px from the parent footprint's top-left.";
+            GetOrientedDimensions(out var footprintWidth, out var footprintHeight);
+            UpdateStructuralPartMarker(
+                (_gridColumns - footprintWidth) * _cellSize / 2d,
+                (_gridRows - footprintHeight) * _cellSize / 2d);
+        }
+
+        _isDraggingStructuralPart = false;
+        if (sender is System.Windows.Controls.Button marker)
+        {
+            marker.ReleaseMouseCapture();
+        }
+        e.Handled = true;
+    }
+
+    private double SnapPartOffset(double offset, double maxOffset)
+    {
+        var clampedOffset = Math.Clamp(offset, 0, maxOffset);
+        return Math.Clamp(Math.Round(clampedOffset / _cellSize) * _cellSize, 0, maxOffset);
+    }
+
+    private static List<StructuralPartPlacementEditItem> CloneStructuralPartPlacements(IEnumerable<StructuralPartPlacementEditItem>? source) =>
+        (source ?? Array.Empty<StructuralPartPlacementEditItem>())
+            .Select(item => item with
+            {
+                Placement = new StructuralPartPlacement
+                {
+                    Mode = item.Placement.Mode,
+                    ParentRelativeOffsetX = item.Placement.ParentRelativeOffsetX,
+                    ParentRelativeOffsetY = item.Placement.ParentRelativeOffsetY,
+                    RoomCoordinateX = item.Placement.RoomCoordinateX,
+                    RoomCoordinateY = item.Placement.RoomCoordinateY
+                }
+            })
+            .ToList();
 
     private void UpdatePointLightMarker(double footprintLeft, double footprintTop, double footprintWidthPixels, double footprintHeightPixels)
     {

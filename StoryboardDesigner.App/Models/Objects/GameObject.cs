@@ -409,6 +409,9 @@ public sealed class GameObject : ScopeNodeBase, INotifyPropertyChanged
     public PointLight? PointLight { get; set; }
     public LightOcclusion? LightOcclusion { get; set; }
     public bool IsPointLightEnabledDefaultValue { get; set; } = true;
+    public ParticleEffectAttachment? ParticleEffect { get; set; }
+    public bool IsPartOfParent { get; set; }
+    public StructuralPartPlacement Placement { get; set; } = new();
 
     public List<string> OccupiedCellIds
     {

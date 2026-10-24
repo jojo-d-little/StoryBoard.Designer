@@ -1918,6 +1918,8 @@ public sealed partial class MainWindowViewModel
         registry.Register(new SequenceActionReferenceReachabilityRule());
         registry.Register(new PhaseAmbientTimerKeyCrossTierWarningRule());
         registry.Register(new PhaseWindSpeedDirectionRule());
+        registry.Register(new EnvironmentalEffectDefinitionIntegrityRule());
+        registry.Register(new ParticleEffectAuthoringValidationRule());
         registry.Register(new ScopedActionNameUniquenessRule());
         registry.Register(new RuntimeExportIdUniquenessRule());
         registry.Register(new SoundEffectIdentityUniquenessWarningRule());
@@ -1942,6 +1944,7 @@ public sealed partial class MainWindowViewModel
         registry.Register(new CompositeObjectRequiredPartsExistRule());
         registry.Register(new LinkedBaseObjectReferenceExistsRule());
         registry.Register(new LinkedBaseObjectSingleLevelRule());
+        registry.Register(new StructuralPartCompositionRule());
         registry.Register(new RoomObjectPreviewPlacementRule());
         registry.Register(new RoomObjectPreviewCoordinateBoundsRule());
         registry.Register(new SynonymRequiresTargetRule());

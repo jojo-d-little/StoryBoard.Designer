@@ -25,8 +25,8 @@
 
             <Border Grid.Column="0" BorderBrush="#D1D5DB" BorderThickness="1" Background="#F3F4F6" Padding="8">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                    <Grid x:Name="GuideSurfaceGrid" Background="#FFFFFF" HorizontalAlignment="Left" VerticalAlignment="Top" Cursor="Hand" ToolTip="Click inside the blue footprint to place or move the point-light origin. Coordinates are measured from the footprint's top-left corner." MouseLeftButtonDown="GuideSurfaceGrid_OnMouseLeftButtonDown">
-                        <UniformGrid x:Name="GuideCellGrid" />
+                    <Grid x:Name="GuideSurfaceGrid" Background="#FFFFFF" HorizontalAlignment="Left" VerticalAlignment="Top" Cursor="Hand" ToolTip="Select a child part, then click inside the blue footprint to place it. Drag its purple outline to move it. Child positions snap to the parent-aligned grid." MouseLeftButtonDown="GuideSurfaceGrid_OnMouseLeftButtonDown">
+                        <Canvas x:Name="GuideCellGrid" IsHitTestVisible="False" />
                         <Border x:Name="FootprintOverlay"
                                 HorizontalAlignment="Left"
                                 VerticalAlignment="Top"
@@ -46,6 +46,7 @@
                                        Opacity="0.8"
                                        RenderTransformOrigin="0,0" />
                         </Canvas>
+                        <Canvas x:Name="FootprintCellLinesCanvas" IsHitTestVisible="False" />
                         <Path x:Name="HeadingArrow"
                               Data="M 0 -32 L 9 -12 L 3 -12 L 3 20 L -3 20 L -3 -12 L -9 -12 Z"
                               Fill="#DC2626"
@@ -65,13 +66,52 @@
                                  StrokeThickness="2"
                                  IsHitTestVisible="False"
                                  Visibility="Collapsed" />
+                        <Button x:Name="StructuralPartMarker"
+                                Padding="0"
+                                Background="#558B5CF6"
+                                BorderBrush="#7C3AED"
+                                BorderThickness="2"
+                                Cursor="SizeAll"
+                                Focusable="False"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Top"
+                                HorizontalContentAlignment="Stretch"
+                                VerticalContentAlignment="Stretch"
+                                PreviewMouseLeftButtonDown="StructuralPartMarker_OnPreviewMouseLeftButtonDown"
+                                PreviewMouseMove="StructuralPartMarker_OnPreviewMouseMove"
+                                PreviewMouseLeftButtonUp="StructuralPartMarker_OnPreviewMouseLeftButtonUp"
+                                Visibility="Collapsed">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}"
+                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                            BorderThickness="{TemplateBinding BorderThickness}" />
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <TextBlock x:Name="StructuralPartMarkerLabel"
+                                   Foreground="#3B0764"
+                                   FontSize="10"
+                                   FontWeight="SemiBold"
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   VerticalAlignment="Top"
+                                   HorizontalAlignment="Left"
+                                   IsHitTestVisible="False" />
                     </Grid>
                 </ScrollViewer>
             </Border>
 
             <Border Grid.Column="1" Margin="12,0,0,0" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4" Padding="10" Background="#FFFFFF">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel>
                     <TextBlock x:Name="VariantCaption" FontWeight="SemiBold" Text="Selected variant" />
+                    <GroupBox Header="Parts of this object" Margin="0,10,0,0">
+                        <StackPanel Margin="4">
+                            <ListBox x:Name="StructuralPartsListBox" Height="100" DisplayMemberPath="Name" SelectionChanged="StructuralPartsListBox_OnSelectionChanged" />
+                            <TextBlock x:Name="StructuralPartsHintTextBlock" Margin="0,5,0,0" Foreground="#6B7280" FontSize="10" TextWrapping="Wrap" Text="Select a part, then click its position on the parent footprint. Drag its purple outline to reposition it." />
+                        </StackPanel>
+                    </GroupBox>
                     <TextBlock Margin="0,10,0,2" Text="Footprint (cells)" />
                     <StackPanel Orientation="Horizontal">
                         <TextBox x:Name="FootprintWidthTextBox" Width="58" />
@@ -86,7 +126,7 @@
                         <TextBox x:Name="GridRowsTextBox" Width="58" />
                         <Button Width="60" Margin="8,0,0,0" Content="Apply" Click="ApplyGridButton_OnClick" />
                     </StackPanel>
-                    <TextBlock Margin="0,4,0,12" Foreground="#6B7280" FontSize="11" Text="The initial surface uses the project room grid. Increasing it only enlarges this editor." TextWrapping="Wrap" />
+                    <TextBlock Margin="0,4,0,12" Foreground="#6B7280" FontSize="11" Text="Child placements snap to precise cells inside the parent footprint. Parent image alignment remains pixel-based." TextWrapping="Wrap" />
                     <CheckBox x:Name="ShowBitmapBoundaryCheckBox"
                               Margin="0,0,0,12"
                               Content="Show bitmap boundary"
@@ -122,6 +162,7 @@
                     <TextBlock x:Name="ImageMetricsTextBlock" Margin="0,10,0,0" Foreground="#374151" FontSize="11" TextWrapping="Wrap" />
                     <TextBlock x:Name="StatusTextBlock" Margin="0,10,0,0" Foreground="#6B7280" FontSize="11" TextWrapping="Wrap" />
                 </StackPanel>
+                </ScrollViewer>
             </Border>
         </Grid>
 

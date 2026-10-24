@@ -416,7 +416,8 @@ public sealed class JsonExportService : IJsonExportService
             PlayerIgnoredValidationRuleIds = project.GlobalScope.IgnoredValidationRuleIds.ToList(),
             GameDisplayName = project.GameDisplayName,
             GameSummary = project.GameSummary,
-            GamePreviewImages = project.GamePreviewImages.ToList()
+            GamePreviewImages = project.GamePreviewImages.ToList(),
+            ParticleEffectImageChoices = ToParticleEffectImageChoiceDtos(project.ParticleEffectImageChoices)
         };
         pendingWrites.Add((projectFilePath, JsonSerializer.Serialize(dto, _jsonOptions)));
 
@@ -455,6 +456,7 @@ public sealed class JsonExportService : IJsonExportService
             TimerDefinitions = project.GlobalScope.TimerDefinitions.Select(ToProjectTimerDefinitionDto).ToList(),
             SequenceDefinitions = project.SequenceDefinitions.ToList(),
             GameProperties = project.GlobalVariables.Select(ToVariableDto).ToList(),
+            EnvironmentalEffects = ToEnvironmentalEffectDtos(project.EnvironmentalEffects),
             SoundEffectLibraryEntries = project.GlobalScope.SoundEffectLibraryEntries.Select(ToSoundEffectLibraryEntryDto).ToList(),
             ProcedureIds = (project.ProcedureIds ?? new List<Guid>())
                 .Where(static id => id != Guid.Empty)
@@ -624,6 +626,7 @@ public sealed class JsonExportService : IJsonExportService
                     NormalMapImagePath = i.Image.NormalMapImagePath
                 }).ToList(),
                 GameProperties = room.Variables.Select(ToVariableDto).ToList(),
+                EnvironmentalEffects = ToEnvironmentalEffectDtos(room.EnvironmentalEffects),
                 AdditionalVerbs = room.AdditionalVerbs.ToList(),
                 AdditionalDirectionals = room.AdditionalDirectionals.ToList(),
                 IgnoredValidationRuleIds = room.IgnoredValidationRuleIds.ToList(),
@@ -662,6 +665,7 @@ public sealed class JsonExportService : IJsonExportService
                 ValidationErrors = planet.ValidationErrors.ToList(),
                 SequenceDefinitions = planet.SequenceDefinitions.ToList(),
                 GameProperties = planet.Variables.Select(ToVariableDto).ToList(),
+                EnvironmentalEffects = ToEnvironmentalEffectDtos(planet.EnvironmentalEffects),
                 AdditionalVerbs = planet.AdditionalVerbs.ToList(),
                 AdditionalDirectionals = planet.AdditionalDirectionals.ToList(),
                 IgnoredValidationRuleIds = planet.IgnoredValidationRuleIds.ToList(),
@@ -715,6 +719,7 @@ public sealed class JsonExportService : IJsonExportService
                     ValidationErrors = country.ValidationErrors.ToList(),
                     SequenceDefinitions = country.SequenceDefinitions.ToList(),
                     GameProperties = country.Variables.Select(ToVariableDto).ToList(),
+                    EnvironmentalEffects = ToEnvironmentalEffectDtos(country.EnvironmentalEffects),
                     AdditionalVerbs = country.AdditionalVerbs.ToList(),
                     AdditionalDirectionals = country.AdditionalDirectionals.ToList(),
                     IgnoredValidationRuleIds = country.IgnoredValidationRuleIds.ToList(),
@@ -771,6 +776,7 @@ public sealed class JsonExportService : IJsonExportService
                         TraversalModeOverride = area.TraversalModeOverride?.ToString(),
                         StartingRoomId = area.StartingRoomId,
                         GameProperties = area.Variables.Select(ToVariableDto).ToList(),
+                        EnvironmentalEffects = ToEnvironmentalEffectDtos(area.EnvironmentalEffects),
                         AdditionalVerbs = area.AdditionalVerbs.ToList(),
                         AdditionalDirectionals = area.AdditionalDirectionals.ToList(),
                         IgnoredValidationRuleIds = area.IgnoredValidationRuleIds.ToList(),
@@ -1033,6 +1039,14 @@ public sealed class JsonExportService : IJsonExportService
                     .Where(static value => !string.IsNullOrWhiteSpace(value))
                     .Select(static value => value.Trim())
                     .ToList(),
+                ParticleEffectImageChoices = (dto.ParticleEffectImageChoices ?? new List<ParticleEffectImageChoiceDto>())
+                    .Select(static choice => new ParticleEffectImageChoice
+                    {
+                        EffectKey = choice.EffectKey ?? string.Empty,
+                        ImageSlot = choice.ImageSlot ?? string.Empty,
+                        AssetPath = choice.AssetPath ?? string.Empty
+                    })
+                    .ToList(),
                 HideEmptyConfiguration = dto.HideEmptyConfiguration ?? false,
                 AutoSaveSeconds = dto.AutoSaveSeconds,
                 RoomImageCanvasWidth = dto.RoomImageCanvasWidth,
@@ -1065,6 +1079,7 @@ public sealed class JsonExportService : IJsonExportService
                 GlobalVariables = (globalNode.GameProperties ?? new List<GamePropertyDefinitionDto>())
                     .Select(ToVariableModel)
                     .ToList(),
+                EnvironmentalEffects = ToEnvironmentalEffectModels(globalNode.EnvironmentalEffects),
                 ProcedureIds = (globalNode.ProcedureIds ?? new List<Guid>())
                     .Where(static id => id != Guid.Empty)
                     .Distinct()
@@ -1404,6 +1419,7 @@ public sealed class JsonExportService : IJsonExportService
             TraversalModeOverride = room.TraversalModeOverride?.ToString(),
             AvailableGameActions = ToCommandActionDtos(room.AvailableActions, linkedActionLookup),
             GameProperties = room.Variables.Select(ToVariableDto).ToList(),
+            EnvironmentalEffects = ToEnvironmentalEffectDtos(room.EnvironmentalEffects),
             AdditionalVerbs = room.AdditionalVerbs.ToList(),
             AdditionalDirectionals = room.AdditionalDirectionals.ToList(),
             IgnoredValidationRuleIds = room.IgnoredValidationRuleIds.ToList(),
@@ -1539,6 +1555,18 @@ public sealed class JsonExportService : IJsonExportService
             AdditionalDirectionalTraversalMappings = NullIfEmpty(ToRuntimeDirectionalTraversalMappings(project.DirectionalTraversalMappings)),
             StartingPlanetName = project.StartingPlanetName,
             GameProperties = project.GlobalVariables.Select(ToCleanGamePropertyDto).OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase).ToList(),
+            EnvironmentalEffects = ToRuntimeEnvironmentalEffectDtos(project.EnvironmentalEffects),
+            ParticleEffectImageChoices = project.ParticleEffectImageChoices
+                .Where(static choice => !string.IsNullOrWhiteSpace(choice.AssetPath))
+                .Select((choice, index) => new RuntimeParticleEffectImageChoiceDto
+                {
+                    EffectKey = choice.EffectKey,
+                    ImageSlot = choice.ImageSlot,
+                    AssetPath = imageAssetStager.ResolveAndStage(
+                        choice.AssetPath,
+                        $"particle-effect:{choice.EffectKey}:image-slot:{choice.ImageSlot}:choice:{index}")
+                })
+                .ToList(),
             SoundEffectLibraryEntries = NullIfEmpty(project.GlobalScope.SoundEffectLibraryEntries
                 .Select(entry => ToCleanSoundEntryForScope(entry, "project:global"))
                 .ToList()),
@@ -1580,6 +1608,7 @@ public sealed class JsonExportService : IJsonExportService
                     Name = planet.Name,
                     StartingCountryName = planet.StartingCountryName,
                     GameProperties = planet.Variables.Select(ToCleanGamePropertyDto).OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase).ToList(),
+                    EnvironmentalEffects = ToRuntimeEnvironmentalEffectDtos(planet.EnvironmentalEffects),
                     SoundEffectLibraryEntries = NullIfEmpty(planet.SoundEffectLibraryEntries
                         .Select(entry => ToCleanSoundEntryForScope(entry, $"planet:{planet.Id:D}"))
                         .ToList()),
@@ -1619,6 +1648,7 @@ public sealed class JsonExportService : IJsonExportService
                                     AdjacencyMode = area.AdjacencyMode,
                                     StartingRoomId = area.StartingRoomId,
                                     GameProperties = area.Variables.Select(ToCleanGamePropertyDto).OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase).ToList(),
+                                    EnvironmentalEffects = ToRuntimeEnvironmentalEffectDtos(area.EnvironmentalEffects),
                                     SoundEffectLibraryEntries = NullIfEmpty(area.SoundEffectLibraryEntries
                                         .Select(entry => ToCleanSoundEntryForScope(entry, $"area:{area.Id:D}"))
                                         .ToList()),
@@ -1654,6 +1684,7 @@ public sealed class JsonExportService : IJsonExportService
                             Name = country.Name,
                             StartingAreaName = country.StartingAreaName,
                             GameProperties = country.Variables.Select(ToCleanGamePropertyDto).OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase).ToList(),
+                            EnvironmentalEffects = ToRuntimeEnvironmentalEffectDtos(country.EnvironmentalEffects),
                             SoundEffectLibraryEntries = NullIfEmpty(country.SoundEffectLibraryEntries
                                 .Select(entry => ToCleanSoundEntryForScope(entry, $"country:{country.Id:D}"))
                                 .ToList()),
@@ -2090,6 +2121,7 @@ public sealed class JsonExportService : IJsonExportService
                 RoomDisplayMode = ToRuntimeRoomImageDisplayMode(room.RoomDisplayMode),
                 AvailableGameActions = ToCleanCommandActionDtos(room.AvailableActions, linkedActionLookup).OrderBy(action => action.Name, StringComparer.OrdinalIgnoreCase).ThenBy(action => action.Id).ToList(),
                 GameProperties = NullIfEmpty(room.Variables.Select(ToCleanGamePropertyDto).OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase).ToList()),
+                EnvironmentalEffects = ToRuntimeEnvironmentalEffectDtos(room.EnvironmentalEffects),
                 AdditionalVerbs = NullIfEmpty(room.AdditionalVerbs.OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToList()),
                 AdditionalDirectionals = NullIfEmpty(room.AdditionalDirectionals.OrderBy(v => v, StringComparer.OrdinalIgnoreCase).ToList()),
                 AdditionalDirectionalTraversalMappings = NullIfEmpty(ToRuntimeDirectionalTraversalMappings(room.AdditionalDirectionalTraversalMappings)),
@@ -3974,6 +4006,7 @@ public sealed class JsonExportService : IJsonExportService
             SequenceDefinitions = (dto.SequenceDefinitions ?? new List<ProjectSequenceDefinitionDto>()).ToList(),
             StartingCountryName = dto.StartingCountryName,
             Variables = (dto.GameProperties ?? new List<GamePropertyDefinitionDto>()).Select(ToVariableModel).ToList(),
+            EnvironmentalEffects = ToEnvironmentalEffectModels(dto.EnvironmentalEffects),
             AdditionalVerbs = (dto.AdditionalVerbs ?? new List<string>()).ToList(),
             AdditionalDirectionals = (dto.AdditionalDirectionals ?? new List<string>()).ToList(),
             IgnoredValidationRuleIds = (dto.IgnoredValidationRuleIds ?? new List<string>()).ToList(),
@@ -4021,6 +4054,7 @@ public sealed class JsonExportService : IJsonExportService
             SequenceDefinitions = (dto.SequenceDefinitions ?? new List<ProjectSequenceDefinitionDto>()).ToList(),
             StartingAreaName = dto.StartingAreaName,
             Variables = (dto.GameProperties ?? new List<GamePropertyDefinitionDto>()).Select(ToVariableModel).ToList(),
+            EnvironmentalEffects = ToEnvironmentalEffectModels(dto.EnvironmentalEffects),
             AdditionalVerbs = (dto.AdditionalVerbs ?? new List<string>()).ToList(),
             AdditionalDirectionals = (dto.AdditionalDirectionals ?? new List<string>()).ToList(),
             IgnoredValidationRuleIds = (dto.IgnoredValidationRuleIds ?? new List<string>()).ToList(),
@@ -4075,6 +4109,7 @@ public sealed class JsonExportService : IJsonExportService
                 : null,
             StartingRoomId = dto.StartingRoomId,
             Variables = (dto.GameProperties ?? new List<GamePropertyDefinitionDto>()).Select(ToVariableModel).ToList(),
+            EnvironmentalEffects = ToEnvironmentalEffectModels(dto.EnvironmentalEffects),
             AdditionalVerbs = (dto.AdditionalVerbs ?? new List<string>()).ToList(),
             AdditionalDirectionals = (dto.AdditionalDirectionals ?? new List<string>()).ToList(),
             IgnoredValidationRuleIds = (dto.IgnoredValidationRuleIds ?? new List<string>()).ToList(),
@@ -4558,6 +4593,7 @@ public sealed class JsonExportService : IJsonExportService
                 }
             }).ToList(),
             Variables = (room.GameProperties ?? new List<GamePropertyDefinitionDto>()).Select(ToVariableModel).ToList(),
+            EnvironmentalEffects = ToEnvironmentalEffectModels(room.EnvironmentalEffects),
             AdditionalVerbs = (room.AdditionalVerbs ?? new List<string>()).ToList(),
             AdditionalDirectionals = (room.AdditionalDirectionals ?? new List<string>()).ToList(),
             IgnoredValidationRuleIds = (room.IgnoredValidationRuleIds ?? new List<string>()).ToList(),
@@ -4647,6 +4683,31 @@ public sealed class JsonExportService : IJsonExportService
                 : obj.ImageVariantChooserScript,
             Appearance = isLinkedInstance ? null : ToProjectGameObjectAppearanceDto(obj),
             PointLight = isLinkedInstance ? null : LightingContractMapper.ToProjectPointLightDto(obj.PointLight),
+            ParticleEffect = isLinkedInstance || obj.ParticleEffect is null
+                ? null
+                : new ParticleEffectAttachmentDto
+                {
+                    EffectKey = obj.ParticleEffect.EffectKey,
+                    OffsetXPx = obj.ParticleEffect.OffsetXPx,
+                    OffsetYPx = obj.ParticleEffect.OffsetYPx,
+                    Settings = ParticleEffectControlSettingCloner.CloneSettings(obj.ParticleEffect.Settings)
+                },
+            IsPartOfParent = obj.IsPartOfParent,
+            PartPlacementMode = obj.IsPartOfParent
+                ? Enum.Parse<Storyboard.Shared.RuntimeContracts.Enums.StructuralPartPlacementMode>(obj.Placement.Mode.ToString())
+                : null,
+            ParentRelativeOffsetX = obj.IsPartOfParent && obj.Placement.Mode == StructuralPartPlacementKind.ParentRelative
+                ? obj.Placement.ParentRelativeOffsetX
+                : null,
+            ParentRelativeOffsetY = obj.IsPartOfParent && obj.Placement.Mode == StructuralPartPlacementKind.ParentRelative
+                ? obj.Placement.ParentRelativeOffsetY
+                : null,
+            PartRoomCoordinateX = obj.IsPartOfParent && obj.Placement.Mode == StructuralPartPlacementKind.RoomCoordinates
+                ? obj.Placement.RoomCoordinateX ?? obj.PositionX
+                : null,
+            PartRoomCoordinateY = obj.IsPartOfParent && obj.Placement.Mode == StructuralPartPlacementKind.RoomCoordinates
+                ? obj.Placement.RoomCoordinateY ?? obj.PositionY
+                : null,
             LightOcclusion = isLinkedInstance ? null : LightingContractMapper.ToProjectLightOcclusionDto(ResolveDefaultLightOcclusion(obj)),
             IsPointLightEnabledDefaultValue = !isLinkedInstance && obj.IsPointLightEnabledDefaultValue,
             ImageRotationDegrees = obj.ImageRotationDegrees,
@@ -4809,6 +4870,26 @@ public sealed class JsonExportService : IJsonExportService
             AuthoredBaseHeightInRoom = obj.Appearance?.AuthoredBaseHeightInRoom ?? 0,
             IsHeightPinned = obj.Appearance?.IsHeightPinned ?? false,
             PointLight = LightingContractMapper.ToPointLightModel(obj.PointLight),
+            ParticleEffect = obj.ParticleEffect is null
+                ? null
+                : new ParticleEffectAttachment
+                {
+                    EffectKey = obj.ParticleEffect.EffectKey,
+                    OffsetXPx = obj.ParticleEffect.OffsetXPx,
+                    OffsetYPx = obj.ParticleEffect.OffsetYPx,
+                    Settings = ParticleEffectControlSettingCloner.CloneSettings(obj.ParticleEffect.Settings)
+                },
+            IsPartOfParent = obj.IsPartOfParent == true,
+            Placement = new StructuralPartPlacement
+            {
+                Mode = obj.PartPlacementMode?.ToString() == "RoomCoordinates"
+                    ? StructuralPartPlacementKind.RoomCoordinates
+                    : StructuralPartPlacementKind.ParentRelative,
+                ParentRelativeOffsetX = obj.ParentRelativeOffsetX,
+                ParentRelativeOffsetY = obj.ParentRelativeOffsetY,
+                RoomCoordinateX = obj.PartRoomCoordinateX,
+                RoomCoordinateY = obj.PartRoomCoordinateY
+            },
             LightOcclusion = LightingContractMapper.ToLightOcclusionModel(obj.LightOcclusion),
             IsPointLightEnabledDefaultValue = obj.IsPointLightEnabledDefaultValue ?? true,
             OccupiedCellIds = NormalizeOccupiedCellIds(obj.Appearance?.OccupiedCellIds),
@@ -4816,8 +4897,14 @@ public sealed class JsonExportService : IJsonExportService
             StackScaleStepOverride = SanitizeOptionalFinite(obj.Appearance?.StackScaleStepOverride),
             MinStackScaleOverride = SanitizeOptionalFinite(obj.Appearance?.MinStackScaleOverride),
             MovementRestrictions = ToObjectMovementRestrictionsModel(obj.Appearance?.MovementRestrictions),
-            PositionX = SanitizeCoordinateForPersistence(obj.PositionX),
-            PositionY = SanitizeCoordinateForPersistence(obj.PositionY),
+            PositionX = SanitizeCoordinateForPersistence(obj.IsPartOfParent == true
+                && obj.PartPlacementMode?.ToString() == "RoomCoordinates"
+                    ? obj.PartRoomCoordinateX ?? obj.PositionX
+                    : obj.PositionX),
+            PositionY = SanitizeCoordinateForPersistence(obj.IsPartOfParent == true
+                && obj.PartPlacementMode?.ToString() == "RoomCoordinates"
+                    ? obj.PartRoomCoordinateY ?? obj.PositionY
+                    : obj.PositionY),
             RenderZOrder = obj.RenderZOrder ?? 0,
             AuthoredRenderOrder = obj.AuthoredRenderOrder ?? 0,
             IncludeInPreview = obj.IncludeInPreview,
@@ -4982,6 +5069,15 @@ public sealed class JsonExportService : IJsonExportService
             obj.AuthoredBaseHeightInRoom = definition.AuthoredBaseHeightInRoom;
             obj.IsHeightPinned = definition.IsHeightPinned;
             obj.PointLight = LightingModelCloner.ClonePointLight(definition.PointLight);
+            obj.ParticleEffect = definition.ParticleEffect is null
+                ? null
+                : new ParticleEffectAttachment
+                {
+                    EffectKey = definition.ParticleEffect.EffectKey,
+                    OffsetXPx = definition.ParticleEffect.OffsetXPx,
+                    OffsetYPx = definition.ParticleEffect.OffsetYPx,
+                    Settings = ParticleEffectControlSettingCloner.CloneSettings(definition.ParticleEffect.Settings)
+                };
             obj.LightOcclusion = LightingModelCloner.CloneLightOcclusion(definition.LightOcclusion);
             obj.IsPointLightEnabledDefaultValue = definition.IsPointLightEnabledDefaultValue;
             obj.OccupiedCellIds = NormalizeOccupiedCellIds(definition.OccupiedCellIds);
@@ -6247,6 +6343,31 @@ public sealed class JsonExportService : IJsonExportService
                 : effectiveDefinitionOwnedSource.ImageVariantChooserScript,
             Appearance = ToCleanGameObjectAppearanceDto(obj, effectiveDefinitionOwnedSource),
             PointLight = LightingContractMapper.ToRuntimePointLightDto(effectiveDefinitionOwnedSource.PointLight),
+            ParticleEffect = effectiveDefinitionOwnedSource.ParticleEffect is null
+                ? null
+                : new RuntimeParticleEffectAttachmentDto
+                {
+                    EffectKey = effectiveDefinitionOwnedSource.ParticleEffect.EffectKey,
+                    OffsetXPx = effectiveDefinitionOwnedSource.ParticleEffect.OffsetXPx,
+                    OffsetYPx = effectiveDefinitionOwnedSource.ParticleEffect.OffsetYPx,
+                    Settings = NullIfEmpty(effectiveDefinitionOwnedSource.ParticleEffect.Settings.Select(ToRuntimeParticleEffectControlSettingDto).ToList())
+                },
+            IsPartOfParent = obj.IsPartOfParent ? true : null,
+            PartPlacementMode = obj.IsPartOfParent
+                ? Enum.Parse<Storyboard.Shared.RuntimeContracts.Enums.StructuralPartPlacementMode>(obj.Placement.Mode.ToString())
+                : null,
+            ParentRelativeOffsetX = obj.IsPartOfParent && obj.Placement.Mode == StructuralPartPlacementKind.ParentRelative
+                ? obj.Placement.ParentRelativeOffsetX
+                : null,
+            ParentRelativeOffsetY = obj.IsPartOfParent && obj.Placement.Mode == StructuralPartPlacementKind.ParentRelative
+                ? obj.Placement.ParentRelativeOffsetY
+                : null,
+            PartRoomCoordinateX = obj.IsPartOfParent && obj.Placement.Mode == StructuralPartPlacementKind.RoomCoordinates
+                ? obj.Placement.RoomCoordinateX ?? obj.PositionX
+                : null,
+            PartRoomCoordinateY = obj.IsPartOfParent && obj.Placement.Mode == StructuralPartPlacementKind.RoomCoordinates
+                ? obj.Placement.RoomCoordinateY ?? obj.PositionY
+                : null,
             LightOcclusion = LightingContractMapper.ToRuntimeLightOcclusionDto(ResolveDefaultLightOcclusion(effectiveDefinitionOwnedSource)),
             IsPointLightEnabled = effectiveDefinitionOwnedSource.IsPointLightEnabledDefaultValue,
             IsPointLightEnabledDefaultValue = effectiveDefinitionOwnedSource.IsPointLightEnabledDefaultValue,
@@ -6441,6 +6562,84 @@ public sealed class JsonExportService : IJsonExportService
             SharedVariableId = variable.SharedVariableId,
             Computation = CloneContractValue(variable.Computation)
         };
+    }
+
+    private static List<EnvironmentalEffectDefinitionDto> ToEnvironmentalEffectDtos(
+        IEnumerable<EnvironmentalEffectDefinition>? effects)
+    {
+        return (effects ?? Array.Empty<EnvironmentalEffectDefinition>())
+            .Select(effect => new EnvironmentalEffectDefinitionDto
+            {
+                Id = effect.Id == Guid.Empty ? Guid.NewGuid() : effect.Id,
+                Name = effect.Name?.Trim() ?? string.Empty,
+                EffectKey = effect.EffectKey?.Trim() ?? string.Empty,
+                Applicability = Enum.Parse<Storyboard.Shared.RuntimeContracts.Enums.EnvironmentalEffectApplicability>(effect.Applicability.ToString()),
+                Enabled = effect.Enabled,
+                EnabledBinding = ParticleEffectControlSettingCloner.CloneReference(effect.EnabledBinding),
+                Settings = ParticleEffectControlSettingCloner.CloneSettings(effect.Settings),
+                RenderOrder = effect.RenderOrder
+            })
+            .ToList();
+    }
+
+    private static List<EnvironmentalEffectDefinition> ToEnvironmentalEffectModels(
+        IEnumerable<EnvironmentalEffectDefinitionDto>? effects)
+    {
+        return (effects ?? Array.Empty<EnvironmentalEffectDefinitionDto>())
+            .Select(effect => new EnvironmentalEffectDefinition
+            {
+                Id = effect.Id == Guid.Empty ? Guid.NewGuid() : effect.Id,
+                Name = effect.Name ?? string.Empty,
+                EffectKey = effect.EffectKey ?? string.Empty,
+                Applicability = Enum.TryParse<StoryboardDesigner.App.Models.EnvironmentalEffectApplicability>(effect.Applicability.ToString(), out var applicability)
+                    ? applicability
+                    : StoryboardDesigner.App.Models.EnvironmentalEffectApplicability.Outdoor,
+                Enabled = effect.Enabled,
+                EnabledBinding = ParticleEffectControlSettingCloner.CloneReference(effect.EnabledBinding),
+                Settings = ParticleEffectControlSettingCloner.CloneSettings(effect.Settings),
+                RenderOrder = effect.RenderOrder
+            })
+            .ToList();
+    }
+
+    private static List<RuntimeEnvironmentalEffectDefinitionDto>? ToRuntimeEnvironmentalEffectDtos(
+        IEnumerable<EnvironmentalEffectDefinition>? effects)
+    {
+        var definitions = (effects ?? Array.Empty<EnvironmentalEffectDefinition>())
+            .Select(effect => new RuntimeEnvironmentalEffectDefinitionDto
+            {
+                Id = effect.Id == Guid.Empty ? Guid.NewGuid() : effect.Id,
+                Name = effect.Name?.Trim() ?? string.Empty,
+                EffectKey = effect.EffectKey?.Trim() ?? string.Empty,
+                Applicability = Enum.Parse<Storyboard.Shared.RuntimeContracts.Enums.EnvironmentalEffectApplicability>(effect.Applicability.ToString()),
+                Enabled = effect.Enabled,
+                EnabledBinding = ToRuntimeGamePropertySourceReference(effect.EnabledBinding),
+                Settings = NullIfEmpty(effect.Settings.Select(ToRuntimeParticleEffectControlSettingDto).ToList()),
+                RenderOrder = effect.RenderOrder
+            })
+            .ToList();
+        return definitions.Count == 0 ? null : definitions;
+    }
+
+    private static RuntimeParticleEffectControlSettingDto ToRuntimeParticleEffectControlSettingDto(
+        ParticleEffectControlSettingDto setting) => new()
+    {
+        ControlKey = setting.ControlKey?.Trim() ?? string.Empty,
+        Value = setting.Value,
+        Binding = ToRuntimeGamePropertySourceReference(setting.Binding)
+    };
+
+    private static List<ParticleEffectImageChoiceDto> ToParticleEffectImageChoiceDtos(
+        IEnumerable<ParticleEffectImageChoice>? choices)
+    {
+        return (choices ?? Array.Empty<ParticleEffectImageChoice>())
+            .Select(choice => new ParticleEffectImageChoiceDto
+            {
+                EffectKey = choice.EffectKey?.Trim() ?? string.Empty,
+                ImageSlot = choice.ImageSlot?.Trim() ?? string.Empty,
+                AssetPath = choice.AssetPath?.Trim() ?? string.Empty
+            })
+            .ToList();
     }
 
     private static SoundEffectLibraryEntryDto ToSoundEffectLibraryEntryDto(SoundEffectLibraryEntry entry)

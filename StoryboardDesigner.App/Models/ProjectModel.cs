@@ -67,6 +67,7 @@ public sealed class ProjectModel : ScopeNodeBase
     }
 
     public PointLightDefaults? PointLightDefaults { get; set; }
+    public List<ParticleEffectImageChoice> ParticleEffectImageChoices { get; set; } = new();
     public RoomAmbientLighting? DefaultRoomAmbientLighting { get; set; }
     public RoomSoundLossDefaults? RoomSoundLossDefaults { get; set; }
 

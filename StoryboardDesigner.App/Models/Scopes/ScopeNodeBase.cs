@@ -14,6 +14,7 @@ public abstract class ScopeNodeBase : IScopedAwareNode
     public virtual List<EventSubscriptionDefinition> EventSubscriptions { get; set; } = new();
     public virtual List<Storyboard.Shared.RuntimeContracts.Dtos.RuntimeTimerDefinitionDto> TimerDefinitions { get; set; } = new();
     public List<ProjectSequenceDefinitionDto> SequenceDefinitions { get; set; } = new();
+    public List<EnvironmentalEffectDefinition> EnvironmentalEffects { get; set; } = new();
     public IScopedAwareNode? ParentScope { get; set; }
     public abstract IEnumerable<IScopedAwareNode> ChildScopes { get; }
 

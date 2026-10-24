@@ -4,6 +4,14 @@ using Storyboard.Shared.RuntimeContracts.Enums;
 
 namespace StoryboardDesigner.App.Services;
 
+public sealed record StructuralPartPlacementEditItem(
+    Guid ObjectId,
+    string Name,
+    int FootprintWidthCells,
+    int FootprintHeightCells,
+    string FootprintOrientation,
+    StructuralPartPlacement Placement);
+
 public sealed record ObjectBasicPropertiesEditRequest(
     string Name,
     string NameInGame,
@@ -72,4 +80,11 @@ public sealed record ObjectBasicPropertiesEditRequest(
     IReadOnlyList<ObjectSoundEmitter>? SoundEmitters = null,
     IReadOnlyList<SoundEffectChoiceItem>? SoundEffectChoices = null,
     GamePropertyPickerContext? SoundEmitterActivationPickerContext = null,
-    GamePropertyPickerContext? ImageVariantChooserPickerContext = null);
+    GamePropertyPickerContext? ImageVariantChooserPickerContext = null,
+    ParticleEffectAttachment? ParticleEffect = null,
+    bool IsPartOfParent = false,
+    StructuralPartPlacement? StructuralPartPlacement = null,
+    GamePropertyPickerContext? ParticleEffectVariablePickerContext = null,
+    Func<string, string, GamePropertyDefinition?>? ParticleEffectNewComputedVariableFactory = null,
+    IReadOnlyList<GamePropertyDefinition>? ParticleEffectNewVariables = null,
+    IReadOnlyList<StructuralPartPlacementEditItem>? StructuralPartPlacements = null);

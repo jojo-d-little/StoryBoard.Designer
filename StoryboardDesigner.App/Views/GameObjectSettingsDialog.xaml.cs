@@ -17,9 +17,19 @@ public partial class GameObjectSettingsDialog : Window
     private readonly IReadOnlyList<SoundEffectChoiceItem> _soundEffectChoices;
     private readonly GamePropertyPickerContext? _soundEmitterActivationPickerContext;
     private List<ObjectSoundEmitter> _soundEmitters;
+    private ParticleEffectAttachment? _particleEffect;
+    private bool _isPartOfParent;
+    private bool _isInitializingStructuralPartUi = true;
+    private StructuralPartPlacement _structuralPartPlacement = new();
+    private readonly GamePropertyPickerContext? _particleEffectVariablePickerContext;
+    private readonly Func<string, string, GamePropertyDefinition?>? _particleEffectNewComputedVariableFactory;
+    private readonly List<GamePropertyDefinition> _particleEffectNewVariables = new();
+    private List<StructuralPartPlacementEditItem> _structuralPartPlacements = new();
     private string _fullImagePath = string.Empty;
+    private readonly string _description;
     private double _imageRotationDegrees;
     private List<ObjectImageVariant> _imageVariants = new();
+    private double _imageTransparency;
     private string _imageVariantChooserScript = string.Empty;
     private readonly IReadOnlyList<string> _imageVariantChooserReferenceTokens;
     private readonly GamePropertyPickerContext? _imageVariantChooserPickerContext;
@@ -60,6 +70,7 @@ public partial class GameObjectSettingsDialog : Window
     public GameObjectSettingsDialog(ObjectBasicPropertiesEditRequest initialValues)
     {
         InitializeComponent();
+        _description = initialValues.Description;
         ObjectNameTextBox.Text = initialValues.Name;
         ObjectNameInGameTextBox.Text = initialValues.NameInGame;
         ObjectNameSynonymsTextBox.Text = NormalizeSynonymsText(initialValues.ObjectNameSynonyms);
@@ -111,6 +122,20 @@ public partial class GameObjectSettingsDialog : Window
         _soundEffectChoices = initialValues.SoundEffectChoices ?? Array.Empty<SoundEffectChoiceItem>();
         _soundEmitterActivationPickerContext = initialValues.SoundEmitterActivationPickerContext;
         _soundEmitters = CloneSoundEmitters(initialValues.SoundEmitters);
+        _particleEffect = CloneParticleEffect(initialValues.ParticleEffect);
+        _particleEffectVariablePickerContext = initialValues.ParticleEffectVariablePickerContext;
+        _particleEffectNewComputedVariableFactory = initialValues.ParticleEffectNewComputedVariableFactory;
+        _structuralPartPlacements = CloneStructuralPartPlacements(initialValues.StructuralPartPlacements);
+        _isPartOfParent = initialValues.IsPartOfParent;
+        _structuralPartPlacement = CloneStructuralPartPlacement(initialValues.StructuralPartPlacement);
+        IsPartOfParentCheckBox.IsChecked = _isPartOfParent;
+        StructuralPlacementModeComboBox.SelectedIndex = _structuralPartPlacement.Mode == StructuralPartPlacementKind.RoomCoordinates ? 1 : 0;
+        StructuralXTextBox.Text = FormatStructuralCoordinate(_structuralPartPlacement.Mode == StructuralPartPlacementKind.RoomCoordinates
+            ? _structuralPartPlacement.RoomCoordinateX : _structuralPartPlacement.ParentRelativeOffsetX);
+        StructuralYTextBox.Text = FormatStructuralCoordinate(_structuralPartPlacement.Mode == StructuralPartPlacementKind.RoomCoordinates
+            ? _structuralPartPlacement.RoomCoordinateY : _structuralPartPlacement.ParentRelativeOffsetY);
+        _isInitializingStructuralPartUi = false;
+        RefreshStructuralPartInputs();
         ManageSoundEffectsButton.Visibility = initialValues.SoundEffectChoices is null ? Visibility.Collapsed : Visibility.Visible;
         _compositeSettings = new CompositeObjectSettingsEditRequest(
             initialValues.IsCompositeReversible,
@@ -121,9 +146,10 @@ public partial class GameObjectSettingsDialog : Window
             NormalizeCompositeRequiredParts(initialValues.CompositeRequiredParts));
         _lockOperationRequirements = CloneLockOperationRequirements(initialValues.LockOperationRequirements);
         CompositableCheckBox.IsChecked = initialValues.IsCompositeTarget;
-        ObjectDescriptionTextBox.Text = initialValues.Description;
         _imageVariants = NormalizeImageVariants(initialValues.ImageVariants, initialValues.FullImagePath);
-        ImageTransparencyTextBox.Text = initialValues.ImageTransparency.ToString("0.################", System.Globalization.CultureInfo.InvariantCulture);
+        _imageTransparency = double.IsFinite(initialValues.ImageTransparency)
+            ? Math.Clamp(initialValues.ImageTransparency, 0, 1)
+            : 0;
         _imageVariantChooserScript = initialValues.ImageVariantChooserScript;
         _imageVariantChooserReferenceTokens = initialValues.ImageVariantChooserReferenceTokens ?? Array.Empty<string>();
         _imageVariantChooserPickerContext = initialValues.ImageVariantChooserPickerContext;
@@ -158,7 +184,7 @@ public partial class GameObjectSettingsDialog : Window
 
     private void ApplyLinkedInstanceFieldLocks()
     {
-        // Linked instances can only edit local overrides such as Name, NameInGame, Description, and Quantity.
+        // Linked instances can only edit local overrides such as Name, NameInGame, and Quantity.
         ObjectProducerNotesTextBox.IsEnabled = false;
         ObjectNameSynonymsTextBox.IsEnabled = false;
 
@@ -191,7 +217,12 @@ public partial class GameObjectSettingsDialog : Window
         ManageLockRequirementsButton.IsEnabled = false;
         ManageImageVariantsButton.IsEnabled = false;
         ManageSoundEffectsButton.IsEnabled = false;
-        ImageTransparencyTextBox.IsEnabled = false;
+        // Particle attachments and structural composition are definition-owned fields on linked instances.
+        if (FindName("ManageParticleEffectButton") is System.Windows.Controls.Button particleButton) particleButton.IsEnabled = false;
+        IsPartOfParentCheckBox.IsEnabled = false;
+        StructuralPlacementModeComboBox.IsEnabled = false;
+        StructuralXTextBox.IsEnabled = false;
+        StructuralYTextBox.IsEnabled = false;
         _movementRestrictionsLockedByLink = true;
         ManageMovementRestrictionsButton.IsEnabled = false;
     }
@@ -230,7 +261,7 @@ public partial class GameObjectSettingsDialog : Window
                 _compositeSettings.CompositeMinimumRequiredPartCount,
                 _compositeSettings.CompositeRequiredPartObjectIds,
                 _availableCompositePartOptions,
-                ObjectDescriptionTextBox.Text,
+                _description,
                 _fullImagePath,
                 _imageRotationDegrees,
                 _projectFilePath,
@@ -267,8 +298,15 @@ public partial class GameObjectSettingsDialog : Window
                 PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_pointLightDefaults),
                 HideContainedObjects: HideContainedObjectsCheckBox.IsChecked != false,
                 ShowWhenContained: InventoriableCheckBox.IsChecked == true ? GetShowWhenContained() : null,
-                ImageTransparency: ParseImageTransparencyText(),
-                SoundEmitters: CloneSoundEmitters(_soundEmitters));
+                ImageTransparency: _imageTransparency,
+                SoundEmitters: CloneSoundEmitters(_soundEmitters),
+                ParticleEffect: CloneParticleEffect(_particleEffect),
+                IsPartOfParent: _isPartOfParent,
+                StructuralPartPlacement: CloneStructuralPartPlacement(_structuralPartPlacement),
+                ParticleEffectVariablePickerContext: _particleEffectVariablePickerContext,
+                ParticleEffectNewComputedVariableFactory: _particleEffectNewComputedVariableFactory,
+                ParticleEffectNewVariables: _particleEffectNewVariables.Select(CloneGameProperty).ToList(),
+                StructuralPartPlacements: CloneStructuralPartPlacements(_structuralPartPlacements));
         }
     }
 
@@ -367,7 +405,13 @@ public partial class GameObjectSettingsDialog : Window
             PointLightDefaults: LightingModelCloner.ClonePointLightDefaults(_pointLightDefaults),
             ProjectRoomGridCellSize: _projectRoomGridCellSize,
             ProjectRoomCanvasWidth: _projectRoomCanvasWidth,
-            ProjectRoomCanvasHeight: _projectRoomCanvasHeight))
+            ProjectRoomCanvasHeight: _projectRoomCanvasHeight,
+            ParticleEffect: _particleEffect,
+            ParticleEffectVariablePickerContext: _particleEffectVariablePickerContext,
+            ParticleEffectNewComputedVariableFactory: _particleEffectNewComputedVariableFactory,
+            ParticleEffectNewVariables: _particleEffectNewVariables,
+            StructuralPartPlacements: _structuralPartPlacements,
+            ImageTransparency: _imageTransparency))
         {
             Owner = this
         };
@@ -378,6 +422,7 @@ public partial class GameObjectSettingsDialog : Window
         }
 
         _imageVariants = NormalizeImageVariants(dialog.ImageVariants, _fullImagePath);
+        _imageTransparency = dialog.ImageTransparency;
         _imageVariantChooserScript = dialog.ImageVariantChooserScript;
         _imageRotationDegrees = dialog.ImageRotationDegrees;
         _isMovable = dialog.IsMovable;
@@ -396,6 +441,10 @@ public partial class GameObjectSettingsDialog : Window
         _stackScaleStepOverride = dialog.StackScaleStepOverride;
         _minStackScaleOverride = dialog.MinStackScaleOverride;
         _pointLight = LightingModelCloner.ClonePointLight(dialog.PointLight);
+        _particleEffect = CloneParticleEffect(dialog.ParticleEffect);
+        _particleEffectNewVariables.Clear();
+        _particleEffectNewVariables.AddRange(dialog.ParticleEffectNewVariables.Select(CloneGameProperty));
+        _structuralPartPlacements = CloneStructuralPartPlacements(dialog.StructuralPartPlacements);
         _lightOcclusion = LightingModelCloner.CloneLightOcclusion(dialog.LightOcclusion);
         _isPointLightEnabledDefaultValue = dialog.IsPointLightEnabledDefaultValue;
         _fullImagePath = ResolveDefaultVariantPath(_imageVariants, _fullImagePath);
@@ -418,6 +467,37 @@ public partial class GameObjectSettingsDialog : Window
         }
     }
 
+    private void StructuralPart_OnChanged(object sender, RoutedEventArgs e) => RefreshStructuralPartInputs();
+
+    private void StructuralPlacementMode_OnChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isInitializingStructuralPartUi || StructuralPlacementModeComboBox is null) return;
+        RefreshStructuralPartInputs();
+    }
+
+    private void RefreshStructuralPartInputs()
+    {
+        if (StructuralPlacementModeComboBox is null) return;
+        var isPart = IsPartOfParentCheckBox.IsChecked == true;
+        StructuralPlacementModeComboBox.IsEnabled = isPart;
+        var roomCoordinates = GetStructuralPlacementMode() == StructuralPartPlacementKind.RoomCoordinates;
+        StructuralXLabel.Visibility = roomCoordinates ? Visibility.Visible : Visibility.Collapsed;
+        StructuralXTextBox.Visibility = roomCoordinates ? Visibility.Visible : Visibility.Collapsed;
+        StructuralYLabel.Visibility = roomCoordinates ? Visibility.Visible : Visibility.Collapsed;
+        StructuralYTextBox.Visibility = roomCoordinates ? Visibility.Visible : Visibility.Collapsed;
+        StructuralXTextBox.IsEnabled = isPart && roomCoordinates;
+        StructuralYTextBox.IsEnabled = isPart && roomCoordinates;
+        StructuralParentRelativeHint.Visibility = isPart && !roomCoordinates ? Visibility.Visible : Visibility.Collapsed;
+        StructuralRoomCoordinatesHint.Visibility = isPart && roomCoordinates ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private StructuralPartPlacementKind GetStructuralPlacementMode() =>
+        (StructuralPlacementModeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() == nameof(StructuralPartPlacementKind.RoomCoordinates)
+            ? StructuralPartPlacementKind.RoomCoordinates : StructuralPartPlacementKind.ParentRelative;
+
+    private static string FormatStructuralCoordinate(double? value) =>
+        value?.ToString("0.################", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+
     private static List<ObjectSoundEmitter> CloneSoundEmitters(IEnumerable<ObjectSoundEmitter>? emitters)
     {
         return (emitters ?? Array.Empty<ObjectSoundEmitter>()).Select(static emitter => new ObjectSoundEmitter
@@ -431,6 +511,39 @@ public partial class GameObjectSettingsDialog : Window
             ActiveOutOfRoom = emitter.ActiveOutOfRoom
         }).ToList();
     }
+
+    private static ParticleEffectAttachment? CloneParticleEffect(ParticleEffectAttachment? source) => source is null
+        ? null
+        : new ParticleEffectAttachment
+        {
+            EffectKey = source.EffectKey,
+            OffsetXPx = source.OffsetXPx,
+            OffsetYPx = source.OffsetYPx,
+            Settings = ParticleEffectControlSettingCloner.CloneSettings(source.Settings)
+        };
+
+    private static GamePropertyDefinition CloneGameProperty(GamePropertyDefinition source) => new()
+    {
+        Id = source.Id, Name = source.Name, DefaultValue = source.DefaultValue,
+        ValueRestriction = source.ValueRestriction, Lifetime = source.Lifetime,
+        SharedVariableId = source.SharedVariableId, Computation = source.Computation
+    };
+
+    private static StructuralPartPlacement CloneStructuralPartPlacement(StructuralPartPlacement? source) => source is null
+        ? new StructuralPartPlacement()
+        : new StructuralPartPlacement
+        {
+            Mode = source.Mode,
+            ParentRelativeOffsetX = source.ParentRelativeOffsetX,
+            ParentRelativeOffsetY = source.ParentRelativeOffsetY,
+            RoomCoordinateX = source.RoomCoordinateX,
+            RoomCoordinateY = source.RoomCoordinateY
+        };
+
+    private static List<StructuralPartPlacementEditItem> CloneStructuralPartPlacements(IEnumerable<StructuralPartPlacementEditItem>? source) =>
+        (source ?? Array.Empty<StructuralPartPlacementEditItem>())
+            .Select(item => item with { Placement = CloneStructuralPartPlacement(item.Placement) })
+            .ToList();
 
     private static Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? CloneGamePropertySourceReference(
         Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? source) => source is null
@@ -737,17 +850,6 @@ public partial class GameObjectSettingsDialog : Window
             return;
         }
 
-        if (!TryParseImageTransparencyText(out var imageTransparency)
-            || !double.IsFinite(imageTransparency)
-            || imageTransparency < 0
-            || imageTransparency > 1)
-        {
-            System.Windows.MessageBox.Show(this, "Image transparency must be a finite number between 0 and 1.", "Object Properties", MessageBoxButton.OK, MessageBoxImage.Information);
-            ImageTransparencyTextBox.Focus();
-            ImageTransparencyTextBox.SelectAll();
-            return;
-        }
-
         if (!int.TryParse(InventoryPointsTextBox.Text.Trim(), out var parsedInventoryPoints) || parsedInventoryPoints < 1)
         {
             System.Windows.MessageBox.Show(this, "Inventory points must be a number greater than or equal to 1.", "Object Properties", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -805,22 +907,39 @@ public partial class GameObjectSettingsDialog : Window
             return;
         }
 
+        _isPartOfParent = IsPartOfParentCheckBox.IsChecked == true;
+        if (_isPartOfParent)
+        {
+            var mode = GetStructuralPlacementMode();
+            if (mode == StructuralPartPlacementKind.RoomCoordinates)
+            {
+                if (!TryParseStructuralCoordinate(StructuralXTextBox.Text, out var x)
+                    || !TryParseStructuralCoordinate(StructuralYTextBox.Text, out var y))
+                {
+                    System.Windows.MessageBox.Show(this, "Structural room placement requires finite X and Y values.", "Object Properties", MessageBoxButton.OK, MessageBoxImage.Information);
+                    StructuralXTextBox.Focus();
+                    return;
+                }
+
+                _structuralPartPlacement = new StructuralPartPlacement { Mode = mode, RoomCoordinateX = x, RoomCoordinateY = y };
+            }
+            else
+            {
+                _structuralPartPlacement = new StructuralPartPlacement
+                {
+                    Mode = mode,
+                    ParentRelativeOffsetX = _structuralPartPlacement.ParentRelativeOffsetX ?? 0,
+                    ParentRelativeOffsetY = _structuralPartPlacement.ParentRelativeOffsetY ?? 0
+                };
+            }
+        }
+
         DialogResult = true;
     }
 
-    private double ParseImageTransparencyText()
-    {
-        return TryParseImageTransparencyText(out var value) ? value : 0;
-    }
-
-    private bool TryParseImageTransparencyText(out double value)
-    {
-        return double.TryParse(
-            ImageTransparencyTextBox.Text.Trim(),
-            System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture,
-            out value);
-    }
+    private static bool TryParseStructuralCoordinate(string text, out double value) =>
+        double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out value)
+        && double.IsFinite(value);
 
     private void ContainerCheckBox_OnChanged(object sender, RoutedEventArgs e)
     {
@@ -1038,7 +1157,7 @@ public partial class GameObjectSettingsDialog : Window
 
     private void UpdateCompositeSummary()
     {
-        CompositeSummaryTextBlock.Text = CompositableCheckBox.IsChecked == true
+        ManageCompositeButton.ToolTip = CompositableCheckBox.IsChecked == true
             ? BuildCompositeSummary()
             : "Composite settings are disabled.";
     }
@@ -1088,7 +1207,7 @@ public partial class GameObjectSettingsDialog : Window
 
     private void UpdateLockRequirementsSummary()
     {
-        LockRequirementsSummaryTextBlock.Text = LockableCheckBox.IsChecked == true
+        ManageLockRequirementsButton.ToolTip = LockableCheckBox.IsChecked == true
             ? BuildLockRequirementsSummary()
             : "Lock requirements are disabled.";
     }

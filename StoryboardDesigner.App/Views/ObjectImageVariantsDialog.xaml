@@ -121,9 +121,12 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock FontWeight="SemiBold" Text="Footprint Lighting" />
+                                <TextBlock FontWeight="SemiBold" Text="Visuals" />
                             </StackPanel>
-                            <Button x:Name="ManageLightingButton" Grid.Column="1" Width="140" Height="26" Margin="8,0,0,0" Content="Manage Lighting..." Click="ManageLightingButton_OnClick" ToolTip="Edit point-light and occlusion settings." />
+                            <StackPanel Grid.Column="1" Orientation="Vertical">
+                                <Button x:Name="ManageLightingButton" Width="150" Height="26" Margin="8,0,0,0" Content="Manage Lighting..." Click="ManageLightingButton_OnClick" ToolTip="Edit point-light and occlusion settings." />
+                                <Button x:Name="ManageParticleEffectButton" Width="150" Height="26" Margin="8,6,0,0" Content="Particle Effect..." Click="ManageParticleEffectButton_OnClick" ToolTip="Choose and configure this object's particle effect." />
+                            </StackPanel>
                         </Grid>
                     </Border>
 
@@ -142,7 +145,7 @@
 
                         <TextBlock Grid.Row="0" FontWeight="SemiBold" Text="Footprint + Heading Visual Guide" />
 
-                        <Grid x:Name="GuideSurfaceGrid" Grid.Row="1" Margin="0,8,0,0" Width="280" Height="280" HorizontalAlignment="Center" VerticalAlignment="Center" Cursor="Hand" ToolTip="Click inside the blue footprint to place or move the point-light origin. Coordinates are measured from the footprint's top-left corner." MouseLeftButtonDown="GuideSurfaceGrid_OnMouseLeftButtonDown">
+                        <Grid x:Name="GuideSurfaceGrid" Grid.Row="1" Margin="0,8,0,0" Width="280" Height="280" HorizontalAlignment="Center" VerticalAlignment="Center" Cursor="Hand" ToolTip="Choose a placement point, then click inside the blue footprint to place it." MouseLeftButtonDown="GuideSurfaceGrid_OnMouseLeftButtonDown">
                             <UniformGrid x:Name="FootprintGuideGrid" Rows="7" Columns="7" />
                             <Border x:Name="GuideFootprintOverlay"
                                     HorizontalAlignment="Left"
@@ -172,6 +175,7 @@
                                      StrokeThickness="2"
                                      IsHitTestVisible="False"
                                      Visibility="Collapsed" />
+                            <Ellipse x:Name="GuideParticleEffectMarker" Width="14" Height="14" HorizontalAlignment="Left" VerticalAlignment="Top" Fill="#60A5FA" Stroke="#1D4ED8" StrokeThickness="2" IsHitTestVisible="False" Visibility="Collapsed" />
                         </Grid>
 
                         <StackPanel x:Name="LargeGuidePromptPanel" Grid.Row="1" Margin="0,8,0,0" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
@@ -189,13 +193,10 @@
                             <Button Width="220" Height="26" Margin="8,0,0,0" Content="Open Large Visual Guide" Click="OpenLargeGuideButton_OnClick" ToolTip="Open the full room-sized alignment surface." />
                         </StackPanel>
 
-                        <TextBlock x:Name="GuideLegendTextBlock"
-                                   Grid.Row="3"
-                                   Margin="0,8,0,0"
-                                   Foreground="#4B5563"
-                                   FontSize="11"
-                                   TextWrapping="Wrap"
-                                   ToolTip="Legend for how footprint orientation and heading are represented in the guide." />
+                        <ComboBox x:Name="PlacementPointComboBox" Grid.Row="3" Width="150" Height="26" Margin="0,8,0,0" HorizontalAlignment="Left" SelectedIndex="0" ToolTip="Choose which point a click will place.">
+                            <ComboBoxItem Content="Point Light" />
+                            <ComboBoxItem Content="Particle Effect" />
+                        </ComboBox>
 
                         <StackPanel x:Name="CompactGuideVariantFitPanel" Grid.Row="4" Margin="0,8,0,0">
                             <TextBlock x:Name="GuideVariantFitCaptionTextBlock"
@@ -335,11 +336,26 @@
                     <TextBox x:Name="VariantNameTextBox" Grid.Row="0" Grid.Column="1" MinWidth="220" />
                     <Button x:Name="RenameVariantButton" Grid.Row="0" Grid.Column="2" Width="86" Margin="8,0,0,0" Content="Rename" Click="RenameVariantButton_OnClick" />
 
-                    <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,8,0,0">
-                        <Button x:Name="EditSelectedAppearanceButton" Width="168" Height="28" Content="Edit Selected Appearance..." Click="EditSelectedAppearance_OnClick" />
-                        <Button x:Name="MoveVariantUpButton" Width="74" Height="28" Margin="8,0,0,0" Content="Move Up" Click="MoveVariantUpButton_OnClick" />
-                        <Button x:Name="MoveVariantDownButton" Width="88" Height="28" Margin="8,0,0,0" Content="Move Down" Click="MoveVariantDownButton_OnClick" />
-                    </StackPanel>
+                    <Grid Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                            <Button x:Name="EditSelectedAppearanceButton" Width="168" Height="28" Content="Edit Selected Appearance..." Click="EditSelectedAppearance_OnClick" />
+                            <Button x:Name="MoveVariantUpButton" Width="74" Height="28" Margin="8,0,0,0" Content="Move Up" Click="MoveVariantUpButton_OnClick" />
+                            <Button x:Name="MoveVariantDownButton" Width="88" Height="28" Margin="8,0,0,0" Content="Move Down" Click="MoveVariantDownButton_OnClick" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Margin="0,0,6,0" VerticalAlignment="Center" Text="Image transparency (0–1)" ToolTip="Controls opacity of the selected object's sprite image." />
+                            <TextBox x:Name="ImageTransparencyTextBox"
+                                     Width="64"
+                                     MaxLength="16"
+                                     VerticalContentAlignment="Center"
+                                     ToolTip="0 is fully opaque; 1 is fully transparent."
+                                     TextChanged="ImageTransparencyTextBox_OnTextChanged" />
+                        </StackPanel>
+                    </Grid>
 
                         <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,12,8,0" VerticalAlignment="Top" Text="Chooser" />
                         <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,12,0,0">

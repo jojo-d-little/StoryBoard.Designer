@@ -1071,6 +1071,11 @@ public sealed partial class MainWindowViewModel
             };
         }
 
+        if (node is ScopedEnvironmentalEffectsNodeViewModel)
+            return new List<TreeContextAction> { new("add-scoped-environmental-effect", "Add Environmental Effect"), new("edit-scoped-environmental-effects", "Edit Environmental Effects") };
+        if (node is ScopedEnvironmentalEffectEntryNodeViewModel)
+            return new List<TreeContextAction> { new("edit-scoped-environmental-effect-entry", "Edit Environmental Effect"), new("edit-scoped-environmental-effects", "Edit All Environmental Effects") };
+
         if (node is ScopedEventSubscriptionsNodeViewModel)
         {
             return new List<TreeContextAction>
@@ -2348,6 +2353,9 @@ public sealed partial class MainWindowViewModel
             "edit-scoped-directionals" => EditScopedDirectionalsForNode(node),
             EditScopedSoundEffectsActionId => EditScopedSoundEffectsForNode(node),
             OpenAllScopedSoundEffectsActionId => EditScopedSoundEffectsForNode(node),
+            "edit-scoped-environmental-effects" => EditEnvironmentalEffectsForNode(node),
+            "add-scoped-environmental-effect" => EditEnvironmentalEffectsForNode(node),
+            "edit-scoped-environmental-effect-entry" => EditEnvironmentalEffectsForNode(node),
             AddScopedSoundEffectActionId => AddScopedSoundEffectForNode(node),
             EditScopedSoundEffectEntryActionId => EditSingleScopedSoundEffectForNode(node),
             EditScopedEventSubscriptionsActionId => EditScopedEventSubscriptionsForNode(node),
@@ -3972,6 +3980,37 @@ public sealed partial class MainWindowViewModel
         LoadProjectIntoHierarchy();
         NotifyProjectEdited();
         ExportStatus = $"Updated sound effects for {scopeLabel}.";
+        return true;
+    }
+
+    private bool EditEnvironmentalEffectsForNode(HierarchyNodeViewModel node)
+    {
+        var selectedEffectId = (node as ScopedEnvironmentalEffectEntryNodeViewModel)?.Effect.Id;
+        var effectsNode = node switch
+        {
+            ScopedEnvironmentalEffectsNodeViewModel container => container,
+            ScopedEnvironmentalEffectEntryNodeViewModel entry => entry.ParentEffectsNode,
+            _ => null
+        };
+        if (effectsNode is null) return false;
+        var owner = effectsNode.ScopeOwner;
+        var scope = effectsNode.Scope;
+        var variablePickerContext = CreateGamePropertyPickerContext(owner, scope, allowReferenceModes: true,
+            anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" });
+        var dialog = new StoryboardDesigner.App.Views.EnvironmentalEffectsAuthoringDialog(
+            effectsNode.Effects,
+            variablePickerContext,
+            selectedEffectId)
+        {
+            Owner = System.Windows.Application.Current?.MainWindow
+        };
+        if (dialog.ShowDialog() != true) return false;
+        var updated = dialog.Effects;
+        effectsNode.Effects.Clear();
+        foreach (var effect in updated) effectsNode.Effects.Add(effect);
+        RefreshScopedEnvironmentalEffectNodes(effectsNode);
+        NotifyProjectEdited();
+        ExportStatus = $"Updated environmental effects for {BuildScopeOwnerLabel(owner!)}.";
         return true;
     }
 
@@ -8521,7 +8560,13 @@ public sealed partial class MainWindowViewModel
             _project.GamePreviewImages.ToList(),
             LightingModelCloner.ClonePointLightDefaults(_project.PointLightDefaults),
             LightingModelCloner.CloneRoomAmbientLighting(_project.DefaultRoomAmbientLighting),
-            CloneRoomSoundLossDefaults(_project.RoomSoundLossDefaults));
+            CloneRoomSoundLossDefaults(_project.RoomSoundLossDefaults),
+            _project.EnvironmentalEffects.Select(CloneEnvironmentalEffectDefinition).ToList(),
+            _project.ParticleEffectImageChoices.Select(CloneParticleEffectImageChoice).ToList(),
+            CreateComputationEditorForScope(_project, PropertyResolutionScope.Global),
+            BuildSharedVariableChoiceOptions(),
+            CreateGamePropertyPickerContext(_project, PropertyResolutionScope.Global, allowReferenceModes: true,
+                anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" }));
 
         var startingPlanetOptions = _project.Planets
             .Select(planet => planet.Name)
@@ -8573,6 +8618,8 @@ public sealed partial class MainWindowViewModel
                          || !ArePointLightDefaultsEquivalent(_project.PointLightDefaults, updated.PointLightDefaults)
                          || !AreRoomAmbientLightingEquivalent(_project.DefaultRoomAmbientLighting, updated.DefaultRoomAmbientLighting)
                          || !AreRoomSoundLossDefaultsEquivalent(_project.RoomSoundLossDefaults, updated.RoomSoundLossDefaults)
+                         || !AreEnvironmentalEffectsEquivalent(_project.EnvironmentalEffects, updated.EnvironmentalEffects)
+                         || !AreParticleEffectImageChoicesEquivalent(_project.ParticleEffectImageChoices, updated.ParticleEffectImageChoices)
                          || !AreSoundEffectLibraryEntriesEquivalent(_project.GlobalScope.SoundEffectLibraryEntries, updatedSoundEffectLibraryEntries);
 
         if (!hasChanges)
@@ -8594,6 +8641,8 @@ public sealed partial class MainWindowViewModel
         _project.PointLightDefaults = LightingModelCloner.ClonePointLightDefaults(updated.PointLightDefaults);
         _project.DefaultRoomAmbientLighting = LightingModelCloner.CloneRoomAmbientLighting(updated.DefaultRoomAmbientLighting);
         _project.RoomSoundLossDefaults = CloneRoomSoundLossDefaults(updated.RoomSoundLossDefaults);
+        _project.EnvironmentalEffects = (updated.EnvironmentalEffects ?? new List<EnvironmentalEffectDefinition>()).Select(CloneEnvironmentalEffectDefinition).ToList();
+        _project.ParticleEffectImageChoices = (updated.ParticleEffectImageChoices ?? new List<ParticleEffectImageChoice>()).Select(CloneParticleEffectImageChoice).ToList();
         _project.GlobalScope.SoundEffectLibraryEntries = updatedSoundEffectLibraryEntries
             .Select(CloneSoundEffectLibraryEntry)
             .ToList();
@@ -9092,7 +9141,12 @@ public sealed partial class MainWindowViewModel
         var current = new PlanetSettingsEditRequest(
             planetNode.Planet.Name,
             planetNode.Planet.ProducerNotes,
-            planetNode.Planet.StartingCountryName);
+            planetNode.Planet.StartingCountryName,
+            planetNode.Planet.EnvironmentalEffects.Select(CloneEnvironmentalEffectDefinition).ToList(),
+            CreateComputationEditorForScope(planetNode.Planet, PropertyResolutionScope.Planet),
+            BuildSharedVariableChoiceOptions(),
+            CreateGamePropertyPickerContext(planetNode.Planet, PropertyResolutionScope.Planet, allowReferenceModes: true,
+                anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" }));
 
         var startingCountryOptions = planetNode.Planet.Countries
             .Select(country => country.Name)
@@ -9113,7 +9167,8 @@ public sealed partial class MainWindowViewModel
 
         var hasChanges = !string.Equals(planetNode.Planet.Name, uniqueName, StringComparison.Ordinal)
                          || !string.Equals(planetNode.Planet.ProducerNotes, updated.ProducerNotes, StringComparison.Ordinal)
-                         || !string.Equals(planetNode.Planet.StartingCountryName, validStartingCountryName, StringComparison.Ordinal);
+                         || !string.Equals(planetNode.Planet.StartingCountryName, validStartingCountryName, StringComparison.Ordinal)
+                         || !AreEnvironmentalEffectsEquivalent(planetNode.Planet.EnvironmentalEffects, updated.EnvironmentalEffects);
 
         if (!hasChanges)
         {
@@ -9123,6 +9178,7 @@ public sealed partial class MainWindowViewModel
         planetNode.EditableName = uniqueName;
         planetNode.Planet.ProducerNotes = updated.ProducerNotes;
         planetNode.Planet.StartingCountryName = validStartingCountryName;
+        planetNode.Planet.EnvironmentalEffects = (updated.EnvironmentalEffects ?? new List<EnvironmentalEffectDefinition>()).Select(CloneEnvironmentalEffectDefinition).ToList();
         RefreshScopedNameIndex(_project.Planets, static planet => planet.Name);
 
         NotifyProjectEdited();
@@ -9136,7 +9192,12 @@ public sealed partial class MainWindowViewModel
         var current = new CountrySettingsEditRequest(
             countryNode.Country.Name,
             countryNode.Country.ProducerNotes,
-            countryNode.Country.StartingAreaName);
+            countryNode.Country.StartingAreaName,
+            countryNode.Country.EnvironmentalEffects.Select(CloneEnvironmentalEffectDefinition).ToList(),
+            CreateComputationEditorForScope(countryNode.Country, PropertyResolutionScope.Country),
+            BuildSharedVariableChoiceOptions(),
+            CreateGamePropertyPickerContext(countryNode.Country, PropertyResolutionScope.Country, allowReferenceModes: true,
+                anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" }));
 
         var startingAreaOptions = countryNode.Country.Areas
             .Select(area => area.Name)
@@ -9162,7 +9223,8 @@ public sealed partial class MainWindowViewModel
 
         var hasChanges = !string.Equals(countryNode.Country.Name, uniqueName, StringComparison.Ordinal)
                          || !string.Equals(countryNode.Country.ProducerNotes, updated.ProducerNotes, StringComparison.Ordinal)
-                         || !string.Equals(countryNode.Country.StartingAreaName, validStartingAreaName, StringComparison.Ordinal);
+                         || !string.Equals(countryNode.Country.StartingAreaName, validStartingAreaName, StringComparison.Ordinal)
+                         || !AreEnvironmentalEffectsEquivalent(countryNode.Country.EnvironmentalEffects, updated.EnvironmentalEffects);
 
         if (!hasChanges)
         {
@@ -9172,6 +9234,7 @@ public sealed partial class MainWindowViewModel
         countryNode.EditableName = uniqueName;
         countryNode.Country.ProducerNotes = updated.ProducerNotes;
         countryNode.Country.StartingAreaName = validStartingAreaName;
+        countryNode.Country.EnvironmentalEffects = (updated.EnvironmentalEffects ?? new List<EnvironmentalEffectDefinition>()).Select(CloneEnvironmentalEffectDefinition).ToList();
         RefreshScopedNameIndex(planet.Countries, static country => country.Name);
 
         NotifyProjectEdited();
@@ -9193,7 +9256,12 @@ public sealed partial class MainWindowViewModel
             SerializeObjectNameSynonyms(roomNode.Room.NameSynonyms),
             roomNode.Room.SpawnPoints.FirstOrDefault(static point => point.IsDefault),
             roomNode.Room.EnvironmentType,
-            roomNode.Room.SoundLossPercentOverride);
+            roomNode.Room.SoundLossPercentOverride,
+            roomNode.Room.EnvironmentalEffects.Select(CloneEnvironmentalEffectDefinition).ToList(),
+            CreateComputationEditorForScope(roomNode.Room, PropertyResolutionScope.Room),
+            BuildSharedVariableChoiceOptions(),
+            CreateGamePropertyPickerContext(roomNode.Room, PropertyResolutionScope.Room, allowReferenceModes: true,
+                anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" }));
 
         if (!_treeContextInteractionService.TryEditRoomSettings(current, out var updated))
         {
@@ -9211,7 +9279,8 @@ public sealed partial class MainWindowViewModel
                          || !AreRoomAmbientLightingEquivalent(roomNode.Room.AmbientLighting, updated.AmbientLighting)
                          || roomNode.Room.SpawnPoints.FirstOrDefault(static point => point.IsDefault) != updated.SpawnPoint
                          || roomNode.Room.EnvironmentType != updated.EnvironmentType
-                         || roomNode.Room.SoundLossPercentOverride != updated.SoundLossPercentOverride;
+                         || roomNode.Room.SoundLossPercentOverride != updated.SoundLossPercentOverride
+                         || !AreEnvironmentalEffectsEquivalent(roomNode.Room.EnvironmentalEffects, updated.EnvironmentalEffects);
 
         if (!hasChanges)
         {
@@ -9234,6 +9303,7 @@ public sealed partial class MainWindowViewModel
             : null);
         roomNode.Room.EnvironmentType = updated.EnvironmentType;
         roomNode.Room.SoundLossPercentOverride = updated.SoundLossPercentOverride;
+        roomNode.Room.EnvironmentalEffects = (updated.EnvironmentalEffects ?? new List<EnvironmentalEffectDefinition>()).Select(CloneEnvironmentalEffectDefinition).ToList();
         RefreshScopedNameIndex(area.Rooms, static room => room.Name);
 
         foreach (var editor in OpenRoomEditors.Where(tab => ReferenceEquals(tab.Room, roomNode.Room) || tab.Room.Id == roomNode.Room.Id))
@@ -9267,7 +9337,8 @@ public sealed partial class MainWindowViewModel
             SerializeObjectNameSynonyms(templateRoomNode.Room.NameSynonyms),
             templateRoomNode.Room.SpawnPoints.FirstOrDefault(static point => point.IsDefault),
             templateRoomNode.Room.EnvironmentType,
-            templateRoomNode.Room.SoundLossPercentOverride);
+            templateRoomNode.Room.SoundLossPercentOverride,
+            templateRoomNode.Room.EnvironmentalEffects.Select(CloneEnvironmentalEffectDefinition).ToList());
 
         if (!_treeContextInteractionService.TryEditRoomSettings(current, out var updated))
         {
@@ -9284,7 +9355,8 @@ public sealed partial class MainWindowViewModel
                          || !AreRoomAmbientLightingEquivalent(templateRoomNode.Room.AmbientLighting, updated.AmbientLighting)
                          || templateRoomNode.Room.SpawnPoints.FirstOrDefault(static point => point.IsDefault) != updated.SpawnPoint
                          || templateRoomNode.Room.EnvironmentType != updated.EnvironmentType
-                         || templateRoomNode.Room.SoundLossPercentOverride != updated.SoundLossPercentOverride;
+                         || templateRoomNode.Room.SoundLossPercentOverride != updated.SoundLossPercentOverride
+                         || !AreEnvironmentalEffectsEquivalent(templateRoomNode.Room.EnvironmentalEffects, updated.EnvironmentalEffects);
 
         if (!hasChanges)
         {
@@ -9307,6 +9379,7 @@ public sealed partial class MainWindowViewModel
             : null);
         templateRoomNode.Room.EnvironmentType = updated.EnvironmentType;
         templateRoomNode.Room.SoundLossPercentOverride = updated.SoundLossPercentOverride;
+        templateRoomNode.Room.EnvironmentalEffects = (updated.EnvironmentalEffects ?? new List<EnvironmentalEffectDefinition>()).Select(CloneEnvironmentalEffectDefinition).ToList();
         RefreshScopedNameIndex(_project.RoomTemplates, static room => room.Name);
 
         NotifyProjectEdited();
@@ -9324,6 +9397,74 @@ public sealed partial class MainWindowViewModel
 
         return AreNearlyEqualNullable(left.Ambient, right.Ambient)
                && string.Equals(left.AmbientColor, right.AmbientColor, StringComparison.Ordinal);
+    }
+
+    private static EnvironmentalEffectDefinition CloneEnvironmentalEffectDefinition(EnvironmentalEffectDefinition source) => new()
+    {
+        Id = source.Id,
+        Name = source.Name,
+        EffectKey = source.EffectKey,
+        Applicability = source.Applicability,
+        RenderOrder = source.RenderOrder,
+        Enabled = source.Enabled,
+        EnabledBinding = ParticleEffectControlSettingCloner.CloneReference(source.EnabledBinding),
+        Settings = ParticleEffectControlSettingCloner.CloneSettings(source.Settings)
+    };
+
+    private static bool AreEnvironmentalEffectsEquivalent(
+        IReadOnlyList<EnvironmentalEffectDefinition>? left,
+        IReadOnlyList<EnvironmentalEffectDefinition>? right)
+    {
+        var first = left ?? Array.Empty<EnvironmentalEffectDefinition>();
+        var second = right ?? Array.Empty<EnvironmentalEffectDefinition>();
+        if (first.Count != second.Count) return false;
+        for (var index = 0; index < first.Count; index++)
+        {
+            var lhs = first[index];
+            var rhs = second[index];
+            if (lhs.Id != rhs.Id || !string.Equals(lhs.Name, rhs.Name, StringComparison.Ordinal)
+                || !string.Equals(lhs.EffectKey, rhs.EffectKey, StringComparison.Ordinal)
+                || lhs.Applicability != rhs.Applicability || lhs.RenderOrder != rhs.RenderOrder
+                || lhs.Enabled != rhs.Enabled
+                || !GamePropertyReferencesEqual(lhs.EnabledBinding, rhs.EnabledBinding)
+                || lhs.Settings.Count != rhs.Settings.Count) return false;
+            for (var propertyIndex = 0; propertyIndex < lhs.Settings.Count; propertyIndex++)
+            {
+                var leftProperty = lhs.Settings[propertyIndex];
+                var rightProperty = rhs.Settings[propertyIndex];
+                if (!string.Equals(leftProperty.ControlKey, rightProperty.ControlKey, StringComparison.Ordinal)
+                    || !Equals(leftProperty.Value, rightProperty.Value)
+                    || !GamePropertyReferencesEqual(leftProperty.Binding, rightProperty.Binding)) return false;
+            }
+        }
+        return true;
+    }
+
+    private static bool GamePropertyReferencesEqual(
+        Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? left,
+        Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? right) =>
+        left is null ? right is null
+            : right is not null && left.OwnerId == right.OwnerId
+                && string.Equals(left.AnchorKey, right.AnchorKey, StringComparison.Ordinal)
+                && string.Equals(left.PropertyName, right.PropertyName, StringComparison.Ordinal);
+
+    private static ParticleEffectImageChoice CloneParticleEffectImageChoice(ParticleEffectImageChoice source) => new()
+    {
+        EffectKey = source.EffectKey,
+        ImageSlot = source.ImageSlot,
+        AssetPath = source.AssetPath
+    };
+
+    private static bool AreParticleEffectImageChoicesEquivalent(
+        IReadOnlyList<ParticleEffectImageChoice>? left,
+        IReadOnlyList<ParticleEffectImageChoice>? right)
+    {
+        var first = left ?? Array.Empty<ParticleEffectImageChoice>();
+        var second = right ?? Array.Empty<ParticleEffectImageChoice>();
+        return first.Count == second.Count && first.Zip(second).All(pair =>
+            string.Equals(pair.First.EffectKey, pair.Second.EffectKey, StringComparison.Ordinal)
+            && string.Equals(pair.First.ImageSlot, pair.Second.ImageSlot, StringComparison.Ordinal)
+            && string.Equals(pair.First.AssetPath, pair.Second.AssetPath, StringComparison.Ordinal));
     }
 
     public bool EditObjectBasicProperties(GameObjectNodeViewModel objectNode)
@@ -9436,6 +9577,10 @@ public sealed partial class MainWindowViewModel
                          || !string.Equals(objectNode.GameObject.ImageVariantChooserScript, updated.ImageVariantChooserScript, StringComparison.Ordinal)
                          || !AreEquivalentLockOperationRequirements(objectNode.GameObject.LockOperationRequirements, updated.LockOperationRequirements)
                          || !AreEquivalentPointLight(objectNode.GameObject.PointLight, updated.PointLight)
+                         || !AreEquivalentParticleEffect(objectNode.GameObject.ParticleEffect, updated.ParticleEffect)
+                         || objectNode.GameObject.IsPartOfParent != updated.IsPartOfParent
+                         || !AreStructuralPartPlacementsEquivalent(objectNode.GameObject.Placement, updated.StructuralPartPlacement)
+                         || !AreStructuralPartPlacementsEquivalent(objectNode.GameObject, updated.StructuralPartPlacements)
                          || !AreEquivalentLightOcclusion(objectNode.GameObject.LightOcclusion, updated.LightOcclusion)
                          || objectNode.GameObject.IsPointLightEnabledDefaultValue != updated.IsPointLightEnabledDefaultValue
                          || (linkedDefinition is null && !AreObjectSoundEmittersEquivalent(objectNode.GameObject.SoundEmitters, updated.SoundEmitters ?? objectNode.GameObject.SoundEmitters))
@@ -9513,6 +9658,10 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.ImageVariantChooserScript = updated.ImageVariantChooserScript?.Trim() ?? string.Empty;
         objectNode.GameObject.LockOperationRequirements = CloneLockOperationRequirements(updated.LockOperationRequirements);
         objectNode.GameObject.PointLight = LightingModelCloner.ClonePointLight(updated.PointLight);
+        ApplyParticleEffectAndVariables(objectNode.GameObject, updated);
+        objectNode.GameObject.IsPartOfParent = updated.IsPartOfParent;
+        objectNode.GameObject.Placement = CloneStructuralPartPlacement(updated.StructuralPartPlacement);
+        ApplyStructuralPartPlacements(objectNode.GameObject, updated.StructuralPartPlacements);
         objectNode.GameObject.LightOcclusion = LightingModelCloner.CloneLightOcclusion(updated.LightOcclusion);
         objectNode.GameObject.IsPointLightEnabledDefaultValue = updated.IsPointLightEnabledDefaultValue;
         if (linkedDefinition is null && updated.SoundEmitters is not null)
@@ -9760,6 +9909,9 @@ public sealed partial class MainWindowViewModel
                 HideContainedObjects: gameObject.HideContainedObjects,
                 ShowWhenContained: gameObject.ShowWhenContained,
                 SoundEmitters: gameObject.SoundEmitters.Select(CloneObjectSoundEmitter).ToList(),
+                ParticleEffect: CloneParticleEffectAttachment(gameObject.ParticleEffect),
+                IsPartOfParent: gameObject.IsPartOfParent,
+                StructuralPartPlacement: CloneStructuralPartPlacement(gameObject.Placement),
                 SoundEffectChoices: GetSoundEffectChoicesForScopeNode(gameObject),
                 SoundEmitterActivationPickerContext: CreateGamePropertyPickerContext(
                     gameObject,
@@ -9767,7 +9919,10 @@ public sealed partial class MainWindowViewModel
                     booleanOnly: true,
                     allowReferenceModes: true,
                     relativeOwnerId: gameObject.ObjectId,
-                    anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" }));
+                    anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" }),
+                ParticleEffectVariablePickerContext: CreateParticleEffectVariablePickerContext(gameObject),
+                ParticleEffectNewComputedVariableFactory: CreateParticleEffectNewComputedVariableFactory(gameObject),
+                StructuralPartPlacements: CreateStructuralPartPlacementEditItems(gameObject));
         }
 
         return new ObjectBasicPropertiesEditRequest(
@@ -9834,6 +9989,9 @@ public sealed partial class MainWindowViewModel
             ShowWhenContained: gameObject.ShowWhenContained,
             ImageVariantChooserPickerContext: CreateImageVariantChooserPickerContext(gameObject),
             SoundEmitters: gameObject.SoundEmitters.Select(CloneObjectSoundEmitter).ToList(),
+            ParticleEffect: CloneParticleEffectAttachment(gameObject.ParticleEffect),
+            IsPartOfParent: gameObject.IsPartOfParent,
+            StructuralPartPlacement: CloneStructuralPartPlacement(gameObject.Placement),
             SoundEffectChoices: GetSoundEffectChoicesForScopeNode(gameObject),
             SoundEmitterActivationPickerContext: CreateGamePropertyPickerContext(
                 gameObject,
@@ -9841,7 +9999,10 @@ public sealed partial class MainWindowViewModel
                 booleanOnly: true,
                 allowReferenceModes: true,
                 relativeOwnerId: gameObject.ObjectId,
-                anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" }));
+                anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" }),
+            ParticleEffectVariablePickerContext: CreateParticleEffectVariablePickerContext(gameObject),
+            ParticleEffectNewComputedVariableFactory: CreateParticleEffectNewComputedVariableFactory(gameObject),
+            StructuralPartPlacements: CreateStructuralPartPlacementEditItems(gameObject));
     }
 
     private static bool AreEquivalentImageVariants(IReadOnlyList<ObjectImageVariant>? left, IReadOnlyList<ObjectImageVariant>? right)
@@ -9899,6 +10060,43 @@ public sealed partial class MainWindowViewModel
                && AreNearlyEqualNullable(left.FlickerAmount, right.FlickerAmount)
                && AreNearlyEqualNullable(left.FlickerHz, right.FlickerHz)
                && string.Equals(left.FlickerStyle, right.FlickerStyle, StringComparison.Ordinal);
+    }
+
+    private static bool AreEquivalentParticleEffect(ParticleEffectAttachment? left, ParticleEffectAttachment? right)
+    {
+        if (left is null || right is null)
+        {
+            return left is null && right is null;
+        }
+
+        return string.Equals(left.EffectKey, right.EffectKey, StringComparison.OrdinalIgnoreCase)
+               && AreNearlyEqualNullable(left.OffsetXPx, right.OffsetXPx)
+               && AreNearlyEqualNullable(left.OffsetYPx, right.OffsetYPx)
+               && string.Equals(
+                   JsonSerializer.Serialize(left.Settings ?? new List<Storyboard.Shared.DesignerContracts.ParticleEffectControlSettingDto>()),
+                   JsonSerializer.Serialize(right.Settings ?? new List<Storyboard.Shared.DesignerContracts.ParticleEffectControlSettingDto>()),
+                   StringComparison.Ordinal);
+    }
+
+    private static void ApplyParticleEffectAndVariables(GameObject target, ObjectBasicPropertiesEditRequest updated)
+    {
+        target.ParticleEffect = CloneParticleEffectAttachment(updated.ParticleEffect);
+        foreach (var variable in updated.ParticleEffectNewVariables ?? Array.Empty<GamePropertyDefinition>())
+        {
+            if (target.Variables.All(existing => !string.Equals(existing.Name, variable.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                target.Variables.Add(new GamePropertyDefinition
+                {
+                    Id = variable.Id,
+                    Name = variable.Name,
+                    DefaultValue = variable.DefaultValue,
+                    ValueRestriction = variable.ValueRestriction,
+                    Lifetime = variable.Lifetime,
+                    SharedVariableId = variable.SharedVariableId,
+                    Computation = variable.Computation
+                });
+            }
+        }
     }
 
     private static bool AreEquivalentLightOcclusion(LightOcclusion? left, LightOcclusion? right)
@@ -10191,6 +10389,11 @@ public sealed partial class MainWindowViewModel
                          || Math.Abs(objectNode.GameObject.ImageRotationDegrees - updated.ImageRotationDegrees) > 0.0001
                          || !AreEquivalentImageVariants(objectNode.GameObject.ImageVariants, updated.ImageVariants)
                          || !string.Equals(objectNode.GameObject.ImageVariantChooserScript, updated.ImageVariantChooserScript, StringComparison.Ordinal)
+                         || !AreEquivalentLightOcclusion(objectNode.GameObject.LightOcclusion, updated.LightOcclusion)
+                         || !AreEquivalentParticleEffect(objectNode.GameObject.ParticleEffect, updated.ParticleEffect)
+                         || objectNode.GameObject.IsPartOfParent != updated.IsPartOfParent
+                         || !AreStructuralPartPlacementsEquivalent(objectNode.GameObject.Placement, updated.StructuralPartPlacement)
+                         || !AreStructuralPartPlacementsEquivalent(objectNode.GameObject, updated.StructuralPartPlacements)
                          || (linkedDefinition is null && updated.SoundEmitters is not null && !AreObjectSoundEmittersEquivalent(objectNode.GameObject.SoundEmitters, updated.SoundEmitters))
                          || hasDescriptionOverrideChange;
 
@@ -10256,6 +10459,11 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.ImageRotationDegrees = updated.ImageRotationDegrees;
         objectNode.GameObject.ImageVariants = NormalizeObjectImageVariantsForModel(updated.ImageVariants, updated.FullImagePath);
         objectNode.GameObject.ImageVariantChooserScript = updated.ImageVariantChooserScript?.Trim() ?? string.Empty;
+        objectNode.GameObject.LightOcclusion = LightingModelCloner.CloneLightOcclusion(updated.LightOcclusion);
+        ApplyParticleEffectAndVariables(objectNode.GameObject, updated);
+        objectNode.GameObject.IsPartOfParent = updated.IsPartOfParent;
+        objectNode.GameObject.Placement = CloneStructuralPartPlacement(updated.StructuralPartPlacement);
+        ApplyStructuralPartPlacements(objectNode.GameObject, updated.StructuralPartPlacements);
         if (linkedDefinition is null && updated.SoundEmitters is not null)
         {
             objectNode.GameObject.SoundEmitters = updated.SoundEmitters.Select(CloneObjectSoundEmitter).ToList();
@@ -10350,6 +10558,10 @@ public sealed partial class MainWindowViewModel
             HideContainedObjects: objectNode.GameObject.HideContainedObjects,
             ShowWhenContained: objectNode.GameObject.ShowWhenContained,
             SoundEmitters: objectNode.GameObject.SoundEmitters.Select(CloneObjectSoundEmitter).ToList(),
+            ParticleEffect: CloneParticleEffectAttachment(objectNode.GameObject.ParticleEffect),
+            StructuralPartPlacements: CreateStructuralPartPlacementEditItems(objectNode.GameObject),
+            IsPartOfParent: objectNode.GameObject.IsPartOfParent,
+            StructuralPartPlacement: CloneStructuralPartPlacement(objectNode.GameObject.Placement),
             SoundEffectChoices: GetSoundEffectChoicesForScopeNode(objectNode.GameObject),
             SoundEmitterActivationPickerContext: CreateGamePropertyPickerContext(
                 objectNode.GameObject,
@@ -10449,6 +10661,10 @@ public sealed partial class MainWindowViewModel
                          || !string.Equals(objectNode.GameObject.ImageVariantChooserScript, updated.ImageVariantChooserScript, StringComparison.Ordinal)
                          || !AreEquivalentLockOperationRequirements(objectNode.GameObject.LockOperationRequirements, updated.LockOperationRequirements)
                          || !AreEquivalentPointLight(objectNode.GameObject.PointLight, updated.PointLight)
+                         || !AreEquivalentParticleEffect(objectNode.GameObject.ParticleEffect, updated.ParticleEffect)
+                         || objectNode.GameObject.IsPartOfParent != updated.IsPartOfParent
+                         || !AreStructuralPartPlacementsEquivalent(objectNode.GameObject.Placement, updated.StructuralPartPlacement)
+                         || !AreStructuralPartPlacementsEquivalent(objectNode.GameObject, updated.StructuralPartPlacements)
                          || !AreEquivalentLightOcclusion(objectNode.GameObject.LightOcclusion, updated.LightOcclusion)
                          || objectNode.GameObject.IsPointLightEnabledDefaultValue != updated.IsPointLightEnabledDefaultValue
                          || (linkedDefinition is null && updated.SoundEmitters is not null && !AreObjectSoundEmittersEquivalent(objectNode.GameObject.SoundEmitters, updated.SoundEmitters))
@@ -10518,6 +10734,10 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.ImageVariantChooserScript = updated.ImageVariantChooserScript?.Trim() ?? string.Empty;
         objectNode.GameObject.LockOperationRequirements = CloneLockOperationRequirements(updated.LockOperationRequirements);
         objectNode.GameObject.PointLight = LightingModelCloner.ClonePointLight(updated.PointLight);
+        ApplyParticleEffectAndVariables(objectNode.GameObject, updated);
+        objectNode.GameObject.IsPartOfParent = updated.IsPartOfParent;
+        objectNode.GameObject.Placement = CloneStructuralPartPlacement(updated.StructuralPartPlacement);
+        ApplyStructuralPartPlacements(objectNode.GameObject, updated.StructuralPartPlacements);
         objectNode.GameObject.LightOcclusion = LightingModelCloner.CloneLightOcclusion(updated.LightOcclusion);
         objectNode.GameObject.IsPointLightEnabledDefaultValue = updated.IsPointLightEnabledDefaultValue;
         if (linkedDefinition is null && updated.SoundEmitters is not null)
@@ -10541,7 +10761,12 @@ public sealed partial class MainWindowViewModel
             areaNode.Area.ProducerNotes,
             areaNode.Area.AdjacencyMode,
             areaNode.Area.RoomDropBehavior,
-            areaNode.Area.StartingRoomId);
+            areaNode.Area.StartingRoomId,
+            areaNode.Area.EnvironmentalEffects.Select(CloneEnvironmentalEffectDefinition).ToList(),
+            CreateComputationEditorForScope(areaNode.Area, PropertyResolutionScope.Area),
+            BuildSharedVariableChoiceOptions(),
+            CreateGamePropertyPickerContext(areaNode.Area, PropertyResolutionScope.Area, allowReferenceModes: true,
+                anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" }));
 
         var startingRoomOptions = areaNode.Area.Rooms
             .Select(room => new AreaStartingRoomOption(room.Id, room.Name))
@@ -10566,7 +10791,8 @@ public sealed partial class MainWindowViewModel
                          || !string.Equals(areaNode.Area.ProducerNotes, updated.ProducerNotes, StringComparison.Ordinal)
                          || areaNode.Area.AdjacencyMode != updated.AdjacencyMode
                          || areaNode.Area.RoomDropBehavior != updated.RoomDropBehavior
-                         || areaNode.Area.StartingRoomId != validStartingRoomId;
+                         || areaNode.Area.StartingRoomId != validStartingRoomId
+                         || !AreEnvironmentalEffectsEquivalent(areaNode.Area.EnvironmentalEffects, updated.EnvironmentalEffects);
 
         if (!hasChanges)
         {
@@ -10578,6 +10804,7 @@ public sealed partial class MainWindowViewModel
         areaNode.Area.AdjacencyMode = updated.AdjacencyMode;
         areaNode.Area.RoomDropBehavior = updated.RoomDropBehavior;
         areaNode.Area.StartingRoomId = validStartingRoomId;
+        areaNode.Area.EnvironmentalEffects = (updated.EnvironmentalEffects ?? new List<EnvironmentalEffectDefinition>()).Select(CloneEnvironmentalEffectDefinition).ToList();
         RefreshScopedNameIndex(country.Areas, static area => area.Name);
 
         NotifyProjectEdited();
@@ -12764,6 +12991,7 @@ public sealed partial class MainWindowViewModel
             AuthoredBaseHeightInRoom = template.AuthoredBaseHeightInRoom,
             IsHeightPinned = template.IsHeightPinned,
             PointLight = LightingModelCloner.ClonePointLight(template.PointLight),
+            ParticleEffect = CloneParticleEffectAttachment(template.ParticleEffect),
             LightOcclusion = LightingModelCloner.CloneLightOcclusion(template.LightOcclusion),
             IsPointLightEnabledDefaultValue = template.IsPointLightEnabledDefaultValue,
             OccupiedCellIds = template.OccupiedCellIds.ToList(),
@@ -13119,6 +13347,9 @@ public sealed partial class MainWindowViewModel
             HideContainedObjects: target.HideContainedObjects,
                 ShowWhenContained: target.ShowWhenContained,
                 SoundEmitters: target.SoundEmitters.Select(CloneObjectSoundEmitter).ToList(),
+                ParticleEffect: CloneParticleEffectAttachment(target.ParticleEffect),
+                IsPartOfParent: target.IsPartOfParent,
+                StructuralPartPlacement: CloneStructuralPartPlacement(target.Placement),
                 SoundEffectChoices: GetSoundEffectChoicesForScopeNode(target),
                 SoundEmitterActivationPickerContext: CreateGamePropertyPickerContext(
                     target,
@@ -13126,7 +13357,10 @@ public sealed partial class MainWindowViewModel
                     booleanOnly: true,
                     allowReferenceModes: true,
                     relativeOwnerId: target.ObjectId,
-                    anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" }));
+                    anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" }),
+                ParticleEffectVariablePickerContext: CreateParticleEffectVariablePickerContext(target),
+                ParticleEffectNewComputedVariableFactory: CreateParticleEffectNewComputedVariableFactory(target),
+                StructuralPartPlacements: CreateStructuralPartPlacementEditItems(target));
 
         if (!_treeContextInteractionService.TryEditObjectBasicProperties(initial, out var updated))
         {
@@ -13187,6 +13421,22 @@ public sealed partial class MainWindowViewModel
         target.MinStackScaleOverride = updated.MinStackScaleOverride;
         target.MovementRestrictions = CloneMovementRestrictions(updated.MovementRestrictions);
         target.IsCompositeTarget = updated.IsCompositeTarget;
+        target.ParticleEffect = CloneParticleEffectAttachment(updated.ParticleEffect);
+        ApplyStructuralPartPlacements(target, updated.StructuralPartPlacements);
+        foreach (var variable in updated.ParticleEffectNewVariables ?? Array.Empty<GamePropertyDefinition>())
+        {
+            if (target.Variables.All(existing => !string.Equals(existing.Name, variable.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                target.Variables.Add(new GamePropertyDefinition
+                {
+                    Id = variable.Id, Name = variable.Name, DefaultValue = variable.DefaultValue,
+                    ValueRestriction = variable.ValueRestriction, Lifetime = variable.Lifetime,
+                    SharedVariableId = variable.SharedVariableId, Computation = variable.Computation
+                });
+            }
+        }
+        target.IsPartOfParent = updated.IsPartOfParent;
+        target.Placement = CloneStructuralPartPlacement(updated.StructuralPartPlacement);
 
         if (target.IsCompositeTarget)
         {
@@ -13215,6 +13465,88 @@ public sealed partial class MainWindowViewModel
         if (updated.SoundEmitters is not null)
         {
             target.SoundEmitters = updated.SoundEmitters.Select(CloneObjectSoundEmitter).ToList();
+        }
+    }
+
+    private static ParticleEffectAttachment? CloneParticleEffectAttachment(ParticleEffectAttachment? source) => source is null
+        ? null
+        : new ParticleEffectAttachment
+        {
+            EffectKey = source.EffectKey,
+            OffsetXPx = source.OffsetXPx,
+            OffsetYPx = source.OffsetYPx,
+            Settings = ParticleEffectControlSettingCloner.CloneSettings(source.Settings)
+        };
+
+    private static StructuralPartPlacement CloneStructuralPartPlacement(StructuralPartPlacement? source) => source is null
+        ? new StructuralPartPlacement()
+        : new StructuralPartPlacement
+        {
+            Mode = source.Mode,
+            ParentRelativeOffsetX = source.ParentRelativeOffsetX,
+            ParentRelativeOffsetY = source.ParentRelativeOffsetY,
+            RoomCoordinateX = source.RoomCoordinateX,
+            RoomCoordinateY = source.RoomCoordinateY
+        };
+
+    private static List<StructuralPartPlacementEditItem> CreateStructuralPartPlacementEditItems(GameObject parent) =>
+        parent.ContainedObjects
+            .Where(static child => child.IsPartOfParent)
+            .Select(child => new StructuralPartPlacementEditItem(
+                child.ObjectId,
+                child.Name,
+                Math.Max(1, child.FootprintWidthCells),
+                Math.Max(1, child.FootprintHeightCells),
+                child.FootprintOrientation,
+                CloneStructuralPartPlacement(child.Placement)))
+            .ToList();
+
+    private static bool AreStructuralPartPlacementsEquivalent(
+        GameObject parent,
+        IReadOnlyList<StructuralPartPlacementEditItem>? updated)
+    {
+        if (updated is null)
+        {
+            return true;
+        }
+
+        var currentById = parent.ContainedObjects
+            .Where(static child => child.IsPartOfParent)
+            .ToDictionary(static child => child.ObjectId);
+        return currentById.Count == updated.Count && updated.All(item =>
+            currentById.TryGetValue(item.ObjectId, out var child)
+            && child.Placement.Mode == item.Placement.Mode
+            && AreNearlyEqualNullable(child.Placement.ParentRelativeOffsetX, item.Placement.ParentRelativeOffsetX)
+            && AreNearlyEqualNullable(child.Placement.ParentRelativeOffsetY, item.Placement.ParentRelativeOffsetY)
+            && AreNearlyEqualNullable(child.Placement.RoomCoordinateX, item.Placement.RoomCoordinateX)
+            && AreNearlyEqualNullable(child.Placement.RoomCoordinateY, item.Placement.RoomCoordinateY));
+    }
+
+    private static bool AreStructuralPartPlacementsEquivalent(
+        StructuralPartPlacement? current,
+        StructuralPartPlacement? updated) =>
+        (current?.Mode ?? StructuralPartPlacementKind.ParentRelative) == (updated?.Mode ?? StructuralPartPlacementKind.ParentRelative)
+        && AreNearlyEqualNullable(current?.ParentRelativeOffsetX, updated?.ParentRelativeOffsetX)
+        && AreNearlyEqualNullable(current?.ParentRelativeOffsetY, updated?.ParentRelativeOffsetY)
+        && AreNearlyEqualNullable(current?.RoomCoordinateX, updated?.RoomCoordinateX)
+        && AreNearlyEqualNullable(current?.RoomCoordinateY, updated?.RoomCoordinateY);
+
+    private static void ApplyStructuralPartPlacements(
+        GameObject parent,
+        IReadOnlyList<StructuralPartPlacementEditItem>? placements)
+    {
+        if (placements is null)
+        {
+            return;
+        }
+
+        var childrenById = parent.ContainedObjects.ToDictionary(static child => child.ObjectId);
+        foreach (var item in placements)
+        {
+            if (childrenById.TryGetValue(item.ObjectId, out var child) && child.IsPartOfParent)
+            {
+                child.Placement = CloneStructuralPartPlacement(item.Placement);
+            }
         }
     }
 
@@ -14336,6 +14668,7 @@ public sealed partial class MainWindowViewModel
                 Append<ScopedVerbsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Global);
                 Append<ScopedDirectionalsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Global);
                 Append<ScopedSoundEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Global);
+                Append<ScopedEnvironmentalEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Global);
                 Append<ScopedEventSubscriptionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Global);
                 Append<ScopedTimerDefinitionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Global);
                 Append<ScopedProceduresNodeViewModel>(node => node.Scope == PropertyResolutionScope.Global);
@@ -14353,6 +14686,7 @@ public sealed partial class MainWindowViewModel
                 Append<ScopedVerbsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Planet);
                 Append<ScopedDirectionalsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Planet);
                 Append<ScopedSoundEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Planet);
+                Append<ScopedEnvironmentalEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Planet);
                 Append<ScopedEventSubscriptionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Planet);
                 Append<ScopedTimerDefinitionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Planet);
                 Append<ObjectTemplatesNodeViewModel>(node => !node.IsBaseCatalog);
@@ -14368,6 +14702,7 @@ public sealed partial class MainWindowViewModel
                 Append<ScopedVerbsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Country);
                 Append<ScopedDirectionalsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Country);
                 Append<ScopedSoundEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Country);
+                Append<ScopedEnvironmentalEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Country);
                 Append<ScopedEventSubscriptionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Country);
                 Append<ScopedTimerDefinitionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Country);
                 Append<ObjectTemplatesNodeViewModel>(node => !node.IsBaseCatalog);
@@ -14383,6 +14718,7 @@ public sealed partial class MainWindowViewModel
                 Append<ScopedVerbsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Area);
                 Append<ScopedDirectionalsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Area);
                 Append<ScopedSoundEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Area);
+                Append<ScopedEnvironmentalEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Area);
                 Append<ScopedEventSubscriptionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Area);
                 Append<ScopedTimerDefinitionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Area);
                 Append<ObjectTemplatesNodeViewModel>(node => !node.IsBaseCatalog);
@@ -14395,6 +14731,7 @@ public sealed partial class MainWindowViewModel
                 Append<ScopedVerbsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
                 Append<ScopedDirectionalsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
                 Append<ScopedSoundEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
+                Append<ScopedEnvironmentalEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
                 Append<ScopedEventSubscriptionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
                 Append<ScopedTimerDefinitionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
                 Append<RoomTraversalLegsNodeViewModel>();
@@ -14407,6 +14744,7 @@ public sealed partial class MainWindowViewModel
                 Append<ScopedVerbsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
                 Append<ScopedDirectionalsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
                 Append<ScopedSoundEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
+                Append<ScopedEnvironmentalEffectsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
                 Append<ScopedEventSubscriptionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
                 Append<ScopedTimerDefinitionsNodeViewModel>(node => node.Scope == PropertyResolutionScope.Room);
                 Append<ObjectTemplatesNodeViewModel>();
@@ -14510,6 +14848,7 @@ public sealed partial class MainWindowViewModel
         ScopedActionsNodeViewModel or SequencesNodeViewModel
         or ScopedVerbsNodeViewModel or ScopedDirectionalsNodeViewModel
         or ScopedSoundEffectsNodeViewModel or ScopedEventSubscriptionsNodeViewModel
+        or ScopedEnvironmentalEffectsNodeViewModel
         or ScopedTimerDefinitionsNodeViewModel or ScopedProceduresNodeViewModel
         or ObjectTemplatesNodeViewModel or RoomTemplatesNodeViewModel
         or GameObjectsNodeViewModel;
@@ -14686,6 +15025,7 @@ public sealed partial class MainWindowViewModel
             or ScopedVerbsNodeViewModel
             or ScopedDirectionalsNodeViewModel
             or ScopedSoundEffectsNodeViewModel
+            or ScopedEnvironmentalEffectsNodeViewModel
             or ScopedEventSubscriptionsNodeViewModel
             or ScopedTimerDefinitionsNodeViewModel
             or ScopedProceduresNodeViewModel
@@ -14707,6 +15047,7 @@ public sealed partial class MainWindowViewModel
             ScopedVerbsNodeViewModel verbsNode => verbsNode.Verbs.Count == 0,
             ScopedDirectionalsNodeViewModel directionalsNode => directionalsNode.Directionals.Count == 0,
             ScopedSoundEffectsNodeViewModel soundEffectsNode => soundEffectsNode.SoundEffects.Count == 0,
+            ScopedEnvironmentalEffectsNodeViewModel => false,
             ScopedEventSubscriptionsNodeViewModel eventSubscriptionsNode => eventSubscriptionsNode.Subscriptions.Count == 0,
             ScopedTimerDefinitionsNodeViewModel timerDefinitionsNode => timerDefinitionsNode.TimerDefinitions.Count == 0,
             ScopedProceduresNodeViewModel proceduresNode => proceduresNode.ProcedureIds.Count == 0,
@@ -14788,6 +15129,15 @@ public sealed partial class MainWindowViewModel
         RefreshScopedSoundEffectNodes(soundEffectsNode);
         soundEffectsNode.IsExpanded = false;
         return soundEffectsNode;
+    }
+
+    private static ScopedEnvironmentalEffectsNodeViewModel CreateEnvironmentalEffectsNode(HierarchyNodeViewModel parent, PropertyResolutionScope scope, IList<EnvironmentalEffectDefinition> source)
+    {
+        var effectsNode = new ScopedEnvironmentalEffectsNodeViewModel(scope, source, parent);
+        effectsNode.ScopeOwner = ResolveTreeScopeOwner(parent);
+        RefreshScopedEnvironmentalEffectNodes(effectsNode);
+        effectsNode.IsExpanded = false;
+        return effectsNode;
     }
 
     private static ScopedEventSubscriptionsNodeViewModel CreateEventSubscriptionsNode(HierarchyNodeViewModel parent, PropertyResolutionScope scope, IList<EventSubscriptionDefinition> source)
@@ -14973,6 +15323,15 @@ public sealed partial class MainWindowViewModel
             container.Children.Add(new ScopedSoundEffectEntryNodeViewModel(soundEffect, container));
         }
 
+        container.IsExpanded = wasExpanded;
+    }
+
+    private static void RefreshScopedEnvironmentalEffectNodes(ScopedEnvironmentalEffectsNodeViewModel container)
+    {
+        var wasExpanded = container.IsExpanded;
+        container.Children.Clear();
+        foreach (var effect in container.Effects)
+            container.Children.Add(new ScopedEnvironmentalEffectEntryNodeViewModel(effect, container));
         container.IsExpanded = wasExpanded;
     }
 
@@ -15177,12 +15536,113 @@ public sealed partial class MainWindowViewModel
         return true;
     }
 
-    internal Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?> CreateComputationEditor(GamePropertyNodeViewModel propertyNode)
+    internal Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?> CreateComputationEditor(
+        GamePropertyNodeViewModel propertyNode,
+        bool readOnly = false)
     {
-        return EditComputationForContainer(propertyNode.VariablesContainer);
+        return EditComputationForContainer(propertyNode.VariablesContainer, readOnly);
     }
 
-    private Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?> EditComputationForContainer(GamePropertiesContainerNodeViewModel container)
+    private IReadOnlyList<SharedVariableChoiceOption> BuildSharedVariableChoiceOptions() =>
+        new[] { new SharedVariableChoiceOption(null, "(not shared)") }
+            .Concat(_project.SharedVariables
+                .OrderBy(static item => item.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(static item => new SharedVariableChoiceOption(item.Id, string.IsNullOrWhiteSpace(item.Name) ? item.Id.ToString("N") : item.Name)))
+            .ToList();
+
+    private GamePropertyPickerContext CreateParticleEffectVariablePickerContext(GameObject owner) =>
+        CreateGamePropertyPickerContext(
+            owner,
+            PropertyResolutionScope.Object,
+            allowReferenceModes: true,
+            relativeOwnerId: owner.ObjectId,
+            anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" });
+
+    private Func<string, string, GamePropertyDefinition?> CreateParticleEffectNewComputedVariableFactory(GameObject owner)
+    {
+        var editComputation = CreateComputationEditorForScope(owner, PropertyResolutionScope.Object, owner.ObjectId);
+        return (suggestedName, resultKind) =>
+        {
+            var isNumeric = string.Equals(resultKind, "Numeric", StringComparison.OrdinalIgnoreCase);
+            if (!_treeContextInteractionService.TryGetNewVariableInput(
+                    suggestedName,
+                    GamePropertyLifetime.Singleton,
+                    isNumeric ? "0" : "#FFFFFF",
+                    isNumeric ? GamePropertyValueRestriction.Numeric : GamePropertyValueRestriction.Unrestricted,
+                    editComputation,
+                    out var name,
+                    out var lifetime,
+                    out var defaultValue,
+                    out var restriction,
+                    out var computation)
+                || computation is null
+                || !string.Equals(computation.ResultKind, resultKind, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return new GamePropertyDefinition
+            {
+                Id = Guid.NewGuid(),
+                Name = name,
+                DefaultValue = defaultValue,
+                Lifetime = lifetime,
+                ValueRestriction = restriction,
+                Computation = computation
+            };
+        };
+    }
+
+    private Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?> CreateComputationEditorForScope(
+        IScopedAwareNode? scopeOwner,
+        PropertyResolutionScope resolutionScope,
+        Guid? relativeOwnerId = null,
+        IReadOnlyList<string>? anchorKeys = null)
+    {
+        var pickerContext = CreateGamePropertyPickerContext(
+            scopeOwner,
+            resolutionScope,
+            allowReferenceModes: true,
+            relativeOwnerId: relativeOwnerId,
+            anchorKeys: anchorKeys ?? new[] { "parentObject", "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" });
+
+        return computation =>
+        {
+            var dialog = new StoryboardDesigner.App.Views.GamePropertyComputationEditorDialog(
+                computation,
+                ChooseReference,
+                FormatReference)
+            {
+                Owner = System.Windows.Application.Current?.MainWindow
+            };
+            return dialog.ShowDialog() == true ? dialog.Computation : null;
+        };
+
+        ProjectGamePropertySourceReferenceDto? ChooseReference(ProjectGamePropertySourceReferenceDto? selectedReference)
+        {
+            var dialog = new StoryboardDesigner.App.Views.VariableChooserDialog(
+                pickerContext with { SelectedReference = selectedReference },
+                "Choose Effect Control Source")
+            {
+                Owner = System.Windows.Application.Current?.MainWindow
+            };
+            return dialog.ShowDialog() == true ? dialog.SelectedReference : null;
+        }
+
+        string FormatReference(ProjectGamePropertySourceReferenceDto? source)
+        {
+            if (source is null) return "<choose property>";
+            if (!string.IsNullOrWhiteSpace(source.AnchorKey)) return $"{source.AnchorKey}.{source.PropertyName}";
+            if (!source.OwnerId.HasValue) return $"Current owner.{source.PropertyName}";
+            var choice = pickerContext.DiscoverChoices(true).FirstOrDefault(candidate => candidate.OwnerId == source.OwnerId
+                && string.Equals(candidate.PropertyName, source.PropertyName, StringComparison.OrdinalIgnoreCase));
+            return choice is null ? $"Missing owner {source.OwnerId.Value:N}.{source.PropertyName}" : $"{choice.ScopePath} → {choice.OwnerVariable}";
+        }
+    }
+
+    private Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?> EditComputationForContainer(
+        GamePropertiesContainerNodeViewModel container,
+        bool readOnly = false)
     {
         var ownerId = container.ScopeOwner is null ? Guid.Empty : GetGamePropertyOwnerId(container.ScopeOwner);
         var anchors = new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" };
@@ -15197,7 +15657,8 @@ public sealed partial class MainWindowViewModel
             var computationDialog = new StoryboardDesigner.App.Views.GamePropertyComputationEditorDialog(
                 computation,
                 ChooseGamePropertySourceReference,
-                FormatGamePropertySourceReference)
+                FormatGamePropertySourceReference,
+                readOnly)
             {
                 Owner = System.Windows.Application.Current?.MainWindow
             };
@@ -15299,12 +15760,32 @@ public sealed partial class MainWindowViewModel
 
         void AddPhase(PhaseNode phase)
         {
+            var phaseScope = phase.Tier switch
+            {
+                PhaseTier.Book => PropertyResolutionScope.PhaseBook,
+                PhaseTier.Chapter => PropertyResolutionScope.PhaseChapter,
+                _ => PropertyResolutionScope.PhasePage
+            };
             AddOwner(phase, phase.ScopeName, ScopePath(phase), phase.Tier switch
             {
                 PhaseTier.Book => PropertyResolutionScope.PhaseBook,
                 PhaseTier.Chapter => PropertyResolutionScope.PhaseChapter,
                 _ => PropertyResolutionScope.PhasePage
             }, phase.Variables, new[] { "currentPhase" });
+            var phaseOwnerId = GetGamePropertyOwnerId(phase);
+            choices.Add(new GamePropertyChoiceItem
+            {
+                Value = $"{phaseOwnerId:N}:EffectiveWindSpeed",
+                OwnerId = phaseOwnerId,
+                PropertyName = "EffectiveWindSpeed",
+                ScopePath = ScopePath(phase),
+                OwnerVariable = $"{phase.ScopeName}.EffectiveWindSpeed (read-only)",
+                Scope = phaseScope,
+                ValueRestriction = GamePropertyValueRestriction.Numeric,
+                Priority = choices.Count,
+                Relation = GamePropertyChoiceRelation.Phase,
+                EligibleAnchors = new[] { "currentPhase" }
+            });
             foreach (var child in phase.Children) AddPhase(child);
         }
 

@@ -108,14 +108,10 @@
         </GroupBox>
 
         <TextBlock Grid.Row="11" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Presentation" />
-        <Button x:Name="ManagePresentationButton"
-                Grid.Row="11"
-                Grid.Column="1"
-                HorizontalAlignment="Left"
-                Padding="12,4"
-                Margin="0,0,0,12"
-                Content="Manage Presentation"
-                Click="ManagePresentation_OnClick" />
+        <StackPanel Grid.Row="11" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,12">
+            <Button x:Name="ManagePresentationButton" HorizontalAlignment="Left" Padding="12,4" Content="Manage Presentation" Click="ManagePresentation_OnClick" />
+            <Button Margin="8,0,0,0" Padding="12,4" Content="Particle Effect Artwork..." Click="ManageParticleEffectArtwork_OnClick" />
+        </StackPanel>
 
         <TextBlock Grid.Row="12" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Sound Effects" />
         <Button x:Name="ManageSoundEffectsButton"

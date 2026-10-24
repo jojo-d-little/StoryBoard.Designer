@@ -27,7 +27,9 @@ public partial class ObjectImageVariantsDialog : Window
     private readonly int _projectRoomCanvasWidth;
     private readonly int _projectRoomCanvasHeight;
     private double _imageRotationDegrees;
+    private double _imageTransparency;
     private readonly List<ObjectImageVariant> _imageVariants;
+    private readonly List<StructuralPartPlacementEditItem> _structuralPartPlacements;
     private readonly IReadOnlyList<string> _chooserReferenceTokens;
     private readonly GamePropertyPickerContext _chooserPickerContext;
     private string _imageVariantChooserScript;
@@ -48,6 +50,10 @@ public partial class ObjectImageVariantsDialog : Window
     private PointLightDefaults? _pointLightDefaults;
     private LightOcclusion? _lightOcclusion;
     private bool _isPointLightEnabledDefaultValue;
+    private ParticleEffectAttachment? _particleEffect;
+    private readonly GamePropertyPickerContext? _particleEffectPickerContext;
+    private readonly Func<string, string, GamePropertyDefinition?>? _particleEffectVariableFactory;
+    private readonly List<GamePropertyDefinition> _particleEffectNewVariables;
     private bool _isUpdatingGuideVariantFitEditors;
     private const int CompactGuideMaximumFootprintCells = 7;
 
@@ -61,7 +67,11 @@ public partial class ObjectImageVariantsDialog : Window
         _projectRoomCanvasWidth = initial.ProjectRoomCanvasWidth > 0 ? initial.ProjectRoomCanvasWidth : 800;
         _projectRoomCanvasHeight = initial.ProjectRoomCanvasHeight > 0 ? initial.ProjectRoomCanvasHeight : 600;
         _imageRotationDegrees = initial.ImageRotationDegrees;
+        _imageTransparency = double.IsFinite(initial.ImageTransparency)
+            ? Math.Clamp(initial.ImageTransparency, 0, 1)
+            : 0;
         _imageVariants = NormalizeImageVariants(initial.ImageVariants);
+        _structuralPartPlacements = CloneStructuralPartPlacements(initial.StructuralPartPlacements);
         _chooserReferenceTokens = initial.ImageVariantChooserReferenceTokens ?? Array.Empty<string>();
         _chooserPickerContext = initial.ImageVariantChooserPickerContext
             ?? throw new ArgumentException("A game-property picker context is required.", nameof(initial));
@@ -83,6 +93,10 @@ public partial class ObjectImageVariantsDialog : Window
         _pointLightDefaults = LightingModelCloner.ClonePointLightDefaults(initial.PointLightDefaults);
         _lightOcclusion = LightingModelCloner.CloneLightOcclusion(initial.LightOcclusion);
         _isPointLightEnabledDefaultValue = initial.IsPointLightEnabledDefaultValue;
+        _particleEffect = CloneParticleEffect(initial.ParticleEffect);
+        _particleEffectPickerContext = initial.ParticleEffectVariablePickerContext;
+        _particleEffectVariableFactory = initial.ParticleEffectNewComputedVariableFactory;
+        _particleEffectNewVariables = (initial.ParticleEffectNewVariables ?? Array.Empty<GamePropertyDefinition>()).ToList();
 
         IsMovableCheckBox.IsChecked = _isMovable;
         SetBooleanComboSelection(MovableDefaultValueComboBox, _isMovableDefaultValue);
@@ -101,6 +115,7 @@ public partial class ObjectImageVariantsDialog : Window
         ApplyGuideSurfaceSizing();
         RefreshChooserScriptPreview();
 
+        ImageTransparencyTextBox.Text = _imageTransparency.ToString("0.################", CultureInfo.InvariantCulture);
         RefreshVariantList();
         RefreshGuidePreview();
     }
@@ -110,6 +125,8 @@ public partial class ObjectImageVariantsDialog : Window
     public string ImageVariantChooserScript => _imageVariantChooserScript;
 
     public double ImageRotationDegrees => _imageRotationDegrees;
+
+    public double ImageTransparency => _imageTransparency;
 
     public bool IsMovable => _isMovable;
 
@@ -138,6 +155,12 @@ public partial class ObjectImageVariantsDialog : Window
     public double? MinStackScaleOverride => _minStackScaleOverride;
 
     public PointLight? PointLight => LightingModelCloner.ClonePointLight(_pointLight);
+
+    public ParticleEffectAttachment? ParticleEffect => CloneParticleEffect(_particleEffect);
+
+    public IReadOnlyList<GamePropertyDefinition> ParticleEffectNewVariables => _particleEffectNewVariables;
+
+    public IReadOnlyList<StructuralPartPlacementEditItem> StructuralPartPlacements => CloneStructuralPartPlacements(_structuralPartPlacements);
 
     public LightOcclusion? LightOcclusion => LightingModelCloner.CloneLightOcclusion(_lightOcclusion);
 
@@ -204,6 +227,22 @@ public partial class ObjectImageVariantsDialog : Window
 
         return normalized;
     }
+
+    private static List<StructuralPartPlacementEditItem> CloneStructuralPartPlacements(
+        IEnumerable<StructuralPartPlacementEditItem>? source) =>
+        (source ?? Array.Empty<StructuralPartPlacementEditItem>())
+            .Select(item => item with
+            {
+                Placement = new StructuralPartPlacement
+                {
+                    Mode = item.Placement.Mode,
+                    ParentRelativeOffsetX = item.Placement.ParentRelativeOffsetX,
+                    ParentRelativeOffsetY = item.Placement.ParentRelativeOffsetY,
+                    RoomCoordinateX = item.Placement.RoomCoordinateX,
+                    RoomCoordinateY = item.Placement.RoomCoordinateY
+                }
+            })
+            .ToList();
 
     private void RefreshVariantList(string? selectVariantName = null)
     {
@@ -592,6 +631,7 @@ public partial class ObjectImageVariantsDialog : Window
     {
         var source = LoadThumbnail(path, _projectFilePath, _preferredImageSourceBucket);
         AppearanceThumbnailImage.Source = source;
+        AppearanceThumbnailImage.Opacity = 1 - _imageTransparency;
         AppearanceNoImageTextBlock.Visibility = source is null ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -603,9 +643,9 @@ public partial class ObjectImageVariantsDialog : Window
         CompactGuideVariantFitPanel.Visibility = useLargeGuide ? Visibility.Collapsed : Visibility.Visible;
         DrawFootprintGuide();
         UpdateGuidePointLightMarker();
+        UpdateGuideParticleEffectMarker();
         UpdateGuideImageOverlay();
         UpdateHeadingArrowTransform();
-        UpdateGuideLegend();
         UpdateGuideVariantFitEditors(GetSelectedVariant());
     }
 
@@ -652,13 +692,16 @@ public partial class ObjectImageVariantsDialog : Window
             {
                 _pointLight = LightingModelCloner.ClonePointLight(pointLight);
                 RefreshGuidePreview();
-            })
+            },
+            _structuralPartPlacements)
         {
             Owner = this
         };
 
         dialog.Closed += (_, _) =>
         {
+            _structuralPartPlacements.Clear();
+            _structuralPartPlacements.AddRange(CloneStructuralPartPlacements(dialog.StructuralPartPlacements));
             RefreshVariantList(selected.VariantName);
             RefreshGuidePreview();
         };
@@ -766,16 +809,6 @@ public partial class ObjectImageVariantsDialog : Window
         overlayTop = (guideSize - overlayHeight) / 2d;
     }
 
-    private void UpdateGuideLegend()
-    {
-        var normalizedOrientation = NormalizeCardinalDirection(GetSelectedComboString(FootprintOrientationComboBox, _footprintOrientation));
-        var normalizedHeading = NormalizeHeadingDirection(GetSelectedComboString(HeadingDirectionComboBox, _headingDirection));
-        var lightHint = _pointLight is null
-            ? "CLICK THE BLUE FOOTPRINT to place a point light."
-            : "Yellow marker = point-light origin; click the blue footprint to move it.";
-        GuideLegendTextBlock.Text = $"Blue box = footprint bounds. Gray grid = visual reference. Red arrow = object front (heading {normalizedHeading}). Footprint orientation = {normalizedOrientation}. {lightHint} Local rotation aligns the selected image variant to the footprint.";
-    }
-
     private void UpdateGuidePointLightMarker()
     {
         if (GuidePointLightMarker is null)
@@ -821,12 +854,56 @@ public partial class ObjectImageVariantsDialog : Window
             return;
         }
 
-        _pointLight ??= new PointLight();
-        _pointLight.OffsetXPx = Math.Clamp(point.X - left, 0, width);
-        _pointLight.OffsetYPx = Math.Clamp(point.Y - top, 0, height);
+        var offsetX = Math.Clamp(point.X - left, 0, width);
+        var offsetY = Math.Clamp(point.Y - top, 0, height);
+        if (PlacementPointComboBox.SelectedIndex == 1)
+        {
+            _particleEffect ??= new ParticleEffectAttachment();
+            _particleEffect.OffsetXPx = offsetX;
+            _particleEffect.OffsetYPx = offsetY;
+        }
+        else
+        {
+            _pointLight ??= new PointLight();
+            _pointLight.OffsetXPx = offsetX;
+            _pointLight.OffsetYPx = offsetY;
+        }
         UpdateGuidePointLightMarker();
-        UpdateGuideLegend();
+        UpdateGuideParticleEffectMarker();
         e.Handled = true;
+    }
+
+    private void UpdateGuideParticleEffectMarker()
+    {
+        if (_particleEffect?.OffsetXPx is not double offsetX || _particleEffect.OffsetYPx is not double offsetY
+            || !double.IsFinite(offsetX) || !double.IsFinite(offsetY))
+        {
+            GuideParticleEffectMarker.Visibility = Visibility.Collapsed;
+            return;
+        }
+        ResolveGuideFootprintRect(out var left, out var top, out var width, out var height);
+        if (offsetX < 0 || offsetY < 0 || offsetX > width || offsetY > height)
+        {
+            GuideParticleEffectMarker.Visibility = Visibility.Collapsed;
+            return;
+        }
+        GuideParticleEffectMarker.Margin = new Thickness(left + offsetX - GuideParticleEffectMarker.Width / 2d,
+            top + offsetY - GuideParticleEffectMarker.Height / 2d, 0, 0);
+        GuideParticleEffectMarker.Visibility = Visibility.Visible;
+    }
+
+    private void ManageParticleEffectButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_particleEffectPickerContext is null)
+        {
+            System.Windows.MessageBox.Show(this, "A game-property picker context is required to edit particle-effect bindings.", "Particle Effect", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        var dialog = new ParticleEffectObjectAuthoringDialog(_particleEffect, _particleEffectPickerContext, _particleEffectVariableFactory) { Owner = this };
+        if (dialog.ShowDialog() != true) return;
+        _particleEffect = CloneParticleEffect(dialog.ParticleEffect);
+        _particleEffectNewVariables.AddRange(dialog.CreatedVariables);
+        UpdateGuideParticleEffectMarker();
     }
 
     private void ManageLightingButton_OnClick(object sender, RoutedEventArgs e)
@@ -884,6 +961,7 @@ public partial class ObjectImageVariantsDialog : Window
             ? null
             : LoadThumbnail(selected.FullImagePath, _projectFilePath, _preferredImageSourceBucket);
         GuideImageOverlay.Source = source;
+        GuideImageOverlay.Opacity = 1 - _imageTransparency;
         var baseWidth = ResolveGuideImageBaseWidthPixels(source);
         var baseHeight = ResolveGuideImageBaseHeightPixels(source);
 
@@ -1160,6 +1238,17 @@ public partial class ObjectImageVariantsDialog : Window
         _isMovableDefaultValue = GetSelectedBoolean(MovableDefaultValueComboBox);
         _spatialType = ParseSpatialType(GetSelectedComboString(SpatialTypeComboBox, nameof(RuntimeObjectSpatialTypes.SolidObject)));
 
+        if (!double.TryParse(ImageTransparencyTextBox.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedImageTransparency)
+            || !double.IsFinite(parsedImageTransparency)
+            || parsedImageTransparency < 0
+            || parsedImageTransparency > 1)
+        {
+            System.Windows.MessageBox.Show(this, "Image transparency must be a finite number between 0 and 1.", "Object Appearance", MessageBoxButton.OK, MessageBoxImage.Information);
+            ImageTransparencyTextBox.Focus();
+            ImageTransparencyTextBox.SelectAll();
+            return;
+        }
+
         if (!int.TryParse(StackOrderTextBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedStackOrder)
             || parsedStackOrder < 0)
         {
@@ -1253,6 +1342,7 @@ public partial class ObjectImageVariantsDialog : Window
         }
 
         _stackOrder = parsedStackOrder;
+        _imageTransparency = parsedImageTransparency;
         _footprintWidthCells = parsedFootprintWidth;
         _footprintHeightCells = parsedFootprintHeight;
         _footprintOrientation = NormalizeCardinalDirection(GetSelectedComboString(FootprintOrientationComboBox, "N"));
@@ -1266,10 +1356,32 @@ public partial class ObjectImageVariantsDialog : Window
         DialogResult = true;
     }
 
+    private void ImageTransparencyTextBox_OnTextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (ImageTransparencyTextBox is null
+            || !double.TryParse(ImageTransparencyTextBox.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            || !double.IsFinite(value))
+        {
+            return;
+        }
+
+        _imageTransparency = Math.Clamp(value, 0, 1);
+        AppearanceThumbnailImage.Opacity = 1 - _imageTransparency;
+        GuideImageOverlay.Opacity = 1 - _imageTransparency;
+    }
+
     private void Cancel_OnClick(object sender, RoutedEventArgs e)
     {
         DialogResult = false;
     }
+
+    private static ParticleEffectAttachment? CloneParticleEffect(ParticleEffectAttachment? source) => source is null ? null : new ParticleEffectAttachment
+    {
+        EffectKey = source.EffectKey,
+        OffsetXPx = source.OffsetXPx,
+        OffsetYPx = source.OffsetYPx,
+        Settings = ParticleEffectControlSettingCloner.CloneSettings(source.Settings)
+    };
 
     private static void SetBooleanComboSelection(System.Windows.Controls.ComboBox comboBox, bool value)
     {

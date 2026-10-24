@@ -17,6 +17,11 @@ public partial class GlobalSettingsDialog : Window
     private RoomAmbientLighting _defaultRoomAmbientLighting = new() { Ambient = 1, AmbientColor = "#FFFFFF" };
     private bool _updatingAmbientControl;
     private readonly IReadOnlyList<string> _soundEffectCategorySuggestions;
+    private List<EnvironmentalEffectDefinition> _environmentalEffects;
+    private List<ParticleEffectImageChoice> _particleEffectImageChoices;
+    private readonly Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?>? _environmentalEffectComputationEditor;
+    private readonly IReadOnlyList<SharedVariableChoiceOption> _environmentalEffectSharedVariableOptions;
+    private readonly GamePropertyPickerContext? _environmentalEffectVariablePickerContext;
 
     public GlobalSettingsDialog(
         GlobalSettingsEditRequest initialValues,
@@ -26,6 +31,9 @@ public partial class GlobalSettingsDialog : Window
         IReadOnlyList<string>? soundEffectCategorySuggestions = null)
     {
         InitializeComponent();
+        _environmentalEffectComputationEditor = initialValues.EnvironmentalEffectComputationEditor;
+        _environmentalEffectSharedVariableOptions = initialValues.EnvironmentalEffectSharedVariableOptions ?? Array.Empty<SharedVariableChoiceOption>();
+        _environmentalEffectVariablePickerContext = initialValues.EnvironmentalEffectVariablePickerContext;
         AutoSaveSecondsTextBox.Text = initialValues.AutoSaveSeconds.ToString();
         StartingPlanetComboBox.ItemsSource = startingPlanetOptions;
         StartingPlanetComboBox.SelectedItem = initialValues.StartingPlanetName;
@@ -52,6 +60,9 @@ public partial class GlobalSettingsDialog : Window
         _soundEffectCategorySuggestions = soundEffectCategorySuggestions is null
             ? Array.Empty<string>()
             : soundEffectCategorySuggestions.ToList();
+        _environmentalEffects = (initialValues.EnvironmentalEffects ?? new List<EnvironmentalEffectDefinition>()).ToList();
+        _particleEffectImageChoices = (initialValues.ParticleEffectImageChoices ?? new List<ParticleEffectImageChoice>())
+            .Select(CloneParticleEffectImageChoice).ToList();
     }
 
     public GlobalSettingsEditRequest Values
@@ -85,11 +96,33 @@ public partial class GlobalSettingsDialog : Window
                     IndoorSoundLossPercent = TryParseSoundLossPercent(IndoorSoundLossPercentTextBox.Text, out var indoorSoundLoss) ? indoorSoundLoss : -1,
                     OutdoorSoundLossPercent = TryParseSoundLossPercent(OutdoorSoundLossPercentTextBox.Text, out var outdoorSoundLoss) ? outdoorSoundLoss : -1,
                     OpenSpaceSoundLossPercentPerCell = TryParseSoundLossPercent(OpenSpaceSoundLossPercentPerCellTextBox.Text, out var openSpaceSoundLoss) ? openSpaceSoundLoss : -1
-                });
+                },
+                _environmentalEffects.Select(CloneEnvironmentalEffect).ToList(),
+                _particleEffectImageChoices.Select(CloneParticleEffectImageChoice).ToList(), _environmentalEffectComputationEditor, _environmentalEffectSharedVariableOptions);
         }
     }
 
     public IReadOnlyList<SoundEffectLibraryEntry> SoundEffectLibraryEntries => _soundEffectLibraryEntries;
+
+    private void ManageEnvironmentalEffects_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new EnvironmentalEffectsAuthoringDialog(_environmentalEffects, _environmentalEffectVariablePickerContext) { Owner = this };
+        if (dialog.ShowDialog() == true) _environmentalEffects = dialog.Effects;
+    }
+
+    private void ManageParticleEffectArtwork_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ParticleEffectImageChoicesDialog(_particleEffectImageChoices) { Owner = this };
+        if (dialog.ShowDialog() == true) _particleEffectImageChoices = dialog.Choices;
+    }
+
+    private static ParticleEffectImageChoice CloneParticleEffectImageChoice(ParticleEffectImageChoice source) => new()
+    {
+        EffectKey = source.EffectKey, ImageSlot = source.ImageSlot, AssetPath = source.AssetPath
+    };
+
+    private static EnvironmentalEffectDefinition CloneEnvironmentalEffect(EnvironmentalEffectDefinition source) =>
+        ParticleEffectControlSettingCloner.CloneEnvironmentalEffect(source);
 
     private void Save_OnClick(object sender, RoutedEventArgs e)
     {

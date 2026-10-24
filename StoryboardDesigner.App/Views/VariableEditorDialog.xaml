@@ -36,7 +36,7 @@
                       Checked="Computed_OnChanged"
                       Unchecked="Computed_OnChanged" />
             <Button x:Name="EditComputationButton"
-                    Width="150"
+                    Width="190"
                     HorizontalAlignment="Left"
                     Content="Define computation..."
                     Click="EditComputation_OnClick"
@@ -45,6 +45,12 @@
                        Margin="0,6,0,0"
                        Foreground="#374151"
                        TextWrapping="Wrap"
+                       Visibility="Collapsed" />
+            <TextBlock x:Name="GeneratedPropertyInfoTextBlock"
+                       Margin="0,6,0,0"
+                       Foreground="#4B5563"
+                       TextWrapping="Wrap"
+                       Text="Generated from this phase's environment settings. Review the computation here; change its inputs in the phase definition."
                        Visibility="Collapsed" />
         </StackPanel>
 

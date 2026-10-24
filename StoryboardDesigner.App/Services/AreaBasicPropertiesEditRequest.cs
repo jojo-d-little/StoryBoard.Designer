@@ -7,4 +7,8 @@ public sealed record AreaBasicPropertiesEditRequest(
     string ProducerNotes,
     AreaAdjacencyMode AdjacencyMode,
     AreaRoomDropBehavior RoomDropBehavior,
-    Guid? StartingRoomId);
+    Guid? StartingRoomId,
+    List<EnvironmentalEffectDefinition>? EnvironmentalEffects = null,
+    Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?>? EnvironmentalEffectComputationEditor = null,
+    IReadOnlyList<SharedVariableChoiceOption>? EnvironmentalEffectSharedVariableOptions = null,
+    GamePropertyPickerContext? EnvironmentalEffectVariablePickerContext = null);

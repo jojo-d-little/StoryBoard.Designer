@@ -133,8 +133,7 @@ public sealed class Bite4BaselineCoverageSmokeTests
 
                 var areaOpened = Retry.WhileFalse(
                     () => HasAnyExpectedText(areaSelectedNameText!, new[] { "freebird farm" })
-                          || areaTabs.TabItems.Length > initialAreaTabCount
-                          || areaTabs.TabItems.Length > 0,
+                          || areaTabs.TabItems.Length > initialAreaTabCount,
                     timeout: TimeSpan.FromSeconds(10),
                     interval: TimeSpan.FromMilliseconds(100),
                     throwOnTimeout: false).Result;
@@ -143,12 +142,15 @@ public sealed class Bite4BaselineCoverageSmokeTests
                     ActivateHierarchyTreeItem(areaTreeItem!, mainWindow!);
                     areaOpened = Retry.WhileFalse(
                         () => HasAnyExpectedText(areaSelectedNameText!, new[] { "freebird farm" })
-                              || areaTabs.TabItems.Length > initialAreaTabCount
-                              || areaTabs.TabItems.Length > 0,
+                              || areaTabs.TabItems.Length > initialAreaTabCount,
                         timeout: TimeSpan.FromSeconds(10),
                         interval: TimeSpan.FromMilliseconds(100),
                         throwOnTimeout: false).Result;
                 }
+
+                Assert.True(areaOpened,
+                    $"The Area Designer did not open 'Freebird Farm'. Selected area name: '{areaSelectedNameText!.Name}'; "
+                    + $"open area tabs: {string.Join(", ", areaTabs.TabItems.Select(tab => tab.Name))}.");
 
                 if (areaOpened)
                 {

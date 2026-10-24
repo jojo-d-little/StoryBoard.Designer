@@ -31,4 +31,10 @@ public sealed record ObjectImageVariantsEditRequest(
     PointLight? PointLight = null,
     LightOcclusion? LightOcclusion = null,
     bool IsPointLightEnabledDefaultValue = true,
-    PointLightDefaults? PointLightDefaults = null);
+    PointLightDefaults? PointLightDefaults = null,
+    ParticleEffectAttachment? ParticleEffect = null,
+    GamePropertyPickerContext? ParticleEffectVariablePickerContext = null,
+    Func<string, string, GamePropertyDefinition?>? ParticleEffectNewComputedVariableFactory = null,
+    IReadOnlyList<GamePropertyDefinition>? ParticleEffectNewVariables = null,
+    IReadOnlyList<StructuralPartPlacementEditItem>? StructuralPartPlacements = null,
+    double ImageTransparency = 0);

@@ -11,17 +11,32 @@ public partial class GamePropertyConditionEditorDialog : Window
     private readonly Func<ProjectGamePropertySourceReferenceDto?, string>? _formatSource;
     private ProjectGamePropertyConditionDto? _root;
     private bool _refreshing;
+    private readonly bool _isReadOnly;
 
     public GamePropertyConditionEditorDialog(
         ProjectGamePropertyConditionDto? condition,
         Func<ProjectGamePropertySourceReferenceDto?, ProjectGamePropertySourceReferenceDto?> chooseSource,
-        Func<ProjectGamePropertySourceReferenceDto?, string>? formatSource = null)
+        Func<ProjectGamePropertySourceReferenceDto?, string>? formatSource = null,
+        bool readOnly = false)
     {
         InitializeComponent();
+        _isReadOnly = readOnly;
         _chooseSource = chooseSource;
         _formatSource = formatSource;
         _root = Clone(condition);
         RefreshTree();
+        if (_isReadOnly)
+        {
+            Title = "Computed Condition (Read-only)";
+            SaveButton.Content = "Close";
+            CancelButton.Visibility = Visibility.Collapsed;
+            ChooseSourceButton.IsEnabled = false;
+            ChooseRightSourceButton.IsEnabled = false;
+            RightOperandIsSourceCheckBox.IsEnabled = false;
+            OperatorComboBox.IsEnabled = false;
+            ValueKindComboBox.IsEnabled = false;
+            ValueTextBox.IsReadOnly = true;
+        }
     }
 
     public ProjectGamePropertyConditionDto? Condition => DialogResult == true ? Clone(_root) : null;
@@ -99,9 +114,9 @@ public partial class GamePropertyConditionEditorDialog : Window
         ValueTextBox.Text = operand?.Value ?? string.Empty;
         var isCompare = condition.Kind == "Compare";
         var hasRight = isCompare && condition.Operator is not ("IsTrue" or "IsFalse");
-        OperatorComboBox.IsEnabled = isCompare;
+        OperatorComboBox.IsEnabled = isCompare && !_isReadOnly;
         SourceTextBox.IsEnabled = condition.Kind is "Compare" or "Exists";
-        RightOperandIsSourceCheckBox.IsEnabled = hasRight;
+        RightOperandIsSourceCheckBox.IsEnabled = hasRight && !_isReadOnly;
         RightSourcePanel.IsEnabled = hasRight;
         RightConstantPanel.IsEnabled = hasRight;
         RightOperandIsSourceCheckBox.Visibility = isCompare ? Visibility.Visible : Visibility.Collapsed;
@@ -129,12 +144,12 @@ public partial class GamePropertyConditionEditorDialog : Window
         var canStartEmptyTree = _root is null;
         var canAdd = hasSelection || canStartEmptyTree;
 
-        AddAllButton.IsEnabled = canAdd;
-        AddAnyButton.IsEnabled = canAdd;
-        AddNotButton.IsEnabled = hasSelection;
-        AddCompareButton.IsEnabled = canAdd;
-        AddExistsButton.IsEnabled = canAdd;
-        RemoveButton.IsEnabled = hasSelection;
+        AddAllButton.IsEnabled = canAdd && !_isReadOnly;
+        AddAnyButton.IsEnabled = canAdd && !_isReadOnly;
+        AddNotButton.IsEnabled = hasSelection && !_isReadOnly;
+        AddCompareButton.IsEnabled = canAdd && !_isReadOnly;
+        AddExistsButton.IsEnabled = canAdd && !_isReadOnly;
+        RemoveButton.IsEnabled = hasSelection && !_isReadOnly;
 
         if (!hasSelection)
         {
@@ -337,6 +352,12 @@ public partial class GamePropertyConditionEditorDialog : Window
 
     private void Save_OnClick(object sender, RoutedEventArgs e)
     {
+        if (_isReadOnly)
+        {
+            DialogResult = true;
+            return;
+        }
+
         if (_root is null)
         {
             System.Windows.MessageBox.Show(this, "Add a condition before saving.", "Computed Game Property", MessageBoxButton.OK, MessageBoxImage.Information);
