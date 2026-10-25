@@ -15689,10 +15689,12 @@ public sealed partial class MainWindowViewModel
         }
     }
 
-    private IReadOnlyList<GamePropertyChoiceItem> BuildComputedPropertyChoices(ScopeNodeBase? currentScopeOwner, bool booleanOnly = false)
+    internal static IReadOnlyList<GamePropertyChoiceItem> BuildComputedPropertyChoices(
+        ProjectModel project,
+        ScopeNodeBase? currentScopeOwner,
+        bool booleanOnly = false)
     {
         var choices = new List<GamePropertyChoiceItem>();
-        var playerName = _project.PlayerCharacterObjectName?.Trim() ?? string.Empty;
 
         GamePropertyChoiceRelation GetRelation(ScopeNodeBase ownerNode)
         {
@@ -15704,117 +15706,30 @@ public sealed partial class MainWindowViewModel
             return GetScopeHierarchyRelation(currentScopeOwner, ownerNode);
         }
 
-        void AddOwner(ScopeNodeBase ownerNode, string ownerName, string path, PropertyResolutionScope scope, IEnumerable<GamePropertyDefinition> properties, IReadOnlyList<string>? anchors = null)
+        foreach (var source in GamePropertySourceResolver.Enumerate(project))
         {
-            foreach (var property in properties)
+            var ownerNode = source.Owner;
+            var property = source.Property;
+            if (booleanOnly
+                && property.ValueRestriction != GamePropertyValueRestriction.TrueFalse
+                && !bool.TryParse(property.DefaultValue, out _))
             {
-                if (string.IsNullOrWhiteSpace(property.Name)) continue;
-                if (booleanOnly
-                    && property.ValueRestriction != GamePropertyValueRestriction.TrueFalse
-                    && !bool.TryParse(property.DefaultValue, out _)) continue;
-                var ownerId = GetGamePropertyOwnerId(ownerNode);
-                choices.Add(new GamePropertyChoiceItem
-                {
-                    Value = $"{ownerId:N}:{property.Name}",
-                    OwnerId = ownerId,
-                    PropertyName = property.Name,
-                    ScopePath = path,
-                    OwnerVariable = $"{ownerName}.{property.Name}",
-                    Scope = scope,
-                    ValueRestriction = property.ValueRestriction,
-                    Priority = choices.Count,
-                    Relation = GetRelation(ownerNode),
-                    EligibleAnchors = anchors ?? Array.Empty<string>()
-                });
+                continue;
             }
-        }
 
-        string ScopePath(ScopeNodeBase owner)
-        {
-            var parts = new Stack<string>();
-            for (IScopedAwareNode? current = owner; current is not null; current = current.ParentScope)
-                if (!string.IsNullOrWhiteSpace(current.ScopeName)) parts.Push(current.ScopeName);
-            return string.Join('.', parts);
-        }
-
-        void AddObject(GameObject obj, string pathPrefix)
-        {
-            var isPlayer = !string.IsNullOrWhiteSpace(playerName)
-                && string.Equals(obj.Name, playerName, StringComparison.OrdinalIgnoreCase)
-                || obj.Variables.Any(property => string.Equals(property.Name, "isPlayer", StringComparison.OrdinalIgnoreCase)
-                    && bool.TryParse(property.DefaultValue, out var markedPlayer) && markedPlayer);
-            AddOwner(obj, obj.Name, pathPrefix + "." + obj.Name, PropertyResolutionScope.Object, obj.Variables,
-                isPlayer ? new[] { "activePlayer" } : Array.Empty<string>());
-            foreach (var child in obj.ContainedObjects) AddObject(child, pathPrefix + "." + obj.Name);
-        }
-
-        AddOwner(_project, "Global", "Global", PropertyResolutionScope.Global, _project.GlobalVariables);
-        foreach (var obj in _project.GlobalScope.GameObjects) AddObject(obj, "Global");
-        foreach (var obj in _project.ObjectTemplates) AddObject(obj, "Object Templates");
-        foreach (var obj in _project.BaseObjects) AddObject(obj, "Base Objects");
-        foreach (var room in _project.EnumerateAllRoomTemplateRoots().DistinctBy(static room => room.Id))
-        {
-            AddOwner(room, room.ScopeName, ScopePath(room), PropertyResolutionScope.Room, room.Variables, new[] { "currentRoom" });
-            foreach (var obj in room.GameObjects) AddObject(obj, ScopePath(room));
-        }
-
-        void AddPhase(PhaseNode phase)
-        {
-            var phaseScope = phase.Tier switch
-            {
-                PhaseTier.Book => PropertyResolutionScope.PhaseBook,
-                PhaseTier.Chapter => PropertyResolutionScope.PhaseChapter,
-                _ => PropertyResolutionScope.PhasePage
-            };
-            AddOwner(phase, phase.ScopeName, ScopePath(phase), phase.Tier switch
-            {
-                PhaseTier.Book => PropertyResolutionScope.PhaseBook,
-                PhaseTier.Chapter => PropertyResolutionScope.PhaseChapter,
-                _ => PropertyResolutionScope.PhasePage
-            }, phase.Variables, new[] { "currentPhase" });
-            var phaseOwnerId = GetGamePropertyOwnerId(phase);
             choices.Add(new GamePropertyChoiceItem
             {
-                Value = $"{phaseOwnerId:N}:EffectiveWindSpeed",
-                OwnerId = phaseOwnerId,
-                PropertyName = "EffectiveWindSpeed",
-                ScopePath = ScopePath(phase),
-                OwnerVariable = $"{phase.ScopeName}.EffectiveWindSpeed (read-only)",
-                Scope = phaseScope,
-                ValueRestriction = GamePropertyValueRestriction.Numeric,
+                Value = $"{source.OwnerId:N}:{property.Name}",
+                OwnerId = source.OwnerId,
+                PropertyName = property.Name,
+                ScopePath = source.ScopePath,
+                OwnerVariable = $"{source.OwnerName}.{property.Name}",
+                Scope = source.Scope,
+                ValueRestriction = property.ValueRestriction,
                 Priority = choices.Count,
-                Relation = GamePropertyChoiceRelation.Phase,
-                EligibleAnchors = new[] { "currentPhase" }
+                Relation = GetRelation(ownerNode),
+                EligibleAnchors = source.EligibleAnchors
             });
-            foreach (var child in phase.Children) AddPhase(child);
-        }
-
-        foreach (var phase in _project.PhaseBooks) AddPhase(phase);
-        foreach (var planet in _project.Planets)
-        {
-            AddOwner(planet, planet.ScopeName, ScopePath(planet), PropertyResolutionScope.Planet, planet.Variables, new[] { "currentPlanet" });
-            foreach (var obj in planet.BaseObjects) AddObject(obj, ScopePath(planet) + ".Base Objects");
-            foreach (var obj in planet.ObjectTemplates) AddObject(obj, ScopePath(planet) + ".Object Templates");
-            foreach (var obj in planet.GameObjects) AddObject(obj, ScopePath(planet));
-            foreach (var country in planet.Countries)
-            {
-                AddOwner(country, country.ScopeName, ScopePath(country), PropertyResolutionScope.Country, country.Variables, new[] { "currentCountry" });
-                foreach (var obj in country.BaseObjects) AddObject(obj, ScopePath(country) + ".Base Objects");
-                foreach (var obj in country.ObjectTemplates) AddObject(obj, ScopePath(country) + ".Object Templates");
-                foreach (var obj in country.GameObjects) AddObject(obj, ScopePath(country));
-                foreach (var area in country.Areas)
-                {
-                    AddOwner(area, area.ScopeName, ScopePath(area), PropertyResolutionScope.Area, area.Variables, new[] { "currentArea" });
-                    foreach (var obj in area.BaseObjects) AddObject(obj, ScopePath(area) + ".Base Objects");
-                    foreach (var obj in area.ObjectTemplates) AddObject(obj, ScopePath(area) + ".Object Templates");
-                    foreach (var obj in area.GameObjects) AddObject(obj, ScopePath(area));
-                    foreach (var room in area.Rooms)
-                    {
-                        AddOwner(room, room.ScopeName, ScopePath(room), PropertyResolutionScope.Room, room.Variables, new[] { "currentRoom" });
-                        foreach (var obj in room.GameObjects) AddObject(obj, ScopePath(room));
-                    }
-                }
-            }
         }
 
         return choices.OrderBy(static choice => GetComputedChoiceScopeOrder(choice.Scope))

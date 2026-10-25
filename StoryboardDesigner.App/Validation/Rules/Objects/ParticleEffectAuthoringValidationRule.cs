@@ -175,28 +175,17 @@ public sealed class ParticleEffectAuthoringValidationRule : IValidationRule
             yield break;
         }
 
-        var owners = EnumerateOwners(project).ToList();
-        IEnumerable<SourceOwner> candidates;
         if (!string.IsNullOrWhiteSpace(source.AnchorKey))
         {
             var anchor = source.AnchorKey.Trim();
-            candidates = owners.Where(owner => owner.SupportsAnchor(anchor));
-            if (!candidates.Any())
+            if (!GamePropertySourceResolver.SupportsAnchor(project, anchor))
             {
                 yield return Issue(path, $"Binding for '{settingName}' uses unsupported anchor '{anchor}'.");
                 yield break;
             }
         }
-        else
-        {
-            var targetOwnerId = source.OwnerId ?? relativeOwnerId;
-            candidates = owners.Where(owner => owner.Id == targetOwnerId);
-        }
 
-        var matches = candidates.SelectMany(owner => owner.Properties
-                .Where(property => string.Equals(property.Name, source.PropertyName, StringComparison.OrdinalIgnoreCase))
-                .Select(property => (Owner: owner, Property: property)))
-            .ToList();
+        var matches = GamePropertySourceResolver.Resolve(project, source, relativeOwnerId);
         if (matches.Count == 0)
         {
             yield return Issue(path, $"Binding for '{settingName}' cannot resolve variable '{source.PropertyName}'.");
@@ -217,55 +206,13 @@ public sealed class ParticleEffectAuthoringValidationRule : IValidationRule
             yield return Issue(path, $"Binding for '{settingName}' has type {restrictions[0]}; this setting requires {expectedRestriction}.");
     }
 
-    private IEnumerable<SourceOwner> EnumerateOwners(ProjectModel project)
+    private static GamePropertyValueRestriction? ExpectedRestriction(string kind) => kind.ToLowerInvariant() switch
     {
-        yield return new SourceOwner(Guid.Empty, "Global", false, project.GlobalVariables);
-        foreach (var obj in project.GlobalScope.GameObjects) foreach (var owner in EnumerateObject(obj)) yield return owner;
-        foreach (var obj in project.BaseObjects) foreach (var owner in EnumerateObject(obj)) yield return owner;
-        foreach (var obj in project.ObjectTemplates) foreach (var owner in EnumerateObject(obj)) yield return owner;
-        foreach (var room in project.RoomTemplates)
-        {
-            yield return new SourceOwner(room.Id, "Room", false, room.Variables);
-            foreach (var obj in room.GameObjects) foreach (var owner in EnumerateObject(obj)) yield return owner;
-        }
-        foreach (var planet in project.Planets)
-        {
-            yield return new SourceOwner(planet.Id, "Planet", false, planet.Variables);
-            foreach (var obj in planet.BaseObjects.Concat(planet.ObjectTemplates).Concat(planet.GameObjects)) foreach (var owner in EnumerateObject(obj)) yield return owner;
-            foreach (var country in planet.Countries)
-            {
-                yield return new SourceOwner(country.Id, "Country", false, country.Variables);
-                foreach (var obj in country.BaseObjects.Concat(country.ObjectTemplates).Concat(country.GameObjects)) foreach (var owner in EnumerateObject(obj)) yield return owner;
-                foreach (var area in country.Areas)
-                {
-                    yield return new SourceOwner(area.Id, "Area", false, area.Variables);
-                    foreach (var obj in area.BaseObjects.Concat(area.ObjectTemplates).Concat(area.GameObjects)) foreach (var owner in EnumerateObject(obj)) yield return owner;
-                    foreach (var room in area.Rooms)
-                    {
-                        yield return new SourceOwner(room.Id, "Room", false, room.Variables);
-                        foreach (var obj in room.GameObjects) foreach (var owner in EnumerateObject(obj)) yield return owner;
-                    }
-                }
-            }
-        }
-        foreach (var phase in project.PhaseBooks) foreach (var owner in EnumeratePhase(phase)) yield return owner;
-
-        IEnumerable<SourceOwner> EnumerateObject(GameObject obj)
-        {
-            var isPlayer = (!string.IsNullOrWhiteSpace(project.PlayerCharacterObjectName)
-                    && string.Equals(obj.Name, project.PlayerCharacterObjectName, StringComparison.OrdinalIgnoreCase))
-                || obj.Variables.Any(property => string.Equals(property.Name, "isPlayer", StringComparison.OrdinalIgnoreCase)
-                    && bool.TryParse(property.DefaultValue, out var marked) && marked);
-            yield return new SourceOwner(obj.ObjectId, "Object", isPlayer, obj.Variables);
-            foreach (var child in obj.ContainedObjects) foreach (var nested in EnumerateObject(child)) yield return nested;
-        }
-
-        IEnumerable<SourceOwner> EnumeratePhase(PhaseNode phase)
-        {
-            yield return new SourceOwner(phase.Id, "Phase", false, phase.Variables);
-            foreach (var child in phase.Children) foreach (var nested in EnumeratePhase(child)) yield return nested;
-        }
-    }
+        "number" => GamePropertyValueRestriction.Numeric,
+        "boolean" => GamePropertyValueRestriction.TrueFalse,
+        "color" or "colorpair" or "enum" or "string" => GamePropertyValueRestriction.Unrestricted,
+        _ => null
+    };
 
     private static Guid ScopeOwnerId(ScopeNodeBase scope) => scope switch
     {
@@ -274,14 +221,6 @@ public sealed class ParticleEffectAuthoringValidationRule : IValidationRule
         Area area => area.Id,
         Room room => room.Id,
         _ => Guid.Empty
-    };
-
-    private static GamePropertyValueRestriction? ExpectedRestriction(string kind) => kind.ToLowerInvariant() switch
-    {
-        "number" => GamePropertyValueRestriction.Numeric,
-        "boolean" => GamePropertyValueRestriction.TrueFalse,
-        "color" or "colorpair" or "enum" or "string" => GamePropertyValueRestriction.Unrestricted,
-        _ => null
     };
 
     private static string? ScalarText(object value) => value switch
@@ -299,17 +238,4 @@ public sealed class ParticleEffectAuthoringValidationRule : IValidationRule
     private ValidationIssue Issue(string path, string message) => new(Metadata.RuleId, Metadata.DefaultSeverity, path, message);
     private static bool IsHexColor(string? value) => value is { Length: 7 } && value[0] == '#' && value.Skip(1).All(Uri.IsHexDigit);
 
-    private sealed record SourceOwner(Guid Id, string Kind, bool IsPlayer, IReadOnlyList<GamePropertyDefinition> Properties)
-    {
-        public bool SupportsAnchor(string anchor) => anchor.ToLowerInvariant() switch
-        {
-            "currentroom" => Kind == "Room",
-            "currentarea" => Kind == "Area",
-            "currentcountry" => Kind == "Country",
-            "currentplanet" => Kind == "Planet",
-            "currentphase" => Kind == "Phase",
-            "activeplayer" => IsPlayer,
-            _ => false
-        };
-    }
 }

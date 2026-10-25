@@ -3125,7 +3125,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             initializationScope,
             useReferenceChoices => customChoiceDiscovery?.Invoke()
                 ?? (useReferenceChoices
-                    ? BuildComputedPropertyChoices(currentScope as ScopeNodeBase, booleanOnly)
+                    ? BuildComputedPropertyChoices(_project, currentScope as ScopeNodeBase, booleanOnly)
                     : currentScope is null
                         ? Array.Empty<GamePropertyChoiceItem>()
                         : GetVariableChoicesForScopeNode(currentScope, initializationScope)),

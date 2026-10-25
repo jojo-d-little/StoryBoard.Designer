@@ -2763,7 +2763,7 @@ public partial class RoomActionEditorDialog : Window
     {
         try
         {
-            var dialog = new TextOutputScriptEditorDialog(entry.Script, GetEchoReferenceTokensForCurrentAction(), _pickerContext)
+            var dialog = new TextOutputScriptEditorDialog(entry.Script, GetEchoReferenceTokensForCurrentAction(), CreateOutcomeEchoPickerContext())
             {
                 Owner = this,
                 Title = $"Edit Echo: {entry.Token}"
@@ -2783,6 +2783,58 @@ public partial class RoomActionEditorDialog : Window
         {
             System.Windows.MessageBox.Show(this, $"Unable to open the script editor for '{entry.Token}'.\\n\\n{ex.Message}", "Action", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private GamePropertyPickerContext CreateOutcomeEchoPickerContext()
+    {
+        var localChoices = _pickerContext.DiscoverChoices(false)
+            .Select(choice => choice.Relation == GamePropertyChoiceRelation.Self && choice.OwnerId is null
+                ? new GamePropertyChoiceItem
+                {
+                    Value = choice.Value,
+                    ScopePath = choice.ScopePath,
+                    OwnerVariable = choice.OwnerVariable,
+                    Scope = choice.Scope,
+                    ValueRestriction = choice.ValueRestriction,
+                    Priority = choice.Priority,
+                    Relation = choice.Relation,
+                    OwnerId = _pickerContext.RelativeOwnerId,
+                    PropertyName = choice.PropertyName,
+                    EligibleAnchors = choice.EligibleAnchors
+                }
+                : choice)
+            .ToList();
+
+        var anchoredChoices = MainWindowViewModel.BuildComputedPropertyChoices(
+                _pickerContext.Project,
+                _pickerContext.CurrentScope as ScopeNodeBase)
+            .Where(static choice => !string.IsNullOrWhiteSpace(choice.PropertyName))
+            .SelectMany(choice => choice.EligibleAnchors
+                .Where(anchor => ActionPropertyAnchorKeys.Contains(anchor, StringComparer.OrdinalIgnoreCase))
+                .Select(anchor => new GamePropertyChoiceItem
+                {
+                    Value = $"{anchor}.{choice.PropertyName}",
+                    ScopePath = anchor,
+                    OwnerVariable = $"{anchor}.{choice.PropertyName}",
+                    Scope = choice.Scope,
+                    ValueRestriction = choice.ValueRestriction,
+                    Priority = localChoices.Count + choice.Priority,
+                    Relation = choice.Relation,
+                    OwnerId = choice.OwnerId,
+                    PropertyName = choice.PropertyName,
+                    EligibleAnchors = [anchor]
+                }))
+            .GroupBy(static choice => choice.Value, StringComparer.OrdinalIgnoreCase)
+            .Select(static group => group.First())
+            .ToList();
+
+        var choices = localChoices.Concat(anchoredChoices).ToList();
+        return _pickerContext with
+        {
+            AllowReferenceModes = true,
+            AnchorKeys = ActionPropertyAnchorKeys,
+            DiscoverChoices = _ => choices
+        };
     }
 
     private void RefreshOutcomeEchoEntries()
@@ -3223,7 +3275,16 @@ public partial class RoomActionEditorDialog : Window
 
     private IReadOnlyList<string> GetEchoReferenceTokensForActionType(CommandActionType actionType)
     {
-        var tokens = _echoReferenceTokens.Concat(_actionEchoTokenProviderRegistry.GetTokens(actionType));
+        var anchoredTokens = MainWindowViewModel.BuildComputedPropertyChoices(
+                _pickerContext.Project,
+                _pickerContext.CurrentScope as ScopeNodeBase)
+            .Where(static choice => !string.IsNullOrWhiteSpace(choice.PropertyName))
+            .SelectMany(choice => choice.EligibleAnchors
+                .Where(anchor => ActionPropertyAnchorKeys.Contains(anchor, StringComparer.OrdinalIgnoreCase))
+                .Select(anchor => $"{anchor}.{choice.PropertyName}"));
+        var tokens = _echoReferenceTokens
+            .Concat(_actionEchoTokenProviderRegistry.GetTokens(actionType))
+            .Concat(anchoredTokens);
         return OrderReferenceTokensPreferSelf(ActionOutputReferenceTokenNormalizer.ExpandCurrentActionAnchors(tokens));
     }
 

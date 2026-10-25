@@ -47,7 +47,19 @@ public partial class TextOutputScriptEditorDialog : Window
             Owner = this
         };
 
-        return dialog.ShowDialog() == true ? dialog.SelectedValue : null;
+        if (dialog.ShowDialog() != true)
+        {
+            return null;
+        }
+
+        var selectedReference = dialog.SelectedReference;
+        if (!string.IsNullOrWhiteSpace(selectedReference?.AnchorKey)
+            && !string.IsNullOrWhiteSpace(selectedReference.PropertyName))
+        {
+            return $"{selectedReference.AnchorKey}.{selectedReference.PropertyName}";
+        }
+
+        return dialog.SelectedValue;
     }
 
     private static IReadOnlyList<AvailableVariableGroup> BuildAvailableVariableGroups(IEnumerable<string> referenceTokens)

@@ -3,6 +3,7 @@ using StoryboardDesigner.App.Models.Enums;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.Validation.Rules.Objects;
 using StoryboardDesigner.App.Views;
+using StoryboardDesigner.App.ViewModels;
 using Storyboard.Shared.DesignerContracts;
 using System.Reflection;
 using System.Windows;
@@ -79,7 +80,7 @@ public sealed class ParticleEffectAuthoringPersistenceTests
                         Binding = new ProjectGamePropertySourceReferenceDto
                         {
                             AnchorKey = "currentPhase",
-                            PropertyName = "EffectiveWindSpeed"
+                            PropertyName = "WindSpeed"
                         }
                     }]
                 };
@@ -90,8 +91,8 @@ public sealed class ParticleEffectAuthoringPersistenceTests
                 var row = rows.Single(item => item.Children.OfType<TextBlock>().Single().Text.StartsWith("Emission rate", StringComparison.OrdinalIgnoreCase));
                 Assert.Empty(row.Children.OfType<TextBox>().Single().Text);
                 Assert.Contains(row.Children.OfType<Button>(), button =>
-                    button.Content?.ToString() == "currentPhase.EffectiveWindSpeed"
-                    && (button.ToolTip?.ToString() ?? string.Empty).Contains("Bound to currentPhase.EffectiveWindSpeed", StringComparison.Ordinal));
+                    button.Content?.ToString() == "currentPhase.WindSpeed"
+                    && (button.ToolTip?.ToString() ?? string.Empty).Contains("Bound to currentPhase.WindSpeed", StringComparison.Ordinal));
                 dialog.Close();
             }
             catch (Exception ex)
@@ -104,29 +105,25 @@ public sealed class ParticleEffectAuthoringPersistenceTests
     }
 
     [Fact]
-    public void StandardVariableChooser_ReturnsDirectWellKnownAnchorReference()
+    public void StandardVariableChooser_OffersAndReturnsGeneratedWindSpeedButNotSyntheticEffectiveWindSpeed()
     {
         Exception? failure = null;
         StaTestThreadRunner.StartAndWait(new Thread(() =>
         {
             try
             {
-                var choice = new StoryboardDesigner.App.ViewModels.GamePropertyChoiceItem
-                {
-                    Value = "currentPhase.EffectiveWindSpeed",
-                    ScopePath = "Current phase",
-                    OwnerVariable = "Current phase.EffectiveWindSpeed",
-                    Scope = PropertyResolutionScope.PhasePage,
-                    ValueRestriction = GamePropertyValueRestriction.Numeric,
-                    PropertyName = "EffectiveWindSpeed",
-                    EligibleAnchors = ["currentPhase"]
-                };
+                var (project, page) = CreateGeneratedWindPhaseProject();
+                var choices = MainWindowViewModel.BuildComputedPropertyChoices(project, page);
+                Assert.DoesNotContain(choices, choice => choice.PropertyName == "EffectiveWindSpeed");
+                var choice = Assert.Single(choices, item => item.OwnerId == page.Id && item.PropertyName == "WindSpeed");
+                Assert.Contains("currentPhase", choice.EligibleAnchors);
                 var context = new GamePropertyPickerContext(
-                    new ProjectModel(),
-                    null,
+                    project,
+                    page,
                     PropertyResolutionScope.PhasePage,
-                    _ => [choice],
+                    _ => choices,
                     AllowReferenceModes: true,
+                    RelativeOwnerId: page.Id,
                     AnchorKeys: ["currentPhase"]);
                 var picker = new VariableChooserDialog(context, "Choose variable");
                 var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
@@ -139,9 +136,9 @@ public sealed class ParticleEffectAuthoringPersistenceTests
                         .GetField("ReferenceModeComboBox", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(picker)!;
                     var anchor = (ComboBox)typeof(VariableChooserDialog)
                         .GetField("AnchorComboBox", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(picker)!;
-                    grid.SelectedItem = choice;
                     mode.SelectedIndex = 2;
                     anchor.SelectedItem = "currentPhase";
+                    grid.SelectedItem = choice;
                     typeof(VariableChooserDialog)
                         .GetMethod("Select_OnClick", BindingFlags.Instance | BindingFlags.NonPublic)!
                         .Invoke(picker, [picker, new RoutedEventArgs(Button.ClickEvent)]);
@@ -149,16 +146,54 @@ public sealed class ParticleEffectAuthoringPersistenceTests
                 timer.Start();
                 Assert.True(picker.ShowDialog());
                 Assert.Equal("currentPhase", picker.SelectedReference?.AnchorKey);
-                Assert.Equal("EffectiveWindSpeed", picker.SelectedReference?.PropertyName);
+                Assert.Equal("WindSpeed", picker.SelectedReference?.PropertyName);
                 Assert.Null(picker.SelectedReference?.OwnerId);
             }
             catch (Exception ex)
             {
                 failure = ex;
             }
-        }), nameof(StandardVariableChooser_ReturnsDirectWellKnownAnchorReference));
+        }), nameof(StandardVariableChooser_OffersAndReturnsGeneratedWindSpeedButNotSyntheticEffectiveWindSpeed));
 
         if (failure is not null) throw failure;
+    }
+
+    [Fact]
+    public void Fx001_ResolvesActualGeneratedPhasePropertyAndRejectsAbsentSyntheticProperty()
+    {
+        var (project, _) = CreateGeneratedWindPhaseProject();
+        var catalog = new ParticleEffectAuthoringCatalogService();
+        var recipe = catalog.GetRecipes(ParticleEffectAuthoringContext.Environmental).First(option =>
+            catalog.GetControls(option.EffectKey).Any(control =>
+                string.Equals(control.Kind, "number", StringComparison.OrdinalIgnoreCase)));
+        var numberControl = catalog.GetControls(recipe.EffectKey).First(control =>
+            string.Equals(control.Kind, "number", StringComparison.OrdinalIgnoreCase));
+
+        project.EnvironmentalEffects.Add(new EnvironmentalEffectDefinition
+        {
+            Name = "Wind source parity",
+            EffectKey = recipe.EffectKey,
+            Settings = [new ParticleEffectControlSettingDto
+            {
+                ControlKey = numberControl.Name,
+                Binding = new ProjectGamePropertySourceReferenceDto
+                {
+                    AnchorKey = "currentPhase",
+                    PropertyName = "WindSpeed"
+                }
+            }]
+        });
+        var rule = new ParticleEffectAuthoringValidationRule(catalog);
+        var validDescriptions = rule.Evaluate(ValidationRuleTestContext.Create(project))
+            .Select(issue => issue.Description)
+            .ToList();
+        Assert.DoesNotContain(validDescriptions, description => description.Contains("cannot resolve variable 'WindSpeed'", StringComparison.OrdinalIgnoreCase));
+
+        project.EnvironmentalEffects[0].Settings[0].Binding!.PropertyName = "EffectiveWindSpeed";
+        var invalidDescriptions = rule.Evaluate(ValidationRuleTestContext.Create(project))
+            .Select(issue => issue.Description)
+            .ToList();
+        Assert.Contains(invalidDescriptions, description => description.Contains("cannot resolve variable 'EffectiveWindSpeed'", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -303,7 +338,7 @@ public sealed class ParticleEffectAuthoringPersistenceTests
             var directSource = new ProjectGamePropertySourceReferenceDto
             {
                 AnchorKey = "currentPhase",
-                PropertyName = "EffectiveWindSpeed"
+                PropertyName = "WindSpeed"
             };
             var enabledSource = new ProjectGamePropertySourceReferenceDto
             {
@@ -386,6 +421,7 @@ public sealed class ParticleEffectAuthoringPersistenceTests
             var project = new ProjectModel
             {
                 Name = "ParticleAuthoringRoundTrip",
+                PhaseBooks = [CreateGeneratedWindPhaseProject().Project.PhaseBooks.Single()],
                 GlobalVariables =
                 [
                     new GamePropertyDefinition { Name = "isNight", DefaultValue = "true", ValueRestriction = GamePropertyValueRestriction.TrueFalse },
@@ -412,7 +448,7 @@ public sealed class ParticleEffectAuthoringPersistenceTests
             Assert.Equal(0.65d, ReadNumber(loadedSettings["Density"].Value));
             Assert.Equal("densitySource", loadedSettings["Density"].Binding!.PropertyName);
             Assert.Equal("currentPhase", loadedSettings["EmissionRateMultiplier"].Binding!.AnchorKey);
-            Assert.Equal("EffectiveWindSpeed", loadedSettings["EmissionRateMultiplier"].Binding!.PropertyName);
+            Assert.Equal("WindSpeed", loadedSettings["EmissionRateMultiplier"].Binding!.PropertyName);
             Assert.Null(loadedSettings["EmissionRateMultiplier"].Value);
             Assert.Equal("#AA3300", ReadText(loadedSettings["Colors.Primary"].Value));
             Assert.Equal("#1166CC", ReadText(loadedSettings["Colors.Secondary"].Value));
@@ -449,6 +485,24 @@ public sealed class ParticleEffectAuthoringPersistenceTests
         {
             Directory.Delete(tempRoot, recursive: true);
         }
+    }
+
+    private static (ProjectModel Project, PhaseNode Page) CreateGeneratedWindPhaseProject()
+    {
+        var book = new PhaseNode { Tier = PhaseTier.Book, PhaseKey = "Book", DisplayName = "Book" };
+        var chapter = new PhaseNode { Tier = PhaseTier.Chapter, PhaseKey = "Chapter", DisplayName = "Chapter" };
+        var page = new PhaseNode
+        {
+            Tier = PhaseTier.Page,
+            PhaseKey = "Page",
+            DisplayName = "Page",
+            WindSpeed = 18,
+            WindDirection = 90
+        };
+        Assert.True(book.AddChildScope(chapter));
+        Assert.True(chapter.AddChildScope(page));
+        var project = new ProjectModel { PhaseBooks = [book] };
+        return (project, page);
     }
 
     private static double ReadNumber(object? value) => value switch
