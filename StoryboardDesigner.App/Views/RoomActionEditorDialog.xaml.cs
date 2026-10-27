@@ -119,6 +119,7 @@ public partial class RoomActionEditorDialog : Window
     private int? _echoFunctionCompletionStart;
     private int? _variableFunctionCompletionStart;
     private bool _isInitializingCompositeRecipeSelection;
+    private bool _isInitializingPhasePageSelection;
     private static readonly Regex NumericPartialPattern = new(@"^-?(\d+)?(\.\d*)?$", RegexOptions.Compiled);
     private static readonly Regex QuantitySuffixPattern = new(@"^(?<name>.+?)\s+x(?<qty>\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly IReadOnlyList<string> EchoReturnSuggestions =
@@ -528,6 +529,7 @@ public partial class RoomActionEditorDialog : Window
 
         _workingCopy.PropertyChanged += WorkingCopy_OnPropertyChanged;
         DataContext = _workingCopy;
+        RefreshPhasePageChoiceSelection();
         RefreshCommandContextEditorFromPayload();
         CompositeTargetObjectIdTextBox.Text = _workingCopy.CompositeTargetObjectId?.ToString() ?? string.Empty;
         CompositeRequiredPartIdsTextBox.Text = string.Join(Environment.NewLine, _workingCopy.CompositeRequiredPartObjectIds.Select(id => id.ToString()));
@@ -632,9 +634,63 @@ public partial class RoomActionEditorDialog : Window
         }
     }
 
+    private void RefreshPhasePageChoiceSelection()
+    {
+        if (SetPhasePageComboBox is null || _workingCopy is null)
+        {
+            return;
+        }
+
+        var key = ActionPayloadAccessors.GetSetPhaseKey(_workingCopy);
+        var choices = PhasePageTargetChoiceService.BuildEditorChoices(_pickerContext.Project, key);
+        var selected = choices.FirstOrDefault(static choice => choice.IsStoredInvalid)
+            ?? choices.SingleOrDefault(choice => choice.IsKeyUnique && string.Equals(choice.PhaseKey, key, StringComparison.Ordinal));
+
+        _isInitializingPhasePageSelection = true;
+        SetPhasePageComboBox.ItemsSource = choices;
+        SetPhasePageComboBox.SelectedItem = selected;
+        _isInitializingPhasePageSelection = false;
+
+        SetPhaseTargetStatusTextBlock.Text = selected?.IsStoredInvalid == true
+            ? "This stored phaseKey does not resolve to exactly one Page. It is preserved until you choose another Page or correct the phase definition."
+            : selected?.IsKeyUnique == false
+                ? "This Page's phaseKey is not unique. Resolve the duplicate key before using this action."
+                : selected is null
+                    ? "Choose a Page. The action stores the Page's phaseKey."
+                    : "The selected Page is stored by its phaseKey.";
+        SetPhaseTargetStatusTextBlock.Foreground = selected?.IsStoredInvalid == true || selected?.IsKeyUnique == false
+            ? System.Windows.Media.Brushes.DarkOrange
+            : System.Windows.Media.Brushes.Gray;
+    }
+
+    private void SetPhasePageComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isInitializingPhasePageSelection)
+        {
+            return;
+        }
+
+        if (SetPhasePageComboBox.SelectedItem is PhasePageTargetChoice choice)
+        {
+            if (choice.IsStoredInvalid)
+            {
+                return;
+            }
+
+            ActionPayloadAccessors.SetSetPhaseKey(_workingCopy, choice.PhaseKey);
+        }
+        else
+        {
+            ActionPayloadAccessors.SetSetPhaseKey(_workingCopy, string.Empty);
+        }
+
+        RefreshPhasePageChoiceSelection();
+    }
+
     private void RefreshVisibleEditorPanel()
     {
         EchoTextEditorPanel.Visibility = Visibility.Collapsed;
+        SetPhaseEditorPanel.Visibility = Visibility.Collapsed;
         FlagEditorPanel.Visibility = Visibility.Collapsed;
         CheckCommandContextEditorPanel.Visibility = Visibility.Collapsed;
         NavigateDirectionPreFlightCheckEditorPanel.Visibility = Visibility.Collapsed;
@@ -676,6 +732,10 @@ public partial class RoomActionEditorDialog : Window
             case CommandActionType.SetGameProperty:
                 VariableEditorPanel.Visibility = Visibility.Visible;
                 RefreshVariableValueEditorMode();
+                break;
+            case CommandActionType.SetPhase:
+                SetPhaseEditorPanel.Visibility = Visibility.Visible;
+                RefreshPhasePageChoiceSelection();
                 break;
             case CommandActionType.PutObjectInContainer:
             case CommandActionType.RemoveObjectFromContainer:

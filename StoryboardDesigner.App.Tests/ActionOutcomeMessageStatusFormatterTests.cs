@@ -21,13 +21,14 @@ public sealed class ActionOutcomeMessageStatusFormatterTests
 
         var statuses = ActionOutcomeMessageStatusFormatter.BuildStatuses(action);
 
-        Assert.Equal(3, statuses.Count);
+        Assert.Equal(4, statuses.Count);
         Assert.Contains(statuses, status => status.Token == "Success" && !status.IsDefined && status.Script == string.Empty);
+        Assert.Contains(statuses, status => status.Token == "AlreadySet" && !status.IsDefined);
         Assert.Contains(statuses, status => status.Token == "Failure" && status.IsDefined && status.Script == "mapped failure");
         Assert.Contains(statuses, status => status.Token == "SetFailed" && !status.IsDefined);
 
         var compact = ActionOutcomeMessageStatusFormatter.BuildCompactStatusText(action);
-        Assert.Equal("(echo scripts defined: 1/3, undefined: 2)", compact);
+        Assert.Equal("(echo scripts defined: 1/4, undefined: 3)", compact);
     }
 
     [Fact]

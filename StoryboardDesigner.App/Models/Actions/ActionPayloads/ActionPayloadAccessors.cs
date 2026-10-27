@@ -167,6 +167,17 @@ public static class ActionPayloadAccessors
         }
     }
 
+    public static string GetSetPhaseKey(CommandAction action) =>
+        action.Payload is SetPhasePayload payload ? payload.PhaseKey : string.Empty;
+
+    public static void SetSetPhaseKey(CommandAction action, string phaseKey)
+    {
+        if (action.ActionType == CommandActionType.SetPhase)
+        {
+            action.Payload = new SetPhasePayload(phaseKey?.Trim() ?? string.Empty);
+        }
+    }
+
     public static ContainerTransferPayload GetContainerTransfer(CommandAction action)
     {
         if (action.Payload is ContainerTransferPayload payload)

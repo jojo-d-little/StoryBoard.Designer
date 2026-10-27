@@ -93,6 +93,18 @@ public sealed class RoomDesignerRenderOrderItemViewModel : ViewModelBase
 
     public bool IsSoundOnly => PreviewObject?.IsSoundOnly ?? false;
 
+    public bool HasPointLightMarker => PreviewObject?.HasPointLightMarker ?? false;
+
+    public double PointLightMarkerLeft => PreviewObject?.PointLightMarkerLeft ?? 0;
+
+    public double PointLightMarkerTop => PreviewObject?.PointLightMarkerTop ?? 0;
+
+    public bool HasParticleEffectMarker => PreviewObject?.HasParticleEffectMarker ?? false;
+
+    public double ParticleEffectMarkerLeft => PreviewObject?.ParticleEffectMarkerLeft ?? 0;
+
+    public double ParticleEffectMarkerTop => PreviewObject?.ParticleEffectMarkerTop ?? 0;
+
     public bool IsSelected => PreviewObject?.IsSelected ?? false;
 
     public bool IsRenderable => IsSpawnPoint || (PreviewObject?.IsRenderable ?? false);
@@ -152,6 +164,12 @@ public sealed class RoomDesignerRenderOrderItemViewModel : ViewModelBase
         OnPropertyChanged(nameof(ThumbnailSource));
         OnPropertyChanged(nameof(IsLightOnly));
         OnPropertyChanged(nameof(IsSoundOnly));
+        OnPropertyChanged(nameof(HasPointLightMarker));
+        OnPropertyChanged(nameof(PointLightMarkerLeft));
+        OnPropertyChanged(nameof(PointLightMarkerTop));
+        OnPropertyChanged(nameof(HasParticleEffectMarker));
+        OnPropertyChanged(nameof(ParticleEffectMarkerLeft));
+        OnPropertyChanged(nameof(ParticleEffectMarkerTop));
         OnPropertyChanged(nameof(IsSelected));
         OnPropertyChanged(nameof(IsRenderable));
         OnPropertyChanged(nameof(IncludeInPreview));

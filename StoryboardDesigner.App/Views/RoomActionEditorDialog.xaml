@@ -505,6 +505,27 @@
                     </Grid>
                 </Grid>
 
+                <Grid x:Name="SetPhaseEditorPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="120" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Destination Page" />
+                    <ComboBox x:Name="SetPhasePageComboBox"
+                              Grid.Row="0" Grid.Column="1" Margin="0,0,0,10"
+                              DisplayMemberPath="DisplayName"
+                              SelectionChanged="SetPhasePageComboBox_OnSelectionChanged"
+                              ToolTip="Choose an existing Page. The action stores its phaseKey." />
+                    <TextBlock x:Name="SetPhaseTargetStatusTextBlock"
+                               Grid.Row="1" Grid.Column="1"
+                               Foreground="#B45309" TextWrapping="Wrap" />
+                </Grid>
+
                 <Grid x:Name="PutObjectInContainerEditorPanel" Visibility="Collapsed">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />

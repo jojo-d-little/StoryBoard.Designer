@@ -286,11 +286,95 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
 
     public bool IsLightOnly => ThumbnailSource is null && _effectiveDefinitionOwnedSource.PointLight is not null;
 
+    public bool IsParticleEffectOnly => ThumbnailSource is null
+        && _effectiveDefinitionOwnedSource.PointLight is null
+        && _effectiveDefinitionOwnedSource.ParticleEffect is not null;
+
+    public bool HasPointLightMarker => TryResolveConfiguredPoint(
+        _effectiveDefinitionOwnedSource.PointLight?.OffsetXPx,
+        _effectiveDefinitionOwnedSource.PointLight?.OffsetYPx,
+        out _,
+        out _);
+
+    public double PointLightMarkerLeft => TryResolveConfiguredPoint(
+        _effectiveDefinitionOwnedSource.PointLight?.OffsetXPx,
+        _effectiveDefinitionOwnedSource.PointLight?.OffsetYPx,
+        out var x,
+        out _) ? x : 0;
+
+    public double PointLightMarkerTop => TryResolveConfiguredPoint(
+        _effectiveDefinitionOwnedSource.PointLight?.OffsetXPx,
+        _effectiveDefinitionOwnedSource.PointLight?.OffsetYPx,
+        out _,
+        out var y) ? y : 0;
+
+    public bool HasParticleEffectMarker => TryResolveConfiguredPoint(
+        _effectiveDefinitionOwnedSource.ParticleEffect?.OffsetXPx,
+        _effectiveDefinitionOwnedSource.ParticleEffect?.OffsetYPx,
+        out _,
+        out _);
+
+    public double ParticleEffectMarkerLeft => TryResolveConfiguredPoint(
+        _effectiveDefinitionOwnedSource.ParticleEffect?.OffsetXPx,
+        _effectiveDefinitionOwnedSource.ParticleEffect?.OffsetYPx,
+        out var x,
+        out _) ? x : 0;
+
+    public double ParticleEffectMarkerTop => TryResolveConfiguredPoint(
+        _effectiveDefinitionOwnedSource.ParticleEffect?.OffsetXPx,
+        _effectiveDefinitionOwnedSource.ParticleEffect?.OffsetYPx,
+        out _,
+        out var y) ? y : 0;
+
+    private bool TryResolveConfiguredPoint(double? configuredX, double? configuredY, out double x, out double y)
+    {
+        x = 0;
+        y = 0;
+        var baseWidth = UnrotatedFootprintWidthPixels;
+        var baseHeight = UnrotatedFootprintHeightPixels;
+        if (configuredX is not double pointX
+            || configuredY is not double pointY
+            || !double.IsFinite(pointX)
+            || !double.IsFinite(pointY)
+            || pointX < 0
+            || pointY < 0
+            || pointX > baseWidth
+            || pointY > baseHeight)
+        {
+            return false;
+        }
+
+        // Point offsets are authored from the unrotated footprint's top-left.
+        // Rotate that local position with the object so its marker follows the
+        // same quarter-turns used by the room placement preview.
+        switch ((int)Math.Round(NormalizeDegrees(RoomRotationDegrees) / 90d) % 4)
+        {
+            case 1:
+                x = baseHeight - pointY;
+                y = pointX;
+                break;
+            case 2:
+                x = baseWidth - pointX;
+                y = baseHeight - pointY;
+                break;
+            case 3:
+                x = pointY;
+                y = baseWidth - pointX;
+                break;
+            default:
+                x = pointX;
+                y = pointY;
+                break;
+        }
+
+        return true;
+    }
+
     public bool IsSoundOnly => ThumbnailSource is null
         && _effectiveDefinitionOwnedSource.PointLight is null
         && _effectiveDefinitionOwnedSource.SoundEmitters.Count > 0;
 
-    public bool IsRenderable => IncludeInPreview && (ThumbnailSource is not null || IsLightOnly || IsSoundOnly);
+    public bool IsRenderable => IncludeInPreview && (ThumbnailSource is not null || IsLightOnly || IsSoundOnly || IsParticleEffectOnly);
 
     public BitmapImage? ThumbnailSource => LoadThumbnail(_effectiveDefinitionOwnedSource.ResolveImagePath(SelectedPreviewVariantName));
 
@@ -369,9 +453,17 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
                 RaiseImageDerivedPropertyChanges();
                 break;
             case nameof(GameObject.PointLight):
+            case nameof(GameObject.ParticleEffect):
                 OnPropertyChanged(nameof(IsLightOnly));
+                OnPropertyChanged(nameof(IsParticleEffectOnly));
                 OnPropertyChanged(nameof(IsSoundOnly));
                 OnPropertyChanged(nameof(IsRenderable));
+                OnPropertyChanged(nameof(HasPointLightMarker));
+                OnPropertyChanged(nameof(PointLightMarkerLeft));
+                OnPropertyChanged(nameof(PointLightMarkerTop));
+                OnPropertyChanged(nameof(HasParticleEffectMarker));
+                OnPropertyChanged(nameof(ParticleEffectMarkerLeft));
+                OnPropertyChanged(nameof(ParticleEffectMarkerTop));
                 break;
             case nameof(GameObject.FootprintWidthCells):
             case nameof(GameObject.FootprintHeightCells):
@@ -380,6 +472,12 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
                 OnPropertyChanged(nameof(OrientedFootprintHeightCells));
                 OnPropertyChanged(nameof(FootprintWidthPixels));
                 OnPropertyChanged(nameof(FootprintHeightPixels));
+                OnPropertyChanged(nameof(HasPointLightMarker));
+                OnPropertyChanged(nameof(PointLightMarkerLeft));
+                OnPropertyChanged(nameof(PointLightMarkerTop));
+                OnPropertyChanged(nameof(HasParticleEffectMarker));
+                OnPropertyChanged(nameof(ParticleEffectMarkerLeft));
+                OnPropertyChanged(nameof(ParticleEffectMarkerTop));
                 OnPropertyChanged(nameof(UnrotatedFootprintWidthPixels));
                 OnPropertyChanged(nameof(UnrotatedFootprintHeightPixels));
                 OnPropertyChanged(nameof(ImageLocalAlignmentOffsetX));
@@ -407,6 +505,12 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
                 OnPropertyChanged(nameof(OrientedFootprintHeightCells));
                 OnPropertyChanged(nameof(FootprintWidthPixels));
                 OnPropertyChanged(nameof(FootprintHeightPixels));
+                OnPropertyChanged(nameof(HasPointLightMarker));
+                OnPropertyChanged(nameof(PointLightMarkerLeft));
+                OnPropertyChanged(nameof(PointLightMarkerTop));
+                OnPropertyChanged(nameof(HasParticleEffectMarker));
+                OnPropertyChanged(nameof(ParticleEffectMarkerLeft));
+                OnPropertyChanged(nameof(ParticleEffectMarkerTop));
                 OnPropertyChanged(nameof(UnrotatedFootprintWidthPixels));
                 OnPropertyChanged(nameof(UnrotatedFootprintHeightPixels));
                 OnPropertyChanged(nameof(ImageLocalAlignmentOffsetX));
@@ -448,6 +552,7 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
             || string.Equals(e.PropertyName, nameof(GameObject.ImageVariants), StringComparison.Ordinal)
             || string.Equals(e.PropertyName, nameof(GameObject.ImageVariantChooserScript), StringComparison.Ordinal)
             || string.Equals(e.PropertyName, nameof(GameObject.PointLight), StringComparison.Ordinal)
+            || string.Equals(e.PropertyName, nameof(GameObject.ParticleEffect), StringComparison.Ordinal)
             || string.Equals(e.PropertyName, nameof(GameObject.IncludeInPreview), StringComparison.Ordinal))
         {
             RaiseImageDerivedPropertyChanges();
@@ -620,7 +725,14 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasMultiplePreviewVariants));
         OnPropertyChanged(nameof(ThumbnailSource));
         OnPropertyChanged(nameof(IsLightOnly));
+        OnPropertyChanged(nameof(IsParticleEffectOnly));
         OnPropertyChanged(nameof(IsSoundOnly));
+        OnPropertyChanged(nameof(HasPointLightMarker));
+        OnPropertyChanged(nameof(PointLightMarkerLeft));
+        OnPropertyChanged(nameof(PointLightMarkerTop));
+        OnPropertyChanged(nameof(HasParticleEffectMarker));
+        OnPropertyChanged(nameof(ParticleEffectMarkerLeft));
+        OnPropertyChanged(nameof(ParticleEffectMarkerTop));
         OnPropertyChanged(nameof(PreviewBaseIconWidthPixels));
         OnPropertyChanged(nameof(PreviewBaseIconHeightPixels));
         OnPropertyChanged(nameof(PreviewRenderedIconWidthPixels));

@@ -44,6 +44,7 @@ public static class CommandActionSummaryPresenter
             CommandActionType.SetFlag => $"{ActionPayloadAccessors.GetSetFlagName(action)} = {ActionPayloadAccessors.GetSetFlagValue(action)}",
             CommandActionType.CheckGameProperty => $"{action.FlagTargetDisplayName} == {ActionPayloadAccessors.GetCheckExpectedValue(action)}",
             CommandActionType.SetGameProperty => $"{action.GamePropertyTargetDisplayName} = {ActionPayloadAccessors.GetSetPropertyValue(action)}",
+            CommandActionType.SetPhase => BuildSetPhaseSummary(action),
             CommandActionType.NavigateDirection => "Navigate via traversal",
             CommandActionType.NavigateDirectionPreFlightCheck => "Check requested direction is traversable",
             CommandActionType.CheckCommandContext => BuildCommandContextSummary(action),
@@ -307,6 +308,14 @@ public static class CommandActionSummaryPresenter
         return procedureId.HasValue
             ? $"Invoke procedure -> {procedureId.Value:N}"
             : "Invoke procedure -> (procedure not set)";
+    }
+
+    private static string BuildSetPhaseSummary(CommandAction action)
+    {
+        var phaseKey = ActionPayloadAccessors.GetSetPhaseKey(action);
+        return string.IsNullOrWhiteSpace(phaseKey)
+            ? "Set phase -> (destination Page not set)"
+            : $"Set phase -> {phaseKey}";
     }
 
     private static string BuildSequenceSummary(CommandAction action, bool start)

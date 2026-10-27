@@ -225,6 +225,25 @@ public sealed partial class CommandAction
         }
     }
 
+    public string PhaseKey
+    {
+        get => _payload is SetPhasePayload payload ? payload.PhaseKey : string.Empty;
+        set
+        {
+            var normalized = value?.Trim() ?? string.Empty;
+            if (_payload is not SetPhasePayload payload
+                || string.Equals(payload.PhaseKey, normalized, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _payload = payload with { PhaseKey = normalized };
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(Payload));
+            RaiseSummaryChanged();
+        }
+    }
+
     public string TargetContainerId
     {
         get => _containerFacet.TargetContainerId;

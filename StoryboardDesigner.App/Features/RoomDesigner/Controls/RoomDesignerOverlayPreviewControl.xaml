@@ -227,6 +227,50 @@
                                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                                         </Grid>
                                     </Canvas>
+                                    <Grid Width="22" Height="22"
+                                          Canvas.Left="{Binding PointLightMarkerLeft}"
+                                          Canvas.Top="{Binding PointLightMarkerTop}"
+                                          ToolTip="Point light position"
+                                          IsHitTestVisible="False">
+                                        <Grid.RenderTransform>
+                                            <TranslateTransform X="-11" Y="-11" />
+                                        </Grid.RenderTransform>
+                                        <Grid.Style>
+                                            <Style TargetType="Grid">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasPointLightMarker}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Grid.Style>
+                                        <Ellipse Fill="#E6FEF3C7" Stroke="#B45309" StrokeThickness="1.5" />
+                                        <Ellipse Width="6" Height="6" Fill="#F59E0B" Stroke="#78350F" StrokeThickness="1" />
+                                    </Grid>
+                                    <Grid Width="22" Height="22"
+                                          Canvas.Left="{Binding ParticleEffectMarkerLeft}"
+                                          Canvas.Top="{Binding ParticleEffectMarkerTop}"
+                                          ToolTip="Particle effect position"
+                                          IsHitTestVisible="False">
+                                        <Grid.RenderTransform>
+                                            <TranslateTransform X="-11" Y="-11" />
+                                        </Grid.RenderTransform>
+                                        <Grid.Style>
+                                            <Style TargetType="Grid">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasParticleEffectMarker}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Grid.Style>
+                                        <Ellipse Fill="#E6EDE9FE" Stroke="#7C3AED" StrokeThickness="1.5" />
+                                        <TextBlock Text="☁" FontFamily="Segoe UI Symbol" FontSize="15" FontWeight="Bold"
+                                                   Foreground="#6D28D9" TextAlignment="Center"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Grid>
                                     <Ellipse Width="24" Height="24"
                                              Canvas.Left="0" Canvas.Top="0"
                                              ToolTip="{Binding ToolTipText}"

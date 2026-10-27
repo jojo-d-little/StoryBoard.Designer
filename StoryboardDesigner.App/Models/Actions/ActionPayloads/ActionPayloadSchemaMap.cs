@@ -14,6 +14,7 @@ public static class ActionPayloadSchemaMap
             [CommandActionType.CheckGameProperty] = new(CommandActionType.CheckGameProperty, typeof(CheckGamePropertyPayload), [nameof(CommandAction.FlagName), nameof(CommandAction.FlagValue)]),
             [CommandActionType.CheckCommandContext] = new(CommandActionType.CheckCommandContext, typeof(CheckCommandContextPayload), []),
             [CommandActionType.SetGameProperty] = new(CommandActionType.SetGameProperty, typeof(SetGamePropertyPayload), [nameof(CommandAction.GamePropertyName), nameof(CommandAction.GamePropertyValue)]),
+            [CommandActionType.SetPhase] = new(CommandActionType.SetPhase, typeof(SetPhasePayload), [nameof(CommandAction.PhaseKey)]),
             [CommandActionType.PutObjectInContainer] = new(CommandActionType.PutObjectInContainer, typeof(ContainerTransferPayload), [nameof(CommandAction.TargetContainerId)]),
             [CommandActionType.RemoveObjectFromContainer] = new(CommandActionType.RemoveObjectFromContainer, typeof(ContainerTransferPayload), [nameof(CommandAction.TargetContainerId)]),
             [CommandActionType.MoveRoomObjectOnGrid] = new(CommandActionType.MoveRoomObjectOnGrid, typeof(MoveRoomObjectOnGridPayload), [nameof(CommandAction.MoveDirectionToken), nameof(CommandAction.MoveDistanceInCells), nameof(CommandAction.MoveAllowPartialMove), nameof(CommandAction.MoveAllowJumpOver), nameof(CommandAction.MoveMovementEffectKey), nameof(CommandAction.MoveTravelVisualizationMode), nameof(CommandAction.MoveTargetObjectId)]),
