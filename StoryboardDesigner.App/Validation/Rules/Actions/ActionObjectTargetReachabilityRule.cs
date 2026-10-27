@@ -90,6 +90,7 @@ public sealed class ActionObjectTargetReachabilityRule : IValidationRule
             CommandActionType.RotateRoomObjectOnGrid => action.RotateTargetObjectId,
             CommandActionType.AddObjectPresentationCue or CommandActionType.RemoveObjectPresentationCue or CommandActionType.ClearObjectPresentationCues
                 => action.ObjectPresentationCueObjectId,
+            CommandActionType.TriggerParticleEffect => action.TriggerParticleEffectObjectId,
             _ => null
         };
     }

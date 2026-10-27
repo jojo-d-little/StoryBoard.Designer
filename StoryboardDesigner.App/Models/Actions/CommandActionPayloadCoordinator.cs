@@ -41,6 +41,11 @@ internal static class CommandActionPayloadCoordinator
         nameof(CommandAction.PhaseKey)
     ];
 
+    private static readonly string[] TriggerParticleEffectProjectionProperties =
+    [
+        nameof(CommandAction.TriggerParticleEffectObjectId)
+    ];
+
     private static readonly string[] ContainerProjectionProperties =
     [
         nameof(CommandAction.TargetContainerId)
@@ -173,6 +178,7 @@ internal static class CommandActionPayloadCoordinator
                 null),
             CommandActionType.SetGameProperty => new SetGamePropertyPayload(string.Empty, string.Empty),
             CommandActionType.SetPhase => new SetPhasePayload(string.Empty),
+            CommandActionType.TriggerParticleEffect => new TriggerParticleEffectPayload(null),
             CommandActionType.PutObjectInContainer => new ContainerTransferPayload(string.Empty),
             CommandActionType.RemoveObjectFromContainer => new ContainerTransferPayload(string.Empty),
             CommandActionType.MoveRoomObjectOnGrid => new MoveRoomObjectOnGridPayload(),
@@ -229,6 +235,7 @@ internal static class CommandActionPayloadCoordinator
             CheckCommandContextPayload check => new CheckCommandContextPayload(check.Field, check.ExpectedBoolean, check.ExpectedDirection),
             SetGamePropertyPayload set => new SetGamePropertyPayload(set.PropertyName, set.PropertyValue, set.GamePropertyReference),
             SetPhasePayload setPhase => new SetPhasePayload(setPhase.PhaseKey),
+            TriggerParticleEffectPayload triggerParticleEffect => new TriggerParticleEffectPayload(triggerParticleEffect.ObjectId),
             ContainerTransferPayload transfer => new ContainerTransferPayload(transfer.TargetContainerId),
             MoveRoomObjectOnGridPayload move => new MoveRoomObjectOnGridPayload(
                 move.DirectionToken,
@@ -590,6 +597,7 @@ internal static class CommandActionPayloadCoordinator
             CheckCommandContextPayload => [],
             SetGamePropertyPayload => SetProjectionProperties,
             SetPhasePayload => SetPhaseProjectionProperties,
+            TriggerParticleEffectPayload => TriggerParticleEffectProjectionProperties,
             ContainerTransferPayload => ContainerProjectionProperties,
             MoveRoomObjectOnGridPayload => MoveProjectionProperties,
             MoveRoomObjectByPointsPayload => MoveByPointsProjectionProperties,

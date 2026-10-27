@@ -244,6 +244,22 @@ public sealed partial class CommandAction
         }
     }
 
+    /// <summary>Gets or sets the object whose attached particle effect this action triggers.</summary>
+    public Guid? TriggerParticleEffectObjectId
+    {
+        get => _payload is TriggerParticleEffectPayload payload ? payload.ObjectId : null;
+        set
+        {
+            if (_payload is not TriggerParticleEffectPayload payload || payload.ObjectId == value)
+            {
+                return;
+            }
+
+            _payload = payload with { ObjectId = value };
+            OnPropertyChanged();
+        }
+    }
+
     public string TargetContainerId
     {
         get => _containerFacet.TargetContainerId;

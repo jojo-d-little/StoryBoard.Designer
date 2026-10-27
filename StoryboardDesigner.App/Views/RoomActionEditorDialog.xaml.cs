@@ -235,6 +235,7 @@ public partial class RoomActionEditorDialog : Window
         var sourceClearSelectionsPayload = ActionPayloadAccessors.GetClearRoomObjectSelectionsPayload(sourceAction);
         var sourceSynonymTargetActionId = ActionPayloadAccessors.GetSynonymTargetActionId(sourceAction);
         var sourceMaterializeSourceObjectId = ActionPayloadAccessors.GetMaterializeSourceObjectId(sourceAction);
+        var sourceTriggerParticleEffectObjectId = ActionPayloadAccessors.GetTriggerParticleEffectObjectId(sourceAction);
         var sourceProcedureId = ActionPayloadAccessors.GetProcedureId(sourceAction);
         var sourceStartTimerKey = ActionPayloadAccessors.GetStartTimerKey(sourceAction);
         var sourceStartTimerOwnerScopeKindOverride = ActionPayloadAccessors.GetStartTimerOwnerScopeKindOverride(sourceAction);
@@ -325,6 +326,7 @@ public partial class RoomActionEditorDialog : Window
             ClearActiveRoomObjectsScope = sourceClearActivePayload.ClearScope,
             SynonymTargetActionId = sourceSynonymTargetActionId,
             MaterializeSourceObjectId = sourceMaterializeSourceObjectId,
+            TriggerParticleEffectObjectId = sourceTriggerParticleEffectObjectId,
             ProcedureId = sourceProcedureId,
             CompositeTargetObjectId = sourceCompositeTargetObjectId,
             CompositeRecipeId = sourceCompositeRecipeId,
@@ -433,6 +435,7 @@ public partial class RoomActionEditorDialog : Window
         SelectByPointSelectionCueEffectKeyComboBox.ItemsSource = BuildSelectionCueEffectKeyChoices();
         ObjectPresentationCueEffectKeyComboBox.ItemsSource = _presentationEffectsCatalogService.GetObjectCueEligibleEffectKeys();
         ObjectPresentationCueObjectIdComboBox.ItemsSource = BuildPresentationCueObjectChoices();
+        TriggerParticleEffectObjectComboBox.ItemsSource = BuildTriggerParticleEffectObjectChoices();
         ClearActiveScopeComboBox.ItemsSource = ClearRoomObjectSelectionsScopeChoices.ClearActiveRoomObjects;
         MoveByPointsMovementEffectKeyComboBox.ItemsSource = configuredMovementEffects;
         MoveByPointsMovementEffectKeyComboBox.DisplayMemberPath = nameof(MovementEffectChoiceItem.DisplayName);
@@ -687,10 +690,51 @@ public partial class RoomActionEditorDialog : Window
         RefreshPhasePageChoiceSelection();
     }
 
+    private IReadOnlyList<PresentationCueTargetChoice> BuildTriggerParticleEffectObjectChoices()
+    {
+        return PresentationCueTargetChoices.Build(
+                _materializeSourceObjectChoices,
+                _defaultCurrentObjectId,
+                _workingCopy?.TriggerParticleEffectObjectId)
+            .Where(static choice => choice.ObjectId.HasValue)
+            .ToList();
+    }
+
+    private void RefreshTriggerParticleEffectTargetSelection()
+    {
+        if (TriggerParticleEffectObjectComboBox is null || _workingCopy is null)
+        {
+            return;
+        }
+
+        var targetId = ActionPayloadAccessors.GetTriggerParticleEffectObjectId(_workingCopy);
+        var choices = BuildTriggerParticleEffectObjectChoices();
+        TriggerParticleEffectObjectComboBox.ItemsSource = choices;
+        TriggerParticleEffectObjectComboBox.SelectedItem = choices.FirstOrDefault(choice => choice.ObjectId == targetId);
+        TriggerParticleEffectTargetStatusTextBlock.Text = targetId.HasValue
+            ? $"Selected object ID: {targetId.Value:D}. Its attached recipe supplies the burst effect."
+            : "Choose an object with an attached particle effect. The attached recipe supplies the burst effect.";
+    }
+
+    private void TriggerParticleEffectObjectComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_workingCopy is null)
+        {
+            return;
+        }
+
+        var selectedId = (TriggerParticleEffectObjectComboBox.SelectedItem as PresentationCueTargetChoice)?.ObjectId;
+        ActionPayloadAccessors.SetTriggerParticleEffectObjectId(_workingCopy, selectedId);
+        TriggerParticleEffectTargetStatusTextBlock.Text = selectedId.HasValue
+            ? $"Selected object ID: {selectedId.Value:D}. Its attached recipe supplies the burst effect."
+            : "Choose an object with an attached particle effect. The attached recipe supplies the burst effect.";
+    }
+
     private void RefreshVisibleEditorPanel()
     {
         EchoTextEditorPanel.Visibility = Visibility.Collapsed;
         SetPhaseEditorPanel.Visibility = Visibility.Collapsed;
+        TriggerParticleEffectEditorPanel.Visibility = Visibility.Collapsed;
         FlagEditorPanel.Visibility = Visibility.Collapsed;
         CheckCommandContextEditorPanel.Visibility = Visibility.Collapsed;
         NavigateDirectionPreFlightCheckEditorPanel.Visibility = Visibility.Collapsed;
@@ -736,6 +780,10 @@ public partial class RoomActionEditorDialog : Window
             case CommandActionType.SetPhase:
                 SetPhaseEditorPanel.Visibility = Visibility.Visible;
                 RefreshPhasePageChoiceSelection();
+                break;
+            case CommandActionType.TriggerParticleEffect:
+                TriggerParticleEffectEditorPanel.Visibility = Visibility.Visible;
+                RefreshTriggerParticleEffectTargetSelection();
                 break;
             case CommandActionType.PutObjectInContainer:
             case CommandActionType.RemoveObjectFromContainer:
@@ -1237,6 +1285,7 @@ public partial class RoomActionEditorDialog : Window
 
         _sourceAction.SynonymTargetActionId = ActionPayloadAccessors.GetSynonymTargetActionId(_workingCopy);
         ActionPayloadAccessors.SetMaterializeSourceObjectId(_sourceAction, ActionPayloadAccessors.GetMaterializeSourceObjectId(_workingCopy));
+        ActionPayloadAccessors.SetTriggerParticleEffectObjectId(_sourceAction, ActionPayloadAccessors.GetTriggerParticleEffectObjectId(_workingCopy));
         ActionPayloadAccessors.SetProcedureId(_sourceAction, ActionPayloadAccessors.GetProcedureId(_workingCopy));
         ActionPayloadAccessors.SetStartTimer(
             _sourceAction,
@@ -1313,6 +1362,7 @@ public partial class RoomActionEditorDialog : Window
         _sourceAction.OutcomeMessageMap = _workingCopy.OutcomeMessageMap;
         _sourceAction.OutcomeSoundEffectsMap = CommandAction.CloneOutcomeSoundEffectsMap(_workingCopy.OutcomeSoundEffectsMap);
         _sourceAction.ObjectPresentationCueObjectId = _workingCopy.ObjectPresentationCueObjectId;
+        _sourceAction.TriggerParticleEffectObjectId = _workingCopy.TriggerParticleEffectObjectId;
         if (_workingCopy.ActionType is CommandActionType.AddObjectPresentationCue or CommandActionType.RemoveObjectPresentationCue)
         {
             _sourceAction.ObjectPresentationCueEffectKey = _workingCopy.ObjectPresentationCueEffectKey;

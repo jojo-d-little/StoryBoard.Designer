@@ -526,6 +526,27 @@
                                Foreground="#B45309" TextWrapping="Wrap" />
                 </Grid>
 
+                <Grid x:Name="TriggerParticleEffectEditorPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Effect-bearing object" />
+                    <ComboBox x:Name="TriggerParticleEffectObjectComboBox"
+                              Grid.Row="0" Grid.Column="1" Margin="0,0,0,10"
+                              DisplayMemberPath="DisplayName"
+                              SelectionChanged="TriggerParticleEffectObjectComboBox_OnSelectionChanged"
+                              ToolTip="Choose an object with an attached particle effect. The object's attachment supplies the recipe." />
+                    <TextBlock x:Name="TriggerParticleEffectTargetStatusTextBlock"
+                               Grid.Row="1" Grid.Column="1"
+                               Foreground="#6B7280" TextWrapping="Wrap"
+                               Text="One burst is requested from the selected object's attached effect." />
+                </Grid>
+
                 <Grid x:Name="PutObjectInContainerEditorPanel" Visibility="Collapsed">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />

@@ -38,6 +38,10 @@ public sealed class ParticleEffectAuthoringCatalogService
     public IReadOnlyList<ParticleEffectRecipeOption> GetRecipes(ParticleEffectAuthoringContext context) =>
         _catalog.Value.Recipes.Where(recipe => SupportsContext(recipe, context)).ToList();
 
+    internal bool HasBurstEligibleStreams(string? effectKey) =>
+        !string.IsNullOrWhiteSpace(effectKey)
+        && _catalog.Value.BurstEligibleEffectKeys.Contains(effectKey.Trim());
+
     public bool SupportsContext(string? effectKey, ParticleEffectAuthoringContext context) =>
         !string.IsNullOrWhiteSpace(effectKey)
         && _catalog.Value.RecipesByKey.TryGetValue(effectKey.Trim(), out var recipe)
@@ -124,9 +128,26 @@ public sealed class ParticleEffectAuthoringCatalogService
             .OrderBy(static recipe => recipe.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        var burstEligibleEffectKeys = runtime.RootElement.GetProperty("effects").EnumerateArray()
+            .Where(effect => string.Equals(GetString(effect, "category"), "ParticleEffect", StringComparison.OrdinalIgnoreCase)
+                && effect.TryGetProperty("particleEffect", out _))
+            .Where(effect =>
+            {
+                var recipe = effect.GetProperty("particleEffect").GetProperty("recipe");
+                return recipe.TryGetProperty("streams", out var streams)
+                    && streams.ValueKind == JsonValueKind.Array
+                    && streams.EnumerateArray().Any(stream => stream.ValueKind == JsonValueKind.Object
+                        && stream.TryGetProperty("surgeOnly", out var surgeOnly)
+                        && surgeOnly.ValueKind == JsonValueKind.True);
+            })
+            .Select(effect => GetString(effect, "effectKey"))
+            .Where(static key => !string.IsNullOrWhiteSpace(key))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         return new CatalogData(
             recipes,
             recipes.ToDictionary(static recipe => recipe.EffectKey, StringComparer.OrdinalIgnoreCase),
+            burstEligibleEffectKeys,
             controlsByFamily,
             imageSlotsByFamily);
     }
@@ -162,6 +183,7 @@ public sealed class ParticleEffectAuthoringCatalogService
     private sealed record CatalogData(
         IReadOnlyList<ParticleEffectRecipeOption> Recipes,
         IReadOnlyDictionary<string, ParticleEffectRecipeOption> RecipesByKey,
+        IReadOnlySet<string> BurstEligibleEffectKeys,
         IReadOnlyDictionary<string, IReadOnlyList<ParticleEffectControlMetadata>> ControlsByFamily,
         IReadOnlyDictionary<string, IReadOnlyList<string>> ImageSlotsByFamily);
 }

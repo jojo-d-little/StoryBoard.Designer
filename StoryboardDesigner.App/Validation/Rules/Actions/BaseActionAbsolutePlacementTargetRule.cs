@@ -83,8 +83,9 @@ public sealed class BaseActionAbsolutePlacementTargetRule : IValidationRule
         {
             if (action.ActionType is not (CommandActionType.AddObjectPresentationCue
                 or CommandActionType.RemoveObjectPresentationCue
-                or CommandActionType.ClearObjectPresentationCues)
-                || action.ObjectPresentationCueObjectId is not { } targetId
+                or CommandActionType.ClearObjectPresentationCues
+                or CommandActionType.TriggerParticleEffect)
+                || GetExplicitTargetId(action) is not { } targetId
                 || !placedById.TryGetValue(targetId, out var placed))
             {
                 yield break;
@@ -103,6 +104,10 @@ public sealed class BaseActionAbsolutePlacementTargetRule : IValidationRule
                 $"Action '{action.Name}' targets placed object '{placed.Name}' ({targetId:D}) by its absolute ID. It will not follow each instance of base '{baseRoot.Name}'.",
                 $"For current-instance intent, choose the corresponding base object ID '{sourceId.Value:D}'. Keep the placed ID only when an absolute target is intended.");
         }
+
+        static Guid? GetExplicitTargetId(CommandAction action) => action.ActionType == CommandActionType.TriggerParticleEffect
+            ? ActionPayloadAccessors.GetTriggerParticleEffectObjectId(action)
+            : action.ObjectPresentationCueObjectId;
 
         Guid? ResolveCorrespondingBaseId(GameObject placed)
         {

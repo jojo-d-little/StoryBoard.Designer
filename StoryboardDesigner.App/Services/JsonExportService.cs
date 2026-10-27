@@ -2997,6 +2997,7 @@ public sealed class JsonExportService : IJsonExportService
                 CommandActionType.SelectRoomObjectByPoint => BuildSelectRoomObjectByPointPayloadElement(selectByPointPayload.SelectionCueEffectKey),
                 CommandActionType.SetGameProperty => BuildSetGamePropertyPayloadElement(ActionPayloadAccessors.GetSetPropertyName(action), ActionPayloadAccessors.GetSetPropertyValue(action), ActionPayloadAccessors.GetSetGamePropertyReference(action)),
                 CommandActionType.SetPhase => BuildSetPhasePayloadElement(ActionPayloadAccessors.GetSetPhaseKey(action)),
+                CommandActionType.TriggerParticleEffect => BuildTriggerParticleEffectPayloadElement(ActionPayloadAccessors.GetTriggerParticleEffectObjectId(action)),
                 CommandActionType.SetFlag => BuildSetFlagPayloadElement(ActionPayloadAccessors.GetSetFlagName(action), ActionPayloadAccessors.GetSetFlagValue(action)),
                 CommandActionType.Synonym => BuildSynonymPayloadElement(synonymTargetActionId),
                 CommandActionType.ClearRoomObjectSelections => BuildClearRoomObjectSelectionsPayloadElement(clearSelectionsPayload.ClearScope),
@@ -3054,6 +3055,7 @@ public sealed class JsonExportService : IJsonExportService
         var setFlagNameFromPayload = TryGetSetFlagNameFromPayload(action.Payload);
         var setFlagValueFromPayload = TryGetSetFlagValueFromPayload(action.Payload);
         var setPhaseKeyFromPayload = TryGetSetPhaseKeyFromPayload(action.Payload);
+        var triggerParticleEffectObjectIdFromPayload = TryGetTriggerParticleEffectObjectIdFromPayload(action.Payload);
         var compositeTargetObjectIdFromPayload = TryGetCompositeTargetObjectIdFromPayload(action.Payload);
         var compositeRecipeIdFromPayload = TryGetCompositeRecipeIdFromPayload(action.Payload);
         var compositeRequiredPartObjectIdsFromPayload = TryGetCompositeRequiredPartObjectIdsFromPayload(action.Payload);
@@ -3280,6 +3282,11 @@ public sealed class JsonExportService : IJsonExportService
         if (model.ActionType == CommandActionType.SetPhase)
         {
             ActionPayloadAccessors.SetSetPhaseKey(model, setPhaseKeyFromPayload ?? string.Empty);
+        }
+
+        if (model.ActionType == CommandActionType.TriggerParticleEffect)
+        {
+            ActionPayloadAccessors.SetTriggerParticleEffectObjectId(model, triggerParticleEffectObjectIdFromPayload);
         }
 
         if (model.ActionType == CommandActionType.SetGameProperty)
@@ -7225,6 +7232,7 @@ public sealed class JsonExportService : IJsonExportService
                 CommandActionType.SetGameProperty => BuildCleanSetGamePropertyPayloadElement(ActionPayloadAccessors.GetSetPropertyName(action), ActionPayloadAccessors.GetSetPropertyValue(action), ActionPayloadAccessors.GetSetGamePropertyReference(action)),
                 CommandActionType.SetFlag => BuildCleanSetFlagPayloadElement(ActionPayloadAccessors.GetSetFlagName(action), ActionPayloadAccessors.GetSetFlagValue(action)),
                 CommandActionType.SetPhase => BuildCleanSetPhasePayloadElement(ActionPayloadAccessors.GetSetPhaseKey(action)),
+                CommandActionType.TriggerParticleEffect => BuildCleanTriggerParticleEffectPayloadElement(ActionPayloadAccessors.GetTriggerParticleEffectObjectId(action)),
                 CommandActionType.Synonym => BuildCleanSynonymPayloadElement(synonymTargetActionId),
                 CommandActionType.ClearRoomObjectSelections => BuildCleanClearRoomObjectSelectionsPayloadElement(clearSelectionsPayload.ClearScope),
                 CommandActionType.UnlockObject => BuildCleanUnlockObjectPayloadElement(),
@@ -7693,6 +7701,14 @@ public sealed class JsonExportService : IJsonExportService
         };
     }
 
+    private static ProjectCommandActionPayloadBaseDto BuildTriggerParticleEffectPayloadElement(Guid? objectId)
+    {
+        return new ProjectTriggerParticleEffectActionPayloadDto
+        {
+            ObjectId = objectId ?? Guid.Empty
+        };
+    }
+
     private static ProjectCommandActionPayloadBaseDto BuildCheckGamePropertyPayloadElement(
         string propertyName,
         bool expectedValue,
@@ -8060,6 +8076,14 @@ public sealed class JsonExportService : IJsonExportService
         return new RuntimeSetPhaseActionPayloadDto
         {
             PhaseKey = phaseKey ?? string.Empty
+        };
+    }
+
+    private static RuntimeCommandActionPayloadBaseDto BuildCleanTriggerParticleEffectPayloadElement(Guid? objectId)
+    {
+        return new RuntimeTriggerParticleEffectActionPayloadDto
+        {
+            ObjectId = objectId ?? Guid.Empty
         };
     }
 
@@ -8917,6 +8941,14 @@ public sealed class JsonExportService : IJsonExportService
     {
         return payload is ProjectSetPhaseActionPayloadDto setPhasePayload
             ? setPhasePayload.PhaseKey
+            : null;
+    }
+
+    private static Guid? TryGetTriggerParticleEffectObjectIdFromPayload(ProjectCommandActionPayloadBaseDto? payload)
+    {
+        return payload is ProjectTriggerParticleEffectActionPayloadDto triggerPayload
+            && triggerPayload.ObjectId != Guid.Empty
+            ? triggerPayload.ObjectId
             : null;
     }
 

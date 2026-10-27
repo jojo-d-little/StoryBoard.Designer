@@ -178,6 +178,23 @@ public static class ActionPayloadAccessors
         }
     }
 
+    /// <summary>Gets the particle effect trigger action's target object ID.</summary>
+    /// <param name="action">The action to inspect.</param>
+    /// <returns>The selected target object ID, or <see langword="null"/> when no target is set.</returns>
+    public static Guid? GetTriggerParticleEffectObjectId(CommandAction action) =>
+        action.Payload is TriggerParticleEffectPayload payload ? payload.ObjectId : null;
+
+    /// <summary>Sets the particle effect trigger action's target object ID.</summary>
+    /// <param name="action">The action to update.</param>
+    /// <param name="objectId">The target object ID, or <see langword="null"/> when clearing the target.</param>
+    public static void SetTriggerParticleEffectObjectId(CommandAction action, Guid? objectId)
+    {
+        if (action.ActionType == CommandActionType.TriggerParticleEffect)
+        {
+            action.Payload = new TriggerParticleEffectPayload(objectId);
+        }
+    }
+
     public static ContainerTransferPayload GetContainerTransfer(CommandAction action)
     {
         if (action.Payload is ContainerTransferPayload payload)

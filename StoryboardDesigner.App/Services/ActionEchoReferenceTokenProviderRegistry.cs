@@ -64,6 +64,7 @@ public sealed class ActionEchoReferenceTokenProviderRegistry
             new ParameterizedEmptyActionEchoReferenceTokenProvider(CommandActionType.NextPhase),
             new ParameterizedEmptyActionEchoReferenceTokenProvider(CommandActionType.PreviousPhase),
             new ParameterizedEmptyActionEchoReferenceTokenProvider(CommandActionType.SetPhase),
+            new ParameterizedEmptyActionEchoReferenceTokenProvider(CommandActionType.TriggerParticleEffect),
             new ParameterizedEmptyActionEchoReferenceTokenProvider(CommandActionType.ManageNarrativePhaseAmbientSounds),
             new StartTimerActionEchoReferenceTokenProvider(),
             new CancelTimerActionEchoReferenceTokenProvider(),

@@ -45,6 +45,7 @@ public static class CommandActionSummaryPresenter
             CommandActionType.CheckGameProperty => $"{action.FlagTargetDisplayName} == {ActionPayloadAccessors.GetCheckExpectedValue(action)}",
             CommandActionType.SetGameProperty => $"{action.GamePropertyTargetDisplayName} = {ActionPayloadAccessors.GetSetPropertyValue(action)}",
             CommandActionType.SetPhase => BuildSetPhaseSummary(action),
+            CommandActionType.TriggerParticleEffect => BuildTriggerParticleEffectSummary(action),
             CommandActionType.NavigateDirection => "Navigate via traversal",
             CommandActionType.NavigateDirectionPreFlightCheck => "Check requested direction is traversable",
             CommandActionType.CheckCommandContext => BuildCommandContextSummary(action),
@@ -316,6 +317,14 @@ public static class CommandActionSummaryPresenter
         return string.IsNullOrWhiteSpace(phaseKey)
             ? "Set phase -> (destination Page not set)"
             : $"Set phase -> {phaseKey}";
+    }
+
+    private static string BuildTriggerParticleEffectSummary(CommandAction action)
+    {
+        var objectId = ActionPayloadAccessors.GetTriggerParticleEffectObjectId(action);
+        return objectId.HasValue
+            ? $"Trigger particle burst -> object {objectId.Value:D}"
+            : "Trigger particle burst -> (target object not set)";
     }
 
     private static string BuildSequenceSummary(CommandAction action, bool start)

@@ -175,6 +175,7 @@ public partial class ScopedActionsDialog : Window
         var sourceContainerTransfer = ActionPayloadAccessors.GetContainerTransfer(source);
         var sourceSynonymTargetActionId = ActionPayloadAccessors.GetSynonymTargetActionId(source);
         var sourceMaterializeSourceObjectId = ActionPayloadAccessors.GetMaterializeSourceObjectId(source);
+        var sourceTriggerParticleEffectObjectId = ActionPayloadAccessors.GetTriggerParticleEffectObjectId(source);
         var sourceProcedureId = ActionPayloadAccessors.GetProcedureId(source);
         var sourceCompositeTargetObjectId = source.CompositeTargetObjectId;
         var sourceCompositeRecipeId = source.CompositeRecipeId;
@@ -233,6 +234,7 @@ public partial class ScopedActionsDialog : Window
             TargetContainerId = sourceContainerTransfer.TargetContainerId,
             SynonymTargetActionId = sourceSynonymTargetActionId,
             MaterializeSourceObjectId = sourceMaterializeSourceObjectId,
+            TriggerParticleEffectObjectId = sourceTriggerParticleEffectObjectId,
             ProcedureId = sourceProcedureId,
             CompositeTargetObjectId = sourceCompositeTargetObjectId,
             CompositeRecipeId = sourceCompositeRecipeId,
