@@ -394,6 +394,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="120" />
@@ -530,6 +531,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="140" />
@@ -545,6 +547,25 @@
                                Grid.Row="1" Grid.Column="1"
                                Foreground="#6B7280" TextWrapping="Wrap"
                                Text="One burst is requested from the selected object's attached effect." />
+                    <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,6,8,10" VerticalAlignment="Center" Text="Quantity multiplier" ToolTip="Scales only the number of particles requested by this action. The value is sampled when the action runs." />
+                    <Grid Grid.Row="2" Grid.Column="1" Margin="0,6,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="110" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="TriggerParticleEffectQuantityMultiplierTextBox"
+                                 VerticalContentAlignment="Center"
+                                 Text="1"
+                                 TextChanged="TriggerParticleEffectQuantityMultiplierTextBox_OnTextChanged"
+                                 ToolTip="Optional literal fallback. Zero is allowed. A valid bound variable takes precedence." />
+                        <Button Grid.Column="1" Margin="6,0,0,0" Padding="8,2" Content="Choose variable..." Click="ChooseTriggerParticleEffectQuantityBinding_OnClick" />
+                        <Button x:Name="ClearTriggerParticleEffectQuantityBindingButton" Grid.Column="2" Margin="6,0,0,0" Padding="8,2" Content="Unbind" Click="ClearTriggerParticleEffectQuantityBinding_OnClick" />
+                        <TextBlock x:Name="TriggerParticleEffectQuantityBindingStatusTextBlock"
+                                   Grid.Column="3" Margin="8,0,0,0" VerticalAlignment="Center"
+                                   Foreground="#1D4ED8" TextTrimming="CharacterEllipsis" />
+                    </Grid>
                 </Grid>
 
                 <Grid x:Name="PutObjectInContainerEditorPanel" Visibility="Collapsed">

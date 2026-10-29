@@ -45,6 +45,22 @@ public sealed class ParticleEffectAuthoringPersistenceTests
                 Assert.Contains(buttons, button => button.Tag?.ToString() == "Colors.Primary" && button.Content?.ToString() == "Pick...");
                 Assert.Contains(buttons, button => button.Tag?.ToString() == "Colors.Secondary" && button.Content?.ToString() == "Pick...");
                 Assert.Contains(buttons, button => button.Content?.ToString() == "New computed variable");
+                Assert.All(rows.Select(row => row.Children.OfType<TextBlock>().Single()), label => Assert.Equal(TextWrapping.Wrap, label.TextWrapping));
+                var colorInputs = rows
+                    .Where(row => row.Children.OfType<TextBlock>().Single().Text == colorControl.PrimaryRoleLabel
+                        || row.Children.OfType<TextBlock>().Single().Text == colorControl.SecondaryRoleLabel)
+                    .Select(row => row.Children.OfType<TextBox>().Single())
+                    .ToList();
+                Assert.Equal(2, colorInputs.Count);
+                Assert.All(colorInputs, input =>
+                {
+                    var help = input.ToolTip?.ToString() ?? string.Empty;
+                    Assert.Contains(colorControl.Description, help, StringComparison.Ordinal);
+                    Assert.Contains("#AABBCC", help, StringComparison.Ordinal);
+                    Assert.Contains("independent", help, StringComparison.OrdinalIgnoreCase);
+                    Assert.Contains("literal or fallback", help, StringComparison.OrdinalIgnoreCase);
+                    Assert.Contains("does not unbind", help, StringComparison.OrdinalIgnoreCase);
+                });
                 var naming = typeof(ParticleEffectObjectAuthoringDialog).GetMethod("BuildSuggestedVariableName", BindingFlags.Static | BindingFlags.NonPublic)!;
                 Assert.Equal("particleEffectEmissionRateMultiplier", naming.Invoke(null, ["EmissionRateMultiplier"]));
                 Assert.Equal("particleEffectColorsPrimary", naming.Invoke(null, ["Colors.Primary"]));
@@ -57,6 +73,89 @@ public sealed class ParticleEffectAuthoringPersistenceTests
         }), nameof(ColorPairControl_RendersTwoIndependentlyBindableColorRoles));
 
         if (failure is not null) throw failure;
+    }
+
+    [Fact]
+    public void MissingMetadataLabels_FallBackToControlAndRoleNames()
+    {
+        var control = new ParticleEffectControlMetadata(
+            "Tint", "number", "degrees", "  ", "", null, null, "apply", "  ", null);
+
+        Assert.Equal("Tint (degrees)", ParticleEffectAuthoringHelpText.GetDisplayLabel(control));
+        Assert.Equal("Primary color", ParticleEffectAuthoringHelpText.GetColorRoleDisplayLabel(control, primary: true));
+        Assert.Equal("Secondary color", ParticleEffectAuthoringHelpText.GetColorRoleDisplayLabel(control, primary: false));
+
+        var tooltip = ParticleEffectAuthoringHelpText.GetControlTooltip(control, "Primary color", isColor: true);
+        Assert.Contains("Tint control", tooltip, StringComparison.Ordinal);
+        Assert.Contains("Primary color is an independent role", tooltip, StringComparison.Ordinal);
+        Assert.Contains("#AABBCC", tooltip, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EnvironmentalRain_ExposesDistinctWindControlsAndEnabledFallbackHelp()
+    {
+        Exception? failure = null;
+        StaTestThreadRunner.StartAndWait(new Thread(() =>
+        {
+            try
+            {
+                var catalog = new ParticleEffectAuthoringCatalogService();
+                var rain = catalog.GetRecipes(ParticleEffectAuthoringContext.Environmental)
+                    .First(option => string.Equals(option.Family, "rain", StringComparison.OrdinalIgnoreCase));
+                var windControls = catalog.GetControls(rain.EffectKey)
+                    .Where(control => control.Name.StartsWith("Wind", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                Assert.Equal(4, windControls.Count);
+                Assert.Equal(
+                    new[] { "WindSpeedPxPerSecond", "WindDirectionDegrees", "WindSpeedMultiplier", "WindDirectionOffsetDegrees" }.OrderBy(name => name, StringComparer.Ordinal),
+                    windControls.Select(control => control.Name).OrderBy(name => name, StringComparer.Ordinal).ToArray());
+
+                var effect = new EnvironmentalEffectDefinition { Name = "Rain", EffectKey = rain.EffectKey };
+                var dialog = new EnvironmentalEffectsAuthoringDialog([effect], selectedEffectId: effect.Id);
+                var panel = (StackPanel)typeof(EnvironmentalEffectsAuthoringDialog)
+                    .GetField("ControlsPanel", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(dialog)!;
+                var rows = panel.Children.OfType<Grid>().ToList();
+                var visibleLabels = rows.Select(row => row.Children.OfType<TextBlock>().Single().Text).ToList();
+
+                Assert.All(windControls, control => Assert.Contains(ParticleEffectAuthoringHelpText.GetDisplayLabel(control), visibleLabels));
+                Assert.Equal(4, visibleLabels.Where(label => label.Contains("Wind", StringComparison.OrdinalIgnoreCase)).Count());
+                Assert.Contains("fallback when no usable binding resolves", ((FrameworkElement)typeof(EnvironmentalEffectsAuthoringDialog)
+                    .GetField("EnabledCheckBox", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(dialog)!).ToolTip?.ToString() ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+                Assert.All(rows, row =>
+                {
+                    var buttons = row.Children.OfType<Button>().ToList();
+                    Assert.Contains(buttons, button => button.Content?.ToString() == "Unbind"
+                        && (button.ToolTip?.ToString() ?? string.Empty).Contains("keep the literal", StringComparison.OrdinalIgnoreCase));
+                    Assert.Contains(buttons, button => button.Content?.ToString() == "Default"
+                        && (button.ToolTip?.ToString() ?? string.Empty).Contains("literal and binding", StringComparison.OrdinalIgnoreCase));
+                });
+                dialog.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        }), nameof(EnvironmentalRain_ExposesDistinctWindControlsAndEnabledFallbackHelp));
+
+        if (failure is not null) throw failure;
+    }
+
+    [Fact]
+    public void InstalledMetadata_ProvidesCorrectedTintAndStainLabels()
+    {
+        var catalog = new ParticleEffectAuthoringCatalogService();
+        var fog = catalog.GetRecipes().First(recipe => string.Equals(recipe.Family, "fog", StringComparison.OrdinalIgnoreCase));
+        var cloud = catalog.GetRecipes().First(recipe => string.Equals(recipe.Family, "cloud", StringComparison.OrdinalIgnoreCase));
+        var stain = catalog.GetRecipes().First(recipe => string.Equals(recipe.Family, "surface-mark", StringComparison.OrdinalIgnoreCase));
+
+        Assert.Contains(catalog.GetControls(fog.EffectKey), control => control.Name == "Tint" && control.Label == "Fog tint");
+        Assert.Contains(catalog.GetControls(cloud.EffectKey), control => control.Name == "Tint" && control.Label == "Cloud tint");
+        Assert.Contains(catalog.GetControls(stain.EffectKey), control => control.Name == "DirectionDegrees"
+            && (control.Label == "Mark direction" || control.Label == "Stain direction"));
+
+        var palette = catalog.GetControls(stain.EffectKey).First(control => control.Name == "Colors");
+        Assert.Equal("Primary stain color", palette.PrimaryRoleLabel);
+        Assert.Equal("Secondary stain color", palette.SecondaryRoleLabel);
     }
 
     [Fact]

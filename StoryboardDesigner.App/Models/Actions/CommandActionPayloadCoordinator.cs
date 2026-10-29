@@ -43,7 +43,9 @@ internal static class CommandActionPayloadCoordinator
 
     private static readonly string[] TriggerParticleEffectProjectionProperties =
     [
-        nameof(CommandAction.TriggerParticleEffectObjectId)
+        nameof(CommandAction.TriggerParticleEffectObjectId),
+        nameof(CommandAction.TriggerParticleEffectQuantityMultiplier),
+        nameof(CommandAction.TriggerParticleEffectQuantityMultiplierBinding)
     ];
 
     private static readonly string[] ContainerProjectionProperties =
@@ -235,7 +237,15 @@ internal static class CommandActionPayloadCoordinator
             CheckCommandContextPayload check => new CheckCommandContextPayload(check.Field, check.ExpectedBoolean, check.ExpectedDirection),
             SetGamePropertyPayload set => new SetGamePropertyPayload(set.PropertyName, set.PropertyValue, set.GamePropertyReference),
             SetPhasePayload setPhase => new SetPhasePayload(setPhase.PhaseKey),
-            TriggerParticleEffectPayload triggerParticleEffect => new TriggerParticleEffectPayload(triggerParticleEffect.ObjectId),
+            TriggerParticleEffectPayload triggerParticleEffect => new TriggerParticleEffectPayload(
+                triggerParticleEffect.ObjectId,
+                triggerParticleEffect.QuantityMultiplier,
+                triggerParticleEffect.QuantityMultiplierBinding is null ? null : new Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto
+                {
+                    OwnerId = triggerParticleEffect.QuantityMultiplierBinding.OwnerId,
+                    PropertyName = triggerParticleEffect.QuantityMultiplierBinding.PropertyName,
+                    AnchorKey = triggerParticleEffect.QuantityMultiplierBinding.AnchorKey
+                }),
             ContainerTransferPayload transfer => new ContainerTransferPayload(transfer.TargetContainerId),
             MoveRoomObjectOnGridPayload move => new MoveRoomObjectOnGridPayload(
                 move.DirectionToken,

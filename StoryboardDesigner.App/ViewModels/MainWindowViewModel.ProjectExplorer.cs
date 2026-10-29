@@ -13162,6 +13162,7 @@ public sealed partial class MainWindowViewModel
             {
                 action.ObjectPresentationCueObjectId = mappedCueId;
             }
+            ActionPayloadAccessors.RemapTriggerParticleEffectReferences(action, objectIds);
             action.Payload = action.CreatePayloadSnapshot();
         }
 

@@ -2997,7 +2997,10 @@ public sealed class JsonExportService : IJsonExportService
                 CommandActionType.SelectRoomObjectByPoint => BuildSelectRoomObjectByPointPayloadElement(selectByPointPayload.SelectionCueEffectKey),
                 CommandActionType.SetGameProperty => BuildSetGamePropertyPayloadElement(ActionPayloadAccessors.GetSetPropertyName(action), ActionPayloadAccessors.GetSetPropertyValue(action), ActionPayloadAccessors.GetSetGamePropertyReference(action)),
                 CommandActionType.SetPhase => BuildSetPhasePayloadElement(ActionPayloadAccessors.GetSetPhaseKey(action)),
-                CommandActionType.TriggerParticleEffect => BuildTriggerParticleEffectPayloadElement(ActionPayloadAccessors.GetTriggerParticleEffectObjectId(action)),
+                CommandActionType.TriggerParticleEffect => BuildTriggerParticleEffectPayloadElement(
+                    ActionPayloadAccessors.GetTriggerParticleEffectObjectId(action),
+                    ActionPayloadAccessors.GetTriggerParticleEffectQuantityMultiplier(action),
+                    ActionPayloadAccessors.GetTriggerParticleEffectQuantityMultiplierBinding(action)),
                 CommandActionType.SetFlag => BuildSetFlagPayloadElement(ActionPayloadAccessors.GetSetFlagName(action), ActionPayloadAccessors.GetSetFlagValue(action)),
                 CommandActionType.Synonym => BuildSynonymPayloadElement(synonymTargetActionId),
                 CommandActionType.ClearRoomObjectSelections => BuildClearRoomObjectSelectionsPayloadElement(clearSelectionsPayload.ClearScope),
@@ -3056,6 +3059,8 @@ public sealed class JsonExportService : IJsonExportService
         var setFlagValueFromPayload = TryGetSetFlagValueFromPayload(action.Payload);
         var setPhaseKeyFromPayload = TryGetSetPhaseKeyFromPayload(action.Payload);
         var triggerParticleEffectObjectIdFromPayload = TryGetTriggerParticleEffectObjectIdFromPayload(action.Payload);
+        var triggerParticleEffectQuantityMultiplierFromPayload = TryGetTriggerParticleEffectQuantityMultiplierFromPayload(action.Payload);
+        var triggerParticleEffectQuantityMultiplierBindingFromPayload = TryGetTriggerParticleEffectQuantityMultiplierBindingFromPayload(action.Payload);
         var compositeTargetObjectIdFromPayload = TryGetCompositeTargetObjectIdFromPayload(action.Payload);
         var compositeRecipeIdFromPayload = TryGetCompositeRecipeIdFromPayload(action.Payload);
         var compositeRequiredPartObjectIdsFromPayload = TryGetCompositeRequiredPartObjectIdsFromPayload(action.Payload);
@@ -3287,6 +3292,8 @@ public sealed class JsonExportService : IJsonExportService
         if (model.ActionType == CommandActionType.TriggerParticleEffect)
         {
             ActionPayloadAccessors.SetTriggerParticleEffectObjectId(model, triggerParticleEffectObjectIdFromPayload);
+            ActionPayloadAccessors.SetTriggerParticleEffectQuantityMultiplier(model, triggerParticleEffectQuantityMultiplierFromPayload);
+            ActionPayloadAccessors.SetTriggerParticleEffectQuantityMultiplierBinding(model, triggerParticleEffectQuantityMultiplierBindingFromPayload);
         }
 
         if (model.ActionType == CommandActionType.SetGameProperty)
@@ -7232,7 +7239,10 @@ public sealed class JsonExportService : IJsonExportService
                 CommandActionType.SetGameProperty => BuildCleanSetGamePropertyPayloadElement(ActionPayloadAccessors.GetSetPropertyName(action), ActionPayloadAccessors.GetSetPropertyValue(action), ActionPayloadAccessors.GetSetGamePropertyReference(action)),
                 CommandActionType.SetFlag => BuildCleanSetFlagPayloadElement(ActionPayloadAccessors.GetSetFlagName(action), ActionPayloadAccessors.GetSetFlagValue(action)),
                 CommandActionType.SetPhase => BuildCleanSetPhasePayloadElement(ActionPayloadAccessors.GetSetPhaseKey(action)),
-                CommandActionType.TriggerParticleEffect => BuildCleanTriggerParticleEffectPayloadElement(ActionPayloadAccessors.GetTriggerParticleEffectObjectId(action)),
+                CommandActionType.TriggerParticleEffect => BuildCleanTriggerParticleEffectPayloadElement(
+                    ActionPayloadAccessors.GetTriggerParticleEffectObjectId(action),
+                    ActionPayloadAccessors.GetTriggerParticleEffectQuantityMultiplier(action),
+                    ActionPayloadAccessors.GetTriggerParticleEffectQuantityMultiplierBinding(action)),
                 CommandActionType.Synonym => BuildCleanSynonymPayloadElement(synonymTargetActionId),
                 CommandActionType.ClearRoomObjectSelections => BuildCleanClearRoomObjectSelectionsPayloadElement(clearSelectionsPayload.ClearScope),
                 CommandActionType.UnlockObject => BuildCleanUnlockObjectPayloadElement(),
@@ -7701,11 +7711,16 @@ public sealed class JsonExportService : IJsonExportService
         };
     }
 
-    private static ProjectCommandActionPayloadBaseDto BuildTriggerParticleEffectPayloadElement(Guid? objectId)
+    private static ProjectCommandActionPayloadBaseDto BuildTriggerParticleEffectPayloadElement(
+        Guid? objectId,
+        double? quantityMultiplier,
+        ProjectGamePropertySourceReferenceDto? quantityMultiplierBinding)
     {
         return new ProjectTriggerParticleEffectActionPayloadDto
         {
-            ObjectId = objectId ?? Guid.Empty
+            ObjectId = objectId ?? Guid.Empty,
+            QuantityMultiplier = quantityMultiplier,
+            QuantityMultiplierBinding = CloneGamePropertySourceReference(quantityMultiplierBinding)
         };
     }
 
@@ -8079,11 +8094,16 @@ public sealed class JsonExportService : IJsonExportService
         };
     }
 
-    private static RuntimeCommandActionPayloadBaseDto BuildCleanTriggerParticleEffectPayloadElement(Guid? objectId)
+    private static RuntimeCommandActionPayloadBaseDto BuildCleanTriggerParticleEffectPayloadElement(
+        Guid? objectId,
+        double? quantityMultiplier,
+        ProjectGamePropertySourceReferenceDto? quantityMultiplierBinding)
     {
         return new RuntimeTriggerParticleEffectActionPayloadDto
         {
-            ObjectId = objectId ?? Guid.Empty
+            ObjectId = objectId ?? Guid.Empty,
+            QuantityMultiplier = quantityMultiplier,
+            QuantityMultiplierBinding = ToRuntimeGamePropertySourceReference(quantityMultiplierBinding)
         };
     }
 
@@ -8951,6 +8971,16 @@ public sealed class JsonExportService : IJsonExportService
             ? triggerPayload.ObjectId
             : null;
     }
+
+    private static double? TryGetTriggerParticleEffectQuantityMultiplierFromPayload(ProjectCommandActionPayloadBaseDto? payload) =>
+        payload is ProjectTriggerParticleEffectActionPayloadDto triggerPayload
+            ? triggerPayload.QuantityMultiplier
+            : null;
+
+    private static ProjectGamePropertySourceReferenceDto? TryGetTriggerParticleEffectQuantityMultiplierBindingFromPayload(ProjectCommandActionPayloadBaseDto? payload) =>
+        payload is ProjectTriggerParticleEffectActionPayloadDto triggerPayload
+            ? CloneGamePropertySourceReference(triggerPayload.QuantityMultiplierBinding)
+            : null;
 
     private static Guid? TryGetSynonymTargetActionIdFromPayload(ProjectCommandActionPayloadBaseDto? payload)
     {

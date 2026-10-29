@@ -184,6 +184,14 @@ public static class ActionPayloadAccessors
     public static Guid? GetTriggerParticleEffectObjectId(CommandAction action) =>
         action.Payload is TriggerParticleEffectPayload payload ? payload.ObjectId : null;
 
+    /// <summary>Gets the literal quantity multiplier fallback for a particle burst action.</summary>
+    public static double? GetTriggerParticleEffectQuantityMultiplier(CommandAction action) =>
+        action.Payload is TriggerParticleEffectPayload payload ? payload.QuantityMultiplier : 1d;
+
+    /// <summary>Gets the direct property source used to override a particle burst quantity multiplier.</summary>
+    public static Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? GetTriggerParticleEffectQuantityMultiplierBinding(CommandAction action) =>
+        action.Payload is TriggerParticleEffectPayload payload ? payload.QuantityMultiplierBinding : null;
+
     /// <summary>Sets the particle effect trigger action's target object ID.</summary>
     /// <param name="action">The action to update.</param>
     /// <param name="objectId">The target object ID, or <see langword="null"/> when clearing the target.</param>
@@ -191,7 +199,58 @@ public static class ActionPayloadAccessors
     {
         if (action.ActionType == CommandActionType.TriggerParticleEffect)
         {
-            action.Payload = new TriggerParticleEffectPayload(objectId);
+            var payload = action.Payload as TriggerParticleEffectPayload;
+            action.Payload = new TriggerParticleEffectPayload(objectId, payload?.QuantityMultiplier ?? 1d, payload?.QuantityMultiplierBinding);
+        }
+    }
+
+    /// <summary>Sets the literal fallback for a particle burst quantity multiplier.</summary>
+    public static void SetTriggerParticleEffectQuantityMultiplier(CommandAction action, double? quantityMultiplier)
+    {
+        if (action.ActionType == CommandActionType.TriggerParticleEffect)
+        {
+            var payload = action.Payload as TriggerParticleEffectPayload;
+            action.Payload = new TriggerParticleEffectPayload(payload?.ObjectId, quantityMultiplier, payload?.QuantityMultiplierBinding);
+        }
+    }
+
+    /// <summary>Sets the optional direct property source for a particle burst quantity multiplier.</summary>
+    public static void SetTriggerParticleEffectQuantityMultiplierBinding(
+        CommandAction action,
+        Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? binding)
+    {
+        if (action.ActionType == CommandActionType.TriggerParticleEffect)
+        {
+            var payload = action.Payload as TriggerParticleEffectPayload;
+            var clonedBinding = binding is null ? null : new Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto
+            {
+                OwnerId = binding.OwnerId,
+                PropertyName = binding.PropertyName,
+                AnchorKey = binding.AnchorKey
+            };
+            action.Payload = new TriggerParticleEffectPayload(payload?.ObjectId, payload?.QuantityMultiplier ?? 1d, clonedBinding);
+        }
+    }
+
+    public static void RemapTriggerParticleEffectReferences(CommandAction action, IReadOnlyDictionary<Guid, Guid> objectIds)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        ArgumentNullException.ThrowIfNull(objectIds);
+
+        if (GetTriggerParticleEffectObjectId(action) is { } targetId && objectIds.TryGetValue(targetId, out var mappedTargetId))
+        {
+            SetTriggerParticleEffectObjectId(action, mappedTargetId);
+        }
+
+        if (GetTriggerParticleEffectQuantityMultiplierBinding(action) is { OwnerId: { } ownerId } binding
+            && objectIds.TryGetValue(ownerId, out var mappedOwnerId))
+        {
+            SetTriggerParticleEffectQuantityMultiplierBinding(action, new Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto
+            {
+                OwnerId = mappedOwnerId,
+                PropertyName = binding.PropertyName,
+                AnchorKey = binding.AnchorKey
+            });
         }
     }
 

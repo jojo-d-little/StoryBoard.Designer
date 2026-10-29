@@ -260,6 +260,42 @@ public sealed partial class CommandAction
         }
     }
 
+    /// <summary>Gets or sets the literal fallback quantity multiplier for this particle burst action.</summary>
+    public double? TriggerParticleEffectQuantityMultiplier
+    {
+        get => _payload is TriggerParticleEffectPayload payload ? payload.QuantityMultiplier : 1d;
+        set
+        {
+            if (_payload is not TriggerParticleEffectPayload payload || payload.QuantityMultiplier == value)
+            {
+                return;
+            }
+
+            _payload = payload with { QuantityMultiplier = value };
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(Payload));
+            RaiseSummaryChanged();
+        }
+    }
+
+    /// <summary>Gets or sets the direct property source that overrides this action's burst multiplier.</summary>
+    public Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? TriggerParticleEffectQuantityMultiplierBinding
+    {
+        get => _payload is TriggerParticleEffectPayload payload ? payload.QuantityMultiplierBinding : null;
+        set
+        {
+            if (_payload is not TriggerParticleEffectPayload payload)
+            {
+                return;
+            }
+
+            _payload = payload with { QuantityMultiplierBinding = value };
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(Payload));
+            RaiseSummaryChanged();
+        }
+    }
+
     public string TargetContainerId
     {
         get => _containerFacet.TargetContainerId;

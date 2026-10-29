@@ -730,6 +730,90 @@ public partial class RoomActionEditorDialog : Window
             : "Choose an object with an attached particle effect. The attached recipe supplies the burst effect.";
     }
 
+    private void RefreshTriggerParticleEffectQuantitySettings()
+    {
+        if (_workingCopy is null)
+        {
+            return;
+        }
+
+        var multiplier = ActionPayloadAccessors.GetTriggerParticleEffectQuantityMultiplier(_workingCopy);
+        TriggerParticleEffectQuantityMultiplierTextBox.Text = multiplier?.ToString("G", CultureInfo.InvariantCulture) ?? string.Empty;
+        var binding = ActionPayloadAccessors.GetTriggerParticleEffectQuantityMultiplierBinding(_workingCopy);
+        TriggerParticleEffectQuantityBindingStatusTextBlock.Text = binding is null
+            ? "No variable bound"
+            : FormatTriggerQuantityBinding(binding);
+        TriggerParticleEffectQuantityBindingStatusTextBlock.ToolTip = binding is null
+            ? null
+            : $"Bound to {FormatTriggerQuantityBinding(binding)}. A valid numeric value takes precedence over the literal fallback.";
+        ClearTriggerParticleEffectQuantityBindingButton.IsEnabled = binding is not null;
+    }
+
+    private static string FormatTriggerQuantityBinding(ProjectGamePropertySourceReferenceDto binding) =>
+        !string.IsNullOrWhiteSpace(binding.AnchorKey)
+            ? $"{binding.AnchorKey}.{binding.PropertyName}"
+            : binding.OwnerId.HasValue
+                ? $"{binding.PropertyName} (owner {binding.OwnerId.Value:D})"
+                : binding.PropertyName ?? "(unresolved variable)";
+
+    private void TriggerParticleEffectQuantityMultiplierTextBox_OnTextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_workingCopy?.ActionType != CommandActionType.TriggerParticleEffect)
+        {
+            return;
+        }
+
+        var text = TriggerParticleEffectQuantityMultiplierTextBox.Text.Trim();
+        if (text.Length == 0)
+        {
+            ActionPayloadAccessors.SetTriggerParticleEffectQuantityMultiplier(_workingCopy, null);
+        }
+        else if (TryParseTriggerQuantityMultiplier(text, out var value))
+        {
+            ActionPayloadAccessors.SetTriggerParticleEffectQuantityMultiplier(_workingCopy, value);
+        }
+    }
+
+    private static bool TryParseTriggerQuantityMultiplier(string text, out double value) =>
+        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value)
+        || double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
+
+    private void ChooseTriggerParticleEffectQuantityBinding_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_workingCopy is null)
+        {
+            return;
+        }
+
+        var current = ActionPayloadAccessors.GetTriggerParticleEffectQuantityMultiplierBinding(_workingCopy);
+        var numericContext = _pickerContext with
+        {
+            BooleanOnly = false,
+            AllowReferenceModes = true,
+            SelectedReference = current,
+            DiscoverChoices = includeReferenceModes => _pickerContext.DiscoverChoices(includeReferenceModes)
+                .Where(static choice => choice.ValueRestriction == GamePropertyValueRestriction.Numeric)
+                .ToArray()
+        };
+        var picker = new VariableChooserDialog(numericContext, "Choose Quantity Variable") { Owner = this };
+        if (picker.ShowDialog() == true && picker.SelectedReference is { } selected)
+        {
+            ActionPayloadAccessors.SetTriggerParticleEffectQuantityMultiplierBinding(_workingCopy, selected);
+            RefreshTriggerParticleEffectQuantitySettings();
+        }
+    }
+
+    private void ClearTriggerParticleEffectQuantityBinding_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_workingCopy is null)
+        {
+            return;
+        }
+
+        ActionPayloadAccessors.SetTriggerParticleEffectQuantityMultiplierBinding(_workingCopy, null);
+        RefreshTriggerParticleEffectQuantitySettings();
+    }
+
     private void RefreshVisibleEditorPanel()
     {
         EchoTextEditorPanel.Visibility = Visibility.Collapsed;
@@ -784,6 +868,7 @@ public partial class RoomActionEditorDialog : Window
             case CommandActionType.TriggerParticleEffect:
                 TriggerParticleEffectEditorPanel.Visibility = Visibility.Visible;
                 RefreshTriggerParticleEffectTargetSelection();
+                RefreshTriggerParticleEffectQuantitySettings();
                 break;
             case CommandActionType.PutObjectInContainer:
             case CommandActionType.RemoveObjectFromContainer:
@@ -986,6 +1071,27 @@ public partial class RoomActionEditorDialog : Window
     private void Save_OnClick(object sender, RoutedEventArgs e)
     {
         PersistOutcomeEchoEntriesToWorkingCopy();
+
+        if (_workingCopy.ActionType == CommandActionType.TriggerParticleEffect)
+        {
+            var multiplierText = TriggerParticleEffectQuantityMultiplierTextBox.Text.Trim();
+            double? multiplier = null;
+            if (multiplierText.Length > 0)
+            {
+                if (!TryParseTriggerQuantityMultiplier(multiplierText, out var parsedMultiplier)
+                    || !double.IsFinite(parsedMultiplier)
+                    || parsedMultiplier < 0)
+                {
+                    System.Windows.MessageBox.Show(this, "Enter a finite, nonnegative quantity multiplier. Zero is allowed.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+                    TriggerParticleEffectQuantityMultiplierTextBox.Focus();
+                    return;
+                }
+
+                multiplier = parsedMultiplier;
+            }
+
+            ActionPayloadAccessors.SetTriggerParticleEffectQuantityMultiplier(_workingCopy, multiplier);
+        }
 
         if (_workingCopy.ActionType == CommandActionType.CheckCommandContext
             && !TryApplyCommandContextEditor())
@@ -1362,7 +1468,12 @@ public partial class RoomActionEditorDialog : Window
         _sourceAction.OutcomeMessageMap = _workingCopy.OutcomeMessageMap;
         _sourceAction.OutcomeSoundEffectsMap = CommandAction.CloneOutcomeSoundEffectsMap(_workingCopy.OutcomeSoundEffectsMap);
         _sourceAction.ObjectPresentationCueObjectId = _workingCopy.ObjectPresentationCueObjectId;
-        _sourceAction.TriggerParticleEffectObjectId = _workingCopy.TriggerParticleEffectObjectId;
+        if (_workingCopy.ActionType == CommandActionType.TriggerParticleEffect)
+        {
+            ActionPayloadAccessors.SetTriggerParticleEffectObjectId(_sourceAction, ActionPayloadAccessors.GetTriggerParticleEffectObjectId(_workingCopy));
+            ActionPayloadAccessors.SetTriggerParticleEffectQuantityMultiplier(_sourceAction, ActionPayloadAccessors.GetTriggerParticleEffectQuantityMultiplier(_workingCopy));
+            ActionPayloadAccessors.SetTriggerParticleEffectQuantityMultiplierBinding(_sourceAction, ActionPayloadAccessors.GetTriggerParticleEffectQuantityMultiplierBinding(_workingCopy));
+        }
         if (_workingCopy.ActionType is CommandActionType.AddObjectPresentationCue or CommandActionType.RemoveObjectPresentationCue)
         {
             _sourceAction.ObjectPresentationCueEffectKey = _workingCopy.ObjectPresentationCueEffectKey;

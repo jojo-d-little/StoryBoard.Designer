@@ -12,7 +12,7 @@
                            Text="Select an object anchored recipe from the installed catalog. Controls are defined by the recipe family." />
                 <CheckBox x:Name="HasEffectCheckBox" Content="Attach a particle effect" Checked="HasEffect_OnChanged" Unchecked="HasEffect_OnChanged" />
                 <ComboBox x:Name="RecipeComboBox" Margin="0,6,0,8" DisplayMemberPath="DisplayName" SelectionChanged="RecipeComboBox_OnChanged" />
-                <TextBlock Margin="0,0,0,4" FontSize="11" Foreground="#4B5563" Text="Leave a value blank to use the recipe default. Choose a variable to override it dynamically." TextWrapping="Wrap" />
+                <TextBlock Margin="0,0,0,4" FontSize="11" Foreground="#4B5563" Text="A usable binding wins. The text field is the literal or fallback; with no usable binding or literal, the recipe baseline applies. Blank text alone does not unbind. Default clears both the literal and binding." TextWrapping="Wrap" />
                 <StackPanel x:Name="ControlsPanel" />
             </StackPanel>
         </ScrollViewer>

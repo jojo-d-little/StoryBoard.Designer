@@ -322,9 +322,16 @@ public static class CommandActionSummaryPresenter
     private static string BuildTriggerParticleEffectSummary(CommandAction action)
     {
         var objectId = ActionPayloadAccessors.GetTriggerParticleEffectObjectId(action);
-        return objectId.HasValue
-            ? $"Trigger particle burst -> object {objectId.Value:D}"
-            : "Trigger particle burst -> (target object not set)";
+        var target = objectId.HasValue
+            ? $"object {objectId.Value:D}"
+            : "(target object not set)";
+        var multiplier = ActionPayloadAccessors.GetTriggerParticleEffectQuantityMultiplier(action);
+        var binding = ActionPayloadAccessors.GetTriggerParticleEffectQuantityMultiplierBinding(action);
+        var fallback = multiplier?.ToString("G", System.Globalization.CultureInfo.InvariantCulture) ?? "1 (default)";
+        var bindingText = binding is null
+            ? string.Empty
+            : $"; bound to {(!string.IsNullOrWhiteSpace(binding.AnchorKey) ? $"{binding.AnchorKey}." : binding.OwnerId.HasValue ? $"owner {binding.OwnerId.Value:D}." : string.Empty)}{binding.PropertyName}";
+        return $"Trigger particle burst -> {target}; quantity multiplier {fallback}{bindingText}";
     }
 
     private static string BuildSequenceSummary(CommandAction action, bool start)

@@ -62,16 +62,15 @@ public partial class ParticleEffectObjectAuthoringDialog : Window
             {
                 var primary = existing.FirstOrDefault(setting => string.Equals(setting.ControlKey, $"{control.Name}.Primary", StringComparison.OrdinalIgnoreCase));
                 var secondary = existing.FirstOrDefault(setting => string.Equals(setting.ControlKey, $"{control.Name}.Secondary", StringComparison.OrdinalIgnoreCase));
-                AddControlRow(control, $"{control.Name}.Primary", control.PrimaryRoleLabel ?? "Primary color",
+                AddControlRow(control, $"{control.Name}.Primary", ParticleEffectAuthoringHelpText.GetColorRoleDisplayLabel(control, primary: true),
                     primary, primary?.Value?.ToString() ?? string.Empty);
-                AddControlRow(control, $"{control.Name}.Secondary", control.SecondaryRoleLabel ?? "Secondary color",
+                AddControlRow(control, $"{control.Name}.Secondary", ParticleEffectAuthoringHelpText.GetColorRoleDisplayLabel(control, primary: false),
                     secondary, secondary?.Value?.ToString() ?? string.Empty);
             }
             else
             {
                 var prior = existing.FirstOrDefault(setting => string.Equals(setting.ControlKey, control.Name, StringComparison.OrdinalIgnoreCase));
-                AddControlRow(control, control.Name,
-                    string.IsNullOrWhiteSpace(control.Unit) ? control.Label : $"{control.Label} ({control.Unit})",
+                AddControlRow(control, control.Name, ParticleEffectAuthoringHelpText.GetDisplayLabel(control),
                     prior, prior?.Value?.ToString() ?? GetInitialControlValue(control));
             }
         }
@@ -83,18 +82,19 @@ public partial class ParticleEffectObjectAuthoringDialog : Window
         var row = new Grid { Margin = new Thickness(0, 3, 0, 3) };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(190) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var label = new TextBlock { Text = labelText, VerticalAlignment = VerticalAlignment.Center, ToolTip = control.Description };
+        var isColor = string.Equals(control.Kind, "color", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(control.Kind, "colorPair", StringComparison.OrdinalIgnoreCase);
+        var isColorRole = propertyName.EndsWith(".Primary", StringComparison.OrdinalIgnoreCase)
+            || propertyName.EndsWith(".Secondary", StringComparison.OrdinalIgnoreCase);
+        var tooltip = ParticleEffectAuthoringHelpText.GetControlTooltip(control, isColorRole ? labelText : null, isColor);
+        var label = new TextBlock { Text = labelText, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, ToolTip = tooltip };
         var input = new System.Windows.Controls.TextBox
         {
             Text = initialValue,
-            ToolTip = string.Equals(control.Kind, "color", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(control.Kind, "colorPair", StringComparison.OrdinalIgnoreCase)
-                ? "Enter an sRGB hex color such as #AABBCC. Leave blank to use the recipe default." : $"{control.Description} Leave blank to use the recipe default."
+            ToolTip = tooltip
         };
         Grid.SetColumn(label, 0); Grid.SetColumn(input, 1);
         row.Children.Add(label); row.Children.Add(input);
-        var isColor = string.Equals(control.Kind, "color", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(control.Kind, "colorPair", StringComparison.OrdinalIgnoreCase);
         var nextColumn = 2;
         if (isColor)
         {
@@ -136,7 +136,7 @@ public partial class ParticleEffectObjectAuthoringDialog : Window
             Padding = new Thickness(6, 1, 6, 1),
             Margin = new Thickness(6, 0, 0, 0),
             Tag = propertyName,
-            ToolTip = "Clear this override and use the recipe default."
+            ToolTip = "Clear this control's literal and binding, then use the recipe baseline."
         };
         reset.Click += ResetControl_OnClick;
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });

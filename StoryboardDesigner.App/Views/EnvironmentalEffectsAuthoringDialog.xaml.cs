@@ -240,13 +240,13 @@ public partial class EnvironmentalEffectsAuthoringDialog : Window
             {
                 var primary = current.GetValueOrDefault($"{control.Name}.Primary");
                 var secondary = current.GetValueOrDefault($"{control.Name}.Secondary");
-                AddControlRow(control, $"{control.Name}.Primary", control.PrimaryRoleLabel ?? "Primary color", primary);
-                AddControlRow(control, $"{control.Name}.Secondary", control.SecondaryRoleLabel ?? "Secondary color", secondary);
+                AddControlRow(control, $"{control.Name}.Primary", ParticleEffectAuthoringHelpText.GetColorRoleDisplayLabel(control, primary: true), primary);
+                AddControlRow(control, $"{control.Name}.Secondary", ParticleEffectAuthoringHelpText.GetColorRoleDisplayLabel(control, primary: false), secondary);
             }
             else
             {
                 var property = current.GetValueOrDefault(control.Name);
-                AddControlRow(control, control.Name, string.IsNullOrWhiteSpace(control.Unit) ? control.Label : $"{control.Label} ({control.Unit})", property);
+                AddControlRow(control, control.Name, ParticleEffectAuthoringHelpText.GetDisplayLabel(control), property);
             }
         }
     }
@@ -257,14 +257,17 @@ public partial class EnvironmentalEffectsAuthoringDialog : Window
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(180) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var label = new TextBlock { Text = labelText, VerticalAlignment = VerticalAlignment.Center, ToolTip = control.Description };
+        var isColor = string.Equals(control.Kind, "color", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(control.Kind, "colorPair", StringComparison.OrdinalIgnoreCase);
+        var isColorRole = propertyName.EndsWith(".Primary", StringComparison.OrdinalIgnoreCase)
+            || propertyName.EndsWith(".Secondary", StringComparison.OrdinalIgnoreCase);
+        var tooltip = ParticleEffectAuthoringHelpText.GetControlTooltip(control, isColorRole ? labelText : null, isColor);
+        var label = new TextBlock { Text = labelText, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, ToolTip = tooltip };
         var input = new System.Windows.Controls.TextBox
         {
             Text = setting?.Value?.ToString() ?? string.Empty,
-            ToolTip = string.Equals(control.Kind, "color", StringComparison.OrdinalIgnoreCase) || string.Equals(control.Kind, "colorPair", StringComparison.OrdinalIgnoreCase)
-                ? "Enter an sRGB hex color such as #AABBCC." : control.Description
+            ToolTip = tooltip
         };
-        input.ToolTip = $"{input.ToolTip} Leave blank to use the recipe default.";
         var bind = new System.Windows.Controls.Button { Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(6, 0, 0, 0), IsEnabled = _variablePickerContext is not null, Tag = propertyName, MaxWidth = 155 };
         bind.Click += BindControl_OnClick;
         SetBindingButton(bind, setting?.Binding);
@@ -283,7 +286,7 @@ public partial class EnvironmentalEffectsAuthoringDialog : Window
         var clearBinding = new System.Windows.Controls.Button { Content = "Unbind", Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(6, 0, 0, 0), Tag = propertyName, ToolTip = "Remove the variable binding and keep the literal fallback." };
         clearBinding.Click += ClearBinding_OnClick;
         Grid.SetColumn(clearBinding, nextColumn++);
-        var reset = new System.Windows.Controls.Button { Content = "Default", Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(6, 0, 0, 0), Tag = propertyName, ToolTip = "Clear this override and use the recipe default." };
+        var reset = new System.Windows.Controls.Button { Content = "Default", Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(6, 0, 0, 0), Tag = propertyName, ToolTip = "Clear this control's literal and binding, then use the recipe baseline." };
         reset.Click += ResetControl_OnClick;
         Grid.SetColumn(reset, nextColumn);
         Grid.SetColumn(label, 0); Grid.SetColumn(input, 1);
