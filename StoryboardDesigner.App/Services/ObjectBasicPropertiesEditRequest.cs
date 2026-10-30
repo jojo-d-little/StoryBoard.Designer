@@ -12,6 +12,11 @@ public sealed record StructuralPartPlacementEditItem(
     string FootprintOrientation,
     StructuralPartPlacement Placement);
 
+/// <summary>Immutable values presented by the Game Object Settings editor.</summary>
+/// <param name="InheritParentCueCategories">
+/// Complete set of installed catalog cue categories inherited by an eligible direct parent-relative child;
+/// null preserves the catalog-default representation for data not edited through the inheritance controls.
+/// </param>
 public sealed record ObjectBasicPropertiesEditRequest(
     string Name,
     string NameInGame,
@@ -84,6 +89,7 @@ public sealed record ObjectBasicPropertiesEditRequest(
     ParticleEffectAttachment? ParticleEffect = null,
     bool IsPartOfParent = false,
     StructuralPartPlacement? StructuralPartPlacement = null,
+    IReadOnlyList<string>? InheritParentCueCategories = null,
     GamePropertyPickerContext? ParticleEffectVariablePickerContext = null,
     Func<string, string, GamePropertyDefinition?>? ParticleEffectNewComputedVariableFactory = null,
     IReadOnlyList<GamePropertyDefinition>? ParticleEffectNewVariables = null,

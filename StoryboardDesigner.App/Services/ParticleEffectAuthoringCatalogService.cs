@@ -3,7 +3,16 @@ using System.Text.Json;
 
 namespace StoryboardDesigner.App.Services;
 
-public sealed record ParticleEffectRecipeOption(string EffectKey, string DisplayName, string Family, string RenderingMode);
+/// <summary>One particle recipe exposed for authoring, including its catalog category and declared renderer route.</summary>
+/// <param name="EffectKey">Stable recipe key stored by Designer-authored attachments and actions.</param>
+/// <param name="DisplayName">Human-readable recipe name from the installed catalog.</param>
+/// <param name="Family">Recipe tuning family used to find controls and image slots.</param>
+/// <param name="RenderingMode">Catalog route used to decide whether the recipe attaches to objects or environmental scopes.</param>
+public sealed record ParticleEffectRecipeOption(string EffectKey, string DisplayName, string Family, string RenderingMode)
+{
+    /// <summary>Gets the installed catalog category containing this particle recipe.</summary>
+    public string Category { get; init; } = string.Empty;
+}
 
 public enum ParticleEffectAuthoringContext
 {
@@ -23,46 +32,17 @@ public sealed record ParticleEffectControlMetadata(
     string? PrimaryRoleLabel = null,
     string? SecondaryRoleLabel = null);
 
-internal static class ParticleEffectAuthoringHelpText
-{
-    public static string GetDisplayLabel(ParticleEffectControlMetadata control, string? roleLabel = null)
-    {
-        if (!string.IsNullOrWhiteSpace(roleLabel)) return roleLabel.Trim();
-        var label = string.IsNullOrWhiteSpace(control.Label) ? control.Name : control.Label.Trim();
-        return string.IsNullOrWhiteSpace(control.Unit) ? label : $"{label} ({control.Unit.Trim()})";
-    }
-
-    public static string GetColorRoleDisplayLabel(ParticleEffectControlMetadata control, bool primary)
-    {
-        var roleLabel = primary ? control.PrimaryRoleLabel : control.SecondaryRoleLabel;
-        return string.IsNullOrWhiteSpace(roleLabel)
-            ? primary ? "Primary color" : "Secondary color"
-            : roleLabel.Trim();
-    }
-
-    public static string GetControlTooltip(ParticleEffectControlMetadata control, string? roleLabel = null, bool isColor = false)
-    {
-        var parts = new List<string>();
-        if (!string.IsNullOrWhiteSpace(control.Description)) parts.Add(control.Description.Trim());
-        else if (!string.IsNullOrWhiteSpace(control.Name)) parts.Add($"{control.Name} control from the particle effect recipe.");
-
-        if (!string.IsNullOrWhiteSpace(roleLabel))
-            parts.Add($"{roleLabel.Trim()} is an independent role with its own literal value or variable binding.");
-        if (isColor) parts.Add("Enter an sRGB hex color such as #AABBCC.");
-
-        parts.Add("A usable binding wins. The text is the literal or fallback; with no usable binding or literal, the recipe baseline applies.");
-        if (string.Equals(control.Kind, "number", StringComparison.OrdinalIgnoreCase))
-            parts.Add("Zero is a real value and follows this control's catalog zero policy.");
-        else if (string.Equals(control.Kind, "boolean", StringComparison.OrdinalIgnoreCase))
-            parts.Add("False is a real Boolean value.");
-        parts.Add("Blank text does not unbind; Default clears both literal and binding.");
-        return string.Join(" ", parts);
-    }
-}
-
 /// <summary>Reads the installed runtime catalog and Designer tuning sidecar as authoring metadata.</summary>
 public sealed class ParticleEffectAuthoringCatalogService
 {
+    private static readonly HashSet<string> ParticleCategories = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "PointParticleEffect",
+        "AtmosphericParticleEffect",
+        "AtmosphericOverlayEffect",
+        "StainEffect"
+    };
+
     private readonly Lazy<CatalogData> _catalog;
 
     public ParticleEffectAuthoringCatalogService()
@@ -150,7 +130,7 @@ public sealed class ParticleEffectAuthoringCatalogService
         }
 
         var recipes = runtime.RootElement.GetProperty("effects").EnumerateArray()
-            .Where(effect => string.Equals(GetString(effect, "category"), "ParticleEffect", StringComparison.OrdinalIgnoreCase)
+            .Where(effect => ParticleCategories.Contains(GetString(effect, "category"))
                 && effect.TryGetProperty("particleEffect", out _))
             .Select(effect =>
             {
@@ -159,14 +139,17 @@ public sealed class ParticleEffectAuthoringCatalogService
                     GetString(effect, "effectKey"),
                     GetString(effect, "displayName"),
                     GetString(recipe, "family"),
-                    GetString(recipe, "renderingMode"));
+                    GetString(recipe, "renderingMode"))
+                {
+                    Category = GetString(effect, "category")
+                };
             })
             .Where(static recipe => !string.IsNullOrWhiteSpace(recipe.EffectKey))
             .OrderBy(static recipe => recipe.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         var burstEligibleEffectKeys = runtime.RootElement.GetProperty("effects").EnumerateArray()
-            .Where(effect => string.Equals(GetString(effect, "category"), "ParticleEffect", StringComparison.OrdinalIgnoreCase)
+            .Where(effect => ParticleCategories.Contains(GetString(effect, "category"))
                 && effect.TryGetProperty("particleEffect", out _))
             .Where(effect =>
             {

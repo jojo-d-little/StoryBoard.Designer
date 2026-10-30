@@ -403,6 +403,16 @@
                            Text="Choose this part's position in the parent's Appearance visual layout. Placement snaps to the room grid." Visibility="Collapsed" />
                 <TextBlock x:Name="StructuralRoomCoordinatesHint" Margin="0,5,0,0" Foreground="#6B7280" FontSize="11"
                            Text="Room coordinates are absolute pixel positions." />
+                <Border x:Name="ParentCueInheritancePanel" Margin="0,8,0,0" Padding="8" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4" Background="White" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Foreground="#374151" Text="Inherit Parent Presentation Cues" />
+                        <TextBlock x:Name="ParentCueInheritanceHintTextBlock" Margin="0,3,0,5" Foreground="#6B7280" FontSize="11" TextWrapping="Wrap"
+                                   Text="Choose which catalog cue categories this parent-relative child follows. The child keeps its own artwork, light, and particle settings." />
+                        <StackPanel x:Name="ParentCueInheritanceCategoriesPanel" />
+                    </StackPanel>
+                </Border>
+                <TextBlock x:Name="RoomCoordinateCueInheritanceHintTextBlock" Margin="0,8,0,0" Foreground="#6B7280" FontSize="11" TextWrapping="Wrap" Visibility="Collapsed"
+                           Text="This part stays at its fixed room coordinates and does not follow its parent. Parent movement and scale cue choices are unavailable for this placement." />
             </StackPanel>
         </Border>
         </StackPanel>

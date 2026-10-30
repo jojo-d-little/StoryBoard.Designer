@@ -8,6 +8,47 @@ namespace StoryboardDesigner.App.Tests;
 public sealed class MainWindowViewModelBaseObjectMovementRestrictionsTests
 {
     [Fact]
+    public void EditObjectBasicProperties_RoundTripsParentCueInheritanceSelection()
+    {
+        var child = new GameObject
+        {
+            ObjectId = Guid.NewGuid(),
+            Name = "Flame",
+            IsPartOfParent = true,
+            Placement = new StructuralPartPlacement { Mode = StructuralPartPlacementKind.ParentRelative }
+        };
+        var parent = new GameObject { ObjectId = Guid.NewGuid(), Name = "Hearth", IsContainer = true, ContainedObjects = [child] };
+        var room = new Room { Name = "Room", GameObjects = [parent] };
+        var area = new Area { Name = "Area", Rooms = [room] };
+        var country = new Country { Name = "Country", Areas = [area] };
+        var planet = new Planet { Name = "Planet", Countries = [country] };
+        var project = new ProjectModel { Name = "InheritanceEdit", Planets = [planet] };
+        ScopeHierarchy.AttachParents(project);
+        var treeContext = new TreeContextInteractionServiceStub
+        {
+            EditObjectBasicPropertiesHandler = initialValues => initialValues with
+            {
+                InheritParentCueCategories = ["Movement", "Highlight"]
+            }
+        };
+        var viewModel = MainWindowViewModelTestHarness.CreateViewModel(project, treeContext, new ProjectUiServiceStub());
+        var rootNode = new ProjectRootNodeViewModel(project);
+        var planetNode = new PlanetNodeViewModel(project, planet, rootNode);
+        var countryNode = new CountryNodeViewModel(country, planetNode);
+        var areaNode = new AreaNodeViewModel(area, countryNode);
+        var roomNode = new RoomNodeViewModel(room, area, areaNode);
+        var objectsNode = new RoomGameObjectsNodeViewModel(roomNode);
+        var parentNode = new GameObjectNodeViewModel(parent, objectsNode);
+        var childNode = new GameObjectNodeViewModel(child, parentNode);
+
+        Assert.True(viewModel.EditObjectBasicProperties(childNode));
+
+        var request = Assert.IsType<ObjectBasicPropertiesEditRequest>(treeContext.LastObjectBasicPropertiesRequest);
+        Assert.Null(request.InheritParentCueCategories);
+        Assert.Equal(new[] { "Movement", "Highlight" }, child.InheritParentCueCategories);
+    }
+
+    [Fact]
     public void EditObjectBasicProperties_UnlinkedTemplateObject_UpdatesMovementRestrictionCategoryRules()
     {
         var templateObject = new GameObject

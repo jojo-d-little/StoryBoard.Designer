@@ -411,6 +411,11 @@ public sealed class GameObject : ScopeNodeBase, INotifyPropertyChanged
     public bool IsPointLightEnabledDefaultValue { get; set; } = true;
     public ParticleEffectAttachment? ParticleEffect { get; set; }
     public bool IsPartOfParent { get; set; }
+    /// <summary>
+    /// Gets or sets the complete set of installed catalog cue categories this direct structural child inherits from its parent.
+    /// A null value preserves the contract's catalog-default behavior; an empty list explicitly inherits no categories.
+    /// </summary>
+    public List<string>? InheritParentCueCategories { get; set; }
     public StructuralPartPlacement Placement { get; set; } = new();
 
     public List<string> OccupiedCellIds

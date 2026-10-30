@@ -9,6 +9,13 @@ public sealed class PresentationEffectsCatalogService
     private const string DefaultPrimarySelectionOutlineEffectKey = "appearance.selection.outline.cyan";
     private const string DefaultSecondarySelectionOutlineEffectKey = "appearance.selection.outline.amber";
     private const string SelectionOutlineEffectKeyPrefix = "appearance.selection.outline.";
+    private static readonly HashSet<string> ParticleEffectCategories = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "PointParticleEffect",
+        "AtmosphericParticleEffect",
+        "AtmosphericOverlayEffect",
+        "StainEffect"
+    };
 
     private readonly Lazy<PresentationEffectsCatalog> _catalog;
 
@@ -85,7 +92,7 @@ public sealed class PresentationEffectsCatalogService
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         return _catalog.Value.Effects
-            .Where(effect => eligibleCategories.Contains(effect.Category))
+            .Where(effect => eligibleCategories.Contains(effect.Category) && !ParticleEffectCategories.Contains(effect.Category))
             .Select(static effect => effect.EffectKey?.Trim() ?? string.Empty)
             .Where(static key => !string.IsNullOrWhiteSpace(key))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -121,7 +128,7 @@ public sealed class PresentationEffectsCatalogService
     private IReadOnlyList<string> GetConfiguredSelectionOutlineEffectKeys()
     {
         return _catalog.Value.Effects
-            .Where(static effect => string.Equals(effect.Category, "Appearance", StringComparison.OrdinalIgnoreCase))
+            .Where(static effect => string.Equals(effect.Category, "Highlight", StringComparison.OrdinalIgnoreCase))
             .Select(static effect => effect.EffectKey?.Trim() ?? string.Empty)
             .Where(static key => key.StartsWith(SelectionOutlineEffectKeyPrefix, StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)

@@ -94,7 +94,7 @@
       }
     },
     {
-      "category": "Appearance",
+      "category": "Highlight",
       "effectKey": "appearance.selection.outline.cyan",
       "displayName": "Selection Outline - Cyan",
       "appearanceOutlineStyle": {
@@ -104,7 +104,7 @@
       }
     },
     {
-      "category": "Appearance",
+      "category": "Highlight",
       "effectKey": "appearance.selection.outline.amber",
       "displayName": "Selection Outline - Amber",
       "appearanceOutlineStyle": {
@@ -114,7 +114,7 @@
       }
     },
     {
-      "category": "Appearance",
+      "category": "Highlight",
       "effectKey": "appearance.selection.outline.green",
       "displayName": "Selection Outline - Green",
       "appearanceOutlineStyle": {
@@ -124,7 +124,7 @@
       }
     },
     {
-      "category": "Appearance",
+      "category": "Highlight",
       "effectKey": "appearance.selection.outline.danger",
       "displayName": "Selection Outline - Danger",
       "appearanceOutlineStyle": {
@@ -134,7 +134,7 @@
       }
     },
     {
-      "category": "Appearance",
+      "category": "Highlight",
       "effectKey": "appearance.selection.silhouette.cyan",
       "displayName": "Silhouette Pulse - Cyan",
       "fallbackEffectKey": "appearance.selection.outline.cyan",
@@ -167,7 +167,7 @@
       }
     },
     {
-      "category": "Appearance",
+      "category": "Highlight",
       "effectKey": "appearance.selection.silhouette.amber",
       "displayName": "Silhouette - Amber",
       "fallbackEffectKey": "appearance.selection.outline.amber",

@@ -24,6 +24,9 @@ public partial class GameObjectSettingsDialog : Window
     private readonly GamePropertyPickerContext? _particleEffectVariablePickerContext;
     private readonly Func<string, string, GamePropertyDefinition?>? _particleEffectNewComputedVariableFactory;
     private readonly List<GamePropertyDefinition> _particleEffectNewVariables = new();
+    private readonly Dictionary<string, System.Windows.Controls.CheckBox> _parentCueInheritanceCheckBoxes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<string>? _originalInheritParentCueCategories;
+    private readonly IReadOnlyList<Storyboard.GameEngine.Configuration.Catalogs.PresentationEffectCategoryDefinition> _childCueInheritanceCategories;
     private List<StructuralPartPlacementEditItem> _structuralPartPlacements = new();
     private string _fullImagePath = string.Empty;
     private readonly string _description;
@@ -127,6 +130,11 @@ public partial class GameObjectSettingsDialog : Window
         _particleEffectNewComputedVariableFactory = initialValues.ParticleEffectNewComputedVariableFactory;
         _structuralPartPlacements = CloneStructuralPartPlacements(initialValues.StructuralPartPlacements);
         _isPartOfParent = initialValues.IsPartOfParent;
+        _originalInheritParentCueCategories = initialValues.InheritParentCueCategories?.ToList();
+        _childCueInheritanceCategories = new PresentationEffectsCatalogService().GetCatalog().Categories
+            .Where(static category => category.ChildCueInheritanceEligible)
+            .ToList();
+        BuildParentCueInheritanceControls(initialValues.InheritParentCueCategories);
         _structuralPartPlacement = CloneStructuralPartPlacement(initialValues.StructuralPartPlacement);
         IsPartOfParentCheckBox.IsChecked = _isPartOfParent;
         StructuralPlacementModeComboBox.SelectedIndex = _structuralPartPlacement.Mode == StructuralPartPlacementKind.RoomCoordinates ? 1 : 0;
@@ -303,6 +311,9 @@ public partial class GameObjectSettingsDialog : Window
                 ParticleEffect: CloneParticleEffect(_particleEffect),
                 IsPartOfParent: _isPartOfParent,
                 StructuralPartPlacement: CloneStructuralPartPlacement(_structuralPartPlacement),
+                InheritParentCueCategories: IsParentCueInheritanceEligible()
+                    ? _parentCueInheritanceCheckBoxes.Where(static pair => pair.Value.IsChecked == true).Select(static pair => pair.Key).ToList()
+                    : _originalInheritParentCueCategories?.ToList(),
                 ParticleEffectVariablePickerContext: _particleEffectVariablePickerContext,
                 ParticleEffectNewComputedVariableFactory: _particleEffectNewComputedVariableFactory,
                 ParticleEffectNewVariables: _particleEffectNewVariables.Select(CloneGameProperty).ToList(),
@@ -489,7 +500,42 @@ public partial class GameObjectSettingsDialog : Window
         StructuralYTextBox.IsEnabled = isPart && roomCoordinates;
         StructuralParentRelativeHint.Visibility = isPart && !roomCoordinates ? Visibility.Visible : Visibility.Collapsed;
         StructuralRoomCoordinatesHint.Visibility = isPart && roomCoordinates ? Visibility.Visible : Visibility.Collapsed;
+        var inheritanceEligible = IsParentCueInheritanceEligible();
+        ParentCueInheritancePanel.Visibility = inheritanceEligible ? Visibility.Visible : Visibility.Collapsed;
+        RoomCoordinateCueInheritanceHintTextBlock.Visibility = isPart && roomCoordinates ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    private bool IsParentCueInheritanceEligible() =>
+        IsPartOfParentCheckBox?.IsChecked == true
+        && GetStructuralPlacementMode() == StructuralPartPlacementKind.ParentRelative;
+
+    private void BuildParentCueInheritanceControls(IReadOnlyList<string>? selectedCategories)
+    {
+        var initialSelection = selectedCategories is null
+            ? _childCueInheritanceCategories.Where(static category => category.ChildCueInheritanceDefault)
+                .Select(static category => category.Category).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : selectedCategories.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var category in _childCueInheritanceCategories)
+        {
+            var checkBox = new System.Windows.Controls.CheckBox
+            {
+                Content = category.Category,
+                IsChecked = initialSelection.Contains(category.Category),
+                Margin = new Thickness(2, 3, 2, 3),
+                ToolTip = GetParentCueInheritanceTooltip(category.Category)
+            };
+            _parentCueInheritanceCheckBoxes[category.Category] = checkBox;
+            ParentCueInheritanceCategoriesPanel.Children.Add(checkBox);
+        }
+    }
+
+    private static string GetParentCueInheritanceTooltip(string category) => category switch
+    {
+        "Movement" => "When unchecked, this child snaps to its new parent-relative destination while the parent may animate.",
+        "Scale" => "When unchecked, this child does not inherit authored Scale cues. Structural placement and situational scaling remain governed by the part relationship.",
+        _ => $"When checked, this child inherits the parent's {category} cues."
+    };
 
     private StructuralPartPlacementKind GetStructuralPlacementMode() =>
         (StructuralPlacementModeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() == nameof(StructuralPartPlacementKind.RoomCoordinates)

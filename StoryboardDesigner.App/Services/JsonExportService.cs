@@ -4714,6 +4714,7 @@ public sealed class JsonExportService : IJsonExportService
                     Settings = ParticleEffectControlSettingCloner.CloneSettings(obj.ParticleEffect.Settings)
                 },
             IsPartOfParent = obj.IsPartOfParent,
+            InheritParentCueCategories = obj.InheritParentCueCategories?.ToList(),
             PartPlacementMode = obj.IsPartOfParent
                 ? Enum.Parse<Storyboard.Shared.RuntimeContracts.Enums.StructuralPartPlacementMode>(obj.Placement.Mode.ToString())
                 : null,
@@ -4901,6 +4902,7 @@ public sealed class JsonExportService : IJsonExportService
                     Settings = ParticleEffectControlSettingCloner.CloneSettings(obj.ParticleEffect.Settings)
                 },
             IsPartOfParent = obj.IsPartOfParent == true,
+            InheritParentCueCategories = obj.InheritParentCueCategories?.ToList(),
             Placement = new StructuralPartPlacement
             {
                 Mode = obj.PartPlacementMode?.ToString() == "RoomCoordinates"
@@ -6374,6 +6376,7 @@ public sealed class JsonExportService : IJsonExportService
                     Settings = NullIfEmpty(effectiveDefinitionOwnedSource.ParticleEffect.Settings.Select(ToRuntimeParticleEffectControlSettingDto).ToList())
                 },
             IsPartOfParent = obj.IsPartOfParent ? true : null,
+            InheritParentCueCategories = obj.InheritParentCueCategories?.ToList(),
             PartPlacementMode = obj.IsPartOfParent
                 ? Enum.Parse<Storyboard.Shared.RuntimeContracts.Enums.StructuralPartPlacementMode>(obj.Placement.Mode.ToString())
                 : null,

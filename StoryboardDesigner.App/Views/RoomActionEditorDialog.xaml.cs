@@ -1571,7 +1571,7 @@ public partial class RoomActionEditorDialog : Window
     private IReadOnlyList<string> BuildSelectionCueEffectKeyChoices()
     {
         var configuredKeys = _presentationEffectsCatalogService.GetCatalog().Effects
-            .Where(static effect => string.Equals(effect.Category, "Appearance", StringComparison.OrdinalIgnoreCase))
+            .Where(static effect => string.Equals(effect.Category, "Highlight", StringComparison.OrdinalIgnoreCase))
             .Select(static effect => effect.EffectKey?.Trim() ?? string.Empty)
             .Where(static effectKey => !string.IsNullOrWhiteSpace(effectKey))
             .Distinct(StringComparer.OrdinalIgnoreCase)

@@ -1945,6 +1945,7 @@ public sealed partial class MainWindowViewModel
         registry.Register(new LinkedBaseObjectReferenceExistsRule());
         registry.Register(new LinkedBaseObjectSingleLevelRule());
         registry.Register(new StructuralPartCompositionRule());
+        registry.Register(new ParentCueInheritanceCategoryRule());
         registry.Register(new RoomObjectPreviewPlacementRule());
         registry.Register(new RoomObjectPreviewCoordinateBoundsRule());
         registry.Register(new SynonymRequiresTargetRule());

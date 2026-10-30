@@ -9579,6 +9579,7 @@ public sealed partial class MainWindowViewModel
                          || !AreEquivalentPointLight(objectNode.GameObject.PointLight, updated.PointLight)
                          || !AreEquivalentParticleEffect(objectNode.GameObject.ParticleEffect, updated.ParticleEffect)
                          || objectNode.GameObject.IsPartOfParent != updated.IsPartOfParent
+                         || !AreEquivalentCueCategoryLists(objectNode.GameObject.InheritParentCueCategories, updated.InheritParentCueCategories)
                          || !AreStructuralPartPlacementsEquivalent(objectNode.GameObject.Placement, updated.StructuralPartPlacement)
                          || !AreStructuralPartPlacementsEquivalent(objectNode.GameObject, updated.StructuralPartPlacements)
                          || !AreEquivalentLightOcclusion(objectNode.GameObject.LightOcclusion, updated.LightOcclusion)
@@ -9660,6 +9661,7 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.PointLight = LightingModelCloner.ClonePointLight(updated.PointLight);
         ApplyParticleEffectAndVariables(objectNode.GameObject, updated);
         objectNode.GameObject.IsPartOfParent = updated.IsPartOfParent;
+        objectNode.GameObject.InheritParentCueCategories = updated.InheritParentCueCategories?.ToList();
         objectNode.GameObject.Placement = CloneStructuralPartPlacement(updated.StructuralPartPlacement);
         ApplyStructuralPartPlacements(objectNode.GameObject, updated.StructuralPartPlacements);
         objectNode.GameObject.LightOcclusion = LightingModelCloner.CloneLightOcclusion(updated.LightOcclusion);
@@ -9912,6 +9914,7 @@ public sealed partial class MainWindowViewModel
                 ParticleEffect: CloneParticleEffectAttachment(gameObject.ParticleEffect),
                 IsPartOfParent: gameObject.IsPartOfParent,
                 StructuralPartPlacement: CloneStructuralPartPlacement(gameObject.Placement),
+                InheritParentCueCategories: gameObject.InheritParentCueCategories?.ToList(),
                 SoundEffectChoices: GetSoundEffectChoicesForScopeNode(gameObject),
                 SoundEmitterActivationPickerContext: CreateGamePropertyPickerContext(
                     gameObject,
@@ -9992,6 +9995,7 @@ public sealed partial class MainWindowViewModel
             ParticleEffect: CloneParticleEffectAttachment(gameObject.ParticleEffect),
             IsPartOfParent: gameObject.IsPartOfParent,
             StructuralPartPlacement: CloneStructuralPartPlacement(gameObject.Placement),
+            InheritParentCueCategories: gameObject.InheritParentCueCategories?.ToList(),
             SoundEffectChoices: GetSoundEffectChoicesForScopeNode(gameObject),
             SoundEmitterActivationPickerContext: CreateGamePropertyPickerContext(
                 gameObject,
@@ -10392,6 +10396,7 @@ public sealed partial class MainWindowViewModel
                          || !AreEquivalentLightOcclusion(objectNode.GameObject.LightOcclusion, updated.LightOcclusion)
                          || !AreEquivalentParticleEffect(objectNode.GameObject.ParticleEffect, updated.ParticleEffect)
                          || objectNode.GameObject.IsPartOfParent != updated.IsPartOfParent
+                         || !AreEquivalentCueCategoryLists(objectNode.GameObject.InheritParentCueCategories, updated.InheritParentCueCategories)
                          || !AreStructuralPartPlacementsEquivalent(objectNode.GameObject.Placement, updated.StructuralPartPlacement)
                          || !AreStructuralPartPlacementsEquivalent(objectNode.GameObject, updated.StructuralPartPlacements)
                          || (linkedDefinition is null && updated.SoundEmitters is not null && !AreObjectSoundEmittersEquivalent(objectNode.GameObject.SoundEmitters, updated.SoundEmitters))
@@ -10462,6 +10467,7 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.LightOcclusion = LightingModelCloner.CloneLightOcclusion(updated.LightOcclusion);
         ApplyParticleEffectAndVariables(objectNode.GameObject, updated);
         objectNode.GameObject.IsPartOfParent = updated.IsPartOfParent;
+        objectNode.GameObject.InheritParentCueCategories = updated.InheritParentCueCategories?.ToList();
         objectNode.GameObject.Placement = CloneStructuralPartPlacement(updated.StructuralPartPlacement);
         ApplyStructuralPartPlacements(objectNode.GameObject, updated.StructuralPartPlacements);
         if (linkedDefinition is null && updated.SoundEmitters is not null)
@@ -10562,6 +10568,7 @@ public sealed partial class MainWindowViewModel
             StructuralPartPlacements: CreateStructuralPartPlacementEditItems(objectNode.GameObject),
             IsPartOfParent: objectNode.GameObject.IsPartOfParent,
             StructuralPartPlacement: CloneStructuralPartPlacement(objectNode.GameObject.Placement),
+            InheritParentCueCategories: objectNode.GameObject.InheritParentCueCategories?.ToList(),
             SoundEffectChoices: GetSoundEffectChoicesForScopeNode(objectNode.GameObject),
             SoundEmitterActivationPickerContext: CreateGamePropertyPickerContext(
                 objectNode.GameObject,
@@ -10663,6 +10670,7 @@ public sealed partial class MainWindowViewModel
                          || !AreEquivalentPointLight(objectNode.GameObject.PointLight, updated.PointLight)
                          || !AreEquivalentParticleEffect(objectNode.GameObject.ParticleEffect, updated.ParticleEffect)
                          || objectNode.GameObject.IsPartOfParent != updated.IsPartOfParent
+                         || !AreEquivalentCueCategoryLists(objectNode.GameObject.InheritParentCueCategories, updated.InheritParentCueCategories)
                          || !AreStructuralPartPlacementsEquivalent(objectNode.GameObject.Placement, updated.StructuralPartPlacement)
                          || !AreStructuralPartPlacementsEquivalent(objectNode.GameObject, updated.StructuralPartPlacements)
                          || !AreEquivalentLightOcclusion(objectNode.GameObject.LightOcclusion, updated.LightOcclusion)
@@ -10736,6 +10744,7 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.PointLight = LightingModelCloner.ClonePointLight(updated.PointLight);
         ApplyParticleEffectAndVariables(objectNode.GameObject, updated);
         objectNode.GameObject.IsPartOfParent = updated.IsPartOfParent;
+        objectNode.GameObject.InheritParentCueCategories = updated.InheritParentCueCategories?.ToList();
         objectNode.GameObject.Placement = CloneStructuralPartPlacement(updated.StructuralPartPlacement);
         ApplyStructuralPartPlacements(objectNode.GameObject, updated.StructuralPartPlacements);
         objectNode.GameObject.LightOcclusion = LightingModelCloner.CloneLightOcclusion(updated.LightOcclusion);
@@ -13351,6 +13360,7 @@ public sealed partial class MainWindowViewModel
                 ParticleEffect: CloneParticleEffectAttachment(target.ParticleEffect),
                 IsPartOfParent: target.IsPartOfParent,
                 StructuralPartPlacement: CloneStructuralPartPlacement(target.Placement),
+                InheritParentCueCategories: target.InheritParentCueCategories?.ToList(),
                 SoundEffectChoices: GetSoundEffectChoicesForScopeNode(target),
                 SoundEmitterActivationPickerContext: CreateGamePropertyPickerContext(
                     target,
@@ -13437,6 +13447,7 @@ public sealed partial class MainWindowViewModel
             }
         }
         target.IsPartOfParent = updated.IsPartOfParent;
+        target.InheritParentCueCategories = updated.InheritParentCueCategories?.ToList();
         target.Placement = CloneStructuralPartPlacement(updated.StructuralPartPlacement);
 
         if (target.IsCompositeTarget)
@@ -13531,6 +13542,16 @@ public sealed partial class MainWindowViewModel
         && AreNearlyEqualNullable(current?.ParentRelativeOffsetY, updated?.ParentRelativeOffsetY)
         && AreNearlyEqualNullable(current?.RoomCoordinateX, updated?.RoomCoordinateX)
         && AreNearlyEqualNullable(current?.RoomCoordinateY, updated?.RoomCoordinateY);
+
+    private static bool AreEquivalentCueCategoryLists(IReadOnlyList<string>? left, IReadOnlyList<string>? right)
+    {
+        if (left is null || right is null)
+        {
+            return left is null && right is null;
+        }
+
+        return left.Count == right.Count && left.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(right);
+    }
 
     private static void ApplyStructuralPartPlacements(
         GameObject parent,
