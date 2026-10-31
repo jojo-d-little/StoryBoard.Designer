@@ -420,7 +420,7 @@ internal sealed class TreeContextInteractionServiceStub : ITreeContextInteractio
     public Func<IReadOnlyList<SharedVariableManagerListItem>>? LastReloadSharedVariableManagerItemsAction { get; private set; }
     public bool AutoInvokeOpenSharedVariablesManagerAction { get; set; }
 
-    public bool TryGetNewVariableInput(string initialName, GamePropertyLifetime initialLifetime, string initialDefaultValue, GamePropertyValueRestriction initialValueRestriction, Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation, out string variableName, out GamePropertyLifetime lifetime, out string defaultValue, out GamePropertyValueRestriction valueRestriction, out ProjectGamePropertyComputationDto? computation)
+    public bool TryGetNewVariableInput(string initialName, GamePropertyLifetime initialLifetime, string initialDefaultValue, GamePropertyValueRestriction initialValueRestriction, Func<ProjectGamePropertyComputationV2Dto?, ProjectGamePropertyComputationV2Dto?>? editComputation, out string variableName, out GamePropertyLifetime lifetime, out string defaultValue, out GamePropertyValueRestriction valueRestriction, out ProjectGamePropertyComputationV2Dto? computation)
     {
         variableName = string.Empty;
         lifetime = initialLifetime;
@@ -430,7 +430,7 @@ internal sealed class TreeContextInteractionServiceStub : ITreeContextInteractio
         return false;
     }
 
-    public void ShowVariableScopeReview(string scopeLabel, IList<GamePropertyDefinition> variables, Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation = null)
+    public void ShowVariableScopeReview(string scopeLabel, IList<GamePropertyDefinition> variables, Func<ProjectGamePropertyComputationV2Dto?, ProjectGamePropertyComputationV2Dto?>? editComputation = null)
     {
         ShowVariableScopeReviewHandler?.Invoke(scopeLabel, variables);
     }

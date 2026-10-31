@@ -9,7 +9,7 @@ public partial class AreaPropertiesDialog : Window
     private readonly IReadOnlyList<AreaStartingRoomOption> _startingRoomOptions;
     private readonly IReadOnlyList<RoomDropBehaviorChoice> _roomDropBehaviorChoices;
     private List<EnvironmentalEffectDefinition> _environmentalEffects;
-    private readonly Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?>? _environmentalEffectComputationEditor;
+    private readonly Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationV2Dto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationV2Dto?>? _environmentalEffectComputationEditor;
     private readonly IReadOnlyList<SharedVariableChoiceOption> _environmentalEffectSharedVariableOptions;
     private readonly GamePropertyPickerContext? _environmentalEffectVariablePickerContext;
 

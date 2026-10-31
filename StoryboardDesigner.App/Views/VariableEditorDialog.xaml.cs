@@ -9,8 +9,8 @@ public partial class VariableEditorDialog : Window
 {
     private readonly HashSet<string> _disallowedNames;
     private readonly Action<Window>? _manageSharedVariablesAction;
-    private readonly Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? _editComputation;
-    private ProjectGamePropertyComputationDto? _computation;
+    private readonly Func<ProjectGamePropertyComputationV2Dto?, ProjectGamePropertyComputationV2Dto?>? _editComputation;
+    private ProjectGamePropertyComputationV2Dto? _computation;
 
     public VariableEditorDialog(
         string name,
@@ -19,8 +19,8 @@ public partial class VariableEditorDialog : Window
         GamePropertyValueRestriction valueRestriction,
         IEnumerable<string>? disallowedNames = null,
         Action<Window>? manageSharedVariablesAction = null,
-        ProjectGamePropertyComputationDto? computation = null,
-        Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation = null,
+        ProjectGamePropertyComputationV2Dto? computation = null,
+        Func<ProjectGamePropertyComputationV2Dto?, ProjectGamePropertyComputationV2Dto?>? editComputation = null,
         bool readOnly = false)
     {
         InitializeComponent();
@@ -60,7 +60,7 @@ public partial class VariableEditorDialog : Window
     public GamePropertyValueRestriction ValueRestriction => ValueRestrictionComboBox.SelectedValue is GamePropertyValueRestriction restriction ? restriction : GamePropertyValueRestriction.Unrestricted;
     public GamePropertyLifetime Lifetime => LifetimeComboBox.SelectedItem is GamePropertyLifetime lifetime ? lifetime : GamePropertyLifetime.Singleton;
     public bool IsComputed => ComputedCheckBox.IsChecked == true;
-    public ProjectGamePropertyComputationDto? Computation => IsComputed ? _computation : null;
+    public ProjectGamePropertyComputationV2Dto? Computation => IsComputed ? _computation : null;
 
     private void Computed_OnChanged(object sender, RoutedEventArgs e)
     {
@@ -149,7 +149,7 @@ public partial class VariableEditorDialog : Window
 
     private void ApplyComputationDefaults()
     {
-        var (defaultValue, restriction) = (_computation?.ResultKind ?? "Boolean") switch
+        var (defaultValue, restriction) = (_computation?.OutputType ?? "Boolean") switch
         {
             "Numeric" => ("0", GamePropertyValueRestriction.Numeric),
             "String" => (string.Empty, GamePropertyValueRestriction.Unrestricted),

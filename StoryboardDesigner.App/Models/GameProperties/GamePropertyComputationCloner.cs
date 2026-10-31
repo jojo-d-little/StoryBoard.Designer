@@ -5,44 +5,35 @@ namespace StoryboardDesigner.App.Models;
 
 public static class GamePropertyComputationCloner
 {
-    public static ProjectGamePropertyComputationDto? Clone(ProjectGamePropertyComputationDto? computation)
-    {
-        return computation is null
+    public static ProjectGamePropertyExpressionDto? CloneExpression(ProjectGamePropertyExpressionDto? expression) =>
+        expression is null
             ? null
-            : JsonSerializer.Deserialize<ProjectGamePropertyComputationDto>(JsonSerializer.Serialize(computation));
-    }
+            : JsonSerializer.Deserialize<ProjectGamePropertyExpressionDto>(JsonSerializer.Serialize(expression));
 
-    public static void RemapOwnerIds(ProjectGamePropertyComputationDto? computation, IReadOnlyDictionary<Guid, Guid> ownerIdMap)
+    public static ProjectGamePropertyComputationV2Dto? Clone(ProjectGamePropertyComputationV2Dto? computation) =>
+        computation is null
+            ? null
+            : JsonSerializer.Deserialize<ProjectGamePropertyComputationV2Dto>(JsonSerializer.Serialize(computation));
+
+    public static void RemapOwnerIds(ProjectGamePropertyComputationV2Dto? computation, IReadOnlyDictionary<Guid, Guid> ownerIdMap)
     {
-        if (computation is null || ownerIdMap.Count == 0)
-        {
-            return;
-        }
+        if (computation?.Expression is null || ownerIdMap.Count == 0) return;
+        Remap(computation.Expression);
 
-        void RemapSource(ProjectGamePropertySourceReferenceDto? source)
+        void Remap(ProjectGamePropertyExpressionDto expression)
         {
-            if (source?.OwnerId is Guid ownerId && ownerIdMap.TryGetValue(ownerId, out var mappedOwnerId))
+            if (expression.Source?.OwnerId is Guid ownerId && ownerIdMap.TryGetValue(ownerId, out var mappedOwnerId))
+                expression.Source.OwnerId = mappedOwnerId;
+            if (expression.Left is not null) Remap(expression.Left);
+            if (expression.Right is not null) Remap(expression.Right);
+            if (expression.Expression is not null) Remap(expression.Expression);
+            foreach (var operand in expression.Operands ?? []) Remap(operand);
+            foreach (var branch in expression.Branches ?? [])
             {
-                source.OwnerId = mappedOwnerId;
+                if (branch.When is not null) Remap(branch.When);
+                if (branch.Value is not null) Remap(branch.Value);
             }
+            if (expression.Else is not null) Remap(expression.Else);
         }
-
-        void RemapCondition(ProjectGamePropertyConditionDto condition)
-        {
-            RemapSource(condition.GamePropertySource);
-            RemapSource(condition.RightOperand?.GamePropertySource);
-            if (condition.Condition is not null) RemapCondition(condition.Condition);
-            foreach (var child in condition.Conditions ?? []) RemapCondition(child);
-        }
-
-        void RemapOperand(ProjectGamePropertyOperandDto? operand) => RemapSource(operand?.GamePropertySource);
-
-        if (computation.Condition is not null) RemapCondition(computation.Condition);
-        foreach (var branch in computation.ResultBranches ?? [])
-        {
-            if (branch.Condition is not null) RemapCondition(branch.Condition);
-            RemapOperand(branch.Result);
-        }
-        RemapOperand(computation.ElseResult);
     }
 }

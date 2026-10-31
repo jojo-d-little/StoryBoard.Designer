@@ -6584,7 +6584,7 @@ public sealed class JsonExportService : IJsonExportService
             ValueRestriction = GetComputedValueRestriction(variable),
             Lifetime = variable.Lifetime,
             SharedVariableId = variable.SharedVariableId,
-            Computation = CloneContractValue(variable.Computation)
+            ComputationV2 = CloneContractValue(variable.Computation)
         };
     }
 
@@ -6935,11 +6935,11 @@ public sealed class JsonExportService : IJsonExportService
             ValueRestriction = GetComputedValueRestriction(variable),
             Lifetime = variable.Lifetime,
             SharedVariableId = variable.SharedVariableId,
-            Computation = ConvertComputationToRuntime(variable.Computation)
+            ComputationV2 = ConvertComputationToRuntime(variable.Computation)
         };
     }
 
-    private static string GetComputedDefaultValue(GamePropertyDefinition variable) => variable.Computation?.ResultKind switch
+    private static string GetComputedDefaultValue(GamePropertyDefinition variable) => variable.Computation?.OutputType switch
     {
         "Numeric" => "0",
         "String" => string.Empty,
@@ -6947,7 +6947,7 @@ public sealed class JsonExportService : IJsonExportService
         _ => variable.Computation is null ? variable.DefaultValue : "false"
     };
 
-    private static GamePropertyValueRestriction GetComputedValueRestriction(GamePropertyDefinition variable) => variable.Computation?.ResultKind switch
+    private static GamePropertyValueRestriction GetComputedValueRestriction(GamePropertyDefinition variable) => variable.Computation?.OutputType switch
     {
         "Numeric" => GamePropertyValueRestriction.Numeric,
         "String" => GamePropertyValueRestriction.Unrestricted,
@@ -7450,7 +7450,8 @@ public sealed class JsonExportService : IJsonExportService
             ValueRestriction = Enum.IsDefined(variable.ValueRestriction) ? variable.ValueRestriction : GamePropertyValueRestriction.Unrestricted,
             Lifetime = Enum.IsDefined(variable.Lifetime) ? variable.Lifetime : GamePropertyLifetime.Singleton,
             SharedVariableId = variable.SharedVariableId,
-            Computation = CloneContractValue(variable.Computation)
+            Computation = CloneContractValue(variable.ComputationV2)
+                ?? LegacyGamePropertyComputationImporter.Convert(variable.Computation)
         };
     }
 
@@ -7465,14 +7466,14 @@ public sealed class JsonExportService : IJsonExportService
         return JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value));
     }
 
-    private static RuntimeGamePropertyComputationDto? ConvertComputationToRuntime(ProjectGamePropertyComputationDto? computation)
+    private static RuntimeGamePropertyComputationV2Dto? ConvertComputationToRuntime(ProjectGamePropertyComputationV2Dto? computation)
     {
         if (computation is null)
         {
             return null;
         }
 
-        return JsonSerializer.Deserialize<RuntimeGamePropertyComputationDto>(JsonSerializer.Serialize(computation));
+        return JsonSerializer.Deserialize<RuntimeGamePropertyComputationV2Dto>(JsonSerializer.Serialize(computation));
     }
 
     private static SoundEffectLibraryEntry ToSoundEffectLibraryEntryModel(SoundEffectLibraryEntryDto dto)

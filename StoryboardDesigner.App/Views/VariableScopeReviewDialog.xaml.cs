@@ -11,9 +11,9 @@ public partial class VariableScopeReviewDialog : Window
 {
     private readonly Dictionary<Guid, string> _originalNames = new();
     private readonly IList<GamePropertyDefinition> _variables;
-    private readonly Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? _editComputation;
+    private readonly Func<ProjectGamePropertyComputationV2Dto?, ProjectGamePropertyComputationV2Dto?>? _editComputation;
 
-    public VariableScopeReviewDialog(string scopeLabel, IList<GamePropertyDefinition> variables, Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation = null)
+    public VariableScopeReviewDialog(string scopeLabel, IList<GamePropertyDefinition> variables, Func<ProjectGamePropertyComputationV2Dto?, ProjectGamePropertyComputationV2Dto?>? editComputation = null)
     {
         InitializeComponent();
         _variables = variables;

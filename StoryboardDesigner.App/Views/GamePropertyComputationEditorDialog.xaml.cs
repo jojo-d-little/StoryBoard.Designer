@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Globalization;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using Storyboard.Shared.DesignerContracts;
@@ -8,31 +8,27 @@ using StoryboardDesigner.App.Models;
 
 namespace StoryboardDesigner.App.Views;
 
+public sealed class ExpressionTreeItem
+{
+    public string Title { get; set; } = string.Empty;
+    public ProjectGamePropertyExpressionDto? Expression { get; init; }
+    public Action<ProjectGamePropertyExpressionDto>? Replace { get; init; }
+    public Action? Remove { get; init; }
+    public ProjectGamePropertyExpressionDto? ParentExpression { get; init; }
+    public ProjectGamePropertySelectBranchDto? Branch { get; init; }
+    public ObservableCollection<ExpressionTreeItem> Children { get; } = new();
+}
+
 public partial class GamePropertyComputationEditorDialog : Window
 {
-    private sealed class BranchRow(ProjectGamePropertyResultBranchDto branch, Func<ProjectGamePropertySourceReferenceDto?, string> formatSource) : INotifyPropertyChanged
-    {
-        public ProjectGamePropertyResultBranchDto Branch { get; } = branch;
-        public string Label => $"IF {GamePropertyComputationFormatter.Format(Branch.Condition)} THEN {FormatOperand(Branch.Result, formatSource)}";
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        public void RefreshLabel() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Label)));
-    }
-
     private readonly Func<ProjectGamePropertySourceReferenceDto?, ProjectGamePropertySourceReferenceDto?> _chooseSource;
     private readonly Func<ProjectGamePropertySourceReferenceDto?, string> _formatSource;
-    private readonly ObservableCollection<BranchRow> _branchRows = new();
-    private ProjectGamePropertyConditionDto? _booleanCondition;
-    private ProjectGamePropertyOperandDto? _elseResult;
-    private bool _branchUsesProperty;
-    private bool _elseUsesProperty;
-    private BranchRow? _lastSelectedBranch;
-    private bool _refreshing;
     private readonly bool _isReadOnly;
+    private ProjectGamePropertyExpressionDto? _root;
+    private bool _refreshing;
 
     public GamePropertyComputationEditorDialog(
-        ProjectGamePropertyComputationDto? computation,
+        ProjectGamePropertyComputationV2Dto? computation,
         Func<ProjectGamePropertySourceReferenceDto?, ProjectGamePropertySourceReferenceDto?> chooseSource,
         Func<ProjectGamePropertySourceReferenceDto?, string> formatSource,
         bool readOnly = false)
@@ -41,315 +37,373 @@ public partial class GamePropertyComputationEditorDialog : Window
         _isReadOnly = readOnly;
         _chooseSource = chooseSource;
         _formatSource = formatSource;
-        BranchesListBox.ItemsSource = _branchRows;
-        if (computation is not null)
-        {
-            _booleanCondition = Clone(computation.Condition);
-            foreach (var branch in computation.ResultBranches ?? new List<ProjectGamePropertyResultBranchDto>())
-                _branchRows.Add(new BranchRow(Clone(branch)!, _formatSource));
-            _elseResult = Clone(computation.ElseResult);
-        }
-
-        SelectResultKind(computation?.ResultKind ?? "Boolean");
-        RefreshBooleanCondition();
-        RefreshBranchEditor();
-        RefreshElseEditor();
+        ResultKindComboBox.SelectedItem = FindItem(ResultKindComboBox, computation?.OutputType ?? "Boolean");
+        _root = GamePropertyComputationCloner.CloneExpression(computation?.Expression) ?? Literal(false);
+        RefreshTree(_root);
         if (_isReadOnly)
         {
             Title = "Computed Game Property (Read-only)";
             ResultKindComboBox.IsEnabled = false;
-            EditBooleanConditionButton.Content = "Review condition tree...";
-            SaveButton.Content = "Close";
-            CancelButton.Visibility = Visibility.Collapsed;
+            NewNodeKindComboBox.IsEnabled = false;
+            KindComboBox.IsEnabled = false;
+            LiteralTypeComboBox.IsEnabled = false;
+            LiteralTextBox.IsReadOnly = true;
+            ChooseSourceButton.IsEnabled = false;
+            OperatorComboBox.IsEnabled = false;
+            AddExpressionButton.IsEnabled = false;
             AddBranchButton.IsEnabled = false;
             MoveBranchUpButton.IsEnabled = false;
             MoveBranchDownButton.IsEnabled = false;
-            RemoveBranchButton.IsEnabled = false;
-            EditBranchConditionButton.Content = "Review...";
-            BranchUsesPropertyCheckBox.IsEnabled = false;
-            ChooseBranchSourceButton.IsEnabled = false;
-            BranchLiteralTextBox.IsReadOnly = true;
-            ElseUsesPropertyCheckBox.IsEnabled = false;
-            ElseLiteralTextBox.IsReadOnly = true;
-            ChooseElseSourceButton.IsEnabled = false;
+            RemoveExpressionButton.IsEnabled = false;
+            SaveButton.Content = "Close";
+            CancelButton.Visibility = Visibility.Collapsed;
         }
     }
 
-    public ProjectGamePropertyComputationDto? Computation => DialogResult == true ? BuildComputation() : null;
+    public ProjectGamePropertyComputationV2Dto? Computation => DialogResult == true
+        ? new ProjectGamePropertyComputationV2Dto
+        {
+            OutputType = SelectedOutputType,
+            Expression = GamePropertyComputationCloner.CloneExpression(_root) ?? Literal(false)
+        }
+        : null;
 
-    private string SelectedResultKind => (ResultKindComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Boolean";
-    private bool IsBoolean => string.Equals(SelectedResultKind, "Boolean", StringComparison.OrdinalIgnoreCase);
-    private string OutputValueKind => SelectedResultKind == "Numeric" ? "Numeric" : "Text";
+    private string SelectedOutputType => (ResultKindComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Boolean";
+    private static ComboBoxItem? FindItem(System.Windows.Controls.ComboBox combo, string? content) => combo.Items.OfType<ComboBoxItem>()
+        .FirstOrDefault(item => string.Equals(item.Content?.ToString(), content, StringComparison.OrdinalIgnoreCase)) ?? combo.Items.OfType<ComboBoxItem>().FirstOrDefault();
 
-    private ProjectGamePropertyComputationDto BuildComputation() => new()
+    private void RefreshTree(ProjectGamePropertyExpressionDto? select = null)
     {
-        ResultKind = SelectedResultKind,
-        Condition = IsBoolean ? Clone(_booleanCondition) : null,
-        ResultBranches = IsBoolean ? null : _branchRows.Select(static row => Clone(row.Branch)!).ToList(),
-        ElseResult = IsBoolean ? null : Clone(_elseResult)
-    };
+        ExpressionTree.ItemsSource = _root is null ? Array.Empty<ExpressionTreeItem>() : new[] { BuildNode(_root, replacement => _root = replacement, null) };
+        ExpressionTree.UpdateLayout();
+        if (ExpressionTree.ItemContainerGenerator.ContainerFromIndex(0) is TreeViewItem first)
+        {
+            ExpandAll(first);
+            if (select is not null) SelectExpression(first, select);
+        }
+        if (ExpressionTree.SelectedItem is not ExpressionTreeItem) ClearEditor();
+        RefreshPreview();
+        ExpressionErrorTextBlock.Text = string.Join(Environment.NewLine, ValidateStructure(_root));
+        UpdateActions();
+    }
 
-    private static T? Clone<T>(T? value) where T : class => value is null
-        ? null
-        : System.Text.Json.JsonSerializer.Deserialize<T>(System.Text.Json.JsonSerializer.Serialize(value));
-
-    private static string FormatOperand(ProjectGamePropertyOperandDto? operand, Func<ProjectGamePropertySourceReferenceDto?, string> formatSource) =>
-        operand is null ? "<missing output>" : operand.GamePropertySource is not null ? formatSource(operand.GamePropertySource) : operand.Value ?? "";
-
-    private void SelectResultKind(string resultKind)
+    private ExpressionTreeItem BuildNode(ProjectGamePropertyExpressionDto expression, Action<ProjectGamePropertyExpressionDto> replace,
+        ProjectGamePropertyExpressionDto? parent, Action? remove = null, string? role = null)
     {
-        ResultKindComboBox.SelectedItem = ResultKindComboBox.Items.OfType<ComboBoxItem>()
-            .FirstOrDefault(item => string.Equals(item.Content?.ToString(), resultKind, StringComparison.OrdinalIgnoreCase))
-            ?? ResultKindComboBox.Items.OfType<ComboBoxItem>().First();
-        UpdateResultKindPanels();
+        var item = new ExpressionTreeItem { Expression = expression, Replace = replace, ParentExpression = parent, Remove = remove,
+            Title = role is null ? NodeTitle(expression) : $"{role}: {NodeTitle(expression)}" };
+        if (expression.Left is not null)
+            item.Children.Add(BuildNode(expression.Left, value => expression.Left = value, expression, () => expression.Left = null!, "left"));
+        else if (expression.Kind is "compare" or "add" or "subtract" or "multiply" or "divide")
+            item.Children.Add(BuildNode(Literal(string.Empty), value => expression.Left = value, expression, () => expression.Left = null!, "left"));
+        if (expression.Right is not null)
+            item.Children.Add(BuildNode(expression.Right, value => expression.Right = value, expression, () => expression.Right = null!, "right"));
+        else if (expression.Kind is "compare" or "add" or "subtract" or "multiply" or "divide")
+            item.Children.Add(BuildNode(Literal(0d), value => expression.Right = value, expression, () => expression.Right = null!, "right"));
+        if (expression.Expression is not null)
+            item.Children.Add(BuildNode(expression.Expression, value => expression.Expression = value, expression, () => expression.Expression = null!, "child"));
+        else if (expression.Kind == "not")
+            item.Children.Add(BuildNode(Literal(false), value => expression.Expression = value, expression, () => expression.Expression = null!, "child"));
+        if (expression.Operands is not null)
+        {
+            for (var index = 0; index < expression.Operands.Count; index++)
+            {
+                var childIndex = index;
+                item.Children.Add(BuildNode(expression.Operands[index], value => expression.Operands[childIndex] = value, expression,
+                    () => expression.Operands.RemoveAt(childIndex), $"operand {index + 1}"));
+            }
+        }
+        if (expression.Kind is "and" or "or" && (expression.Operands is null || expression.Operands.Count == 0))
+            item.Children.Add(BuildNode(Literal(false), value => { expression.Operands ??= new(); expression.Operands.Add(value); }, expression));
+        if (expression.Branches is not null)
+        {
+            for (var index = 0; index < expression.Branches.Count; index++)
+            {
+                var branchIndex = index;
+                var branch = expression.Branches[index];
+                var branchItem = new ExpressionTreeItem
+                {
+                    Title = $"Branch {index + 1} (first match)", Branch = branch, ParentExpression = expression,
+                    Remove = () => expression.Branches.RemoveAt(branchIndex)
+                };
+                branchItem.Children.Add(BuildNode(branch.When, value => branch.When = value, expression, role: "when"));
+                branchItem.Children.Add(BuildNode(branch.Value, value => branch.Value = value, expression, role: "value"));
+                item.Children.Add(branchItem);
+            }
+        }
+        if (expression.Kind == "select")
+        {
+            if (expression.Else is not null) item.Children.Add(BuildNode(expression.Else, value => expression.Else = value, expression, role: "else"));
+            else item.Children.Add(BuildNode(Literal(string.Empty), value => expression.Else = value, expression, role: "else"));
+        }
+        return item;
+    }
+
+    private static string NodeTitle(ProjectGamePropertyExpressionDto expression)
+    {
+        var detail = expression.Kind switch
+        {
+            "literal" => " " + FormatValue(expression.Value),
+            "property" or "exists" => " " + GamePropertyComputationFormatter.FormatSourceReference(expression.Source),
+            "compare" => " " + expression.Operator,
+            _ => string.Empty
+        };
+        return expression.Kind + detail;
+    }
+
+    private static void ExpandAll(TreeViewItem item)
+    {
+        item.IsExpanded = true;
+        item.UpdateLayout();
+        for (var i = 0; i < item.Items.Count; i++)
+            if (item.ItemContainerGenerator.ContainerFromIndex(i) is TreeViewItem child) ExpandAll(child);
+    }
+
+    private bool SelectExpression(TreeViewItem item, ProjectGamePropertyExpressionDto selected)
+    {
+        if (item.DataContext is ExpressionTreeItem node && ReferenceEquals(node.Expression, selected)) { item.IsSelected = true; return true; }
+        item.IsExpanded = true;
+        item.UpdateLayout();
+        for (var i = 0; i < item.Items.Count; i++)
+            if (item.ItemContainerGenerator.ContainerFromIndex(i) is TreeViewItem child && SelectExpression(child, selected)) return true;
+        return false;
+    }
+
+    private void ExpressionTree_OnSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    {
+        if (e.NewValue is not ExpressionTreeItem item || item.Expression is null) { ClearEditor(); UpdateActions(); return; }
+        var expression = item.Expression;
+        _refreshing = true;
+        SelectComboValue(KindComboBox, expression.Kind);
+        SelectComboValue(OperatorComboBox, expression.Operator);
+        SelectLiteralType(expression.Value);
+        LiteralTextBox.Text = LiteralText(expression.Value);
+        SourceTextBox.Text = _formatSource(expression.Source);
+        var kind = expression.Kind;
+        LiteralPanel.Visibility = kind == "literal" ? Visibility.Visible : Visibility.Collapsed;
+        SourcePanel.Visibility = kind is "property" or "exists" ? Visibility.Visible : Visibility.Collapsed;
+        OperatorPanel.Visibility = kind == "compare" ? Visibility.Visible : Visibility.Collapsed;
+        var isEditable = !_isReadOnly;
+        KindComboBox.IsEnabled = isEditable && kind is not ("add" or "subtract" or "multiply" or "divide");
+        LiteralTypeComboBox.IsEnabled = isEditable;
+        LiteralTextBox.IsReadOnly = !isEditable;
+        ChooseSourceButton.IsEnabled = isEditable;
+        OperatorComboBox.IsEnabled = isEditable;
+        NodeHelpTextBlock.Text = HelpText(kind);
+        _refreshing = false;
+        UpdateActions();
+    }
+
+    private void ClearEditor()
+    {
+        LiteralPanel.Visibility = SourcePanel.Visibility = OperatorPanel.Visibility = Visibility.Collapsed;
+        NodeHelpTextBlock.Text = "Select a node to edit it. Branch conditions and values are separate expressions.";
     }
 
     private void ResultKindComboBox_OnChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_refreshing) return;
-        UpdateResultKindPanels();
-        foreach (var row in _branchRows)
+        if (!_refreshing) RefreshPreview();
+    }
+
+    private void KindComboBox_OnChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_refreshing || ExpressionTree.SelectedItem is not ExpressionTreeItem { Expression: not null, Replace: not null } selected) return;
+        var kind = (KindComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString();
+        if (kind is null || kind == selected.Expression.Kind) return;
+        var replacement = CreateDefault(kind);
+        selected.Replace(replacement);
+        RefreshTree(replacement);
+    }
+
+    private void LiteralTypeComboBox_OnChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_refreshing || ExpressionTree.SelectedItem is not ExpressionTreeItem { Expression.Kind: "literal" } selected) return;
+        LiteralTextBox_OnChanged(sender, e);
+    }
+
+    private void LiteralTextBox_OnChanged(object sender, RoutedEventArgs e)
+    {
+        if (_refreshing || ExpressionTree.SelectedItem is not ExpressionTreeItem { Expression: not null } selected) return;
+        var expression = selected.Expression;
+        if (expression.Kind != "literal") return;
+        var type = (LiteralTypeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "String";
+        switch (type)
         {
-            if (row.Branch.Result is not null && row.Branch.Result.GamePropertySource is null)
-                row.Branch.Result.ValueKind = OutputValueKind;
+            case "Boolean":
+                if (!bool.TryParse(LiteralTextBox.Text, out var boolean)) { ExpressionErrorTextBlock.Text = "Enter true or false for a Boolean literal."; return; }
+                expression.Value = boolean;
+                break;
+            case "Numeric":
+                if (!double.TryParse(LiteralTextBox.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) || !double.IsFinite(number))
+                { ExpressionErrorTextBlock.Text = "Enter a finite invariant-culture number."; return; }
+                expression.Value = number;
+                break;
+            default: expression.Value = LiteralTextBox.Text; break;
         }
-        if (_elseResult is not null && _elseResult.GamePropertySource is null)
-            _elseResult.ValueKind = OutputValueKind;
-        foreach (var row in _branchRows) row.RefreshLabel();
-        RefreshBranchEditor();
-        RefreshElseEditor();
+        ExpressionErrorTextBlock.Text = string.Empty;
+        RefreshTree(expression);
     }
 
-    private void UpdateResultKindPanels()
+    private void OperatorComboBox_OnChanged(object sender, SelectionChangedEventArgs e)
     {
-        BooleanPanel.Visibility = IsBoolean ? Visibility.Visible : Visibility.Collapsed;
-        ResultPanel.Visibility = IsBoolean ? Visibility.Collapsed : Visibility.Visible;
+        if (_refreshing || ExpressionTree.SelectedItem is not ExpressionTreeItem { Expression: not null } selected) return;
+        selected.Expression.Operator = (OperatorComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString();
+        RefreshTree(selected.Expression);
     }
 
-    private void RefreshBooleanCondition() => BooleanConditionTextBlock.Text = GamePropertyComputationFormatter.Format(_booleanCondition);
-
-    private void EditBooleanCondition_OnClick(object sender, RoutedEventArgs e)
+    private void ChooseSource_OnClick(object sender, RoutedEventArgs e)
     {
-        var dialog = CreateConditionDialog(_booleanCondition);
-        if (dialog.ShowDialog() != true || dialog.Condition is null) return;
-        _booleanCondition = dialog.Condition;
-        RefreshBooleanCondition();
+        if (ExpressionTree.SelectedItem is not ExpressionTreeItem { Expression: not null } selected) return;
+        var source = _chooseSource(selected.Expression.Source);
+        if (source is null) return;
+        selected.Expression.Source = source;
+        RefreshTree(selected.Expression);
     }
 
-    private GamePropertyConditionEditorDialog CreateConditionDialog(ProjectGamePropertyConditionDto? condition) => new(
-        condition,
-        _chooseSource,
-        _formatSource,
-        _isReadOnly)
+    private void AddExpression_OnClick(object sender, RoutedEventArgs e)
     {
-        Owner = this
-    };
+        var kind = (NewNodeKindComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "literal";
+        var child = CreateDefault(kind);
+        if (ExpressionTree.SelectedItem is not ExpressionTreeItem { Expression: not null } selected) { _root = child; RefreshTree(child); return; }
+        var parent = selected.Expression;
+        switch (parent.Kind)
+        {
+            case "and": case "or": parent.Operands ??= new(); parent.Operands.Add(child); break;
+            case "not": if (parent.Expression is null) parent.Expression = child; else return; break;
+            case "compare": case "add": case "subtract": case "multiply": case "divide":
+                if (parent.Left is null) parent.Left = child; else if (parent.Right is null) parent.Right = child; else return; break;
+            default: return;
+        }
+        RefreshTree(child);
+    }
 
     private void AddBranch_OnClick(object sender, RoutedEventArgs e)
     {
-        var branch = new ProjectGamePropertyResultBranchDto
-        {
-            Condition = new ProjectGamePropertyConditionDto { Kind = "Compare", Operator = "IsTrue" },
-            Result = new ProjectGamePropertyOperandDto { ValueKind = OutputValueKind, Value = OutputValueKind == "Numeric" ? "0" : string.Empty }
-        };
-        var row = new BranchRow(branch, _formatSource);
-        _branchRows.Add(row);
-        BranchesListBox.SelectedItem = row;
-        RefreshBranchEditor();
+        if (ExpressionTree.SelectedItem is not ExpressionTreeItem { Expression.Kind: "select" } selected) return;
+        selected.Expression.Branches ??= new();
+        var branch = new ProjectGamePropertySelectBranchDto { When = Literal(false), Value = Literal(string.Empty) };
+        selected.Expression.Branches.Add(branch);
+        RefreshTree(branch.When);
     }
 
-    private void RemoveBranch_OnClick(object sender, RoutedEventArgs e)
+    private void RemoveExpression_OnClick(object sender, RoutedEventArgs e)
     {
-        if (BranchesListBox.SelectedItem is not BranchRow row) return;
-        var index = _branchRows.IndexOf(row);
-        _branchRows.Remove(row);
-        if (_branchRows.Count > 0) BranchesListBox.SelectedIndex = Math.Min(index, _branchRows.Count - 1);
-        RefreshBranchEditor();
+        if (ExpressionTree.SelectedItem is not ExpressionTreeItem { Remove: not null } selected) return;
+        selected.Remove();
+        RefreshTree();
     }
 
     private void MoveBranchUp_OnClick(object sender, RoutedEventArgs e) => MoveSelectedBranch(-1);
     private void MoveBranchDown_OnClick(object sender, RoutedEventArgs e) => MoveSelectedBranch(1);
-
-    private void MoveSelectedBranch(int offset)
+    private void MoveSelectedBranch(int delta)
     {
-        if (BranchesListBox.SelectedItem is not BranchRow row) return;
-        var index = _branchRows.IndexOf(row);
-        var target = index + offset;
-        if (target < 0 || target >= _branchRows.Count) return;
-        _branchRows.Move(index, target);
-        BranchesListBox.SelectedItem = row;
+        if (ExpressionTree.SelectedItem is not ExpressionTreeItem { Branch: not null, ParentExpression: not null } selected) return;
+        var branches = selected.ParentExpression.Branches;
+        var index = branches?.IndexOf(selected.Branch) ?? -1;
+        var target = index + delta;
+        if (branches is null || index < 0 || target < 0 || target >= branches.Count) return;
+        branches.RemoveAt(index);
+        branches.Insert(target, selected.Branch);
+        RefreshTree();
     }
 
-    private void EditBranchCondition_OnClick(object sender, RoutedEventArgs e)
+    private void UpdateActions()
     {
-        if (BranchesListBox.SelectedItem is not BranchRow row) return;
-        var dialog = CreateConditionDialog(row.Branch.Condition);
-        if (dialog.ShowDialog() != true || dialog.Condition is null) return;
-        row.Branch.Condition = dialog.Condition;
-        row.RefreshLabel();
-        RefreshBranchEditor();
-    }
-
-    private void BranchesListBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e) => RefreshBranchEditor();
-
-    private void RefreshBranchEditor()
-    {
-        _refreshing = true;
-        var row = BranchesListBox.SelectedItem as BranchRow;
-        BranchConditionTextBox.Text = row is null ? string.Empty : GamePropertyComputationFormatter.Format(row.Branch.Condition);
-        var result = row?.Branch.Result;
-        if (!ReferenceEquals(row, _lastSelectedBranch))
+        var selected = ExpressionTree.SelectedItem as ExpressionTreeItem;
+        var expression = selected?.Expression;
+        var canAddChild = expression?.Kind switch
         {
-            _branchUsesProperty = result?.GamePropertySource is not null;
-            _lastSelectedBranch = row;
-        }
-        else if (result?.GamePropertySource is not null)
+            "and" or "or" => true,
+            "not" => expression.Expression is null,
+            "compare" => expression.Left is null || expression.Right is null,
+            _ => false
+        };
+        AddExpressionButton.IsEnabled = !_isReadOnly && canAddChild;
+        AddBranchButton.IsEnabled = !_isReadOnly && expression?.Kind == "select";
+        RemoveExpressionButton.IsEnabled = !_isReadOnly && selected?.Remove is not null;
+        var branchIndex = selected?.Branch is null || selected.ParentExpression?.Branches is null ? -1 : selected.ParentExpression.Branches.IndexOf(selected.Branch);
+        MoveBranchUpButton.IsEnabled = !_isReadOnly && branchIndex > 0;
+        MoveBranchDownButton.IsEnabled = !_isReadOnly && selected?.ParentExpression?.Branches is { } branches && branchIndex >= 0 && branchIndex < branches.Count - 1;
+    }
+
+    private void RefreshPreview()
+    {
+        var converted = SelectedOutputType switch
         {
-            _branchUsesProperty = true;
-        }
-        BranchUsesPropertyCheckBox.IsChecked = _branchUsesProperty;
-        EditBranchConditionButton.IsEnabled = row is not null;
-        BranchSourcePanel.IsEnabled = row is not null && _branchUsesProperty;
-        BranchSourceTextBox.Text = _branchUsesProperty ? _formatSource(result?.GamePropertySource) : string.Empty;
-        BranchLiteralTextBox.Text = _branchUsesProperty ? string.Empty : result?.Value ?? string.Empty;
-        BranchLiteralTextBox.IsEnabled = row is not null && !_branchUsesProperty;
-        BranchUsesPropertyCheckBox.IsEnabled = row is not null && !_isReadOnly;
-        _refreshing = false;
-    }
-
-    private void BranchOutputMode_OnChanged(object sender, RoutedEventArgs e)
-    {
-        if (_refreshing || BranchesListBox.SelectedItem is not BranchRow row) return;
-        _branchUsesProperty = BranchUsesPropertyCheckBox.IsChecked == true;
-        var result = row.Branch.Result ??= new ProjectGamePropertyOperandDto { ValueKind = OutputValueKind, Value = string.Empty };
-        if (_branchUsesProperty)
-        {
-            result.Value = null;
-            result.ValueKind = null;
-        }
-        else
-        {
-            result.GamePropertySource = null!;
-            result.ValueKind = OutputValueKind;
-            result.Value ??= string.Empty;
-        }
-        RefreshBranchEditor();
-        row.RefreshLabel();
-    }
-
-    private void BranchLiteralTextBox_OnChanged(object sender, TextChangedEventArgs e)
-    {
-        if (_refreshing || BranchesListBox.SelectedItem is not BranchRow row || BranchUsesPropertyCheckBox.IsChecked == true) return;
-        row.Branch.Result ??= new ProjectGamePropertyOperandDto();
-        row.Branch.Result.ValueKind = OutputValueKind;
-        row.Branch.Result.GamePropertySource = null!;
-        row.Branch.Result.Value = BranchLiteralTextBox.Text;
-        row.RefreshLabel();
-    }
-
-    private void ChooseBranchSource_OnClick(object sender, RoutedEventArgs e)
-    {
-        if (BranchesListBox.SelectedItem is not BranchRow row) return;
-        var selected = _chooseSource(row.Branch.Result?.GamePropertySource);
-        if (selected is null) return;
-        row.Branch.Result ??= new ProjectGamePropertyOperandDto();
-        row.Branch.Result.GamePropertySource = selected;
-        row.Branch.Result.Value = null;
-        row.Branch.Result.ValueKind = null;
-        _branchUsesProperty = true;
-        RefreshBranchEditor();
-        row.RefreshLabel();
-    }
-
-    private void RefreshElseEditor()
-    {
-        _refreshing = true;
-        _elseUsesProperty |= _elseResult?.GamePropertySource is not null;
-        ElseUsesPropertyCheckBox.IsChecked = _elseUsesProperty;
-        ElseLiteralTextBox.Text = _elseUsesProperty ? string.Empty : _elseResult?.Value ?? string.Empty;
-        ElseLiteralTextBox.Visibility = _elseUsesProperty ? Visibility.Collapsed : Visibility.Visible;
-        ElseSourceTextBlock.Text = _elseUsesProperty ? _formatSource(_elseResult?.GamePropertySource) : string.Empty;
-        ElseSourceTextBlock.Visibility = _elseUsesProperty ? Visibility.Visible : Visibility.Collapsed;
-        ChooseElseSourceButton.Visibility = _elseUsesProperty ? Visibility.Visible : Visibility.Collapsed;
-        _refreshing = false;
-    }
-
-    private void ElseOutputMode_OnChanged(object sender, RoutedEventArgs e)
-    {
-        if (_refreshing) return;
-        _elseUsesProperty = ElseUsesPropertyCheckBox.IsChecked == true;
-        if (_elseUsesProperty)
-            _elseResult = new ProjectGamePropertyOperandDto();
-        else
-            _elseResult = new ProjectGamePropertyOperandDto { ValueKind = OutputValueKind, Value = string.Empty };
-        RefreshElseEditor();
-    }
-
-    private void ElseLiteralTextBox_OnChanged(object sender, TextChangedEventArgs e)
-    {
-        if (_refreshing || ElseUsesPropertyCheckBox.IsChecked == true) return;
-        _elseResult ??= new ProjectGamePropertyOperandDto();
-        _elseResult.GamePropertySource = null!;
-        _elseResult.ValueKind = OutputValueKind;
-        _elseResult.Value = ElseLiteralTextBox.Text;
-    }
-
-    private void ChooseElseSource_OnClick(object sender, RoutedEventArgs e)
-    {
-        var selected = _chooseSource(_elseResult?.GamePropertySource);
-        if (selected is null) return;
-        _elseResult = new ProjectGamePropertyOperandDto { GamePropertySource = selected };
-        _elseUsesProperty = true;
-        RefreshElseEditor();
+            "Boolean" => "Boolean output: strings are trimmed and recognized Boolean tokens convert; numbers use zero/nonzero.",
+            "Numeric" => "Numeric output: strings parse as invariant numbers; Booleans convert to 1 or 0.",
+            _ => "String output: numbers use invariant formatting; Booleans become lowercase true or false."
+        };
+        ExpressionPreviewTextBlock.Text = $"{SelectedOutputType} ← {GamePropertyComputationFormatter.Format(_root)}\n{converted}";
     }
 
     private void Save_OnClick(object sender, RoutedEventArgs e)
     {
-        if (_isReadOnly)
-        {
-            DialogResult = true;
-            return;
-        }
-
-        if (IsBoolean)
-        {
-            if (_booleanCondition is null)
-            {
-                ShowError("Add a condition tree before saving the Boolean computation.");
-                return;
-            }
-        }
-        else
-        {
-            if (_branchRows.Count == 0)
-            {
-                ShowError("Add at least one ordered result branch.");
-                return;
-            }
-            if (_elseResult is null || (_elseResult.GamePropertySource is null && _elseResult.Value is null))
-            {
-                ShowError("Choose or enter the required else result.");
-                return;
-            }
-            if (_branchRows.Any(static row => row.Branch.Condition is null || row.Branch.Result is null
-                || row.Branch.Result.GamePropertySource is null && row.Branch.Result.Value is null))
-            {
-                ShowError("Each result branch needs a condition and a typed output.");
-                return;
-            }
-            if (OutputValueKind == "Numeric" && (_elseResult.GamePropertySource is null && !IsFinite(_elseResult.Value)
-                || _branchRows.Any(row => row.Branch.Result?.GamePropertySource is null && !IsFinite(row.Branch.Result?.Value))))
-            {
-                ShowError("Numeric outputs must be finite invariant-culture numbers.");
-                return;
-            }
-        }
+        if (_isReadOnly) { DialogResult = true; return; }
+        var errors = ValidateStructure(_root).ToList();
+        if (errors.Count > 0) { ExpressionErrorTextBlock.Text = string.Join(Environment.NewLine, errors); return; }
         DialogResult = true;
     }
 
-    private static bool IsFinite(string? value) => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && double.IsFinite(number);
+    private static IEnumerable<string> ValidateStructure(ProjectGamePropertyExpressionDto? expression)
+    {
+        if (expression is null) { yield return "The expression is missing."; yield break; }
+        switch (expression.Kind)
+        {
+            case "literal": if (expression.Value is null) yield return "A literal needs a value."; break;
+            case "property": case "exists": if (string.IsNullOrWhiteSpace(expression.Source?.PropertyName)) yield return "Choose a property source."; break;
+            case "compare": if (expression.Left is null || expression.Right is null) yield return "A comparison needs both operands."; break;
+            case "and": case "or": if (expression.Operands is null || expression.Operands.Count < 2) yield return $"{expression.Kind} needs at least two operands."; break;
+            case "not": if (expression.Expression is null) yield return "not needs one child expression."; break;
+            case "select": if (expression.Branches is null || expression.Branches.Count == 0 || expression.Else is null) yield return "select needs at least one branch and an else value."; break;
+            case "add": case "subtract": case "multiply": case "divide": if (expression.Left is null || expression.Right is null) yield return $"{expression.Kind} needs both operands."; break;
+            default: yield return $"Unsupported expression kind '{expression.Kind}'."; break;
+        }
+        foreach (var child in Children(expression)) foreach (var issue in ValidateStructure(child)) yield return issue;
+    }
 
-    private void ShowError(string message) => System.Windows.MessageBox.Show(this, message, "Computed Game Property", MessageBoxButton.OK, MessageBoxImage.Information);
+    private static IEnumerable<ProjectGamePropertyExpressionDto?> Children(ProjectGamePropertyExpressionDto expression)
+    {
+        yield return expression.Left; yield return expression.Right; yield return expression.Expression;
+        foreach (var child in expression.Operands ?? []) yield return child;
+        foreach (var branch in expression.Branches ?? []) { yield return branch.When; yield return branch.Value; }
+        yield return expression.Else;
+    }
+
+    private static string HelpText(string kind) => kind switch
+    {
+        "and" => "All operands must convert to true. Operands are evaluated in order and short-circuit.",
+        "or" => "Any operand may convert to true. Operands are evaluated in order and short-circuit.",
+        "select" => "Branches are tested in order; the first true condition supplies the value, otherwise else is used.",
+        "exists" => "Checks whether the selected source is present, independently of its value.",
+        "compare" => "Ordering comparisons convert both sides to Numeric. Equality uses the agreed mixed-kind conversion rules.",
+        "add" or "subtract" or "multiply" or "divide" => "Both operands convert to Numeric. Tree nesting defines grouping.",
+        "property" => "Reads the selected property and preserves its native value kind.",
+        _ => string.Empty
+    };
+
+    private static ProjectGamePropertyExpressionDto CreateDefault(string kind) => kind switch
+    {
+        "property" or "exists" => new ProjectGamePropertyExpressionDto { Kind = kind },
+        "compare" => new ProjectGamePropertyExpressionDto { Kind = kind, Operator = "Equals", Left = Literal(string.Empty), Right = Literal(string.Empty) },
+        "and" or "or" => new ProjectGamePropertyExpressionDto { Kind = kind, Operands = new() { Literal(false), Literal(false) } },
+        "not" => new ProjectGamePropertyExpressionDto { Kind = kind, Expression = Literal(false) },
+        "select" => new ProjectGamePropertyExpressionDto { Kind = kind, Branches = new() { new ProjectGamePropertySelectBranchDto { When = Literal(false), Value = Literal(string.Empty) } }, Else = Literal(string.Empty) },
+        "add" or "subtract" or "multiply" or "divide" => new ProjectGamePropertyExpressionDto { Kind = kind, Left = Literal(0d), Right = Literal(0d) },
+        _ => Literal(false)
+    };
+
+    private static ProjectGamePropertyExpressionDto Literal(object value) => new() { Kind = "literal", Value = value };
+    private void SelectLiteralType(object? value) => LiteralTypeComboBox.SelectedItem = FindItem(LiteralTypeComboBox, LiteralType(value));
+    private static string LiteralType(object? value) => value switch
+    {
+        bool => "Boolean", double or float or int or long or decimal => "Numeric",
+        JsonElement element when element.ValueKind is JsonValueKind.True or JsonValueKind.False => "Boolean",
+        JsonElement element when element.ValueKind == JsonValueKind.Number => "Numeric", _ => "String"
+    };
+    private static string LiteralText(object? value) => value is JsonElement element ? element.ToString() : Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
+    private static string FormatValue(object? value) => LiteralType(value) == "String" ? "\"" + LiteralText(value) + "\"" : LiteralText(value);
+    private void SelectComboValue(System.Windows.Controls.ComboBox combo, string? value) => combo.SelectedItem = FindItem(combo, value);
 
     private void Cancel_OnClick(object sender, RoutedEventArgs e) => DialogResult = false;
 }

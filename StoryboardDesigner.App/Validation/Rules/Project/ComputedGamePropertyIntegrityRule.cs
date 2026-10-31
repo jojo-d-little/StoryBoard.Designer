@@ -1,4 +1,4 @@
-using System.Globalization;
+using System.Text.Json;
 using Storyboard.Shared.DesignerContracts;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Validation.Contracts;
@@ -7,11 +7,7 @@ namespace StoryboardDesigner.App.Validation.Rules.Project;
 
 public sealed class ComputedGamePropertyIntegrityRule : IValidationRule
 {
-    private static readonly HashSet<string> EligibleAnchors = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer"
-    };
-
+    private static readonly HashSet<string> EligibleAnchors = new(StringComparer.OrdinalIgnoreCase) { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" };
     public IReadOnlySet<ScopeNodeKind> SupportedCandidateScopeKinds { get; } = new HashSet<ScopeNodeKind> { ScopeNodeKind.Global };
     public ValidationRuleMetadata Metadata { get; } = new("CGP-001", "Computed Game Property Integrity", ValidationSeverity.Error, "Computed Game Properties");
 
@@ -19,151 +15,99 @@ public sealed class ComputedGamePropertyIntegrityRule : IValidationRule
     {
         if (context.CandidateNode is not ProjectModel project) yield break;
         var owners = EnumerateOwners(project).ToList();
-        var allDefinitions = owners.SelectMany(owner => owner.Properties.Select(property => (Owner: owner, Property: property))).ToList();
-
-        foreach (var (owner, property) in allDefinitions.Where(static entry => entry.Property.Computation is not null))
+        var definitions = owners.SelectMany(owner => owner.Properties.Select(property => (Owner: owner, Property: property))).ToList();
+        foreach (var (owner, property) in definitions.Where(static item => item.Property.Computation is not null))
         {
             var path = $"{owner.Path}.Game Properties.{property.Name}";
             var computation = property.Computation!;
-            var resultKind = computation.ResultKind ?? string.Empty;
-            var expectedRestriction = resultKind switch
-            {
-                "Boolean" => GamePropertyValueRestriction.TrueFalse,
-                "Numeric" => GamePropertyValueRestriction.Numeric,
-                "String" => GamePropertyValueRestriction.Unrestricted,
-                _ => (GamePropertyValueRestriction?)null
-            };
-            if (expectedRestriction is null)
-            {
-                yield return Issue(path, $"Unsupported computed result kind '{resultKind}'.");
-                continue;
-            }
-            if (property.ValueRestriction != expectedRestriction)
-                yield return Issue(path, $"Computed {resultKind} properties must use the {expectedRestriction} value restriction.");
-
-            var expectedDefault = resultKind switch { "Boolean" => "false", "Numeric" => "0", _ => string.Empty };
+            var outputType = computation.OutputType ?? string.Empty;
+            var restriction = ComputedRestriction(outputType);
+            if (restriction is null) { yield return Issue(path, $"Unsupported computed output type '{outputType}'."); continue; }
+            if (property.ValueRestriction != restriction) yield return Issue(path, $"Computed {outputType} properties must use the {restriction} value restriction.");
+            var expectedDefault = outputType switch { "Boolean" => "false", "Numeric" => "0", _ => string.Empty };
             if (!string.Equals(property.DefaultValue, expectedDefault, StringComparison.OrdinalIgnoreCase))
-                yield return Issue(path, $"A computed {resultKind} property must use '{expectedDefault}' as its compatibility default.");
-
-            if (resultKind == "Boolean")
-            {
-                if (computation.ResultBranches is not null || computation.ElseResult is not null)
-                    yield return Issue(path, "Boolean computations use a condition tree and cannot contain result branches or an else result.");
-                foreach (var message in ValidateCondition(computation.Condition, owner.Id, owner.Scope, allDefinitions))
-                    yield return Issue(path, message);
-                continue;
-            }
-
-            if (computation.Condition is not null)
-                yield return Issue(path, $"Computed {resultKind} properties use result branches instead of a root condition.");
-            if (computation.ResultBranches is null || computation.ResultBranches.Count == 0)
-                yield return Issue(path, $"Computed {resultKind} properties require at least one ordered result branch.");
-            foreach (var branch in computation.ResultBranches ?? new())
-            {
-                foreach (var message in ValidateCondition(branch.Condition, owner.Id, owner.Scope, allDefinitions))
-                    yield return Issue(path, $"Result branch condition: {message}");
-                foreach (var message in ValidateResult(branch.Result, resultKind, owner.Id, owner.Scope, allDefinitions))
-                    yield return Issue(path, $"Result branch output: {message}");
-            }
-            if (computation.ElseResult is null)
-                yield return Issue(path, $"Computed {resultKind} properties require a final else result.");
-            else
-                foreach (var message in ValidateResult(computation.ElseResult, resultKind, owner.Id, owner.Scope, allDefinitions))
-                    yield return Issue(path, $"Else output: {message}");
+                yield return Issue(path, $"A computed {outputType} property must use '{expectedDefault}' as its compatibility default.");
+            foreach (var message in ValidateExpression(computation.Expression, owner.Id, owner.Scope, definitions)) yield return Issue(path, message);
         }
-
-        foreach (var group in allDefinitions.Where(static entry => entry.Property.SharedVariableId.HasValue)
-                     .GroupBy(static entry => entry.Property.SharedVariableId!.Value))
+        foreach (var group in definitions.Where(static item => item.Property.SharedVariableId.HasValue).GroupBy(static item => item.Property.SharedVariableId!.Value))
         {
-            var computed = group.Where(static entry => entry.Property.Computation is not null).ToList();
-            if (computed.Count > 1)
-                yield return Issue("Shared Variables", $"Shared property group '{group.Key:N}' has more than one computed writer.");
-            if (computed.Count > 0)
-            {
-                var expectedRestriction = ComputedRestriction(computed[0].Property.Computation?.ResultKind);
-                if (computed.Any(entry => ComputedRestriction(entry.Property.Computation?.ResultKind) != expectedRestriction))
-                    yield return Issue("Shared Variables", $"Shared property group '{group.Key:N}' has computed members with different result types.");
-                if (expectedRestriction is not null && group.Any(entry => entry.Property.ValueRestriction != expectedRestriction))
-                    yield return Issue("Shared Variables", $"Shared property group '{group.Key:N}' does not use a consistent value restriction for its computed result type.");
-            }
+            var computed = group.Where(static item => item.Property.Computation is not null).ToList();
+            if (computed.Count > 1) yield return Issue("Shared Variables", $"Shared property group '{group.Key:N}' has more than one computed writer.");
+            if (computed.Count == 0) continue;
+            var expected = ComputedRestriction(computed[0].Property.Computation?.OutputType);
+            if (computed.Any(item => ComputedRestriction(item.Property.Computation?.OutputType) != expected))
+                yield return Issue("Shared Variables", $"Shared property group '{group.Key:N}' has computed members with different output types.");
+            if (expected is not null && group.Any(item => item.Property.ValueRestriction != expected))
+                yield return Issue("Shared Variables", $"Shared property group '{group.Key:N}' does not use a consistent value restriction for its computed output type.");
         }
-
         foreach (var owner in owners)
+        foreach (var action in owner.Actions.Where(static action => action.ActionType == CommandActionType.SetGameProperty))
         {
-            foreach (var action in owner.Actions.Where(static action => action.ActionType == CommandActionType.SetGameProperty))
-            {
-                var propertyName = ActionPayloadAccessors.GetSetPropertyName(action);
-                var reference = ActionPayloadAccessors.GetSetGamePropertyReference(action);
-                var targetOwners = reference?.OwnerId is Guid targetOwnerId
-                    ? owners.Where(candidate => candidate.Id == targetOwnerId)
-                    : !string.IsNullOrWhiteSpace(reference?.AnchorKey)
-                        ? owners.Where(candidate => IsEligibleAnchorOwner(candidate, reference.AnchorKey!))
-                        : new[] { owner };
-                var targets = targetOwners
-                    .SelectMany(targetOwner => targetOwner.Properties)
-                    .Where(property => string.Equals(
-                        property.Name,
-                        reference?.PropertyName ?? propertyName,
-                        StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                var computedSharedIds = allDefinitions
-                    .Where(static entry => entry.Property.Computation is not null && entry.Property.SharedVariableId.HasValue)
-                    .Select(static entry => entry.Property.SharedVariableId!.Value)
-                    .ToHashSet();
-                if (targets.Any(property => property.Computation is not null
-                    || property.SharedVariableId is Guid sharedId && computedSharedIds.Contains(sharedId)))
-                    yield return Issue($"{owner.Path}.Actions.{action.Name}", $"Action '{action.Name}' writes computed game property '{propertyName}'.");
-            }
+            var propertyName = ActionPayloadAccessors.GetSetPropertyName(action);
+            var reference = ActionPayloadAccessors.GetSetGamePropertyReference(action);
+            var targetOwners = reference?.OwnerId is Guid targetOwnerId ? owners.Where(candidate => candidate.Id == targetOwnerId)
+                : !string.IsNullOrWhiteSpace(reference?.AnchorKey) ? owners.Where(candidate => IsEligibleAnchorOwner(candidate, reference.AnchorKey!)) : new[] { owner };
+            var targets = targetOwners.SelectMany(targetOwner => targetOwner.Properties)
+                .Where(property => string.Equals(property.Name, reference?.PropertyName ?? propertyName, StringComparison.OrdinalIgnoreCase)).ToList();
+            var computedIds = definitions.Where(static item => item.Property.Computation is not null && item.Property.SharedVariableId.HasValue)
+                .Select(static item => item.Property.SharedVariableId!.Value).ToHashSet();
+            if (targets.Any(property => property.Computation is not null || property.SharedVariableId is Guid id && computedIds.Contains(id)))
+                yield return Issue($"{owner.Path}.Actions.{action.Name}", $"Action '{action.Name}' writes computed game property '{propertyName}'.");
         }
     }
 
-    private static GamePropertyValueRestriction? ComputedRestriction(string? resultKind) => resultKind switch
+    private static GamePropertyValueRestriction? ComputedRestriction(string? type) => type switch
     {
-        "Boolean" => GamePropertyValueRestriction.TrueFalse,
-        "Numeric" => GamePropertyValueRestriction.Numeric,
-        "String" => GamePropertyValueRestriction.Unrestricted,
-        _ => null
+        "Boolean" => GamePropertyValueRestriction.TrueFalse, "Numeric" => GamePropertyValueRestriction.Numeric,
+        "String" => GamePropertyValueRestriction.Unrestricted, _ => null
     };
 
-    private static IEnumerable<string> ValidateResult(
-        ProjectGamePropertyOperandDto? operand,
-        string resultKind,
-        Guid computedOwnerId,
-        PropertyResolutionScope computedScope,
+    private static IEnumerable<string> ValidateExpression(ProjectGamePropertyExpressionDto? expression, Guid ownerId, PropertyResolutionScope scope,
         IReadOnlyList<(OwnerInfo Owner, GamePropertyDefinition Property)> definitions)
     {
-        if (operand is null)
+        if (expression is null) { yield return "The computation has no expression tree."; yield break; }
+        switch (expression.Kind)
         {
-            yield return "A typed output is missing.";
-            yield break;
+            case "literal":
+                if (expression.Value is null) yield return "A literal expression is missing its value.";
+                else if (expression.Value is double number && !double.IsFinite(number)) yield return "A numeric literal must be finite.";
+                else if (expression.Value is JsonElement element && element.ValueKind is not (JsonValueKind.True or JsonValueKind.False or JsonValueKind.String or JsonValueKind.Number))
+                    yield return "A literal must be a Boolean, finite number, or String value.";
+                else if (expression.Value is JsonElement numericElement && numericElement.ValueKind == JsonValueKind.Number
+                    && (!numericElement.TryGetDouble(out var parsedNumber) || !double.IsFinite(parsedNumber)))
+                    yield return "A numeric literal must be finite.";
+                break;
+            case "property": case "exists":
+                foreach (var message in ValidateSource(expression.Source, ownerId, scope, definitions, out _)) yield return message;
+                break;
+            case "compare":
+                if (expression.Operator is not ("Equals" or "NotEquals" or "LessThan" or "LessThanOrEqual" or "GreaterThan" or "GreaterThanOrEqual")) yield return $"Unsupported comparison operator '{expression.Operator}'.";
+                foreach (var message in ValidateExpression(expression.Left, ownerId, scope, definitions)) yield return message;
+                foreach (var message in ValidateExpression(expression.Right, ownerId, scope, definitions)) yield return message;
+                break;
+            case "and": case "or":
+                if (expression.Operands is null || expression.Operands.Count < 2) yield return $"An {expression.Kind.ToUpperInvariant()} expression must contain at least two operands.";
+                foreach (var child in expression.Operands ?? []) foreach (var message in ValidateExpression(child, ownerId, scope, definitions)) yield return message;
+                break;
+            case "not":
+                foreach (var message in ValidateExpression(expression.Expression, ownerId, scope, definitions)) yield return message;
+                break;
+            case "select":
+                if (expression.Branches is null || expression.Branches.Count == 0) yield return "A select expression requires at least one ordered branch.";
+                foreach (var branch in expression.Branches ?? [])
+                {
+                    foreach (var message in ValidateExpression(branch.When, ownerId, scope, definitions)) yield return message;
+                    foreach (var message in ValidateExpression(branch.Value, ownerId, scope, definitions)) yield return message;
+                }
+                foreach (var message in ValidateExpression(expression.Else, ownerId, scope, definitions)) yield return message;
+                break;
+            case "add": case "subtract": case "multiply": case "divide":
+                foreach (var message in ValidateExpression(expression.Left, ownerId, scope, definitions)) yield return message;
+                foreach (var message in ValidateExpression(expression.Right, ownerId, scope, definitions)) yield return message;
+                break;
+            default: yield return $"Unsupported expression kind '{expression.Kind}'."; break;
         }
-
-        var expectedRestriction = ComputedRestriction(resultKind);
-        if (operand.GamePropertySource is not null)
-        {
-            if (operand.Value is not null || operand.ValueKind is not null)
-                yield return "A property output must omit its literal value and value kind.";
-            GamePropertyDefinition? source = null;
-            foreach (var message in ValidateSource(operand.GamePropertySource, computedOwnerId, computedScope, definitions, out source))
-                yield return message;
-            if (source is not null && source.ValueRestriction != expectedRestriction)
-                yield return $"Output source '{source.Name}' has type {source.ValueRestriction}; {resultKind} output requires {expectedRestriction}.";
-            yield break;
-        }
-
-        var expectedValueKind = resultKind == "String" ? "Text" : resultKind;
-        if (!string.Equals(operand.ValueKind, expectedValueKind, StringComparison.OrdinalIgnoreCase))
-            yield return $"A {resultKind} literal must use value kind '{expectedValueKind}'.";
-        if (operand.Value is null)
-        {
-            yield return "A typed literal is missing its value.";
-            yield break;
-        }
-        if (resultKind == "Numeric"
-            && (!double.TryParse(operand.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) || !double.IsFinite(number)))
-            yield return "A Numeric output must be a finite invariant-culture number.";
     }
-
     private static bool IsEligibleAnchorOwner(OwnerInfo owner, string anchorKey) => anchorKey.ToLowerInvariant() switch
     {
         "currentroom" => owner.Scope == PropertyResolutionScope.Room,
@@ -174,103 +118,6 @@ public sealed class ComputedGamePropertyIntegrityRule : IValidationRule
         "activeplayer" => owner.IsPlayer,
         _ => false
     };
-
-    private static IEnumerable<string> ValidateCondition(
-        ProjectGamePropertyConditionDto? condition,
-        Guid computedOwnerId,
-        PropertyResolutionScope computedScope,
-        IReadOnlyList<(OwnerInfo Owner, GamePropertyDefinition Property)> definitions)
-    {
-        if (condition is null)
-        {
-            yield return "The computation has no condition tree.";
-            yield break;
-        }
-
-        switch (condition.Kind)
-        {
-            case "All":
-            case "Any":
-                if (condition.Conditions is null || condition.Conditions.Count < 2)
-                    yield return $"A {condition.Kind} group must contain at least two conditions.";
-                foreach (var child in condition.Conditions ?? new())
-                    foreach (var message in ValidateCondition(child, computedOwnerId, computedScope, definitions)) yield return message;
-                break;
-            case "Not":
-                if (condition.Condition is null) yield return "A NOT condition must contain one child condition.";
-                else foreach (var message in ValidateCondition(condition.Condition, computedOwnerId, computedScope, definitions)) yield return message;
-                break;
-            case "Exists":
-                foreach (var message in ValidateSource(condition.GamePropertySource, computedOwnerId, computedScope, definitions, out _)) yield return message;
-                break;
-            case "Compare":
-            {
-                if (condition.Operator is not ("Equals" or "NotEquals" or "LessThan" or "LessThanOrEqual" or "GreaterThan" or "GreaterThanOrEqual" or "IsTrue" or "IsFalse"))
-                    yield return $"Unsupported comparison operator '{condition.Operator}'.";
-                var leftMessages = ValidateSource(condition.GamePropertySource, computedOwnerId, computedScope, definitions, out var left);
-                foreach (var message in leftMessages) yield return message;
-                if (condition.Operator is "IsTrue" or "IsFalse")
-                {
-                    if (condition.RightOperand is not null)
-                        yield return "Direct Boolean tests must not have a right operand.";
-                    if (left is not null && left.ValueRestriction != GamePropertyValueRestriction.TrueFalse)
-                        yield return "Direct Boolean tests require a TrueFalse source property.";
-                    yield break;
-                }
-                if (condition.RightOperand is null)
-                {
-                    yield return "A comparison is missing its right operand.";
-                    yield break;
-                }
-                if (condition.Operator is "LessThan" or "LessThanOrEqual" or "GreaterThan" or "GreaterThanOrEqual")
-                {
-                    if (left is not null && left.ValueRestriction != GamePropertyValueRestriction.Numeric)
-                        yield return "Ordered comparisons require Numeric source properties.";
-                    if (condition.RightOperand.GamePropertySource is null && !string.Equals(condition.RightOperand.ValueKind, "Numeric", StringComparison.OrdinalIgnoreCase))
-                        yield return "Ordered comparisons require a Numeric constant or source.";
-                }
-                if (condition.RightOperand.GamePropertySource is not null)
-                {
-                    GamePropertyDefinition? right = null;
-                    foreach (var message in ValidateSource(condition.RightOperand.GamePropertySource, computedOwnerId, computedScope, definitions, out right)) yield return message;
-                    if (left is not null && right is not null && left.ValueRestriction != right.ValueRestriction)
-                        yield return "A source-to-source comparison cannot compare different value restrictions.";
-                    if (condition.Operator is "LessThan" or "LessThanOrEqual" or "GreaterThan" or "GreaterThanOrEqual"
-                        && right is not null && right.ValueRestriction != GamePropertyValueRestriction.Numeric)
-                        yield return "Ordered comparisons require Numeric source properties.";
-                }
-                else
-                {
-                    var kind = condition.RightOperand.ValueKind;
-                    var normalizedKind = kind?.ToLowerInvariant();
-                    if (normalizedKind is not ("boolean" or "numeric" or "text"))
-                    {
-                        yield return "The comparison constant has an unsupported type.";
-                        break;
-                    }
-                    var expected = kind?.ToLowerInvariant() switch
-                    {
-                        "boolean" => GamePropertyValueRestriction.TrueFalse,
-                        "numeric" => GamePropertyValueRestriction.Numeric,
-                        "text" => GamePropertyValueRestriction.Unrestricted,
-                        _ => GamePropertyValueRestriction.Unrestricted
-                    };
-                    if (left is not null && left.ValueRestriction != expected)
-                        yield return "The comparison constant type does not match the source property restriction.";
-                    if (expected == GamePropertyValueRestriction.Numeric
-                        && (!double.TryParse(condition.RightOperand.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var numeric) || !double.IsFinite(numeric)))
-                        yield return "The Numeric comparison constant must be a finite invariant-culture number.";
-                    if (expected == GamePropertyValueRestriction.TrueFalse && !bool.TryParse(condition.RightOperand.Value, out _))
-                        yield return "The Boolean comparison constant must be true or false.";
-                }
-                break;
-            }
-            default:
-                yield return $"Unsupported condition kind '{condition.Kind}'.";
-                break;
-        }
-    }
-
     private static IReadOnlyList<string> ValidateSource(
         ProjectGamePropertySourceReferenceDto? source,
         Guid computedOwnerId,

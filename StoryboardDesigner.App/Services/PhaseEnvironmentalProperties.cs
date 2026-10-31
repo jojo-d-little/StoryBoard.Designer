@@ -118,35 +118,36 @@ internal static class PhaseEnvironmentalProperties
     }
 
     private static GamePropertyDefinition ComputedEquals(string name, string source, string value) => Computed(name,
-        new ProjectGamePropertyConditionDto
+        Compare(source, "Equals", new ProjectGamePropertyExpressionDto { Kind = "literal", Value = value }));
+
+    private static GamePropertyDefinition ComputedAll(string name, List<ProjectGamePropertyExpressionDto> conditions) => Computed(name,
+        new ProjectGamePropertyExpressionDto { Kind = "and", Operands = conditions });
+
+    private static ProjectGamePropertyExpressionDto ComputedComparison(string source, string operation, string valueKind, string value) => Compare(source, operation,
+        new ProjectGamePropertyExpressionDto
         {
-            Kind = "Compare", GamePropertySource = Source(source), Operator = "Equals",
-            RightOperand = new ProjectGamePropertyOperandDto { ValueKind = "Text", Value = value }
+            Kind = "literal",
+            Value = valueKind == "Numeric" && double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number)
+                ? number
+                : value
         });
-
-    private static GamePropertyDefinition ComputedAll(string name, List<ProjectGamePropertyConditionDto> conditions) => Computed(name,
-        new ProjectGamePropertyConditionDto { Kind = "All", Conditions = conditions });
-
-    private static ProjectGamePropertyConditionDto ComputedComparison(string source, string operation, string valueKind, string value) => new()
-    {
-        Kind = "Compare", GamePropertySource = Source(source), Operator = operation,
-        RightOperand = new ProjectGamePropertyOperandDto { ValueKind = valueKind, Value = value }
-    };
 
     private static GamePropertyDefinition ComputedPredicate(string name, string source, string[] values)
     {
-        var comparisons = values.Select(value => new ProjectGamePropertyConditionDto
-        {
-            Kind = "Compare", GamePropertySource = Source(source), Operator = "Equals",
-            RightOperand = new ProjectGamePropertyOperandDto { ValueKind = "Text", Value = value }
-        }).ToList();
-        return Computed(name, comparisons.Count == 1 ? comparisons[0] : new ProjectGamePropertyConditionDto { Kind = "Any", Conditions = comparisons });
+        var comparisons = values.Select(value => Compare(source, "Equals", new ProjectGamePropertyExpressionDto { Kind = "literal", Value = value })).ToList();
+        return Computed(name, comparisons.Count == 1 ? comparisons[0] : new ProjectGamePropertyExpressionDto { Kind = "or", Operands = comparisons });
     }
 
-    private static GamePropertyDefinition Computed(string name, ProjectGamePropertyConditionDto condition) => new()
+    private static ProjectGamePropertyExpressionDto Compare(string source, string operation, ProjectGamePropertyExpressionDto right) => new()
+    {
+        Kind = "compare", Operator = operation,
+        Left = new ProjectGamePropertyExpressionDto { Kind = "property", Source = Source(source) }, Right = right
+    };
+
+    private static GamePropertyDefinition Computed(string name, ProjectGamePropertyExpressionDto expression) => new()
     {
         Name = name, DefaultValue = "false", ValueRestriction = GamePropertyValueRestriction.TrueFalse,
-        Computation = new ProjectGamePropertyComputationDto { ResultKind = "Boolean", Condition = condition }
+        Computation = new ProjectGamePropertyComputationV2Dto { OutputType = "Boolean", Expression = expression }
     };
 
     private static ProjectGamePropertySourceReferenceDto Source(string name) => new() { AnchorKey = "currentPhase", PropertyName = name };

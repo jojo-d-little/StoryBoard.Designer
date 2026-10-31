@@ -483,18 +483,16 @@ public sealed class ParticleEffectAuthoringPersistenceTests
         {
             try
             {
-                var condition = new ProjectGamePropertyConditionDto
+                var computation = new ProjectGamePropertyComputationV2Dto
                 {
-                    Kind = "Compare",
-                    GamePropertySource = new ProjectGamePropertySourceReferenceDto
+                    OutputType = "Boolean",
+                    Expression = new ProjectGamePropertyExpressionDto
                     {
-                        AnchorKey = "currentPhase",
-                        PropertyName = "TimeOfDay"
-                    },
-                    Operator = "Equals",
-                    RightOperand = new ProjectGamePropertyOperandDto { ValueKind = "Text", Value = "Evening" }
+                        Kind = "compare", Operator = "Equals",
+                        Left = new ProjectGamePropertyExpressionDto { Kind = "property", Source = new ProjectGamePropertySourceReferenceDto { AnchorKey = "currentPhase", PropertyName = "TimeOfDay" } },
+                        Right = new ProjectGamePropertyExpressionDto { Kind = "literal", Value = "Evening" }
+                    }
                 };
-                var computation = new ProjectGamePropertyComputationDto { ResultKind = "Boolean", Condition = condition };
                 var reviewOpened = false;
                 var variableDialog = new VariableEditorDialog(
                     "IsEvening",
@@ -508,12 +506,10 @@ public sealed class ParticleEffectAuthoringPersistenceTests
                         var review = new GamePropertyComputationEditorDialog(current, _ => null, _ => "currentPhase.TimeOfDay", readOnly: true);
                         Assert.False(((ComboBox)typeof(GamePropertyComputationEditorDialog)
                             .GetField("ResultKindComboBox", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(review)!).IsEnabled);
-                        var reviewConditionButton = (Button)typeof(GamePropertyComputationEditorDialog)
-                            .GetField("EditBooleanConditionButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(review)!;
-                        Assert.True(reviewConditionButton.IsEnabled);
-                        Assert.Equal("Review condition tree...", reviewConditionButton.Content);
+                        Assert.False(((Button)typeof(GamePropertyComputationEditorDialog)
+                            .GetField("ChooseSourceButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(review)!).IsEnabled);
                         Assert.Contains("currentPhase.TimeOfDay", ((TextBlock)typeof(GamePropertyComputationEditorDialog)
-                            .GetField("BooleanConditionTextBlock", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(review)!).Text);
+                            .GetField("ExpressionPreviewTextBlock", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(review)!).Text);
                         Assert.Equal("Close", ((Button)typeof(GamePropertyComputationEditorDialog)
                             .GetField("SaveButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(review)!).Content);
                         review.Close();
@@ -532,14 +528,6 @@ public sealed class ParticleEffectAuthoringPersistenceTests
                 Assert.True(reviewOpened);
                 variableDialog.Close();
 
-                var conditionReview = new GamePropertyConditionEditorDialog(condition, _ => null, _ => "currentPhase.TimeOfDay", readOnly: true);
-                var addButton = (Button)typeof(GamePropertyConditionEditorDialog)
-                    .GetField("AddCompareButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(conditionReview)!;
-                var saveButton = (Button)typeof(GamePropertyConditionEditorDialog)
-                    .GetField("SaveButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(conditionReview)!;
-                Assert.False(addButton.IsEnabled);
-                Assert.Equal("Close", saveButton.Content);
-                conditionReview.Close();
             }
             catch (Exception ex)
             {
