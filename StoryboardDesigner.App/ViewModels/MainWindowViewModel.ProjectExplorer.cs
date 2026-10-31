@@ -21,6 +21,9 @@ public sealed partial class MainWindowViewModel
     private const string CloneTemplateToRoomTemplatesActionId = "clone-template-to-room-templates";
     private const string CancelRoomTemplateCloneActionId = "cancel-room-template-clone";
     private const string AddNewRoomTemplateActionId = "add-new-room-template";
+    private const string AddNewPlanetActionId = "add-new-planet";
+    private const string AddNewCountryActionId = "add-new-country";
+    private const string AddNewAreaActionId = "add-new-area";
     private const string DeleteRoomTemplateActionId = "delete-room-template";
     private const string AddNewPhaseBookActionId = "add-new-phase-book";
     private const string AddNewPhaseChapterActionId = "add-new-phase-chapter";
@@ -921,6 +924,7 @@ public sealed partial class MainWindowViewModel
         {
             return new List<TreeContextAction>
             {
+                new(AddNewPlanetActionId, "Add New Planet"),
                 new("edit-scoped-actions", "Edit Scoped Game Actions"),
                 new("edit-scoped-verbs", "Edit Verbs"),
                 new("edit-scoped-directionals", "Edit Directionals"),
@@ -1310,6 +1314,9 @@ public sealed partial class MainWindowViewModel
         {
             return GetTreeContextActions(childrenGroup.OwnerNode)
                 .Where(action => action.ActionId is "add-new-room"
+                    or AddNewPlanetActionId
+                    or AddNewCountryActionId
+                    or AddNewAreaActionId
                     or "add-new-object"
                     or "add-existing-quantifiable-object")
                 .ToList();
@@ -1399,6 +1406,9 @@ public sealed partial class MainWindowViewModel
                 new(EditScopedTimerDefinitionsActionId, "Edit Timer Definitions"),
                 BuildHideEmptyConfigurationContextAction(node),
                 new(EditIgnoredValidationRulesActionId, "Edit Ignored Validation Rules"),
+                node is PlanetNodeViewModel
+                    ? new TreeContextAction(AddNewCountryActionId, "Add New Country")
+                    : new TreeContextAction(AddNewAreaActionId, "Add New Area"),
                 new("add-new-object", "Add New Game Object")
             };
         }
@@ -2330,6 +2340,12 @@ public sealed partial class MainWindowViewModel
     {
         return actionId switch
         {
+            AddNewPlanetActionId when node is ProjectRootNodeViewModel projectRootNode => AddNewPlanet(projectRootNode),
+            AddNewPlanetActionId when node is ChildrenGroupNodeViewModel { OwnerNode: ProjectRootNodeViewModel projectRootNode } => AddNewPlanet(projectRootNode),
+            AddNewCountryActionId when node is PlanetNodeViewModel planetNode => AddNewCountry(planetNode),
+            AddNewCountryActionId when node is ChildrenGroupNodeViewModel { OwnerNode: PlanetNodeViewModel planetNode } => AddNewCountry(planetNode),
+            AddNewAreaActionId when node is CountryNodeViewModel countryNode => AddNewArea(countryNode),
+            AddNewAreaActionId when node is ChildrenGroupNodeViewModel { OwnerNode: CountryNodeViewModel countryNode } => AddNewArea(countryNode),
             RelocateObjectFromActionId => BeginObjectRelocation(node),
             RelocateObjectToActionId => CompleteObjectRelocation(node),
             CancelObjectRelocationActionId => CancelObjectRelocation(),
@@ -11090,6 +11106,136 @@ public sealed partial class MainWindowViewModel
         NotifyProjectEdited();
         ExportStatus = $"Deleted room template '{templateRoomName}'.";
         return true;
+    }
+
+    private bool AddNewPlanet(ProjectRootNodeViewModel projectRootNode)
+    {
+        var planet = new Planet
+        {
+            Name = MakeUniqueScopedEntityName(_project.Planets, static item => item.Name, "New Planet")
+        };
+        if (!_project.AddChildScope(planet))
+        {
+            return false;
+        }
+
+        var planetNode = CreateNewPlanetHierarchyNode(planet, projectRootNode);
+        projectRootNode.Children.Add(planetNode);
+        projectRootNode.IsExpanded = true;
+        RefreshScopedNameIndex(_project.Planets, static item => item.Name);
+        NotifyProjectEdited();
+        SelectedNode = planetNode;
+        ExportStatus = $"Added planet '{planet.Name}'.";
+        return true;
+    }
+
+    private bool AddNewCountry(PlanetNodeViewModel planetNode)
+    {
+        var country = new Country
+        {
+            Name = MakeUniqueScopedEntityName(planetNode.Planet.Countries, static item => item.Name, "New Country")
+        };
+        if (!planetNode.Planet.AddChildScope(country))
+        {
+            return false;
+        }
+
+        var countryNode = CreateNewCountryHierarchyNode(country, planetNode);
+        planetNode.Children.OfType<ChildrenGroupNodeViewModel>().First().Children.Add(countryNode);
+        planetNode.IsExpanded = true;
+        RefreshScopedNameIndex(planetNode.Planet.Countries, static item => item.Name);
+        NotifyProjectEdited();
+        SelectedNode = countryNode;
+        ExportStatus = $"Added country '{country.Name}' to planet '{planetNode.Planet.Name}'.";
+        return true;
+    }
+
+    private bool AddNewArea(CountryNodeViewModel countryNode)
+    {
+        var area = new Area
+        {
+            Name = MakeUniqueScopedEntityName(countryNode.Country.Areas, static item => item.Name, "New Area"),
+            AdjacencyMode = _project.DefaultTraversalMode
+        };
+        if (!countryNode.Country.AddChildScope(area))
+        {
+            return false;
+        }
+
+        var areaNode = CreateNewAreaHierarchyNode(area, countryNode);
+        countryNode.Children.OfType<ChildrenGroupNodeViewModel>().First().Children.Add(areaNode);
+        countryNode.IsExpanded = true;
+        RefreshScopedNameIndex(countryNode.Country.Areas, static item => item.Name);
+        NotifyProjectEdited();
+        SelectedNode = areaNode;
+        ExportStatus = $"Added area '{area.Name}' to country '{countryNode.Country.Name}'.";
+        return true;
+    }
+
+    private PlanetNodeViewModel CreateNewPlanetHierarchyNode(Planet planet, ProjectRootNodeViewModel parent)
+    {
+        var node = new PlanetNodeViewModel(_project, planet, parent);
+        node.Children.Add(CreatePlanetSettingsNode(node));
+        node.Children.Add(new ChildrenGroupNodeViewModel(node));
+        node.Children.Add(CreateObjectsNode(node));
+        node.Children.Add(new ObjectTemplatesNodeViewModel(_project, node, "Base Objects", planet.BaseObjects,
+            planet.BaseObjectsIgnoredValidationRuleIds, isBaseCatalog: true, catalogParentScope: planet));
+        node.Children.Add(CreateVariablesNode(node, planet, planet.Variables, PropertyResolutionScope.Planet));
+        node.Children.Add(CreateActionsNode(node, PropertyResolutionScope.Planet, planet.AvailableActions));
+        node.Children.Add(CreateVerbsNode(node, PropertyResolutionScope.Planet, planet.AdditionalVerbs));
+        node.Children.Add(CreateDirectionalsNode(node, PropertyResolutionScope.Planet, planet.AdditionalDirectionals));
+        node.Children.Add(CreateSoundEffectsNode(node, PropertyResolutionScope.Planet, planet.SoundEffectLibraryEntries));
+        node.Children.Add(CreateEnvironmentalEffectsNode(node, PropertyResolutionScope.Planet, planet.EnvironmentalEffects));
+        node.Children.Add(CreateEventSubscriptionsNode(node, PropertyResolutionScope.Planet, planet.EventSubscriptions));
+        node.Children.Add(CreateTimerDefinitionsNode(node, PropertyResolutionScope.Planet, planet.TimerDefinitions));
+        node.Children.Add(new ObjectTemplatesNodeViewModel(_project, node, "Object Templates", planet.ObjectTemplates,
+            _project.ObjectTemplatesIgnoredValidationRuleIds, isBaseCatalog: false, catalogParentScope: planet));
+        node.Children.Add(new RoomTemplatesNodeViewModel(_project, node, "Room Templates", planet.RoomTemplates, _project.RoomTemplatesIgnoredValidationRuleIds, planet));
+        return node;
+    }
+
+    private CountryNodeViewModel CreateNewCountryHierarchyNode(Country country, PlanetNodeViewModel parent)
+    {
+        var node = new CountryNodeViewModel(country, parent);
+        node.Children.Add(CreateCountrySettingsNode(node));
+        node.Children.Add(new ChildrenGroupNodeViewModel(node));
+        node.Children.Add(CreateObjectsNode(node));
+        node.Children.Add(new ObjectTemplatesNodeViewModel(_project, node, "Base Objects", country.BaseObjects,
+            country.BaseObjectsIgnoredValidationRuleIds, isBaseCatalog: true, catalogParentScope: country));
+        node.Children.Add(CreateVariablesNode(node, country, country.Variables, PropertyResolutionScope.Country));
+        node.Children.Add(CreateActionsNode(node, PropertyResolutionScope.Country, country.AvailableActions));
+        node.Children.Add(CreateVerbsNode(node, PropertyResolutionScope.Country, country.AdditionalVerbs));
+        node.Children.Add(CreateDirectionalsNode(node, PropertyResolutionScope.Country, country.AdditionalDirectionals));
+        node.Children.Add(CreateSoundEffectsNode(node, PropertyResolutionScope.Country, country.SoundEffectLibraryEntries));
+        node.Children.Add(CreateEnvironmentalEffectsNode(node, PropertyResolutionScope.Country, country.EnvironmentalEffects));
+        node.Children.Add(CreateEventSubscriptionsNode(node, PropertyResolutionScope.Country, country.EventSubscriptions));
+        node.Children.Add(CreateTimerDefinitionsNode(node, PropertyResolutionScope.Country, country.TimerDefinitions));
+        node.Children.Add(new ObjectTemplatesNodeViewModel(_project, node, "Object Templates", country.ObjectTemplates,
+            _project.ObjectTemplatesIgnoredValidationRuleIds, isBaseCatalog: false, catalogParentScope: country));
+        node.Children.Add(new RoomTemplatesNodeViewModel(_project, node, "Room Templates", country.RoomTemplates, _project.RoomTemplatesIgnoredValidationRuleIds, country));
+        return node;
+    }
+
+    private AreaNodeViewModel CreateNewAreaHierarchyNode(Area area, CountryNodeViewModel parent)
+    {
+        var node = new AreaNodeViewModel(area, parent);
+        node.Children.Add(CreateAreaSettingsNode(node));
+        node.Children.Add(new ChildrenGroupNodeViewModel(node));
+        node.Children.Add(CreateObjectsNode(node));
+        node.Children.Add(new ObjectTemplatesNodeViewModel(_project, node, "Base Objects", area.BaseObjects,
+            area.BaseObjectsIgnoredValidationRuleIds, isBaseCatalog: true, catalogParentScope: area));
+        node.Children.Add(CreateVariablesNode(node, area, area.Variables, PropertyResolutionScope.Area));
+        node.Children.Add(CreateActionsNode(node, PropertyResolutionScope.Area, area.AvailableActions));
+        node.Children.Add(CreateVerbsNode(node, PropertyResolutionScope.Area, area.AdditionalVerbs));
+        node.Children.Add(CreateDirectionalsNode(node, PropertyResolutionScope.Area, area.AdditionalDirectionals));
+        node.Children.Add(CreateSoundEffectsNode(node, PropertyResolutionScope.Area, area.SoundEffectLibraryEntries));
+        node.Children.Add(CreateEnvironmentalEffectsNode(node, PropertyResolutionScope.Area, area.EnvironmentalEffects));
+        node.Children.Add(CreateEventSubscriptionsNode(node, PropertyResolutionScope.Area, area.EventSubscriptions));
+        node.Children.Add(CreateTimerDefinitionsNode(node, PropertyResolutionScope.Area, area.TimerDefinitions));
+        node.Children.Add(new ObjectTemplatesNodeViewModel(_project, node, "Object Templates", area.ObjectTemplates,
+            _project.ObjectTemplatesIgnoredValidationRuleIds, isBaseCatalog: false, catalogParentScope: area));
+        node.Children.Add(new RoomTemplatesNodeViewModel(_project, node, "Room Templates", area.RoomTemplates, _project.RoomTemplatesIgnoredValidationRuleIds, area));
+        return node;
     }
 
     private bool TryCreateNewRoomFromTemplate(Area destinationArea, out Room room)

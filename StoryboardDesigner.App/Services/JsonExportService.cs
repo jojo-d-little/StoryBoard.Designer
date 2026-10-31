@@ -7451,7 +7451,6 @@ public sealed class JsonExportService : IJsonExportService
             Lifetime = Enum.IsDefined(variable.Lifetime) ? variable.Lifetime : GamePropertyLifetime.Singleton,
             SharedVariableId = variable.SharedVariableId,
             Computation = CloneContractValue(variable.ComputationV2)
-                ?? LegacyGamePropertyComputationImporter.Convert(variable.Computation)
         };
     }
 

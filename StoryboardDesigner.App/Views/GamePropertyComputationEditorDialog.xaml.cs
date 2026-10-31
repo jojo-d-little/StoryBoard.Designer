@@ -355,7 +355,16 @@ public partial class GamePropertyComputationEditorDialog : Window
             case "compare": if (expression.Left is null || expression.Right is null) yield return "A comparison needs both operands."; break;
             case "and": case "or": if (expression.Operands is null || expression.Operands.Count < 2) yield return $"{expression.Kind} needs at least two operands."; break;
             case "not": if (expression.Expression is null) yield return "not needs one child expression."; break;
-            case "select": if (expression.Branches is null || expression.Branches.Count == 0 || expression.Else is null) yield return "select needs at least one branch and an else value."; break;
+            case "select":
+                if (expression.Branches is null || expression.Branches.Count == 0 || expression.Else is null)
+                {
+                    yield return "select needs at least one branch and an else value.";
+                }
+                else if (expression.Branches.Any(static branch => branch.When is null || branch.Value is null))
+                {
+                    yield return "Each select branch needs a condition and a value.";
+                }
+                break;
             case "add": case "subtract": case "multiply": case "divide": if (expression.Left is null || expression.Right is null) yield return $"{expression.Kind} needs both operands."; break;
             default: yield return $"Unsupported expression kind '{expression.Kind}'."; break;
         }
@@ -364,10 +373,19 @@ public partial class GamePropertyComputationEditorDialog : Window
 
     private static IEnumerable<ProjectGamePropertyExpressionDto?> Children(ProjectGamePropertyExpressionDto expression)
     {
-        yield return expression.Left; yield return expression.Right; yield return expression.Expression;
-        foreach (var child in expression.Operands ?? []) yield return child;
-        foreach (var branch in expression.Branches ?? []) { yield return branch.When; yield return branch.Value; }
-        yield return expression.Else;
+        if (expression.Left is not null) yield return expression.Left;
+        if (expression.Right is not null) yield return expression.Right;
+        if (expression.Expression is not null) yield return expression.Expression;
+        foreach (var child in expression.Operands ?? [])
+        {
+            if (child is not null) yield return child;
+        }
+        foreach (var branch in expression.Branches ?? [])
+        {
+            if (branch.When is not null) yield return branch.When;
+            if (branch.Value is not null) yield return branch.Value;
+        }
+        if (expression.Else is not null) yield return expression.Else;
     }
 
     private static string HelpText(string kind) => kind switch

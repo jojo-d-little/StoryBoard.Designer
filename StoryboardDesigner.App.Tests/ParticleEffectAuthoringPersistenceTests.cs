@@ -689,8 +689,6 @@ public sealed class ParticleEffectAuthoringPersistenceTests
             Assert.Equal("false", reloadedAfterSourceMutation.GlobalVariables.Single(variable => variable.Name == "isNight").DefaultValue);
             Assert.Equal("isNight", reloadedAfterSourceMutation.Planets.Single().Countries.Single().Areas.Single().Rooms.Single()
                 .EnvironmentalEffects.Single(effect => effect.Name == "Rain").EnabledBinding!.PropertyName);
-            var savedJson = File.ReadAllText(path);
-            Assert.DoesNotContain("elseResult", savedJson, StringComparison.OrdinalIgnoreCase);
             Assert.Equal("art/fire.webp", loaded.ParticleEffectImageChoices.Single().AssetPath);
         }
         finally

@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Storyboard.Shared.DesignerContracts;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
@@ -40,28 +39,6 @@ public sealed class TypedComputedGamePropertyTests
     }
 
     [Fact]
-    public void LegacyImporter_ConvertsBooleanAndOrderedBranchesToExpressionTree()
-    {
-        var legacy = new ProjectGamePropertyComputationDto
-        {
-            ResultKind = "Numeric",
-            ResultBranches = [new ProjectGamePropertyResultBranchDto
-            {
-                Condition = Exists("enabled"),
-                Result = new ProjectGamePropertyOperandDto { ValueKind = "Numeric", Value = "8.25" }
-            }],
-            ElseResult = new ProjectGamePropertyOperandDto { GamePropertySource = new ProjectGamePropertySourceReferenceDto { PropertyName = "score" } }
-        };
-
-        var converted = LegacyGamePropertyComputationImporter.Convert(legacy)!;
-        Assert.Equal("Numeric", converted.OutputType);
-        Assert.Equal("select", converted.Expression!.Kind);
-        var branch = Assert.Single(converted.Expression.Branches!);
-        Assert.Equal(8.25d, branch.Value!.Value);
-        Assert.Equal("score", converted.Expression.Else!.Source!.PropertyName);
-    }
-
-    [Fact]
     public void Cloner_RemapsOwnerIdsAcrossNestedExpressionSources()
     {
         var oldOwner = Guid.NewGuid();
@@ -86,52 +63,6 @@ public sealed class TypedComputedGamePropertyTests
         Assert.Equal(oldOwner, computation.Expression!.Branches![0].Value!.Source!.OwnerId);
         Assert.Equal(newOwner, clone.Expression!.Branches![0].When!.Source!.OwnerId);
         Assert.Equal(newOwner, clone.Expression.Branches[0].Value!.Source!.OwnerId);
-    }
-
-    [Fact]
-    public void ProjectLoadAndSave_MigratesLegacyPayloadToComputationV2()
-    {
-        var service = new JsonExportService();
-        var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempRoot);
-        try
-        {
-            var path = Path.Combine(tempRoot, "LegacyMigration.sbe.json");
-            var project = BuildValidProject();
-            project.Name = "LegacyMigration";
-            service.SaveProjectModel(path, project);
-            var sidecarPath = Path.Combine(tempRoot, "LegacyMigration.sbe.globals.json");
-            var globals = JsonNode.Parse(File.ReadAllText(sidecarPath))!.AsObject();
-            var property = globals["gameProperties"]!.AsArray().Select(static item => item!.AsObject())
-                .Single(static item => item["name"]!.GetValue<string>() == "scoreAdjusted");
-            property.Remove("computationV2");
-            property["computation"] = JsonNode.Parse("""
-                {
-                  "resultKind": "Numeric",
-                  "resultBranches": [{
-                    "condition": { "kind": "Exists", "gamePropertySource": { "propertyName": "enabled" } },
-                    "result": { "valueKind": "Numeric", "value": "8.25" }
-                  }],
-                  "elseResult": { "gamePropertySource": { "propertyName": "score" } }
-                }
-                """);
-            File.WriteAllText(sidecarPath, globals.ToJsonString());
-
-            var loaded = service.TryLoadProjectModel(path)!;
-            var imported = Assert.Single(loaded.GlobalVariables, static item => item.Name == "scoreAdjusted").Computation!;
-            Assert.Equal("select", imported.Expression!.Kind);
-            Assert.Equal("8.25", imported.Expression.Branches!.Single().Value!.Value!.ToString());
-
-            service.SaveProjectModel(path, loaded);
-            var savedProperty = JsonNode.Parse(File.ReadAllText(sidecarPath))!["gameProperties"]!.AsArray()
-                .Select(static item => item!.AsObject()).Single(static item => item["name"]!.GetValue<string>() == "scoreAdjusted");
-            Assert.NotNull(savedProperty["computationV2"]);
-            Assert.Null(savedProperty["computation"]);
-        }
-        finally
-        {
-            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
-        }
     }
 
     [Fact]
@@ -211,11 +142,6 @@ public sealed class TypedComputedGamePropertyTests
         });
         return project;
     }
-
-    private static ProjectGamePropertyConditionDto Exists(string propertyName) => new()
-    {
-        Kind = "Exists", GamePropertySource = new ProjectGamePropertySourceReferenceDto { PropertyName = propertyName }
-    };
 
     private static ProjectGamePropertyExpressionDto ExistsExpression(string name) => new() { Kind = "exists", Source = new ProjectGamePropertySourceReferenceDto { PropertyName = name } };
     private static ProjectGamePropertyExpressionDto PropertyExpression(string name) => new() { Kind = "property", Source = new ProjectGamePropertySourceReferenceDto { PropertyName = name } };
