@@ -66,6 +66,16 @@ internal static class PhaseEnvironmentalProperties
         properties.Add(ComputedPredicate("IsStorming", "Storming", ["Lightning", "Thunder", "Both"]));
         properties.Add(ComputedPredicate("IsLightning", "Storming", ["Lightning", "Both"]));
         properties.Add(ComputedPredicate("IsThundering", "Storming", ["Thunder", "Both"]));
+        properties.Add(ComputedWeatherIntensityMultiplier(effective));
+        if (effective.ContainsKey("WindSpeed"))
+        {
+            properties.Add(ComputedNumeric("EffectiveWindSpeed", new ProjectGamePropertyExpressionDto
+            {
+                Kind = "multiply",
+                Left = PropertyExpression("WindSpeed"),
+                Right = PropertyExpression("WeatherIntensityMultiplier")
+            }, "0"));
+        }
         if (effective.ContainsKey("WindDirection") && effective.ContainsKey("WindSpeed"))
         {
             properties.Add(ComputedAll("IsWindy",
@@ -78,7 +88,9 @@ internal static class PhaseEnvironmentalProperties
         {
             property.Id = StableId(page.Id, property.Name);
             if (property.Computation is not null)
-                property.GeneratedPreviewValue = EvaluatePreview(property.Name, effective) ? "true" : "false";
+                property.GeneratedPreviewValue = property.Computation.OutputType == "Numeric"
+                    ? EvaluateNumericPreview(property.Name, effective)
+                    : EvaluatePreview(property.Name, effective) ? "true" : "false";
         }
         return properties;
     }
@@ -100,11 +112,38 @@ internal static class PhaseEnvironmentalProperties
         return direct.Name is not null && values.TryGetValue(direct.Source, out var value) && value == direct.Value;
     }
 
+    private static string EvaluateNumericPreview(string name, IReadOnlyDictionary<string, string> values)
+    {
+        var multiplier = GetWeatherIntensityMultiplier(values);
+        var result = name switch
+        {
+            "WeatherIntensityMultiplier" => multiplier,
+            "EffectiveWindSpeed" when values.TryGetValue("WindSpeed", out var speedText)
+                && double.TryParse(speedText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var speed)
+                && double.IsFinite(speed) => speed * multiplier,
+            _ => 0d
+        };
+        return result.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static double GetWeatherIntensityMultiplier(IReadOnlyDictionary<string, string> values) =>
+        values.TryGetValue("WeatherIntensity", out var intensity) ? intensity switch
+        {
+            "Light" => 0.5d,
+            "Moderate" => 1d,
+            "Heavy" => 2d,
+            "Catastrophic" => 3d,
+            _ => 1d
+        } : 1d;
+
     public static void MaterializePageProperties(PhaseNode page)
     {
         if (page.Tier != PhaseTier.Page) return;
         page.Variables.RemoveAll(static property => property.IsGeneratedEnvironmentalProperty);
-        foreach (var property in BuildCleanProperties(page))
+        var authoredNames = page.Variables
+            .Select(static property => property.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var property in BuildCleanProperties(page).Where(property => !authoredNames.Contains(property.Name)))
         {
             property.IsGeneratedEnvironmentalProperty = true;
             page.Variables.Add(property);
@@ -137,6 +176,41 @@ internal static class PhaseEnvironmentalProperties
         var comparisons = values.Select(value => Compare(source, "Equals", new ProjectGamePropertyExpressionDto { Kind = "literal", Value = value })).ToList();
         return Computed(name, comparisons.Count == 1 ? comparisons[0] : new ProjectGamePropertyExpressionDto { Kind = "or", Operands = comparisons });
     }
+
+    private static GamePropertyDefinition ComputedWeatherIntensityMultiplier(IReadOnlyDictionary<string, string> values)
+    {
+        if (!values.ContainsKey("WeatherIntensity"))
+            return ComputedNumeric("WeatherIntensityMultiplier", new ProjectGamePropertyExpressionDto { Kind = "literal", Value = 1d }, "0");
+
+        var branches = new (string Intensity, double Multiplier)[]
+        {
+            ("Light", 0.5d), ("Moderate", 1d), ("Heavy", 2d), ("Catastrophic", 3d)
+        };
+        return ComputedNumeric("WeatherIntensityMultiplier", new ProjectGamePropertyExpressionDto
+        {
+            Kind = "select",
+            Branches = branches.Select(branch => new ProjectGamePropertySelectBranchDto
+            {
+                When = Compare("WeatherIntensity", "Equals", new ProjectGamePropertyExpressionDto { Kind = "literal", Value = branch.Intensity }),
+                Value = new ProjectGamePropertyExpressionDto { Kind = "literal", Value = branch.Multiplier }
+            }).ToList(),
+            Else = new ProjectGamePropertyExpressionDto { Kind = "literal", Value = 1d }
+        }, "0");
+    }
+
+    private static GamePropertyDefinition ComputedNumeric(string name, ProjectGamePropertyExpressionDto expression, string defaultValue) => new()
+    {
+        Name = name,
+        DefaultValue = defaultValue,
+        ValueRestriction = GamePropertyValueRestriction.Numeric,
+        Computation = new ProjectGamePropertyComputationV2Dto { OutputType = "Numeric", Expression = expression }
+    };
+
+    private static ProjectGamePropertyExpressionDto PropertyExpression(string name) => new()
+    {
+        Kind = "property",
+        Source = Source(name)
+    };
 
     private static ProjectGamePropertyExpressionDto Compare(string source, string operation, ProjectGamePropertyExpressionDto right) => new()
     {

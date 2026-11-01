@@ -84,6 +84,7 @@ public partial class GamePropertyComputationEditorDialog : Window
         if (ExpressionTree.SelectedItem is not ExpressionTreeItem) ClearEditor();
         RefreshPreview();
         ExpressionErrorTextBlock.Text = string.Join(Environment.NewLine, ValidateStructure(_root));
+        ExpressionWarningTextBlock.Text = string.Join(Environment.NewLine, GamePropertyArithmeticAnalysis.DivisionByZeroWarnings(_root));
         UpdateActions();
     }
 
@@ -184,7 +185,7 @@ public partial class GamePropertyComputationEditorDialog : Window
         SourcePanel.Visibility = kind is "property" or "exists" ? Visibility.Visible : Visibility.Collapsed;
         OperatorPanel.Visibility = kind == "compare" ? Visibility.Visible : Visibility.Collapsed;
         var isEditable = !_isReadOnly;
-        KindComboBox.IsEnabled = isEditable && kind is not ("add" or "subtract" or "multiply" or "divide");
+        KindComboBox.IsEnabled = isEditable;
         LiteralTypeComboBox.IsEnabled = isEditable;
         LiteralTextBox.IsReadOnly = !isEditable;
         ChooseSourceButton.IsEnabled = isEditable;
@@ -315,7 +316,7 @@ public partial class GamePropertyComputationEditorDialog : Window
         {
             "and" or "or" => true,
             "not" => expression.Expression is null,
-            "compare" => expression.Left is null || expression.Right is null,
+            "compare" or "add" or "subtract" or "multiply" or "divide" => expression.Left is null || expression.Right is null,
             _ => false
         };
         AddExpressionButton.IsEnabled = !_isReadOnly && canAddChild;
@@ -365,7 +366,19 @@ public partial class GamePropertyComputationEditorDialog : Window
                     yield return "Each select branch needs a condition and a value.";
                 }
                 break;
-            case "add": case "subtract": case "multiply": case "divide": if (expression.Left is null || expression.Right is null) yield return $"{expression.Kind} needs both operands."; break;
+            case "add": case "subtract": case "multiply": case "divide":
+                if (expression.Left is null || expression.Right is null)
+                {
+                    yield return $"{expression.Kind} needs both operands.";
+                }
+                else
+                {
+                    if (GamePropertyArithmeticAnalysis.HasNonFiniteConstantArithmeticResult(expression))
+                        yield return "A constant arithmetic result must be finite; runtime recovers to Numeric 0 otherwise.";
+                    foreach (var issue in GamePropertyArithmeticAnalysis.ValidateNumericConversion(expression.Left)) yield return issue;
+                    foreach (var issue in GamePropertyArithmeticAnalysis.ValidateNumericConversion(expression.Right)) yield return issue;
+                }
+                break;
             default: yield return $"Unsupported expression kind '{expression.Kind}'."; break;
         }
         foreach (var child in Children(expression)) foreach (var issue in ValidateStructure(child)) yield return issue;

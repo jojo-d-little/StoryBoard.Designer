@@ -28,6 +28,8 @@ public sealed class ComputedGamePropertyIntegrityRule : IValidationRule
             if (!string.Equals(property.DefaultValue, expectedDefault, StringComparison.OrdinalIgnoreCase))
                 yield return Issue(path, $"A computed {outputType} property must use '{expectedDefault}' as its compatibility default.");
             foreach (var message in ValidateExpression(computation.Expression, owner.Id, owner.Scope, definitions)) yield return Issue(path, message);
+            foreach (var warning in GamePropertyArithmeticAnalysis.DivisionByZeroWarnings(computation.Expression))
+                yield return Issue(path, warning, ValidationSeverity.Warning);
         }
         foreach (var group in definitions.Where(static item => item.Property.SharedVariableId.HasValue).GroupBy(static item => item.Property.SharedVariableId!.Value))
         {
@@ -102,8 +104,16 @@ public sealed class ComputedGamePropertyIntegrityRule : IValidationRule
                 foreach (var message in ValidateExpression(expression.Else, ownerId, scope, definitions)) yield return message;
                 break;
             case "add": case "subtract": case "multiply": case "divide":
-                foreach (var message in ValidateExpression(expression.Left, ownerId, scope, definitions)) yield return message;
-                foreach (var message in ValidateExpression(expression.Right, ownerId, scope, definitions)) yield return message;
+                if (expression.Left is null || expression.Right is null)
+                    yield return $"An arithmetic '{expression.Kind}' expression requires both operands.";
+                else if (GamePropertyArithmeticAnalysis.HasNonFiniteConstantArithmeticResult(expression))
+                    yield return "A constant arithmetic result must be finite; it recovers to Numeric 0 at runtime otherwise.";
+                foreach (var message in GamePropertyArithmeticAnalysis.ValidateNumericConversion(expression.Left)) yield return message;
+                foreach (var message in GamePropertyArithmeticAnalysis.ValidateNumericConversion(expression.Right)) yield return message;
+                if (expression.Left is not null)
+                    foreach (var message in ValidateExpression(expression.Left, ownerId, scope, definitions)) yield return message;
+                if (expression.Right is not null)
+                    foreach (var message in ValidateExpression(expression.Right, ownerId, scope, definitions)) yield return message;
                 break;
             default: yield return $"Unsupported expression kind '{expression.Kind}'."; break;
         }
@@ -259,8 +269,8 @@ public sealed class ComputedGamePropertyIntegrityRule : IValidationRule
         }
     }
 
-    private static ValidationIssue Issue(string path, string description) =>
-        new("CGP-001", ValidationSeverity.Error, path, description, "Review the computation or source reference, then explicitly override validation if you intend to save or export it.");
+    private static ValidationIssue Issue(string path, string description, ValidationSeverity severity = ValidationSeverity.Error) =>
+        new("CGP-001", severity, path, description, "Review the computation or source reference, then explicitly override validation if you intend to save or export it.");
 
     private sealed record OwnerInfo(Guid Id, string Path, PropertyResolutionScope Scope, IReadOnlyList<GamePropertyDefinition> Properties, IReadOnlyList<CommandAction> Actions, bool IsPlayer = false);
 }

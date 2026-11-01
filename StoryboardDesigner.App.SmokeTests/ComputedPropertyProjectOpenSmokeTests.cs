@@ -2,7 +2,6 @@ using System.Text.Json;
 using FlaUI.Core;
 using FlaUI.UIA3;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace StoryboardDesigner.App.SmokeTests;
 
@@ -22,15 +21,10 @@ public sealed class ComputedPropertyProjectOpenSmokeTests
         .DefaultIfEmpty(string.Empty)
         .Select(static path => new object[] { path });
 
-    [Theory]
+    [ConfiguredProjectPathsTheory]
     [MemberData(nameof(ProjectPaths))]
     public void OpensConfiguredProjectThroughWpfStartup(string sourceProjectFilePath)
     {
-        if (string.IsNullOrWhiteSpace(sourceProjectFilePath))
-        {
-            throw SkipException.ForSkip($"Set {ProjectPathsEnvironmentVariable} to project file paths to run the Stage 05 WPF open smoke test.");
-        }
-
         sourceProjectFilePath = Path.GetFullPath(sourceProjectFilePath);
         var projectName = ReadProjectName(sourceProjectFilePath);
         var sourceProjectFolder = Path.GetDirectoryName(sourceProjectFilePath)
@@ -130,6 +124,20 @@ public sealed class ComputedPropertyProjectOpenSmokeTests
         foreach (var childFolder in Directory.EnumerateDirectories(sourceFolder))
         {
             CopyDirectoryRecursive(childFolder, Path.Combine(destinationFolder, Path.GetFileName(childFolder)));
+        }
+    }
+}
+
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+public sealed class ConfiguredProjectPathsTheoryAttribute : TheoryAttribute
+{
+    private const string ProjectPathsEnvironmentVariable = "STORYBOARD_COMPUTED_PROPERTY_ROUNDTRIP_PROJECTS";
+
+    public ConfiguredProjectPathsTheoryAttribute()
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(ProjectPathsEnvironmentVariable)))
+        {
+            Skip = $"Set {ProjectPathsEnvironmentVariable} to project file paths to run the Stage 05 WPF open smoke test.";
         }
     }
 }

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Storyboard.Shared.DesignerContracts;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
+using StoryboardDesigner.App.Validation.Contracts;
 using StoryboardDesigner.App.Validation.Rules.Project;
 
 namespace StoryboardDesigner.App.Tests;
@@ -36,6 +37,98 @@ public sealed class TypedComputedGamePropertyTests
             .Evaluate(ValidationRuleTestContext.Create(project)).Select(static issue => issue.Description).ToList();
         Assert.Contains(descriptions, static description => description.Contains("at least two operands", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(descriptions, static description => description.Contains("does not resolve", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ArithmeticIntegrity_AcceptsCoercibleNestedOperatorsAndWarnsForZeroDivisor()
+    {
+        var project = BuildValidProject();
+        var computed = Assert.Single(project.GlobalVariables, static item => item.Name == "scoreArithmetic");
+        computed.Computation!.Expression = new ProjectGamePropertyExpressionDto
+        {
+            Kind = "add",
+            Left = new ProjectGamePropertyExpressionDto
+            {
+                Kind = "subtract",
+                Left = Literal(true),
+                Right = Literal("2")
+            },
+            Right = new ProjectGamePropertyExpressionDto
+            {
+                Kind = "multiply",
+                Left = PropertyExpression("score"),
+                Right = new ProjectGamePropertyExpressionDto
+                {
+                    Kind = "divide",
+                    Left = Literal(6d),
+                    Right = Literal(3d)
+                }
+            }
+        };
+
+        var issues = new ComputedGamePropertyIntegrityRule().Evaluate(ValidationRuleTestContext.Create(project)).ToList();
+        Assert.Empty(issues);
+
+        computed.Computation.Expression = new ProjectGamePropertyExpressionDto
+        {
+            Kind = "divide",
+            Left = Literal(10d),
+            Right = Literal(false)
+        };
+        issues = new ComputedGamePropertyIntegrityRule().Evaluate(ValidationRuleTestContext.Create(project)).ToList();
+        var warning = Assert.Single(issues);
+        Assert.Equal(ValidationSeverity.Warning, warning.Severity);
+        Assert.Contains("zero divisor", warning.Description, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ArithmeticIntegrity_RejectsKnownInvalidStringConversionAndMissingOperands()
+    {
+        var project = BuildValidProject();
+        var computed = Assert.Single(project.GlobalVariables, static item => item.Name == "scoreArithmetic");
+        computed.Computation!.Expression = new ProjectGamePropertyExpressionDto
+        {
+            Kind = "add",
+            Left = Literal("not a number"),
+            Right = Literal(1d)
+        };
+
+        var descriptions = new ComputedGamePropertyIntegrityRule()
+            .Evaluate(ValidationRuleTestContext.Create(project)).Select(static issue => issue.Description).ToList();
+        Assert.Contains(descriptions, static description => description.Contains("String literal used by arithmetic", StringComparison.OrdinalIgnoreCase));
+
+        computed.Computation.Expression.Right = null!;
+        descriptions = new ComputedGamePropertyIntegrityRule()
+            .Evaluate(ValidationRuleTestContext.Create(project)).Select(static issue => issue.Description).ToList();
+        Assert.Contains(descriptions, static description => description.Contains("requires both operands", StringComparison.OrdinalIgnoreCase));
+
+        computed.Computation.Expression = new ProjectGamePropertyExpressionDto
+        {
+            Kind = "multiply",
+            Left = Literal(double.MaxValue),
+            Right = Literal(2d)
+        };
+        descriptions = new ComputedGamePropertyIntegrityRule()
+            .Evaluate(ValidationRuleTestContext.Create(project)).Select(static issue => issue.Description).ToList();
+        Assert.Contains(descriptions, static description => description.Contains("constant arithmetic result must be finite", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ComputationFormatter_ShowsNestedArithmeticGroupingAndOperators()
+    {
+        var expression = new ProjectGamePropertyExpressionDto
+        {
+            Kind = "divide",
+            Left = new ProjectGamePropertyExpressionDto { Kind = "add", Left = Literal(5d), Right = Literal(3d) },
+            Right = new ProjectGamePropertyExpressionDto
+            {
+                Kind = "multiply",
+                Left = Literal(2d),
+                Right = new ProjectGamePropertyExpressionDto { Kind = "subtract", Left = Literal(9d), Right = Literal(1d) }
+            }
+        };
+
+        Assert.Equal("((5 + 3) / (2 * (9 - 1)))", GamePropertyComputationFormatter.Format(expression));
     }
 
     [Fact]
@@ -94,6 +187,14 @@ public sealed class TypedComputedGamePropertyTests
                 .Single(item => item.GetProperty("name").GetString() == "scoreAdjusted");
             Assert.True(runtimeProperty.TryGetProperty("computationV2", out _));
             Assert.False(runtimeProperty.TryGetProperty("computation", out _));
+
+            var runtimeArithmetic = runtime.RootElement.GetProperty("gameProperties").EnumerateArray()
+                .Single(item => item.GetProperty("name").GetString() == "scoreArithmetic");
+            var arithmeticExpression = runtimeArithmetic.GetProperty("computationV2").GetProperty("expression");
+            Assert.Equal("divide", arithmeticExpression.GetProperty("kind").GetString());
+            Assert.Equal("add", arithmeticExpression.GetProperty("left").GetProperty("kind").GetString());
+            Assert.Equal("subtract", arithmeticExpression.GetProperty("left").GetProperty("right").GetProperty("kind").GetString());
+            Assert.Equal("multiply", arithmeticExpression.GetProperty("right").GetProperty("kind").GetString());
         }
         finally
         {
@@ -137,6 +238,25 @@ public sealed class TypedComputedGamePropertyTests
                     Kind = "select",
                     Branches = [new ProjectGamePropertySelectBranchDto { When = ExistsExpression("enabled"), Value = Literal("High") }],
                     Else = PropertyExpression("name")
+                }
+            }
+        });
+        project.GlobalVariables.Add(new GamePropertyDefinition
+        {
+            Name = "scoreArithmetic", DefaultValue = "0", ValueRestriction = GamePropertyValueRestriction.Numeric,
+            Computation = new ProjectGamePropertyComputationV2Dto
+            {
+                OutputType = "Numeric",
+                Expression = new ProjectGamePropertyExpressionDto
+                {
+                    Kind = "divide",
+                    Left = new ProjectGamePropertyExpressionDto
+                    {
+                        Kind = "add",
+                        Left = Literal(8d),
+                        Right = new ProjectGamePropertyExpressionDto { Kind = "subtract", Left = Literal(5d), Right = Literal(1d) }
+                    },
+                    Right = new ProjectGamePropertyExpressionDto { Kind = "multiply", Left = Literal(2d), Right = Literal(3d) }
                 }
             }
         });

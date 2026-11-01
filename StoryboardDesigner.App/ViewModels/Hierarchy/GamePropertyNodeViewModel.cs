@@ -85,7 +85,7 @@ public sealed class GamePropertyNodeViewModel : HierarchyNodeViewModel
         return Variable.IsGeneratedEnvironmentalProperty
             ? Variable.Computation is null
                 ? $"Effective phase environment value: {DisplayValue}. Edit phase time or weather settings to change it."
-                : $"Read-only computed condition; current preview: {DisplayValue}. Edit phase time or weather settings to change it."
+                : $"Read-only computed phase property; current preview: {DisplayValue}. Edit phase time or weather settings to change it."
             : Variable.DefaultValue ?? string.Empty;
     }
 

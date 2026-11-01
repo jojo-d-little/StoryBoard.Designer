@@ -5,6 +5,7 @@ using StoryboardDesigner.App.Validation.Rules.Objects;
 using StoryboardDesigner.App.Views;
 using StoryboardDesigner.App.ViewModels;
 using Storyboard.Shared.DesignerContracts;
+using Storyboard.Shared.RuntimeContracts.Enums;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -329,7 +330,7 @@ public sealed class ParticleEffectAuthoringPersistenceTests
     }
 
     [Fact]
-    public void StandardVariableChooser_OffersAndReturnsGeneratedWindSpeedButNotSyntheticEffectiveWindSpeed()
+    public void StandardVariableChooser_OffersAndReturnsGeneratedEffectiveWindSpeed()
     {
         Exception? failure = null;
         StaTestThreadRunner.StartAndWait(new Thread(() =>
@@ -338,8 +339,7 @@ public sealed class ParticleEffectAuthoringPersistenceTests
             {
                 var (project, page) = CreateGeneratedWindPhaseProject();
                 var choices = MainWindowViewModel.BuildComputedPropertyChoices(project, page);
-                Assert.DoesNotContain(choices, choice => choice.PropertyName == "EffectiveWindSpeed");
-                var choice = Assert.Single(choices, item => item.OwnerId == page.Id && item.PropertyName == "WindSpeed");
+                var choice = Assert.Single(choices, item => item.OwnerId == page.Id && item.PropertyName == "EffectiveWindSpeed");
                 Assert.Contains("currentPhase", choice.EligibleAnchors);
                 var context = new GamePropertyPickerContext(
                     project,
@@ -370,20 +370,20 @@ public sealed class ParticleEffectAuthoringPersistenceTests
                 timer.Start();
                 Assert.True(picker.ShowDialog());
                 Assert.Equal("currentPhase", picker.SelectedReference?.AnchorKey);
-                Assert.Equal("WindSpeed", picker.SelectedReference?.PropertyName);
+                Assert.Equal("EffectiveWindSpeed", picker.SelectedReference?.PropertyName);
                 Assert.Null(picker.SelectedReference?.OwnerId);
             }
             catch (Exception ex)
             {
                 failure = ex;
             }
-        }), nameof(StandardVariableChooser_OffersAndReturnsGeneratedWindSpeedButNotSyntheticEffectiveWindSpeed));
+        }), nameof(StandardVariableChooser_OffersAndReturnsGeneratedEffectiveWindSpeed));
 
         if (failure is not null) throw failure;
     }
 
     [Fact]
-    public void Fx001_ResolvesActualGeneratedPhasePropertyAndRejectsAbsentSyntheticProperty()
+    public void Fx001_ResolvesGeneratedWindAndEffectiveWindPropertiesNormally()
     {
         var (project, _) = CreateGeneratedWindPhaseProject();
         var catalog = new ParticleEffectAuthoringCatalogService();
@@ -414,10 +414,120 @@ public sealed class ParticleEffectAuthoringPersistenceTests
         Assert.DoesNotContain(validDescriptions, description => description.Contains("cannot resolve variable 'WindSpeed'", StringComparison.OrdinalIgnoreCase));
 
         project.EnvironmentalEffects[0].Settings[0].Binding!.PropertyName = "EffectiveWindSpeed";
-        var invalidDescriptions = rule.Evaluate(ValidationRuleTestContext.Create(project))
+        var effectiveWindDescriptions = rule.Evaluate(ValidationRuleTestContext.Create(project))
             .Select(issue => issue.Description)
             .ToList();
-        Assert.Contains(invalidDescriptions, description => description.Contains("cannot resolve variable 'EffectiveWindSpeed'", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(effectiveWindDescriptions, description => description.Contains("cannot resolve variable 'EffectiveWindSpeed'", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData(WeatherIntensity.Light, 0.5d)]
+    [InlineData(WeatherIntensity.Moderate, 1d)]
+    [InlineData(WeatherIntensity.Heavy, 2d)]
+    [InlineData(WeatherIntensity.Catastrophic, 3d)]
+    public void WeatherDerivedProperties_AreOrdinaryNumericComputations(WeatherIntensity intensity, double expectedMultiplier)
+    {
+        var (project, page) = CreateGeneratedWindPhaseProject();
+        page.WeatherIntensity = intensity;
+        var choices = MainWindowViewModel.BuildComputedPropertyChoices(project, page);
+        var multiplier = Assert.Single(page.Variables, variable => variable.Name == "WeatherIntensityMultiplier");
+        var effectiveWind = Assert.Single(page.Variables, variable => variable.Name == "EffectiveWindSpeed");
+
+        Assert.True(multiplier.IsGeneratedEnvironmentalProperty);
+        Assert.True(effectiveWind.IsGeneratedEnvironmentalProperty);
+        Assert.Equal("Numeric", multiplier.Computation!.OutputType);
+        Assert.Equal("Numeric", effectiveWind.Computation!.OutputType);
+        Assert.Equal(expectedMultiplier.ToString("R", System.Globalization.CultureInfo.InvariantCulture), multiplier.GeneratedPreviewValue);
+        Assert.Equal((18d * expectedMultiplier).ToString("R", System.Globalization.CultureInfo.InvariantCulture), effectiveWind.GeneratedPreviewValue);
+        Assert.Equal("select", multiplier.Computation.Expression!.Kind);
+        Assert.Equal("multiply", effectiveWind.Computation.Expression!.Kind);
+        Assert.Equal("WindSpeed", effectiveWind.Computation.Expression.Left!.Source!.PropertyName);
+        Assert.Equal("WeatherIntensityMultiplier", effectiveWind.Computation.Expression.Right!.Source!.PropertyName);
+        Assert.Contains(choices, choice => choice.PropertyName == "EffectiveWindSpeed" && choice.EligibleAnchors.Contains("currentPhase"));
+    }
+
+    [Fact]
+    public void WeatherDerivedProperties_DefaultToOneWithoutWeatherIntensity_AndCalmWindIsNotWindy()
+    {
+        var (project, page) = CreateGeneratedWindPhaseProject();
+        page.WindSpeed = 0;
+        _ = MainWindowViewModel.BuildComputedPropertyChoices(project, page);
+
+        var multiplier = Assert.Single(page.Variables, variable => variable.Name == "WeatherIntensityMultiplier");
+        var effectiveWind = Assert.Single(page.Variables, variable => variable.Name == "EffectiveWindSpeed");
+        var isWindy = Assert.Single(page.Variables, variable => variable.Name == "IsWindy");
+        Assert.Equal("1", multiplier.GeneratedPreviewValue);
+        Assert.Equal("0", multiplier.DefaultValue);
+        Assert.Equal("literal", multiplier.Computation!.Expression!.Kind);
+        Assert.Equal("0", effectiveWind.GeneratedPreviewValue);
+        Assert.Equal("false", isWindy.GeneratedPreviewValue);
+        Assert.Equal("and", isWindy.Computation!.Expression!.Kind);
+    }
+
+    [Fact]
+    public void GeneratedWeatherProperties_DoNotReplaceSameNamedAuthoredProperties()
+    {
+        var (project, page) = CreateGeneratedWindPhaseProject();
+        var authoredMultiplier = new GamePropertyDefinition
+        {
+            Name = "WeatherIntensityMultiplier",
+            DefaultValue = "0",
+            ValueRestriction = GamePropertyValueRestriction.Numeric,
+            Computation = new ProjectGamePropertyComputationV2Dto
+            {
+                OutputType = "Numeric",
+                Expression = new ProjectGamePropertyExpressionDto { Kind = "literal", Value = 7d }
+            }
+        };
+        var authoredEffectiveWind = new GamePropertyDefinition
+        {
+            Name = "EffectiveWindSpeed",
+            DefaultValue = "0",
+            ValueRestriction = GamePropertyValueRestriction.Numeric,
+            Computation = new ProjectGamePropertyComputationV2Dto
+            {
+                OutputType = "Numeric",
+                Expression = new ProjectGamePropertyExpressionDto { Kind = "literal", Value = 8d }
+            }
+        };
+        page.Variables.Add(authoredMultiplier);
+        page.Variables.Add(authoredEffectiveWind);
+
+        var choices = MainWindowViewModel.BuildComputedPropertyChoices(project, page);
+
+        Assert.Same(authoredMultiplier, Assert.Single(page.Variables, variable => variable.Name == "WeatherIntensityMultiplier"));
+        Assert.Same(authoredEffectiveWind, Assert.Single(page.Variables, variable => variable.Name == "EffectiveWindSpeed"));
+        Assert.False(authoredMultiplier.IsGeneratedEnvironmentalProperty);
+        Assert.False(authoredEffectiveWind.IsGeneratedEnvironmentalProperty);
+        Assert.Contains(choices, choice => choice.PropertyName == "WeatherIntensityMultiplier" && choice.OwnerId == page.Id);
+        Assert.Contains(choices, choice => choice.PropertyName == "EffectiveWindSpeed" && choice.OwnerId == page.Id);
+    }
+
+    [Fact]
+    public void WeatherDerivedProperties_AreIncludedInCleanExportAsV2Expressions()
+    {
+        var (project, page) = CreateGeneratedWindPhaseProject();
+        page.WeatherIntensity = WeatherIntensity.Heavy;
+        var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+        try
+        {
+            var authoredPath = Path.Combine(tempRoot, "WeatherComputed.sbe.json");
+            var exporter = new JsonExportService();
+            exporter.SaveProjectModel(authoredPath, project);
+            exporter.ExportCleanProjectV1(authoredPath, project);
+            var exportedJson = string.Join("\n", Directory.EnumerateFiles(Path.Combine(tempRoot, "GameRuntimeJson"), "*.json", SearchOption.AllDirectories)
+                .Select(File.ReadAllText));
+
+            Assert.Contains("WeatherIntensityMultiplier", exportedJson, StringComparison.Ordinal);
+            Assert.Contains("EffectiveWindSpeed", exportedJson, StringComparison.Ordinal);
+            Assert.Contains("computationV2", exportedJson, StringComparison.Ordinal);
+            Assert.Contains("multiply", exportedJson, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
     }
 
     [Fact]

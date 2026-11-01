@@ -1,7 +1,6 @@
 using System.Text.Json.Nodes;
 using StoryboardDesigner.App.Services;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace StoryboardDesigner.App.Tests;
 
@@ -19,15 +18,10 @@ public sealed class ComputedPropertyProjectRoundTripValidatorTests
         .DefaultIfEmpty(string.Empty)
         .Select(static path => new object[] { path });
 
-    [Theory]
+    [ConfiguredProjectPathsTheory]
     [MemberData(nameof(ProjectPaths))]
     public void MigratedComputedProperties_RoundTripThroughDesignerServices(string sourceProjectFilePath)
     {
-        if (string.IsNullOrWhiteSpace(sourceProjectFilePath))
-        {
-            throw SkipException.ForSkip($"Set {ProjectPathsEnvironmentVariable} to project file paths to run the focused Stage 05 validator.");
-        }
-
         sourceProjectFilePath = Path.GetFullPath(sourceProjectFilePath);
         var projectName = Path.GetFileNameWithoutExtension(sourceProjectFilePath);
         var tempRoot = Path.Combine(
@@ -234,13 +228,19 @@ public sealed class ComputedPropertyProjectRoundTripValidatorTests
         var exportedCounts = exported.GroupBy(static item => item.Expression, StringComparer.Ordinal)
             .ToDictionary(static group => group.Key, static group => group.Count(), StringComparer.Ordinal);
 
-        var missing = expectedCounts
-            .Where(pair => !exportedCounts.TryGetValue(pair.Key, out var count) || count < pair.Value)
-            .Select(static pair => pair.Value)
-            .Sum();
+        var missingExpressions = authored
+            .GroupBy(static item => item.Expression, StringComparer.Ordinal)
+            .Where(group => !exportedCounts.TryGetValue(group.Key, out var count) || count < group.Count())
+            .Select(group => new
+            {
+                Count = group.Count() - (exportedCounts.TryGetValue(group.Key, out var exportedCount) ? exportedCount : 0),
+                Names = string.Join(", ", group.Select(static item => item.Name).Distinct(StringComparer.Ordinal))
+            })
+            .ToList();
+        var missing = missingExpressions.Sum(static item => item.Count);
         Assert.True(
             missing == 0,
-            $"[{projectName}] Clean export is missing or changed {missing} authored V2 expression(s). Authored: {authored.Count}; exported V2 expressions: {exported.Count}.");
+            $"[{projectName}] Clean export is missing or changed {missing} authored V2 expression(s). Authored: {authored.Count}; exported V2 expressions: {exported.Count}. Missing by property: {string.Join("; ", missingExpressions.Select(static item => $"{item.Names} ({item.Count})"))}.");
     }
 
     private static void CopyDirectoryRecursive(string sourceFolder, string destinationFolder)
@@ -260,5 +260,19 @@ public sealed class ComputedPropertyProjectRoundTripValidatorTests
     private sealed record ExpressionSnapshot(string Identity, string Name, string Expression)
     {
         public override string ToString() => $"{Identity}|{Name}|{Expression}";
+    }
+}
+
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+public sealed class ConfiguredProjectPathsTheoryAttribute : TheoryAttribute
+{
+    private const string ProjectPathsEnvironmentVariable = "STORYBOARD_COMPUTED_PROPERTY_ROUNDTRIP_PROJECTS";
+
+    public ConfiguredProjectPathsTheoryAttribute()
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(ProjectPathsEnvironmentVariable)))
+        {
+            Skip = $"Set {ProjectPathsEnvironmentVariable} to project file paths to run the focused Stage 05 validator.";
+        }
     }
 }

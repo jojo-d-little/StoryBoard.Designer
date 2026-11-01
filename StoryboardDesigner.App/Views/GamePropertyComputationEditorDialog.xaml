@@ -30,6 +30,8 @@
                         <ComboBoxItem Content="literal"/><ComboBoxItem Content="property"/><ComboBoxItem Content="exists"/>
                         <ComboBoxItem Content="compare"/><ComboBoxItem Content="and"/><ComboBoxItem Content="or"/>
                         <ComboBoxItem Content="not"/><ComboBoxItem Content="select"/>
+                        <ComboBoxItem Content="add"/><ComboBoxItem Content="subtract"/>
+                        <ComboBoxItem Content="multiply"/><ComboBoxItem Content="divide"/>
                     </ComboBox>
                     <Button x:Name="AddExpressionButton" Margin="6,0,0,0" Padding="8,4" Content="Add child" Click="AddExpression_OnClick"/>
                     <Button x:Name="AddBranchButton" Margin="6,0,0,0" Padding="8,4" Content="Add branch" Click="AddBranch_OnClick"/>
@@ -47,6 +49,8 @@
                     <ComboBoxItem Content="literal"/><ComboBoxItem Content="property"/><ComboBoxItem Content="exists"/>
                     <ComboBoxItem Content="compare"/><ComboBoxItem Content="and"/><ComboBoxItem Content="or"/>
                     <ComboBoxItem Content="not"/><ComboBoxItem Content="select"/>
+                    <ComboBoxItem Content="add"/><ComboBoxItem Content="subtract"/>
+                    <ComboBoxItem Content="multiply"/><ComboBoxItem Content="divide"/>
                 </ComboBox>
                 <StackPanel x:Name="LiteralPanel" Margin="0,8,0,0">
                     <TextBlock Text="Literal type"/>
@@ -73,6 +77,7 @@
                 <TextBlock Margin="0,18,0,3" FontWeight="SemiBold" Text="Preview"/>
                 <TextBlock x:Name="ExpressionPreviewTextBlock" TextWrapping="Wrap" Foreground="#374151"/>
                 <TextBlock x:Name="ExpressionErrorTextBlock" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="#B91C1C"/>
+                <TextBlock x:Name="ExpressionWarningTextBlock" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="#B45309"/>
             </StackPanel>
         </Grid>
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
