@@ -9,6 +9,6 @@ public sealed record AreaBasicPropertiesEditRequest(
     AreaRoomDropBehavior RoomDropBehavior,
     Guid? StartingRoomId,
     List<EnvironmentalEffectDefinition>? EnvironmentalEffects = null,
-    Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationV2Dto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationV2Dto?>? EnvironmentalEffectComputationEditor = null,
+    Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?>? EnvironmentalEffectComputationEditor = null,
     IReadOnlyList<SharedVariableChoiceOption>? EnvironmentalEffectSharedVariableOptions = null,
     GamePropertyPickerContext? EnvironmentalEffectVariablePickerContext = null);

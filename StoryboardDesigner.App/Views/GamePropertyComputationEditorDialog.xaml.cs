@@ -28,7 +28,7 @@ public partial class GamePropertyComputationEditorDialog : Window
     private bool _refreshing;
 
     public GamePropertyComputationEditorDialog(
-        ProjectGamePropertyComputationV2Dto? computation,
+        ProjectGamePropertyComputationDto? computation,
         Func<ProjectGamePropertySourceReferenceDto?, ProjectGamePropertySourceReferenceDto?> chooseSource,
         Func<ProjectGamePropertySourceReferenceDto?, string> formatSource,
         bool readOnly = false)
@@ -60,8 +60,8 @@ public partial class GamePropertyComputationEditorDialog : Window
         }
     }
 
-    public ProjectGamePropertyComputationV2Dto? Computation => DialogResult == true
-        ? new ProjectGamePropertyComputationV2Dto
+    public ProjectGamePropertyComputationDto? Computation => DialogResult == true
+        ? new ProjectGamePropertyComputationDto
         {
             OutputType = SelectedOutputType,
             Expression = GamePropertyComputationCloner.CloneExpression(_root) ?? Literal(false)

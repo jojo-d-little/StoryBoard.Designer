@@ -3575,7 +3575,7 @@ public sealed class JsonExportService : IJsonExportService
         var list = new List<T>();
         foreach (var filePath in Directory.EnumerateFiles(folderPath, $"*{fileSuffix}").OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
         {
-            var json = File.ReadAllText(filePath);
+            var json = NormalizePreRetirementComputedPropertyWireName(File.ReadAllText(filePath));
             T? item;
             try
             {
@@ -6584,7 +6584,7 @@ public sealed class JsonExportService : IJsonExportService
             ValueRestriction = GetComputedValueRestriction(variable),
             Lifetime = variable.Lifetime,
             SharedVariableId = variable.SharedVariableId,
-            ComputationV2 = CloneContractValue(variable.Computation)
+            Computation = CloneContractValue(variable.Computation)
         };
     }
 
@@ -6935,7 +6935,7 @@ public sealed class JsonExportService : IJsonExportService
             ValueRestriction = GetComputedValueRestriction(variable),
             Lifetime = variable.Lifetime,
             SharedVariableId = variable.SharedVariableId,
-            ComputationV2 = ConvertComputationToRuntime(variable.Computation)
+            Computation = ConvertComputationToRuntime(variable.Computation)
         };
     }
 
@@ -7450,7 +7450,7 @@ public sealed class JsonExportService : IJsonExportService
             ValueRestriction = Enum.IsDefined(variable.ValueRestriction) ? variable.ValueRestriction : GamePropertyValueRestriction.Unrestricted,
             Lifetime = Enum.IsDefined(variable.Lifetime) ? variable.Lifetime : GamePropertyLifetime.Singleton,
             SharedVariableId = variable.SharedVariableId,
-            Computation = CloneContractValue(variable.ComputationV2)
+            Computation = CloneContractValue(variable.Computation)
         };
     }
 
@@ -7465,14 +7465,14 @@ public sealed class JsonExportService : IJsonExportService
         return JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value));
     }
 
-    private static RuntimeGamePropertyComputationV2Dto? ConvertComputationToRuntime(ProjectGamePropertyComputationV2Dto? computation)
+    private static RuntimeGamePropertyComputationDto? ConvertComputationToRuntime(ProjectGamePropertyComputationDto? computation)
     {
         if (computation is null)
         {
             return null;
         }
 
-        return JsonSerializer.Deserialize<RuntimeGamePropertyComputationV2Dto>(JsonSerializer.Serialize(computation));
+        return JsonSerializer.Deserialize<RuntimeGamePropertyComputationDto>(JsonSerializer.Serialize(computation));
     }
 
     private static SoundEffectLibraryEntry ToSoundEffectLibraryEntryModel(SoundEffectLibraryEntryDto dto)
@@ -9298,7 +9298,8 @@ public sealed class JsonExportService : IJsonExportService
     {
         try
         {
-            var normalizedJson = NormalizeLegacySoundEmitterActivationPropertyIds(json);
+            var normalizedJson = NormalizePreRetirementComputedPropertyWireName(json);
+            normalizedJson = NormalizeLegacySoundEmitterActivationPropertyIds(normalizedJson);
             if (typeof(T) == typeof(RoomDto))
                 normalizedJson = NormalizeLegacyRoomSpawnPoint(normalizedJson);
             return JsonSerializer.Deserialize<T>(normalizedJson, options);
@@ -9306,6 +9307,54 @@ public sealed class JsonExportService : IJsonExportService
         catch (Exception ex)
         {
             throw BuildDeserializationException(filePath, typeof(T), ex);
+        }
+    }
+
+    private static string NormalizePreRetirementComputedPropertyWireName(string json)
+    {
+        if (!json.Contains("computationV2", StringComparison.OrdinalIgnoreCase))
+        {
+            return json;
+        }
+
+        var root = JsonNode.Parse(json);
+        if (root is null)
+        {
+            return json;
+        }
+
+        NormalizePreRetirementComputedPropertyWireName(root);
+        return root.ToJsonString();
+    }
+
+    private static void NormalizePreRetirementComputedPropertyWireName(JsonNode? node)
+    {
+        switch (node)
+        {
+            case JsonObject jsonObject:
+                if (TryGetJsonProperty(jsonObject, "computationV2", out var previousName, out var previousValue))
+                {
+                    if (TryGetJsonProperty(jsonObject, "computation", out _, out var currentValue) && currentValue is not null)
+                    {
+                        throw new JsonException("A game property cannot contain both 'computation' and 'computationV2'.");
+                    }
+
+                    jsonObject.Remove(previousName);
+                    jsonObject["computation"] = previousValue?.DeepClone();
+                }
+
+                foreach (var property in jsonObject.Select(static property => property.Value).ToList())
+                {
+                    NormalizePreRetirementComputedPropertyWireName(property);
+                }
+                break;
+
+            case JsonArray jsonArray:
+                foreach (var item in jsonArray)
+                {
+                    NormalizePreRetirementComputedPropertyWireName(item);
+                }
+                break;
         }
     }
 

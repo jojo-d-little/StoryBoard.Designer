@@ -19,7 +19,7 @@ public partial class GlobalSettingsDialog : Window
     private readonly IReadOnlyList<string> _soundEffectCategorySuggestions;
     private List<EnvironmentalEffectDefinition> _environmentalEffects;
     private List<ParticleEffectImageChoice> _particleEffectImageChoices;
-    private readonly Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationV2Dto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationV2Dto?>? _environmentalEffectComputationEditor;
+    private readonly Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?>? _environmentalEffectComputationEditor;
     private readonly IReadOnlyList<SharedVariableChoiceOption> _environmentalEffectSharedVariableOptions;
     private readonly GamePropertyPickerContext? _environmentalEffectVariablePickerContext;
 

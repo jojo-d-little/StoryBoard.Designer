@@ -15704,7 +15704,7 @@ public sealed partial class MainWindowViewModel
         return true;
     }
 
-    internal Func<ProjectGamePropertyComputationV2Dto?, ProjectGamePropertyComputationV2Dto?> CreateComputationEditor(
+    internal Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?> CreateComputationEditor(
         GamePropertyNodeViewModel propertyNode,
         bool readOnly = false)
     {
@@ -15761,7 +15761,7 @@ public sealed partial class MainWindowViewModel
         };
     }
 
-    private Func<ProjectGamePropertyComputationV2Dto?, ProjectGamePropertyComputationV2Dto?> CreateComputationEditorForScope(
+    private Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?> CreateComputationEditorForScope(
         IScopedAwareNode? scopeOwner,
         PropertyResolutionScope resolutionScope,
         Guid? relativeOwnerId = null,
@@ -15808,7 +15808,7 @@ public sealed partial class MainWindowViewModel
         }
     }
 
-    private Func<ProjectGamePropertyComputationV2Dto?, ProjectGamePropertyComputationV2Dto?> EditComputationForContainer(
+    private Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?> EditComputationForContainer(
         GamePropertiesContainerNodeViewModel container,
         bool readOnly = false)
     {

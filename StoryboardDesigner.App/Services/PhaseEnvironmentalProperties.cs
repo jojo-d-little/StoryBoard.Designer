@@ -203,7 +203,7 @@ internal static class PhaseEnvironmentalProperties
         Name = name,
         DefaultValue = defaultValue,
         ValueRestriction = GamePropertyValueRestriction.Numeric,
-        Computation = new ProjectGamePropertyComputationV2Dto { OutputType = "Numeric", Expression = expression }
+        Computation = new ProjectGamePropertyComputationDto { OutputType = "Numeric", Expression = expression }
     };
 
     private static ProjectGamePropertyExpressionDto PropertyExpression(string name) => new()
@@ -221,7 +221,7 @@ internal static class PhaseEnvironmentalProperties
     private static GamePropertyDefinition Computed(string name, ProjectGamePropertyExpressionDto expression) => new()
     {
         Name = name, DefaultValue = "false", ValueRestriction = GamePropertyValueRestriction.TrueFalse,
-        Computation = new ProjectGamePropertyComputationV2Dto { OutputType = "Boolean", Expression = expression }
+        Computation = new ProjectGamePropertyComputationDto { OutputType = "Boolean", Expression = expression }
     };
 
     private static ProjectGamePropertySourceReferenceDto Source(string name) => new() { AnchorKey = "currentPhase", PropertyName = name };

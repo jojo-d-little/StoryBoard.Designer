@@ -6,7 +6,7 @@ namespace StoryboardDesigner.App.Models;
 
 public static class GamePropertyComputationFormatter
 {
-    public static string Format(ProjectGamePropertyComputationV2Dto? computation) => computation is null
+    public static string Format(ProjectGamePropertyComputationDto? computation) => computation is null
         ? "(computation not defined)"
         : $"{computation.OutputType ?? "?"}: {Format(computation.Expression)}";
 

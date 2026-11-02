@@ -56,7 +56,7 @@ public sealed class ComputedPropertyProjectRoundTripValidatorTests
             var cleanExportPath = service.ExportCleanProjectV1(isolatedProjectFilePath, loadedProject!);
             Assert.True(File.Exists(cleanExportPath), $"[{projectName}] Clean export root file was not written: {cleanExportPath}");
             var cleanExportFolder = Path.Combine(isolatedProjectFolder, "GameRuntimeJson");
-            var exportedExpressions = ReadV2ExpressionsFromFolder(cleanExportFolder, projectName, "clean export");
+            var exportedExpressions = ReadComputedExpressionsFromFolder(cleanExportFolder, projectName, "clean export");
             AssertExpressionsPreservedInExport(initialExpressions, exportedExpressions, projectName);
 
             var reloadedProject = service.TryLoadProjectModel(isolatedProjectFilePath);
@@ -68,7 +68,7 @@ public sealed class ComputedPropertyProjectRoundTripValidatorTests
                 projectName,
                 "after reload and save");
 
-            _output.WriteLine($"PASS [{projectName}] {initialExpressions.Count} authored V2 computation(s) survived Designer load, save, clean export, and reload. Isolated copy: {isolatedProjectFolder}");
+            _output.WriteLine($"PASS [{projectName}] {initialExpressions.Count} authored computation(s) survived Designer load, save, clean export, and reload. Isolated copy: {isolatedProjectFolder}");
         }
         catch (Exception exception)
         {
@@ -97,19 +97,19 @@ public sealed class ComputedPropertyProjectRoundTripValidatorTests
         var snapshots = new List<ExpressionSnapshot>();
         foreach (var path in EnumerateAuthoringJsonFiles(projectFolder))
         {
-            CollectExpressions(JsonNode.Parse(File.ReadAllText(path)), path, projectName, snapshots, requireV2Only: true);
+            CollectExpressions(JsonNode.Parse(File.ReadAllText(path)), path, projectName, snapshots);
         }
 
         return snapshots;
     }
 
-    private static List<ExpressionSnapshot> ReadV2ExpressionsFromFolder(string folder, string projectName, string description)
+    private static List<ExpressionSnapshot> ReadComputedExpressionsFromFolder(string folder, string projectName, string description)
     {
         Assert.True(Directory.Exists(folder), $"[{projectName}] {description} folder does not exist: {folder}");
         var snapshots = new List<ExpressionSnapshot>();
         foreach (var path in Directory.EnumerateFiles(folder, "*.json", SearchOption.AllDirectories))
         {
-            CollectExpressions(JsonNode.Parse(File.ReadAllText(path)), path, projectName, snapshots, requireV2Only: false);
+            CollectExpressions(JsonNode.Parse(File.ReadAllText(path)), path, projectName, snapshots);
         }
 
         return snapshots;
@@ -136,40 +136,33 @@ public sealed class ComputedPropertyProjectRoundTripValidatorTests
         JsonNode? node,
         string sourcePath,
         string projectName,
-        List<ExpressionSnapshot> snapshots,
-        bool requireV2Only)
+        List<ExpressionSnapshot> snapshots)
     {
         switch (node)
         {
             case JsonObject jsonObject:
-                var hasV2 = jsonObject.TryGetPropertyValue("computationV2", out var computationV2)
-                    && computationV2 is not null;
-                var hasLegacy = jsonObject.TryGetPropertyValue("computation", out var legacyComputation)
-                    && legacyComputation is not null;
+                var hasV2 = jsonObject.TryGetPropertyValue("computationV2", out var computationV2) && computationV2 is not null;
+                var hasCurrent = jsonObject.TryGetPropertyValue("computation", out var computation) && computation is not null;
                 var isGameProperty = jsonObject.ContainsKey("name")
                     && jsonObject.ContainsKey("defaultValue")
                     && jsonObject.ContainsKey("valueRestriction");
 
-                if (isGameProperty && requireV2Only && hasLegacy)
+                if (isGameProperty && hasV2 && hasCurrent)
                 {
-                    var legacyPropertyName = jsonObject["name"]?.GetValue<string>() ?? "<unnamed>";
-                    throw new InvalidOperationException($"[{projectName}] Authored property '{legacyPropertyName}' in '{sourcePath}' still has legacy 'computation'.");
+                    var duplicatePropertyName = jsonObject["name"]?.GetValue<string>() ?? "<unnamed>";
+                    throw new InvalidOperationException($"[{projectName}] Property '{duplicatePropertyName}' in '{sourcePath}' contains both 'computation' and the pre-retirement 'computationV2' field.");
                 }
 
-                if (isGameProperty && hasV2)
+                var computationNode = hasCurrent ? computation : computationV2;
+                if (isGameProperty && computationNode is JsonObject computationObject)
                 {
-                    if (hasLegacy)
+                    if (!computationObject.ContainsKey("expression"))
                     {
                         var legacyPropertyName = jsonObject["name"]?.GetValue<string>() ?? "<unnamed>";
-                        throw new InvalidOperationException($"[{projectName}] Property '{legacyPropertyName}' in '{sourcePath}' contains both 'computationV2' and legacy 'computation'.");
+                        throw new InvalidOperationException($"[{projectName}] Property '{legacyPropertyName}' in '{sourcePath}' uses the retired condition/result-branch computation shape.");
                     }
 
-                    var expression = computationV2!["expression"];
-                    if (expression is null)
-                    {
-                        var missingExpressionPropertyName = jsonObject["name"]?.GetValue<string>() ?? "<unnamed>";
-                        throw new InvalidOperationException($"[{projectName}] Property '{missingExpressionPropertyName}' in '{sourcePath}' has no V2 expression.");
-                    }
+                    var expression = computationObject["expression"]!;
 
                     var identity = jsonObject["id"]?.GetValue<string>()
                         ?? jsonObject["name"]?.GetValue<string>()
@@ -180,14 +173,14 @@ public sealed class ComputedPropertyProjectRoundTripValidatorTests
 
                 foreach (var child in jsonObject.Select(static property => property.Value))
                 {
-                    CollectExpressions(child, sourcePath, projectName, snapshots, requireV2Only);
+                    CollectExpressions(child, sourcePath, projectName, snapshots);
                 }
                 break;
 
             case JsonArray jsonArray:
                 foreach (var child in jsonArray)
                 {
-                    CollectExpressions(child, sourcePath, projectName, snapshots, requireV2Only);
+                    CollectExpressions(child, sourcePath, projectName, snapshots);
                 }
                 break;
         }

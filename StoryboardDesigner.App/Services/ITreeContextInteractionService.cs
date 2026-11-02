@@ -6,8 +6,8 @@ namespace StoryboardDesigner.App.Services;
 
 public interface ITreeContextInteractionService
 {
-    bool TryGetNewVariableInput(string initialName, GamePropertyLifetime initialLifetime, string initialDefaultValue, GamePropertyValueRestriction initialValueRestriction, Func<ProjectGamePropertyComputationV2Dto?, ProjectGamePropertyComputationV2Dto?>? editComputation, out string variableName, out GamePropertyLifetime lifetime, out string defaultValue, out GamePropertyValueRestriction valueRestriction, out ProjectGamePropertyComputationV2Dto? computation);
-    void ShowVariableScopeReview(string scopeLabel, IList<GamePropertyDefinition> variables, Func<ProjectGamePropertyComputationV2Dto?, ProjectGamePropertyComputationV2Dto?>? editComputation = null);
+    bool TryGetNewVariableInput(string initialName, GamePropertyLifetime initialLifetime, string initialDefaultValue, GamePropertyValueRestriction initialValueRestriction, Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation, out string variableName, out GamePropertyLifetime lifetime, out string defaultValue, out GamePropertyValueRestriction valueRestriction, out ProjectGamePropertyComputationDto? computation);
+    void ShowVariableScopeReview(string scopeLabel, IList<GamePropertyDefinition> variables, Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation = null);
     void ShowSharedPropertyRelationships(
         string propertyPath,
         IReadOnlyList<SharedPropertyRelationshipReviewItem> relationships,

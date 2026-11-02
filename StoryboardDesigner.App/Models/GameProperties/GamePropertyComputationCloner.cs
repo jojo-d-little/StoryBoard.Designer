@@ -10,12 +10,12 @@ public static class GamePropertyComputationCloner
             ? null
             : JsonSerializer.Deserialize<ProjectGamePropertyExpressionDto>(JsonSerializer.Serialize(expression));
 
-    public static ProjectGamePropertyComputationV2Dto? Clone(ProjectGamePropertyComputationV2Dto? computation) =>
+    public static ProjectGamePropertyComputationDto? Clone(ProjectGamePropertyComputationDto? computation) =>
         computation is null
             ? null
-            : JsonSerializer.Deserialize<ProjectGamePropertyComputationV2Dto>(JsonSerializer.Serialize(computation));
+            : JsonSerializer.Deserialize<ProjectGamePropertyComputationDto>(JsonSerializer.Serialize(computation));
 
-    public static void RemapOwnerIds(ProjectGamePropertyComputationV2Dto? computation, IReadOnlyDictionary<Guid, Guid> ownerIdMap)
+    public static void RemapOwnerIds(ProjectGamePropertyComputationDto? computation, IReadOnlyDictionary<Guid, Guid> ownerIdMap)
     {
         if (computation?.Expression is null || ownerIdMap.Count == 0) return;
         Remap(computation.Expression);

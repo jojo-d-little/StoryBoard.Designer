@@ -23,7 +23,7 @@ public sealed class TypedComputedGamePropertyTests
         project.GlobalVariables.Add(new GamePropertyDefinition
         {
             Name = "computed", DefaultValue = "false", ValueRestriction = GamePropertyValueRestriction.TrueFalse,
-            Computation = new ProjectGamePropertyComputationV2Dto
+            Computation = new ProjectGamePropertyComputationDto
             {
                 OutputType = "Boolean",
                 Expression = new ProjectGamePropertyExpressionDto
@@ -136,7 +136,7 @@ public sealed class TypedComputedGamePropertyTests
     {
         var oldOwner = Guid.NewGuid();
         var newOwner = Guid.NewGuid();
-        var computation = new ProjectGamePropertyComputationV2Dto
+        var computation = new ProjectGamePropertyComputationDto
         {
             OutputType = "Numeric",
             Expression = new ProjectGamePropertyExpressionDto
@@ -159,7 +159,7 @@ public sealed class TypedComputedGamePropertyTests
     }
 
     [Fact]
-    public void ProjectJson_RoundTripsV2AndExportsOnlyV2Computation()
+    public void ProjectJson_RoundTripsFinalComputationField()
     {
         var service = new JsonExportService();
         var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
@@ -171,8 +171,8 @@ public sealed class TypedComputedGamePropertyTests
             project.Name = "UnifiedComputed";
             service.SaveProjectModel(path, project);
             var savedText = File.ReadAllText(Path.Combine(tempRoot, "UnifiedComputed.sbe.globals.json"));
-            Assert.Contains("\"computationV2\"", savedText);
-            Assert.DoesNotContain("\"computation\"", savedText);
+            Assert.Contains("\"computation\"", savedText);
+            Assert.DoesNotContain("\"computationV2\"", savedText);
 
             var loaded = service.TryLoadProjectModel(path)!;
             var restored = Assert.Single(loaded.GlobalVariables, static item => item.Name == "scoreAdjusted").Computation!;
@@ -185,12 +185,12 @@ public sealed class TypedComputedGamePropertyTests
             using var runtime = JsonDocument.Parse(File.ReadAllText(runtimePath));
             var runtimeProperty = runtime.RootElement.GetProperty("gameProperties").EnumerateArray()
                 .Single(item => item.GetProperty("name").GetString() == "scoreAdjusted");
-            Assert.True(runtimeProperty.TryGetProperty("computationV2", out _));
-            Assert.False(runtimeProperty.TryGetProperty("computation", out _));
+            Assert.True(runtimeProperty.TryGetProperty("computation", out _));
+            Assert.False(runtimeProperty.TryGetProperty("computationV2", out _));
 
             var runtimeArithmetic = runtime.RootElement.GetProperty("gameProperties").EnumerateArray()
                 .Single(item => item.GetProperty("name").GetString() == "scoreArithmetic");
-            var arithmeticExpression = runtimeArithmetic.GetProperty("computationV2").GetProperty("expression");
+            var arithmeticExpression = runtimeArithmetic.GetProperty("computation").GetProperty("expression");
             Assert.Equal("divide", arithmeticExpression.GetProperty("kind").GetString());
             Assert.Equal("add", arithmeticExpression.GetProperty("left").GetProperty("kind").GetString());
             Assert.Equal("subtract", arithmeticExpression.GetProperty("left").GetProperty("right").GetProperty("kind").GetString());
@@ -211,12 +211,12 @@ public sealed class TypedComputedGamePropertyTests
         project.GlobalVariables.Add(new GamePropertyDefinition
         {
             Name = "isEnabled", DefaultValue = "false", ValueRestriction = GamePropertyValueRestriction.TrueFalse,
-            Computation = new ProjectGamePropertyComputationV2Dto { OutputType = "Boolean", Expression = ExistsExpression("enabled") }
+            Computation = new ProjectGamePropertyComputationDto { OutputType = "Boolean", Expression = ExistsExpression("enabled") }
         });
         project.GlobalVariables.Add(new GamePropertyDefinition
         {
             Name = "scoreAdjusted", DefaultValue = "0", ValueRestriction = GamePropertyValueRestriction.Numeric,
-            Computation = new ProjectGamePropertyComputationV2Dto
+            Computation = new ProjectGamePropertyComputationDto
             {
                 OutputType = "Numeric",
                 Expression = new ProjectGamePropertyExpressionDto
@@ -230,7 +230,7 @@ public sealed class TypedComputedGamePropertyTests
         project.GlobalVariables.Add(new GamePropertyDefinition
         {
             Name = "scoreLabel", DefaultValue = string.Empty, ValueRestriction = GamePropertyValueRestriction.Unrestricted,
-            Computation = new ProjectGamePropertyComputationV2Dto
+            Computation = new ProjectGamePropertyComputationDto
             {
                 OutputType = "String",
                 Expression = new ProjectGamePropertyExpressionDto
@@ -244,7 +244,7 @@ public sealed class TypedComputedGamePropertyTests
         project.GlobalVariables.Add(new GamePropertyDefinition
         {
             Name = "scoreArithmetic", DefaultValue = "0", ValueRestriction = GamePropertyValueRestriction.Numeric,
-            Computation = new ProjectGamePropertyComputationV2Dto
+            Computation = new ProjectGamePropertyComputationDto
             {
                 OutputType = "Numeric",
                 Expression = new ProjectGamePropertyExpressionDto

@@ -8,7 +8,7 @@ namespace StoryboardDesigner.App.Services;
 
 public sealed class TreeContextInteractionService : ITreeContextInteractionService
 {
-    public bool TryGetNewVariableInput(string initialName, GamePropertyLifetime initialLifetime, string initialDefaultValue, GamePropertyValueRestriction initialValueRestriction, Func<ProjectGamePropertyComputationV2Dto?, ProjectGamePropertyComputationV2Dto?>? editComputation, out string variableName, out GamePropertyLifetime lifetime, out string defaultValue, out GamePropertyValueRestriction valueRestriction, out ProjectGamePropertyComputationV2Dto? computation)
+    public bool TryGetNewVariableInput(string initialName, GamePropertyLifetime initialLifetime, string initialDefaultValue, GamePropertyValueRestriction initialValueRestriction, Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation, out string variableName, out GamePropertyLifetime lifetime, out string defaultValue, out GamePropertyValueRestriction valueRestriction, out ProjectGamePropertyComputationDto? computation)
     {
         var dialog = new VariableEditorDialog(initialName, initialLifetime, initialDefaultValue, initialValueRestriction, editComputation: editComputation)
         {
@@ -33,7 +33,7 @@ public sealed class TreeContextInteractionService : ITreeContextInteractionServi
         return true;
     }
 
-    public void ShowVariableScopeReview(string scopeLabel, IList<GamePropertyDefinition> variables, Func<ProjectGamePropertyComputationV2Dto?, ProjectGamePropertyComputationV2Dto?>? editComputation = null)
+    public void ShowVariableScopeReview(string scopeLabel, IList<GamePropertyDefinition> variables, Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation = null)
     {
         var dialog = new VariableScopeReviewDialog(scopeLabel, variables, editComputation)
         {

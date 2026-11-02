@@ -15,6 +15,6 @@ public sealed record RoomSettingsEditRequest(
 	RoomEnvironmentType EnvironmentType = RoomEnvironmentType.Indoor,
     double? SoundLossPercentOverride = null,
     List<EnvironmentalEffectDefinition>? EnvironmentalEffects = null,
-    Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationV2Dto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationV2Dto?>? EnvironmentalEffectComputationEditor = null,
+    Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?>? EnvironmentalEffectComputationEditor = null,
     IReadOnlyList<SharedVariableChoiceOption>? EnvironmentalEffectSharedVariableOptions = null,
     GamePropertyPickerContext? EnvironmentalEffectVariablePickerContext = null);

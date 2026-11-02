@@ -7,7 +7,7 @@ namespace StoryboardDesigner.App.Views;
 public partial class CountrySettingsDialog : Window
 {
     private List<EnvironmentalEffectDefinition> _environmentalEffects;
-    private readonly Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationV2Dto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationV2Dto?>? _environmentalEffectComputationEditor;
+    private readonly Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?>? _environmentalEffectComputationEditor;
     private readonly IReadOnlyList<SharedVariableChoiceOption> _environmentalEffectSharedVariableOptions;
     private readonly GamePropertyPickerContext? _environmentalEffectVariablePickerContext;
     public CountrySettingsDialog(CountrySettingsEditRequest initialValues, IReadOnlyList<string> startingAreaOptions)

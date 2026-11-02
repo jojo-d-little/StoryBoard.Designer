@@ -473,7 +473,7 @@ public sealed class ParticleEffectAuthoringPersistenceTests
             Name = "WeatherIntensityMultiplier",
             DefaultValue = "0",
             ValueRestriction = GamePropertyValueRestriction.Numeric,
-            Computation = new ProjectGamePropertyComputationV2Dto
+            Computation = new ProjectGamePropertyComputationDto
             {
                 OutputType = "Numeric",
                 Expression = new ProjectGamePropertyExpressionDto { Kind = "literal", Value = 7d }
@@ -484,7 +484,7 @@ public sealed class ParticleEffectAuthoringPersistenceTests
             Name = "EffectiveWindSpeed",
             DefaultValue = "0",
             ValueRestriction = GamePropertyValueRestriction.Numeric,
-            Computation = new ProjectGamePropertyComputationV2Dto
+            Computation = new ProjectGamePropertyComputationDto
             {
                 OutputType = "Numeric",
                 Expression = new ProjectGamePropertyExpressionDto { Kind = "literal", Value = 8d }
@@ -521,7 +521,7 @@ public sealed class ParticleEffectAuthoringPersistenceTests
 
             Assert.Contains("WeatherIntensityMultiplier", exportedJson, StringComparison.Ordinal);
             Assert.Contains("EffectiveWindSpeed", exportedJson, StringComparison.Ordinal);
-            Assert.Contains("computationV2", exportedJson, StringComparison.Ordinal);
+            Assert.Contains("computation", exportedJson, StringComparison.Ordinal);
             Assert.Contains("multiply", exportedJson, StringComparison.Ordinal);
         }
         finally
@@ -593,7 +593,7 @@ public sealed class ParticleEffectAuthoringPersistenceTests
         {
             try
             {
-                var computation = new ProjectGamePropertyComputationV2Dto
+                var computation = new ProjectGamePropertyComputationDto
                 {
                     OutputType = "Boolean",
                     Expression = new ProjectGamePropertyExpressionDto
