@@ -74,6 +74,41 @@ public sealed class BaseActionDesignerSupportTests
         if (failure is not null) throw failure;
     }
 
+    [Fact]
+    public void CheckObjectSetEditor_OffersCaptureKeysFromCurrentSequence()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var action = new CommandAction
+                {
+                    Name = "Check riders",
+                    ActionType = CommandActionType.CheckObjectSetContainsObject,
+                    Payload = new CheckObjectSetContainsObjectPayload(string.Empty, "CurrentPlayer")
+                };
+                var dialog = new RoomActionEditorDialog(
+                    action,
+                    PropertyResolutionScope.Object,
+                    new GamePropertyPickerContext(new ProjectModel(), null, PropertyResolutionScope.Object, _ => []),
+                    [], [], [],
+                    objectSetKeySuggestions: ["elevatorRiders"]);
+
+                var picker = (ComboBox)dialog.FindName("CheckObjectSetKeyComboBox")!;
+                Assert.Contains("elevatorRiders", Assert.IsAssignableFrom<IEnumerable<string>>(picker.ItemsSource));
+                dialog.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        StaTestThreadRunner.StartAndWait(thread, nameof(CheckObjectSetEditor_OffersCaptureKeysFromCurrentSequence));
+        if (failure is not null) throw failure;
+    }
+
     private static object? GetDialogField(RoomActionEditorDialog dialog, string fieldName)
     {
         return typeof(RoomActionEditorDialog)

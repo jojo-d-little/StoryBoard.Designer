@@ -453,6 +453,8 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="120" />
@@ -473,8 +475,18 @@
                             Content="Choose..."
                             Click="ChooseSetVariable_OnClick" />
 
-                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Value" ToolTip="Value expression to assign to the selected property." />
-                    <Grid Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2">
+                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Value type" />
+                    <ComboBox x:Name="SetPropertyValueModeComboBox"
+                              Grid.Row="1"
+                              Grid.Column="1"
+                              Grid.ColumnSpan="2"
+                              Margin="0,0,0,10">
+                        <ComboBoxItem Content="Literal value" />
+                        <ComboBoxItem Content="Game property" />
+                    </ComboBox>
+
+                    <TextBlock x:Name="SetPropertyLiteralValueLabel" Grid.Row="2" Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" Text="Value" ToolTip="Value expression to assign to the selected property." />
+                    <Grid x:Name="SetPropertyLiteralValuePanel" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2">
                         <TextBox x:Name="VariableValueEditorTextBox"
                                  PreviewTextInput="VariableValueEditorTextBox_OnPreviewTextInput"
                                  PreviewKeyDown="VariableValueEditorTextBox_OnPreviewKeyDown"
@@ -505,6 +517,16 @@
                                          PreviewKeyDown="VariableFunctionListBox_OnPreviewKeyDown" />
                             </Border>
                         </Popup>
+                    </Grid>
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,10,8,0" VerticalAlignment="Center" Text="Source property" />
+                    <Grid x:Name="SetPropertySourceValuePanel" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,10,0,0" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="SetPropertyValueSourceTextBox" Grid.Column="0" Margin="0,0,8,0" IsReadOnly="True" />
+                        <Button Grid.Column="1" Padding="10,2" Content="Choose..." Click="ChooseSetPropertyValueSource_OnClick" />
                     </Grid>
                 </Grid>
 

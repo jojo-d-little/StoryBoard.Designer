@@ -2127,6 +2127,15 @@ public sealed partial class MainWindowViewModel
             variableScope,
             relativeOwnerId: scopeNode is GameObject ownerForPicker ? ownerForPicker.ObjectId : null);
         var availableActions = target?.Actions.ToList() ?? new List<CommandAction>();
+        var objectSetKeySuggestions = (SelectedSequenceDefinition?.Steps ?? new List<ProjectSequenceStepDto>())
+            .Where(static sequenceStep => sequenceStep.InlineAction is not null)
+            .Select(static sequenceStep => JsonExportService.ToCommandActionModel(sequenceStep.InlineAction!))
+            .Where(static sequenceAction => sequenceAction.ActionType == CommandActionType.CaptureObjectsOnObjectFootprint)
+            .Select(static sequenceAction => (sequenceAction.Payload as CaptureObjectsOnObjectFootprintPayload)?.ObjectSetKey)
+            .Select(static key => key?.Trim() ?? string.Empty)
+            .Where(static key => !string.IsNullOrWhiteSpace(key))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         var action = JsonExportService.ToCommandActionModel(step.InlineAction);
 
         if (!_dialogWorkflowService.EditSingleScopedAction(
@@ -2142,7 +2151,8 @@ public sealed partial class MainWindowViewModel
                 GetSequenceDefinitionChoices(),
                 availableActions,
                 scopeNode is GameObject ownerObject ? ownerObject.ObjectId : null,
-                GetScopedVerbSuggestions(scopeNode)))
+                GetScopedVerbSuggestions(scopeNode),
+                objectSetKeySuggestions))
         {
             return false;
         }

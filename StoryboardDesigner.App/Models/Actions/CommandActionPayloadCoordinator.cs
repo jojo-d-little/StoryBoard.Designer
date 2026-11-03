@@ -238,7 +238,7 @@ internal static class CommandActionPayloadCoordinator
             SetFlagPayload setFlag => new SetFlagPayload(setFlag.FlagName, setFlag.FlagValue),
             CheckGamePropertyPayload check => new CheckGamePropertyPayload(check.PropertyName, check.ExpectedValue, check.GamePropertyReference),
             CheckCommandContextPayload check => new CheckCommandContextPayload(check.Field, check.ExpectedBoolean, check.ExpectedDirection),
-            SetGamePropertyPayload set => new SetGamePropertyPayload(set.PropertyName, set.PropertyValue, set.GamePropertyReference),
+            SetGamePropertyPayload set => new SetGamePropertyPayload(set.PropertyName, set.PropertyValue, set.GamePropertyReference, set.PropertyValueSourceReference),
             SetPhasePayload setPhase => new SetPhasePayload(setPhase.PhaseKey),
             TriggerParticleEffectPayload triggerParticleEffect => new TriggerParticleEffectPayload(
                 triggerParticleEffect.ObjectId,

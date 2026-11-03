@@ -36,7 +36,8 @@ public interface IMainWindowDialogWorkflowService
         IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
         IReadOnlyList<CommandAction> availableActions,
         Guid? defaultCurrentObjectId = null,
-        IReadOnlyList<string>? verbSuggestions = null);
+        IReadOnlyList<string>? verbSuggestions = null,
+        IReadOnlyList<string>? objectSetKeySuggestions = null);
 
     bool EditLinkedActionFlow(
         string scopeLabel,

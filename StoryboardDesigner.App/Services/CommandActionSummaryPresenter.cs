@@ -43,7 +43,7 @@ public static class CommandActionSummaryPresenter
             CommandActionType.EchoMessage => previewMode ? BuildEchoPreviewSummary(action) : ActionPayloadAccessors.GetEchoMessage(action),
             CommandActionType.SetFlag => $"{ActionPayloadAccessors.GetSetFlagName(action)} = {ActionPayloadAccessors.GetSetFlagValue(action)}",
             CommandActionType.CheckGameProperty => $"{action.FlagTargetDisplayName} == {ActionPayloadAccessors.GetCheckExpectedValue(action)}",
-            CommandActionType.SetGameProperty => $"{action.GamePropertyTargetDisplayName} = {ActionPayloadAccessors.GetSetPropertyValue(action)}",
+            CommandActionType.SetGameProperty => $"{action.GamePropertyTargetDisplayName} = {BuildSetGamePropertyValueSummary(action)}",
             CommandActionType.SetPhase => BuildSetPhaseSummary(action),
             CommandActionType.TriggerParticleEffect => BuildTriggerParticleEffectSummary(action),
             CommandActionType.NavigateDirection => "Navigate via traversal",
@@ -118,6 +118,22 @@ public static class CommandActionSummaryPresenter
 
         var combined = $"{summary} | {forwardingSummary} | {outcomeEchoSummary}";
         return previewMode ? ToSingleLine(combined) : combined;
+    }
+
+    private static string BuildSetGamePropertyValueSummary(CommandAction action)
+    {
+        var source = ActionPayloadAccessors.GetSetGamePropertyValueSourceReference(action);
+        if (source is null)
+        {
+            return ActionPayloadAccessors.GetSetPropertyValue(action);
+        }
+
+        var sourceName = !string.IsNullOrWhiteSpace(source.AnchorKey)
+            ? $"{source.AnchorKey}.{source.PropertyName}"
+            : source.OwnerId.HasValue
+                ? $"{source.OwnerId.Value:N}.{source.PropertyName}"
+                : $"self.{source.PropertyName}";
+        return $"from {sourceName}";
     }
 
     private static string BuildTriggerSummary(CommandAction action)

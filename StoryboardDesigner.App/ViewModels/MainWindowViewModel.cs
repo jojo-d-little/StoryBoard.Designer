@@ -2476,6 +2476,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             {
                 AddMaterializeSourceChoice(choices, seenObjectIds, scopedObject, "Current Object");
             }
+
         }
 
         if (roomContext is not null)

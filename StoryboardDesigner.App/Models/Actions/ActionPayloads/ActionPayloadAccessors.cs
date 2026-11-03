@@ -139,6 +139,9 @@ public static class ActionPayloadAccessors
     public static Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? GetSetGamePropertyReference(CommandAction action) =>
         action.Payload is SetGamePropertyPayload payload ? payload.GamePropertyReference : null;
 
+    public static Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? GetSetGamePropertyValueSourceReference(CommandAction action) =>
+        action.Payload is SetGamePropertyPayload payload ? payload.PropertyValueSourceReference : null;
+
     public static string GetSetPropertyValue(CommandAction action)
     {
         if (action.Payload is SetGamePropertyPayload payload)
@@ -153,7 +156,8 @@ public static class ActionPayloadAccessors
         CommandAction action,
         string propertyName,
         string propertyValue,
-        Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? gamePropertyReference = null)
+        Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? gamePropertyReference = null,
+        Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? propertyValueSourceReference = null)
     {
         var normalizedName = propertyName ?? string.Empty;
         var normalizedValue = propertyValue ?? string.Empty;
@@ -163,7 +167,19 @@ public static class ActionPayloadAccessors
         if (action.ActionType == CommandActionType.SetGameProperty)
         {
             gamePropertyReference ??= GetSetGamePropertyReference(action);
-            action.Payload = new SetGamePropertyPayload(normalizedName, normalizedValue, gamePropertyReference);
+            propertyValueSourceReference ??= GetSetGamePropertyValueSourceReference(action);
+            action.Payload = new SetGamePropertyPayload(normalizedName, normalizedValue, gamePropertyReference, propertyValueSourceReference);
+        }
+    }
+
+    public static void SetSetGamePropertyValueSourceReference(
+        CommandAction action,
+        Storyboard.Shared.DesignerContracts.ProjectGamePropertySourceReferenceDto? sourceReference)
+    {
+        if (action.ActionType == CommandActionType.SetGameProperty
+            && action.Payload is SetGamePropertyPayload payload)
+        {
+            action.Payload = payload with { PropertyValueSourceReference = sourceReference };
         }
     }
 

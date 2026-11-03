@@ -140,7 +140,8 @@ internal sealed class MainWindowDialogWorkflowServiceStub : IMainWindowDialogWor
         IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
         IReadOnlyList<CommandAction> availableActions,
         Guid? defaultCurrentObjectId = null,
-        IReadOnlyList<string>? verbSuggestions = null)
+        IReadOnlyList<string>? verbSuggestions = null,
+        IReadOnlyList<string>? objectSetKeySuggestions = null)
     {
         return false;
     }

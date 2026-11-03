@@ -5,7 +5,8 @@ namespace StoryboardDesigner.App.Models;
 public sealed record SetGamePropertyPayload(
     string PropertyName,
     string PropertyValue,
-    ProjectGamePropertySourceReferenceDto? GamePropertyReference = null) : IActionPayload
+    ProjectGamePropertySourceReferenceDto? GamePropertyReference = null,
+    ProjectGamePropertySourceReferenceDto? PropertyValueSourceReference = null) : IActionPayload
 {
     public CommandActionType ActionType => CommandActionType.SetGameProperty;
 

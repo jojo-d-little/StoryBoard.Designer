@@ -97,9 +97,11 @@ public partial class RoomActionEditorDialog : Window
     private readonly IReadOnlyList<GamePropertyChoiceItem> _variableChoices;
     private readonly GamePropertyPickerContext _pickerContext;
     private readonly Dictionary<string, GamePropertyChoiceItem> _variableChoiceMap;
+    private ProjectGamePropertySourceReferenceDto? _setPropertyValueSourceReference;
     private readonly IReadOnlyList<CommandAction> _availableActions;
     private readonly Dictionary<Guid, CommandAction> _availableActionsById;
     private readonly Guid? _defaultCurrentObjectId;
+    private readonly IReadOnlyList<string> _objectSetKeySuggestions;
     private readonly PropertyResolutionScope _variableScope;
     private readonly PresentationEffectsCatalogService _presentationEffectsCatalogService;
     private readonly IReadOnlyList<ForwardingModeOption> _forwardingModeOptions;
@@ -150,11 +152,13 @@ public partial class RoomActionEditorDialog : Window
         IReadOnlyList<CommandAction>? availableActions = null,
         IReadOnlyList<SequenceDefinitionChoiceItem>? sequenceDefinitionChoices = null,
         Guid? defaultCurrentObjectId = null,
-        IReadOnlyList<string>? verbSuggestions = null)
+        IReadOnlyList<string>? verbSuggestions = null,
+        IReadOnlyList<string>? objectSetKeySuggestions = null)
     {
         InitializeComponent();
         _sourceAction = sourceAction;
         _defaultCurrentObjectId = defaultCurrentObjectId;
+        _objectSetKeySuggestions = objectSetKeySuggestions ?? Array.Empty<string>();
         _presentationEffectsCatalogService = new PresentationEffectsCatalogService();
         _variableScope = variableScope;
         _pickerContext = pickerContext;
@@ -226,6 +230,7 @@ public partial class RoomActionEditorDialog : Window
         var sourceSetPropertyName = ActionPayloadAccessors.GetSetPropertyName(sourceAction);
         var sourceSetPropertyValue = ActionPayloadAccessors.GetSetPropertyValue(sourceAction);
         var sourceSetGamePropertyReference = ActionPayloadAccessors.GetSetGamePropertyReference(sourceAction);
+        _setPropertyValueSourceReference = ActionPayloadAccessors.GetSetGamePropertyValueSourceReference(sourceAction);
         var sourceContainerTransfer = ActionPayloadAccessors.GetContainerTransfer(sourceAction);
         var sourceMovePayload = ActionPayloadAccessors.GetMoveRoomObjectOnGridPayload(sourceAction);
         var sourceMoveByPointsPayload = ActionPayloadAccessors.GetMoveRoomObjectByPointsPayload(sourceAction);
@@ -418,6 +423,9 @@ public partial class RoomActionEditorDialog : Window
         EchoReferenceListBox.ItemsSource = GetEchoReferenceTokensForCurrentAction();
         VariableReferenceListBox.ItemsSource = _variableReferenceTokens;
         VariableValueBooleanComboBox.ItemsSource = new[] { "true", "false" };
+        SetPropertyValueModeComboBox.SelectedIndex = _setPropertyValueSourceReference is null ? 0 : 1;
+        SetPropertyValueSourceTextBox.Text = FormatPropertyValueSourceReference(_setPropertyValueSourceReference);
+        SetPropertyValueModeComboBox.SelectionChanged += SetPropertyValueModeComboBox_OnSelectionChanged;
         MoveDirectionOverrideComboBox.ItemsSource = BuildMoveDirectionChoices();
         var configuredMovementEffects = _presentationEffectsCatalogService.GetConfiguredMovementEffects();
         MoveMovementEffectKeyComboBox.ItemsSource = configuredMovementEffects;
@@ -1199,13 +1207,20 @@ public partial class RoomActionEditorDialog : Window
 
         var setPropertyName = ActionPayloadAccessors.GetSetPropertyName(_workingCopy);
         var setPropertyValue = ActionPayloadAccessors.GetSetPropertyValue(_workingCopy);
+        var setPropertyUsesSource = SetPropertyValueModeComboBox.SelectedIndex == 1;
 
-        if (isSetGamePropertyAction && !ValidateScriptOrShowErrors(setPropertyValue, "Game property value"))
+        if (isSetGamePropertyAction && setPropertyUsesSource && _setPropertyValueSourceReference is null)
+        {
+            System.Windows.MessageBox.Show(this, "Choose a game property to use as the assigned value.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (isSetGamePropertyAction && !setPropertyUsesSource && !ValidateScriptOrShowErrors(setPropertyValue, "Game property value"))
         {
             return;
         }
 
-        if (isSetGamePropertyAction
+        if (isSetGamePropertyAction && !setPropertyUsesSource
             && !IsSetVariableValueAllowed(setPropertyName, setPropertyValue))
         {
             return;
@@ -1366,6 +1381,9 @@ public partial class RoomActionEditorDialog : Window
             setPropertyName,
             setPropertyValue,
             ActionPayloadAccessors.GetSetGamePropertyReference(_workingCopy));
+        ActionPayloadAccessors.SetSetGamePropertyValueSourceReference(
+            _sourceAction,
+            SetPropertyValueModeComboBox.SelectedIndex == 1 ? _setPropertyValueSourceReference : null);
         var workingContainerTransfer = ActionPayloadAccessors.GetContainerTransfer(_workingCopy);
         _sourceAction.TargetContainerId = workingContainerTransfer.TargetContainerId;
         ActionPayloadAccessors.SetMoveRoomObjectOnGrid(
@@ -1574,6 +1592,7 @@ public partial class RoomActionEditorDialog : Window
         var choices = _availableActions
             .Where(static action => action.ActionType == CommandActionType.CaptureObjectsOnObjectFootprint)
             .Select(static action => (action.Payload as CaptureObjectsOnObjectFootprintPayload)?.ObjectSetKey)
+            .Concat(_objectSetKeySuggestions)
             .Append(selectedKey)
             .Select(static key => key?.Trim() ?? string.Empty)
             .Where(static key => !string.IsNullOrWhiteSpace(key))
@@ -1664,9 +1683,7 @@ public partial class RoomActionEditorDialog : Window
 
     private Guid? ChoosePlacedRoomObject(Guid? currentObjectId)
     {
-        var placedObjects = _materializeSourceObjectChoices
-            .Where(static choice => string.Equals(choice.SourceCategory, "Current Room", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        var placedObjects = PlacedRoomObjectChoicePolicy.Filter(_materializeSourceObjectChoices, _defaultCurrentObjectId);
         if (placedObjects.Count == 0)
         {
             System.Windows.MessageBox.Show(this, "No placed room objects are available in this scope.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -2259,6 +2276,52 @@ public partial class RoomActionEditorDialog : Window
         }
     }
 
+    private void ChooseSetPropertyValueSource_OnClick(object sender, RoutedEventArgs e)
+    {
+        var selection = OpenActionPropertyChooser(
+            "Choose Value Source Property",
+            _setPropertyValueSourceReference?.PropertyName,
+            _setPropertyValueSourceReference);
+        if (selection is null)
+        {
+            return;
+        }
+
+        _setPropertyValueSourceReference = selection.Reference;
+        ActionPayloadAccessors.SetSetGamePropertyValueSourceReference(_workingCopy, _setPropertyValueSourceReference);
+        SetPropertyValueSourceTextBox.Text = FormatPropertyValueSourceReference(_setPropertyValueSourceReference);
+        SetPropertyValueModeComboBox.SelectedIndex = 1;
+        RefreshVariableValueEditorMode();
+    }
+
+    private void SetPropertyValueModeComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        RefreshVariableValueEditorMode();
+    }
+
+    private string FormatPropertyValueSourceReference(ProjectGamePropertySourceReferenceDto? reference)
+    {
+        if (reference is null)
+        {
+            return "Choose a game property...";
+        }
+
+        if (!string.IsNullOrWhiteSpace(reference.AnchorKey))
+        {
+            return $"{reference.AnchorKey}.{reference.PropertyName}";
+        }
+
+        var matchingChoice = _pickerContext.DiscoverChoices(true).FirstOrDefault(choice =>
+            string.Equals(choice.PropertyName, reference.PropertyName, StringComparison.OrdinalIgnoreCase)
+            && (reference.OwnerId.HasValue
+                ? choice.OwnerId == reference.OwnerId
+                : choice.OwnerId == _pickerContext.RelativeOwnerId));
+        return matchingChoice?.OwnerVariable
+            ?? (reference.OwnerId == _pickerContext.RelativeOwnerId
+                ? $"self.{reference.PropertyName}"
+                : reference.PropertyName ?? "Choose a game property...");
+    }
+
     private sealed record ActionGamePropertySelection(
         string PropertyName,
         ProjectGamePropertySourceReferenceDto Reference);
@@ -2300,12 +2363,10 @@ public partial class RoomActionEditorDialog : Window
             AllowReferenceModes = true,
             AnchorKeys = ActionPropertyAnchorKeys,
             SelectedReference = selectedReference,
-            DiscoverChoices = useReferenceChoices =>
-            {
-                var choices = _pickerContext.DiscoverChoices(useReferenceChoices);
-                return choices.Where(choice => (!booleanOnly || choice.ValueRestriction == GamePropertyValueRestriction.TrueFalse)
-                    && (!requireWritable || choice.CanWrite)).ToList();
-            }
+            DiscoverChoices = useReferenceChoices => ActionPropertyChoiceFilter.Filter(
+                _pickerContext.DiscoverChoices(useReferenceChoices),
+                booleanOnly,
+                requireWritable)
         };
         var dialog = new VariableChooserDialog(context, title, currentPropertyName)
         {
@@ -3775,6 +3836,17 @@ public partial class RoomActionEditorDialog : Window
 
     private void RefreshVariableValueEditorMode()
     {
+        var usePropertySource = _workingCopy.ActionType == CommandActionType.SetGameProperty
+            && SetPropertyValueModeComboBox.SelectedIndex == 1;
+        SetPropertyLiteralValueLabel.Visibility = usePropertySource ? Visibility.Collapsed : Visibility.Visible;
+        SetPropertyLiteralValuePanel.Visibility = usePropertySource ? Visibility.Collapsed : Visibility.Visible;
+        SetPropertySourceValuePanel.Visibility = usePropertySource ? Visibility.Visible : Visibility.Collapsed;
+        SetPropertyValueSourceTextBox.Text = FormatPropertyValueSourceReference(_setPropertyValueSourceReference);
+        if (usePropertySource)
+        {
+            return;
+        }
+
         if (!ActionPayloadSchemaHelpers.OwnsAllFields(_workingCopy.ActionType, nameof(CommandAction.GamePropertyName), nameof(CommandAction.GamePropertyValue)))
         {
             VariableValueEditorTextBox.Visibility = Visibility.Visible;

@@ -3004,7 +3004,7 @@ public sealed class JsonExportService : IJsonExportService
                 CommandActionType.BreakCompositeItem => BuildBreakCompositeItemPayloadElement(breakCompositePayload),
                 CommandActionType.SetActiveRoomObject => BuildSetActiveRoomObjectPayloadElement(setActivePayload.SelectionCueEffectKey),
                 CommandActionType.SelectRoomObjectByPoint => BuildSelectRoomObjectByPointPayloadElement(selectByPointPayload.SelectionCueEffectKey),
-                CommandActionType.SetGameProperty => BuildSetGamePropertyPayloadElement(ActionPayloadAccessors.GetSetPropertyName(action), ActionPayloadAccessors.GetSetPropertyValue(action), ActionPayloadAccessors.GetSetGamePropertyReference(action)),
+                CommandActionType.SetGameProperty => BuildSetGamePropertyPayloadElement(ActionPayloadAccessors.GetSetPropertyName(action), ActionPayloadAccessors.GetSetPropertyValue(action), ActionPayloadAccessors.GetSetGamePropertyReference(action), ActionPayloadAccessors.GetSetGamePropertyValueSourceReference(action)),
                 CommandActionType.SetPhase => BuildSetPhasePayloadElement(ActionPayloadAccessors.GetSetPhaseKey(action)),
                 CommandActionType.TriggerParticleEffect => BuildTriggerParticleEffectPayloadElement(
                     ActionPayloadAccessors.GetTriggerParticleEffectObjectId(action),
@@ -3064,6 +3064,7 @@ public sealed class JsonExportService : IJsonExportService
         var setPropertyNameFromPayload = TryGetSetGamePropertyNameFromPayload(action.Payload);
         var setPropertyValueFromPayload = TryGetSetGamePropertyValueFromPayload(action.Payload);
         var setGamePropertyReferenceFromPayload = TryGetSetGamePropertyReferenceFromPayload(action.Payload);
+        var setPropertyValueSourceReferenceFromPayload = TryGetSetGamePropertyValueSourceReferenceFromPayload(action.Payload);
         var setFlagNameFromPayload = TryGetSetFlagNameFromPayload(action.Payload);
         var setFlagValueFromPayload = TryGetSetFlagValueFromPayload(action.Payload);
         var setPhaseKeyFromPayload = TryGetSetPhaseKeyFromPayload(action.Payload);
@@ -3325,7 +3326,8 @@ public sealed class JsonExportService : IJsonExportService
                 model,
                 setPropertyNameFromPayload ?? string.Empty,
                 setPropertyValueFromPayload ?? string.Empty,
-                setGamePropertyReferenceFromPayload);
+                setGamePropertyReferenceFromPayload,
+                setPropertyValueSourceReferenceFromPayload);
         }
 
         if (model.ActionType == CommandActionType.MaterializeObjectCopy)
@@ -7340,7 +7342,7 @@ public sealed class JsonExportService : IJsonExportService
                 CommandActionType.NavigateObjectSetToAdjacent => BuildCleanNavigateObjectSetToAdjacentPayloadElement(action),
                 CommandActionType.ClearObjectPresentationCues => BuildCleanClearObjectPresentationCuesPayloadElement(action),
                 CommandActionType.SelectRoomObjectByPoint => BuildCleanSelectRoomObjectByPointPayloadElement(selectByPointPayload.SelectionCueEffectKey),
-                CommandActionType.SetGameProperty => BuildCleanSetGamePropertyPayloadElement(ActionPayloadAccessors.GetSetPropertyName(action), ActionPayloadAccessors.GetSetPropertyValue(action), ActionPayloadAccessors.GetSetGamePropertyReference(action)),
+                CommandActionType.SetGameProperty => BuildCleanSetGamePropertyPayloadElement(ActionPayloadAccessors.GetSetPropertyName(action), ActionPayloadAccessors.GetSetPropertyValue(action), ActionPayloadAccessors.GetSetGamePropertyReference(action), ActionPayloadAccessors.GetSetGamePropertyValueSourceReference(action)),
                 CommandActionType.SetFlag => BuildCleanSetFlagPayloadElement(ActionPayloadAccessors.GetSetFlagName(action), ActionPayloadAccessors.GetSetFlagValue(action)),
                 CommandActionType.SetPhase => BuildCleanSetPhasePayloadElement(ActionPayloadAccessors.GetSetPhaseKey(action)),
                 CommandActionType.TriggerParticleEffect => BuildCleanTriggerParticleEffectPayloadElement(
@@ -7829,13 +7831,15 @@ public sealed class JsonExportService : IJsonExportService
     private static ProjectCommandActionPayloadBaseDto BuildSetGamePropertyPayloadElement(
         string propertyName,
         string propertyValue,
-        ProjectGamePropertySourceReferenceDto? gamePropertyReference)
+        ProjectGamePropertySourceReferenceDto? gamePropertyReference,
+        ProjectGamePropertySourceReferenceDto? propertyValueSourceReference)
     {
         return new ProjectSetGamePropertyActionPayloadDto
         {
             PropertyName = propertyName,
             PropertyValue = propertyValue,
-            GamePropertyReference = CloneGamePropertySourceReference(gamePropertyReference)
+            GamePropertyReference = CloneGamePropertySourceReference(gamePropertyReference),
+            PropertyValueSourceReference = CloneGamePropertySourceReference(propertyValueSourceReference)
         };
     }
 
@@ -8266,13 +8270,15 @@ public sealed class JsonExportService : IJsonExportService
     private static RuntimeCommandActionPayloadBaseDto BuildCleanSetGamePropertyPayloadElement(
         string propertyName,
         string propertyValue,
-        ProjectGamePropertySourceReferenceDto? gamePropertyReference)
+        ProjectGamePropertySourceReferenceDto? gamePropertyReference,
+        ProjectGamePropertySourceReferenceDto? propertyValueSourceReference)
     {
         return new RuntimeSetGamePropertyActionPayloadDto
         {
             PropertyName = propertyName,
             PropertyValue = propertyValue,
-            GamePropertyReference = ToRuntimeGamePropertySourceReference(gamePropertyReference)
+            GamePropertyReference = ToRuntimeGamePropertySourceReference(gamePropertyReference),
+            PropertyValueSourceReference = ToRuntimeGamePropertySourceReference(propertyValueSourceReference)
         };
     }
 
@@ -9073,6 +9079,11 @@ public sealed class JsonExportService : IJsonExportService
     private static ProjectGamePropertySourceReferenceDto? TryGetSetGamePropertyReferenceFromPayload(ProjectCommandActionPayloadBaseDto? payload) =>
         payload is ProjectSetGamePropertyActionPayloadDto setGamePropertyPayload
             ? CloneGamePropertySourceReference(setGamePropertyPayload.GamePropertyReference)
+            : null;
+
+    private static ProjectGamePropertySourceReferenceDto? TryGetSetGamePropertyValueSourceReferenceFromPayload(ProjectCommandActionPayloadBaseDto? payload) =>
+        payload is ProjectSetGamePropertyActionPayloadDto setGamePropertyPayload
+            ? CloneGamePropertySourceReference(setGamePropertyPayload.PropertyValueSourceReference)
             : null;
 
     private static string? TryGetSetGamePropertyValueFromPayload(ProjectCommandActionPayloadBaseDto? payload)

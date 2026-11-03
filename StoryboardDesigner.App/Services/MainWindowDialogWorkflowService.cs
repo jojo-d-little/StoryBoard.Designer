@@ -47,7 +47,8 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
         IReadOnlyList<SequenceDefinitionChoiceItem> sequenceDefinitionChoices,
         IReadOnlyList<CommandAction> availableActions,
         Guid? defaultCurrentObjectId = null,
-        IReadOnlyList<string>? verbSuggestions = null)
+        IReadOnlyList<string>? verbSuggestions = null,
+        IReadOnlyList<string>? objectSetKeySuggestions = null)
     {
         var dialog = new RoomActionEditorDialog(
             action,
@@ -62,7 +63,8 @@ public sealed class MainWindowDialogWorkflowService : IMainWindowDialogWorkflowS
             availableActions,
             sequenceDefinitionChoices,
             defaultCurrentObjectId,
-            verbSuggestions)
+            verbSuggestions,
+            objectSetKeySuggestions)
         {
             Owner = GetOwnerWindow()
         };
