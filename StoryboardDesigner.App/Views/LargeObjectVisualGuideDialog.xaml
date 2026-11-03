@@ -108,8 +108,22 @@
                     <TextBlock x:Name="VariantCaption" FontWeight="SemiBold" Text="Selected variant" />
                     <GroupBox Header="Parts of this object" Margin="0,10,0,0">
                         <StackPanel Margin="4">
-                            <ListBox x:Name="StructuralPartsListBox" Height="100" DisplayMemberPath="Name" SelectionChanged="StructuralPartsListBox_OnSelectionChanged" />
-                            <TextBlock x:Name="StructuralPartsHintTextBlock" Margin="0,5,0,0" Foreground="#6B7280" FontSize="10" TextWrapping="Wrap" Text="Select a part, then click its position on the parent footprint. Drag its purple outline to reposition it." />
+                            <TextBlock Margin="0,0,0,6" Foreground="#6B7280" FontSize="10" Text="Front to back; top renders in front. Select a child to position it on the footprint. The parent row is the reference point." TextWrapping="Wrap" />
+                            <ListBox x:Name="StructuralPartRenderOrderListBox" Height="140" SelectionChanged="StructuralPartRenderOrderListBox_OnSelectionChanged">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel LastChildFill="True" Margin="2">
+                                            <TextBlock DockPanel.Dock="Right" Margin="10,0,2,0" Foreground="#6B7280" Text="{Binding RelativeOrderLabel}" />
+                                            <TextBlock Text="{Binding DisplayName}" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
+                                <Button x:Name="MoveStructuralPartForwardButton" Width="84" Margin="0,0,6,0" Content="Move up" Click="MoveStructuralPartForwardButton_OnClick" />
+                                <Button x:Name="MoveStructuralPartBackwardButton" Width="84" Content="Move down" Click="MoveStructuralPartBackwardButton_OnClick" />
+                            </StackPanel>
+                            <TextBlock x:Name="StructuralPartRenderOrderHintTextBlock" Margin="0,5,0,0" Foreground="#6B7280" FontSize="10" TextWrapping="Wrap" />
                         </StackPanel>
                     </GroupBox>
                     <TextBlock Margin="0,10,0,2" Text="Footprint (cells)" />

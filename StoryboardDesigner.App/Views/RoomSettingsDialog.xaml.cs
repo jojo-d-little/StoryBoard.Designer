@@ -30,6 +30,8 @@ public partial class RoomSettingsDialog : Window
     private readonly Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?>? _environmentalEffectComputationEditor;
     private readonly IReadOnlyList<SharedVariableChoiceOption> _environmentalEffectSharedVariableOptions;
     private readonly GamePropertyPickerContext? _environmentalEffectVariablePickerContext;
+    private readonly IReadOnlyList<CommandAction> _roomActions;
+    private Guid? _preRoomEntryActionId;
 
     public RoomSettingsDialog(RoomSettingsEditRequest initialValues)
     {
@@ -37,6 +39,10 @@ public partial class RoomSettingsDialog : Window
         _environmentalEffectComputationEditor = initialValues.EnvironmentalEffectComputationEditor;
         _environmentalEffectSharedVariableOptions = initialValues.EnvironmentalEffectSharedVariableOptions ?? Array.Empty<SharedVariableChoiceOption>();
         _environmentalEffectVariablePickerContext = initialValues.EnvironmentalEffectVariablePickerContext;
+        _roomActions = (initialValues.RoomActions ?? Array.Empty<CommandAction>())
+            .Where(action => action.ActionType != CommandActionType.Synonym)
+            .ToList();
+        _preRoomEntryActionId = initialValues.PreRoomEntryActionId;
         _projectDefaultCanvasWidth = initialValues.RoomCanvasWidth > 0 ? initialValues.RoomCanvasWidth : 800;
         _projectDefaultCanvasHeight = initialValues.RoomCanvasHeight > 0 ? initialValues.RoomCanvasHeight : 600;
         _roomCanvasWidth = _projectDefaultCanvasWidth;
@@ -61,6 +67,7 @@ public partial class RoomSettingsDialog : Window
         SpawnPointYTextBox.Text = (initialValues.SpawnPoint?.Y ?? _roomCanvasHeight / 2d).ToString(CultureInfo.InvariantCulture);
         EnvironmentTypeComboBox.SelectedItem = initialValues.EnvironmentType.ToString();
         SoundLossOverrideTextBox.Text = initialValues.SoundLossPercentOverride?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        RefreshPreRoomEntryActionDisplay();
     }
 
     public RoomSettingsEditRequest Values => new(
@@ -78,7 +85,38 @@ public partial class RoomSettingsDialog : Window
             : null,
         Enum.TryParse<RoomEnvironmentType>(EnvironmentTypeComboBox.SelectedItem as string, out var environmentType) ? environmentType : RoomEnvironmentType.Indoor,
         TryReadPercent(SoundLossOverrideTextBox.Text, out var soundLoss) ? soundLoss : null,
-        _environmentalEffects.Select(CloneEnvironmentalEffect).ToList(), _environmentalEffectComputationEditor, _environmentalEffectSharedVariableOptions);
+        _environmentalEffects.Select(CloneEnvironmentalEffect).ToList(), _environmentalEffectComputationEditor, _environmentalEffectSharedVariableOptions,
+        _environmentalEffectVariablePickerContext, PreRoomEntryActionId: _preRoomEntryActionId);
+
+    private void ChoosePreRoomEntryAction_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_roomActions.Count == 0)
+        {
+            MessageBox.Show(this, "This room has no eligible actions. Create an Action or Linked Action in the room first.", "Room Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var picker = new SelectLinkedActionDialog(_roomActions) { Owner = this };
+        if (picker.ShowDialog() == true && picker.SelectedAction is { } selected)
+        {
+            _preRoomEntryActionId = selected.Id;
+            RefreshPreRoomEntryActionDisplay();
+        }
+    }
+
+    private void ClearPreRoomEntryAction_OnClick(object sender, RoutedEventArgs e)
+    {
+        _preRoomEntryActionId = null;
+        RefreshPreRoomEntryActionDisplay();
+    }
+
+    private void RefreshPreRoomEntryActionDisplay()
+    {
+        var selected = _roomActions.FirstOrDefault(action => action.Id == _preRoomEntryActionId);
+        PreRoomEntryActionTextBlock.Text = selected is null
+            ? (_preRoomEntryActionId.HasValue ? "Selected action is missing" : "None selected")
+            : $"{selected.Name} ({selected.ActionType})";
+    }
 
     private void ManageEnvironmentalEffects_OnClick(object sender, RoutedEventArgs e)
     {

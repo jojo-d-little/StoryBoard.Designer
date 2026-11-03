@@ -1993,6 +1993,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             var currentObjectOwner = ResolveObjectOwnerName(SelectedGameObject);
             var currentObjectPath = BuildObjectScopePath(hierarchy.Value.planet.ScopeName, hierarchy.Value.country.ScopeName, hierarchy.Value.area.ScopeName, SelectedRoom.ScopeName, currentObjectOwner);
             AddObjectVariableChoices(choices, seen, SelectedGameObject, 0, currentObjectPath, currentObjectOwner, GamePropertyChoiceRelation.Self, includeSelfAlias: true);
+            AddEngineCatalogChoices(choices, seen, SelectedGameObject, 0, GamePropertyChoiceRelation.Self, includeSelfAlias: true);
         }
 
         if (includeRoom)
@@ -2011,6 +2012,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 SelectedRoom.Variables,
                 1,
                 BuildScopePath(hierarchy.Value.planet.ScopeName, hierarchy.Value.country.ScopeName, hierarchy.Value.area.ScopeName, SelectedRoom.ScopeName));
+            AddEngineCatalogChoices(choices, seen, SelectedRoom, 1, GamePropertyChoiceRelation.Self, includeSelfAlias: true);
 
             foreach (var roomObject in EnumerateGameObjectsRecursive(SelectedRoom.GameObjects))
             {
@@ -2022,6 +2024,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 var ownerName = ResolveObjectOwnerName(roomObject);
                 var objectPath = BuildObjectScopePath(hierarchy.Value.planet.ScopeName, hierarchy.Value.country.ScopeName, hierarchy.Value.area.ScopeName, SelectedRoom.ScopeName, ownerName);
                 AddObjectVariableChoices(choices, seen, roomObject, 2, objectPath, ownerName);
+                AddEngineCatalogChoices(choices, seen, roomObject, 2, GamePropertyChoiceRelation.Child);
             }
 
             foreach (var planet in _project.Planets)
@@ -2059,6 +2062,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 PropertyResolutionScope.Area,
                 BuildScopePath(hierarchy.Value.planet.ScopeName, hierarchy.Value.country.ScopeName, hierarchy.Value.area.ScopeName),
                 hierarchy.Value.area.ScopeName);
+            AddEngineCatalogChoices(choices, seen, hierarchy.Value.area, 4, GamePropertyChoiceRelation.Ancestor);
         }
 
         if (includeCountry)
@@ -2071,6 +2075,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 PropertyResolutionScope.Country,
                 BuildScopePath(hierarchy.Value.planet.ScopeName, hierarchy.Value.country.ScopeName),
                 hierarchy.Value.country.ScopeName);
+            AddEngineCatalogChoices(choices, seen, hierarchy.Value.country, 5, GamePropertyChoiceRelation.Ancestor);
         }
 
         if (includePlanet)
@@ -2083,6 +2088,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 PropertyResolutionScope.Planet,
                 BuildScopePath(hierarchy.Value.planet.ScopeName),
                 hierarchy.Value.planet.ScopeName);
+            AddEngineCatalogChoices(choices, seen, hierarchy.Value.planet, 6, GamePropertyChoiceRelation.Ancestor);
         }
 
         if (initializationScope is PropertyResolutionScope.Object or PropertyResolutionScope.Room or PropertyResolutionScope.Area or PropertyResolutionScope.Country or PropertyResolutionScope.Planet)
@@ -2113,6 +2119,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                     BuildScopePath("Global", ownerName),
                     ownerName,
                     GamePropertyChoiceRelation.Ancestor);
+                AddEngineCatalogChoices(choices, seen, globalObject, 7, GamePropertyChoiceRelation.Ancestor);
             }
         }
 
@@ -2182,7 +2189,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         if (includeSelfAlias)
         {
             AddBuiltInSelfChoice(choices, seen, "self.name", scopePath, priority);
-            AddBuiltInSelfChoice(choices, seen, "self.nameInGame", scopePath, priority);
             AddBuiltInSelfChoice(choices, seen, "self.objectName", scopePath, priority);
 
             if (obj.IsQuantifiable)
@@ -2270,7 +2276,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         string scopePath)
     {
         AddBuiltInSelfChoice(choices, seen, "self.name", scopePath, priority);
-        AddBuiltInSelfChoice(choices, seen, "self.nameInGame", scopePath, priority);
 
         foreach (var variable in variables)
         {
@@ -2906,6 +2911,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                         ResolveObjectOwnerName(obj),
                         GetHierarchyRelationAtDepth(depth),
                         includeSelfAlias: depth == 0);
+                    AddEngineCatalogChoices(choices, seen, obj, depth, GetHierarchyRelationAtDepth(depth), includeSelfAlias: depth == 0);
 
                     if (initializationScope == PropertyResolutionScope.Object)
                     {
@@ -2924,6 +2930,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                                 BuildScopePath(descendantObject.EnumerateSelfAndAncestors().Reverse().Select(static n => n.ScopeName).ToArray()),
                                 ownerName,
                                 relation);
+                            AddEngineCatalogChoices(choices, seen, descendantObject, depth + descendantDepth, relation);
                         }
                     }
                     break;
@@ -2947,6 +2954,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                             depth,
                             BuildScopePathFromNode(room));
                     }
+                    AddEngineCatalogChoices(choices, seen, room, depth, GetHierarchyRelationAtDepth(depth), includeSelfAlias: depth == 0 && initializationScope == PropertyResolutionScope.Room);
 
                     if (initializationScope == PropertyResolutionScope.Room)
                     {
@@ -2965,6 +2973,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                                 BuildScopePathFromNode(room, ownerName),
                                 ownerName,
                                 relation);
+                            AddEngineCatalogChoices(choices, seen, childObject, depth + childDepth, relation);
                         }
                     }
 
@@ -2987,20 +2996,24 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                                 BuildScopePathFromNode(room, ownerName),
                                 ownerName,
                                 GamePropertyChoiceRelation.Sibling);
+                            AddEngineCatalogChoices(choices, seen, siblingObject, depth + 1, GamePropertyChoiceRelation.Sibling);
                         }
                     }
                     break;
 
                 case Area area when ShouldIncludeScope(initializationScope, PropertyResolutionScope.Area):
                     AddSimpleVariableChoices(choices, seen, area.Variables, depth, PropertyResolutionScope.Area, BuildScopePathFromNode(area), area.ScopeName, GetHierarchyRelationAtDepth(depth));
+                    AddEngineCatalogChoices(choices, seen, area, depth, GetHierarchyRelationAtDepth(depth));
                     break;
 
                 case Country country when ShouldIncludeScope(initializationScope, PropertyResolutionScope.Country):
                     AddSimpleVariableChoices(choices, seen, country.Variables, depth, PropertyResolutionScope.Country, BuildScopePathFromNode(country), country.ScopeName, GetHierarchyRelationAtDepth(depth));
+                    AddEngineCatalogChoices(choices, seen, country, depth, GetHierarchyRelationAtDepth(depth));
                     break;
 
                 case Planet planet when ShouldIncludeScope(initializationScope, PropertyResolutionScope.Planet):
                     AddSimpleVariableChoices(choices, seen, planet.Variables, depth, PropertyResolutionScope.Planet, BuildScopePathFromNode(planet), planet.ScopeName, GetHierarchyRelationAtDepth(depth));
+                    AddEngineCatalogChoices(choices, seen, planet, depth, GetHierarchyRelationAtDepth(depth));
                     break;
 
                 case PhaseNode phase when ShouldIncludePhaseScope(initializationScope, phase.Tier):
@@ -3097,6 +3110,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                     BuildScopePath("Global", ownerName),
                     ownerName,
                     GamePropertyChoiceRelation.Ancestor);
+                AddEngineCatalogChoices(choices, seen, globalObject, int.MaxValue - 1, GamePropertyChoiceRelation.Ancestor);
             }
         }
 
@@ -3104,6 +3118,77 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             .OrderBy(choice => choice.Priority)
             .ThenBy(choice => choice.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private void AddEngineCatalogChoices(
+        List<GamePropertyChoiceItem> choices,
+        HashSet<string> seen,
+        IScopedAwareNode owner,
+        int priority,
+        GamePropertyChoiceRelation relation,
+        bool includeSelfAlias = false)
+    {
+        var ownerId = owner switch
+        {
+            GameObject gameObject => gameObject.ObjectId,
+            Room room => room.Id,
+            Area area => area.Id,
+            Country country => country.Id,
+            Planet planet => planet.Id,
+            _ => Guid.Empty
+        };
+        var scope = owner switch
+        {
+            GameObject => PropertyResolutionScope.Object,
+            Room => PropertyResolutionScope.Room,
+            Area => PropertyResolutionScope.Area,
+            Country => PropertyResolutionScope.Country,
+            Planet => PropertyResolutionScope.Planet,
+            _ => PropertyResolutionScope.Global
+        };
+        var descriptors = EnginePropertyCatalogService.ForScope(scope);
+        var definitions = GamePropertySourceResolver.Enumerate(_project)
+            .Where(definition => definition.OwnerId == ownerId && definition.IsEngineProperty)
+            .ToDictionary(definition => definition.Property.Name, StringComparer.OrdinalIgnoreCase);
+
+        void Add(string value, string ownerVariable, GamePropertyChoiceRelation choiceRelation)
+        {
+            var propertyName = value[(value.LastIndexOf('.') + 1)..];
+            if (!seen.Add(value) || !definitions.TryGetValue(propertyName, out var definition)) return;
+            choices.Add(new GamePropertyChoiceItem
+            {
+                Value = value,
+                ScopePath = definition.ScopePath,
+                OwnerVariable = ownerVariable,
+                Scope = definition.Scope,
+                ValueRestriction = definition.Property.ValueRestriction,
+                Priority = priority,
+                Relation = choiceRelation,
+                OwnerId = ownerId,
+                PropertyName = propertyName,
+                EligibleAnchors = definition.EligibleAnchors,
+                IsEngineProperty = true,
+                CanWrite = definition.CanWrite,
+                Documentation = definition.Documentation
+            });
+        }
+
+        if (owner is GameObject selectedGameObject)
+        {
+            if (includeSelfAlias)
+            {
+                foreach (var descriptor in descriptors) Add($"self.{descriptor.Key}", $"self.{descriptor.Key}", GamePropertyChoiceRelation.Self);
+            }
+            var objectOwnerName = ResolveObjectOwnerName(selectedGameObject);
+            foreach (var descriptor in descriptors) Add($"{objectOwnerName}.{descriptor.Key}", BuildOwnerVariable(objectOwnerName, descriptor.Key), relation);
+        }
+        else
+        {
+            var ownerName = owner.ScopeName;
+            foreach (var descriptor in descriptors) Add($"{ownerName}.{descriptor.Key}", BuildOwnerVariable(ownerName, descriptor.Key), relation);
+            if (includeSelfAlias)
+                foreach (var descriptor in descriptors) Add($"self.{descriptor.Key}", $"self.{descriptor.Key}", GamePropertyChoiceRelation.Self);
+        }
     }
 
     public GamePropertyPickerContext CreateGamePropertyPickerContext(

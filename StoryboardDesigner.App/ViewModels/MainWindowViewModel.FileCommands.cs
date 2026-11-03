@@ -1284,10 +1284,24 @@ public sealed partial class MainWindowViewModel
             }).ToList()
         };
 
+        clone.PreRoomEntryActionId = RemapClonedRoomActionReference(source, clone, source.PreRoomEntryActionId);
         clone.SequenceDefinitions = CloneSequenceDefinitionsForRoom(source, clone, out var sequenceIds);
         RemapSequenceTargets(clone, sequenceIds);
         RemapRoomComputationOwners(source, clone);
         return clone;
+    }
+
+    private static Guid? RemapClonedRoomActionReference(Room source, Room clone, Guid? sourceActionId)
+    {
+        if (!sourceActionId.HasValue)
+        {
+            return null;
+        }
+
+        var sourceIndex = source.AvailableActions.ToList().FindIndex(action => action.Id == sourceActionId.Value);
+        return sourceIndex >= 0 && sourceIndex < clone.AvailableActions.Count
+            ? clone.AvailableActions[sourceIndex].Id
+            : sourceActionId;
     }
 
     private static void RemapRoomComputationOwners(Room source, Room clone)
@@ -1303,15 +1317,28 @@ public sealed partial class MainWindowViewModel
         }
         MapObjects(source.GameObjects, clone.GameObjects);
 
+        RemapLinkedFlowTargets(clone.AvailableActions);
         foreach (var property in clone.Variables)
             GamePropertyComputationCloner.RemapOwnerIds(property.Computation, ownerIdMap);
         void RemapObject(GameObject obj)
         {
+            RemapLinkedFlowTargets(obj.AvailableActions);
             foreach (var property in obj.Variables)
                 GamePropertyComputationCloner.RemapOwnerIds(property.Computation, ownerIdMap);
             foreach (var child in obj.ContainedObjects) RemapObject(child);
         }
         foreach (var obj in clone.GameObjects) RemapObject(obj);
+
+        void RemapLinkedFlowTargets(IEnumerable<CommandAction> actions)
+        {
+            foreach (var node in actions.SelectMany(static action => action.LinkedFlowDefinition.Nodes))
+            {
+                if (node.TargetObjectId is Guid targetId && ownerIdMap.TryGetValue(targetId, out var mappedId))
+                {
+                    node.TargetObjectId = mappedId;
+                }
+            }
+        }
     }
 
     private static void RemapSequenceTargets(Room room, IReadOnlyDictionary<Guid, Guid> sequenceIds)
@@ -1893,6 +1920,7 @@ public sealed partial class MainWindowViewModel
         // Slice A + current Slice B extraction set.
         registry.Register(new DuplicateNameInScopeRule());
         registry.Register(new DuplicateGamePropertyNameRule());
+        registry.Register(new EngineCatalogPropertyNameCollisionRule());
         registry.Register(new AdjacentRoomDuplicateNormalizedNameWarningRule());
         registry.Register(new InvalidStartingScopeRule());
         registry.Register(new SharedVariableSingleMembershipRule());
@@ -1956,6 +1984,7 @@ public sealed partial class MainWindowViewModel
         registry.Register(new LinkedFlowTargetsSynonymRule());
         registry.Register(new SynonymUsedInLinkedFlowRule());
         registry.Register(new LinkedActionCycleRule());
+        registry.Register(new LinkedActionOrphanNodesRule());
         registry.Register(new CompositeActionMissingTargetRule());
         registry.Register(new CompositeActionMissingRequiredPartRule());
         registry.Register(new BuildCompositeByPartsMissingTargetObjectRule());
@@ -1964,6 +1993,7 @@ public sealed partial class MainWindowViewModel
         registry.Register(new MaterializeSourceObjectReferenceExistsRule());
         registry.Register(new OutcomeSoundEffectReferenceExistsRule());
         registry.Register(new ObjectPresentationCueTargetReferenceExistsRule());
+        registry.Register(new PreRoomEntrySetupAdvisoryRule());
         registry.Register(new TriggerParticleEffectTargetIsBurstEligibleRule());
         registry.Register(new TriggerParticleEffectQuantityMultiplierRule());
         registry.Register(new BaseActionAbsolutePlacementTargetRule());

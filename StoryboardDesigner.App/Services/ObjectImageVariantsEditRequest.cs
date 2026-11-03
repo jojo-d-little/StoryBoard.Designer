@@ -37,4 +37,6 @@ public sealed record ObjectImageVariantsEditRequest(
     Func<string, string, GamePropertyDefinition?>? ParticleEffectNewComputedVariableFactory = null,
     IReadOnlyList<GamePropertyDefinition>? ParticleEffectNewVariables = null,
     IReadOnlyList<StructuralPartPlacementEditItem>? StructuralPartPlacements = null,
+    string StructuralPartRenderOrderParentName = "Parent",
+    bool StructuralPartRenderOrderIsReadOnly = false,
     double ImageTransparency = 0);

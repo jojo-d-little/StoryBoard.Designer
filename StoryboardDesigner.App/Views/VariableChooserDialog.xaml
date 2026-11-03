@@ -146,10 +146,13 @@
                                     Binding="{Binding ScopePath}"
                                     SortMemberPath="ScopePath"
                                     Width="*" />
-                <DataGridTextColumn Header="Owner.Variable"
-                                    Binding="{Binding OwnerVariable}"
-                                    SortMemberPath="OwnerVariable"
-                                    Width="*" />
+                <DataGridTemplateColumn Header="Owner.Property" SortMemberPath="OwnerVariable" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding OwnerVariable}" ToolTip="{Binding Documentation}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
 

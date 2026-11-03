@@ -17,6 +17,7 @@ public sealed class LinkedActionMissingTargetRule : IValidationRule
         }
 
         var action = context.Action;
+        var ownerScope = ((ValidationActionCandidateNode)ruleContext.CandidateNode!).OwnerScope;
         if (action.ActionType == CommandActionType.LinkedActions)
         {
             var nodesById = action.LinkedFlowDefinition.Nodes
@@ -25,13 +26,17 @@ public sealed class LinkedActionMissingTargetRule : IValidationRule
                 .ToDictionary(static group => group.Key, static group => group.First());
             foreach (var node in nodesById.Values)
             {
-                if (!context.LinkTargetById.ContainsKey(node.ActionId))
+                if (!IsLinkTargetFound(context, node.ActionId, node.TargetObjectId))
                 {
+                    var lookupFailure = node.TargetObjectId is Guid targetObjectId
+                        ? $"on explicit target object '{targetObjectId}'"
+                        : "in its eligible lookup scopes";
                     yield return new ValidationIssue(
                         Metadata.RuleId,
                         Metadata.DefaultSeverity,
                         ActionRuleSupport.BuildActionIssuePath(context.Path, action),
-                        $"linked action '{action.Name}' references missing action id '{node.ActionId}'.");
+                        $"linked action '{action.Name}' references action id '{node.ActionId}', which was not found {lookupFailure}. "
+                        + ActionRuleSupport.DescribeMissingLinkTarget(ruleContext.Project, context, ownerScope, node.ActionId, node.TargetObjectId));
                 }
 
                 foreach (var link in node.Links.Where(link => !nodesById.ContainsKey(link.TargetNodeId)))
@@ -58,7 +63,23 @@ public sealed class LinkedActionMissingTargetRule : IValidationRule
                 Metadata.RuleId,
                 Metadata.DefaultSeverity,
                 ActionRuleSupport.BuildActionIssuePath(context.Path, action),
-                $"action '{action.Name}' links to missing action id '{link.ActionId}'.");
+                $"action '{action.Name}' links to action id '{link.ActionId}', which was not found in its eligible lookup scopes. "
+                + ActionRuleSupport.DescribeMissingLinkTarget(ruleContext.Project, context, ownerScope, link.ActionId, targetObjectId: null));
         }
     }
+
+    private static bool IsLinkTargetFound(
+        CandidateActionValidationContext context,
+        Guid actionId,
+        Guid? targetObjectId)
+    {
+        if (targetObjectId is Guid explicitObjectId)
+        {
+            return context.ActionsByObjectId.TryGetValue(explicitObjectId, out var objectActions)
+                && objectActions.ContainsKey(actionId);
+        }
+
+        return context.LinkTargetById.ContainsKey(actionId);
+    }
+
 }

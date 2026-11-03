@@ -12,6 +12,13 @@ namespace StoryboardDesigner.App.Services;
 /// </summary>
 internal static class GamePropertySourceResolver
 {
+    public sealed record CatalogNameCollision(
+        Guid OwnerId,
+        string OwnerName,
+        string ScopePath,
+        PropertyResolutionScope Scope,
+        string PropertyName);
+
     public sealed record Definition(
         ScopeNodeBase Owner,
         Guid OwnerId,
@@ -19,19 +26,46 @@ internal static class GamePropertySourceResolver
         string ScopePath,
         PropertyResolutionScope Scope,
         GamePropertyDefinition Property,
-        IReadOnlyList<string> EligibleAnchors);
+        IReadOnlyList<string> EligibleAnchors,
+        bool IsEngineProperty = false,
+        bool CanWrite = true,
+        string? Documentation = null);
 
     public static IReadOnlyList<Definition> Enumerate(ProjectModel project)
     {
         return EnumerateOwners(project)
-            .SelectMany(owner => owner.Properties.Select(property => new Definition(
-                owner.Owner,
-                owner.OwnerId,
-                owner.OwnerName,
-                owner.ScopePath,
-                owner.Scope,
-                property,
-                owner.EligibleAnchors)))
+            .SelectMany(owner => owner.Properties.Select(property =>
+            {
+                var descriptor = EnginePropertyCatalogService.Properties.FirstOrDefault(candidate =>
+                    string.Equals(candidate.Key, property.Name, StringComparison.OrdinalIgnoreCase)
+                    && candidate.Scopes.Contains(EnginePropertyCatalogService.ToEngineScope(owner.Scope), StringComparer.OrdinalIgnoreCase));
+                return new Definition(
+                    owner.Owner,
+                    owner.OwnerId,
+                    owner.OwnerName,
+                    owner.ScopePath,
+                    owner.Scope,
+                    property,
+                    owner.EligibleAnchors,
+                    descriptor is not null,
+                    descriptor is null || EnginePropertyCatalogService.CanWrite(descriptor),
+                    descriptor is null ? null : EnginePropertyCatalogService.BuildDocumentation(descriptor));
+            }))
+            .ToList();
+    }
+
+    public static IReadOnlyList<CatalogNameCollision> EnumerateCatalogNameCollisions(ProjectModel project)
+    {
+        return EnumerateOwners(project)
+            .SelectMany(owner => owner.AuthoredProperties
+                .Where(property => owner.CatalogKeys.Contains(property.Name.Trim(), StringComparer.OrdinalIgnoreCase))
+                .Select(property => new CatalogNameCollision(
+                    owner.OwnerId,
+                    owner.OwnerName,
+                    owner.ScopePath,
+                    owner.Scope,
+                    property.Name.Trim())))
+            .DistinctBy(collision => (collision.OwnerId, collision.PropertyName), CatalogNameCollisionKeyComparer.Instance)
             .ToList();
     }
 
@@ -42,6 +76,8 @@ internal static class GamePropertySourceResolver
         string ScopePath,
         PropertyResolutionScope Scope,
         IReadOnlyList<GamePropertyDefinition> Properties,
+        IReadOnlyList<GamePropertyDefinition> AuthoredProperties,
+        IReadOnlyList<string> CatalogKeys,
         IReadOnlyList<string> EligibleAnchors);
 
     private static IReadOnlyList<OwnerDefinition> EnumerateOwners(ProjectModel project)
@@ -56,13 +92,35 @@ internal static class GamePropertySourceResolver
             var scopePath = GetScopePath(owner);
             var scope = GetResolutionScope(owner);
             var eligibleAnchors = anchors ?? Array.Empty<string>();
+            var authoredProperties = properties.Where(static property => !string.IsNullOrWhiteSpace(property.Name)).ToList();
+            var descriptors = EnginePropertyCatalogService.ForScope(scope)
+                .GroupBy(static descriptor => descriptor.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(static group => group.First())
+                .ToList();
+            var catalogKeys = descriptors.Select(static descriptor => descriptor.Key).ToList();
+            var ownerProperties = authoredProperties
+                .Where(property => !catalogKeys.Contains(property.Name.Trim(), StringComparer.OrdinalIgnoreCase))
+                .GroupBy(static property => property.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(static group => group.First())
+                .ToList();
+            foreach (var descriptor in descriptors)
+            {
+                ownerProperties.Add(new GamePropertyDefinition
+                {
+                    Name = descriptor.Key,
+                    DefaultValue = descriptor.NeutralValue?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+                    ValueRestriction = EnginePropertyCatalogService.ToValueRestriction(descriptor)
+                });
+            }
             result.Add(new OwnerDefinition(
                 owner,
                 ownerId,
                 ownerName,
                 scopePath,
                 scope,
-                properties.Where(static property => !string.IsNullOrWhiteSpace(property.Name)).ToList(),
+                ownerProperties,
+                authoredProperties,
+                catalogKeys,
                 eligibleAnchors));
         }
 
@@ -147,6 +205,17 @@ internal static class GamePropertySourceResolver
 
     public static bool SupportsAnchor(ProjectModel project, string anchorKey) =>
         EnumerateOwners(project).Any(owner => owner.EligibleAnchors.Contains(anchorKey, StringComparer.OrdinalIgnoreCase));
+
+    private sealed class CatalogNameCollisionKeyComparer : IEqualityComparer<(Guid OwnerId, string PropertyName)>
+    {
+        public static CatalogNameCollisionKeyComparer Instance { get; } = new();
+
+        public bool Equals((Guid OwnerId, string PropertyName) x, (Guid OwnerId, string PropertyName) y) =>
+            x.OwnerId == y.OwnerId && string.Equals(x.PropertyName, y.PropertyName, StringComparison.OrdinalIgnoreCase);
+
+        public int GetHashCode((Guid OwnerId, string PropertyName) value) =>
+            HashCode.Combine(value.OwnerId, StringComparer.OrdinalIgnoreCase.GetHashCode(value.PropertyName));
+    }
 
     private static Guid GetOwnerId(ScopeNodeBase owner) => owner switch
     {

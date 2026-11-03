@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO;
+using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -24,6 +25,10 @@ public partial class LargeObjectVisualGuideDialog : Window
     private PointLight? _pointLight;
     private readonly Action<PointLight?>? _onPointLightChanged;
     private readonly List<StructuralPartPlacementEditItem> _structuralPartPlacements;
+    private readonly ObservableCollection<StructuralPartRenderOrderEntry> _structuralPartRenderOrder = new();
+    private readonly string _parentObjectName;
+    private readonly bool _structuralPartRenderOrderIsReadOnly;
+    private bool _hasEditedStructuralPartRenderOrder;
     private StructuralPartPlacementEditItem? _selectedStructuralPartPlacement;
     private bool _isDraggingStructuralPart;
     private System.Windows.Point _structuralPartDragStartPoint;
@@ -47,7 +52,9 @@ public partial class LargeObjectVisualGuideDialog : Window
         Action<int, int>? onFootprintChanged = null,
         PointLight? pointLight = null,
         Action<PointLight?>? onPointLightChanged = null,
-        IReadOnlyList<StructuralPartPlacementEditItem>? structuralPartPlacements = null)
+        IReadOnlyList<StructuralPartPlacementEditItem>? structuralPartPlacements = null,
+        string parentObjectName = "Parent",
+        bool structuralPartRenderOrderIsReadOnly = false)
     {
         InitializeComponent();
         _variant = variant;
@@ -62,7 +69,18 @@ public partial class LargeObjectVisualGuideDialog : Window
         _pointLight = LightingModelCloner.ClonePointLight(pointLight);
         _onPointLightChanged = onPointLightChanged;
         _structuralPartPlacements = CloneStructuralPartPlacements(structuralPartPlacements);
-        StructuralPartsListBox.ItemsSource = _structuralPartPlacements;
+        _parentObjectName = string.IsNullOrWhiteSpace(parentObjectName) ? "Parent" : parentObjectName.Trim();
+        _structuralPartRenderOrderIsReadOnly = structuralPartRenderOrderIsReadOnly;
+        foreach (var entry in StructuralPartRelativeRenderOrderPolicy.BuildFrontToBack(_parentObjectName, _structuralPartPlacements))
+        {
+            _structuralPartRenderOrder.Add(entry);
+        }
+        StructuralPartRenderOrderListBox.ItemsSource = _structuralPartRenderOrder;
+        MoveStructuralPartForwardButton.IsEnabled = !_structuralPartRenderOrderIsReadOnly;
+        MoveStructuralPartBackwardButton.IsEnabled = !_structuralPartRenderOrderIsReadOnly;
+        StructuralPartRenderOrderHintTextBlock.Text = _structuralPartRenderOrderIsReadOnly
+            ? "This ordering is inherited from the Base Object and cannot be changed on a linked instance."
+            : "Move structural parts around the parent row to place them in front of or behind the parent.";
 
         _gridColumns = Math.Max(1, (projectCanvasWidth > 0 ? projectCanvasWidth : 800) / _cellSize);
         _gridRows = Math.Max(1, (projectCanvasHeight > 0 ? projectCanvasHeight : 600) / _cellSize);
@@ -73,7 +91,25 @@ public partial class LargeObjectVisualGuideDialog : Window
         RefreshPreview();
     }
 
-    public IReadOnlyList<StructuralPartPlacementEditItem> StructuralPartPlacements => CloneStructuralPartPlacements(_structuralPartPlacements);
+    public IReadOnlyList<StructuralPartPlacementEditItem> StructuralPartPlacements
+    {
+        get
+        {
+            var placements = CloneStructuralPartPlacements(_structuralPartPlacements);
+            if (!_hasEditedStructuralPartRenderOrder)
+            {
+                return placements;
+            }
+
+            var ranks = StructuralPartRelativeRenderOrderPolicy.AssignRelativeRanks(_structuralPartRenderOrder);
+            return placements.Select(item => item with
+            {
+                StructuralPartRelativeRenderOrder = ranks.TryGetValue(item.ObjectId, out var rank)
+                    ? rank
+                    : null
+            }).ToList();
+        }
+    }
 
     private void RefreshEditors()
     {
@@ -250,6 +286,90 @@ public partial class LargeObjectVisualGuideDialog : Window
 
     private void CloseButton_OnClick(object sender, RoutedEventArgs e) => Close();
 
+    private void StructuralPartRenderOrderListBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var selectedEntry = StructuralPartRenderOrderListBox.SelectedItem as StructuralPartRenderOrderEntry;
+        _selectedStructuralPartPlacement = selectedEntry is { IsParent: false, ObjectId: Guid objectId }
+            ? _structuralPartPlacements.FirstOrDefault(placement => placement.ObjectId == objectId)
+            : null;
+
+        var canMove = !_structuralPartRenderOrderIsReadOnly
+            && StructuralPartRenderOrderListBox.SelectedIndex >= 0;
+        MoveStructuralPartForwardButton.IsEnabled = canMove && StructuralPartRenderOrderListBox.SelectedIndex > 0;
+        MoveStructuralPartBackwardButton.IsEnabled = canMove
+            && StructuralPartRenderOrderListBox.SelectedIndex < _structuralPartRenderOrder.Count - 1;
+
+        if (_selectedStructuralPartPlacement is not { } selectedPart)
+        {
+            StructuralPartRenderOrderHintTextBlock.Text = "Select a child row, then click or drag on the footprint to position it.";
+        }
+        else
+        {
+            StructuralPartRenderOrderHintTextBlock.Text = $"Click to place {selectedPart.Name}, or drag its purple outline. Its footprint snaps to the parent-aligned grid.";
+            GetOrientedDimensions(out var footprintWidth, out var footprintHeight);
+            var partWidth = Math.Max(1, selectedPart.FootprintWidthCells);
+            var partHeight = Math.Max(1, selectedPart.FootprintHeightCells);
+            if (selectedPart.FootprintOrientation is "E" or "W")
+            {
+                (partWidth, partHeight) = (partHeight, partWidth);
+            }
+
+            if (partWidth > footprintWidth || partHeight > footprintHeight)
+            {
+                StructuralPartRenderOrderHintTextBlock.Text = "This child's footprint is larger than the parent footprint and cannot fit inside it.";
+            }
+        }
+
+        GetOrientedDimensions(out var orientedWidth, out var orientedHeight);
+        UpdateStructuralPartMarker(
+            (_gridColumns - orientedWidth) * _cellSize / 2d,
+            (_gridRows - orientedHeight) * _cellSize / 2d);
+    }
+
+    private void MoveStructuralPartForwardButton_OnClick(object sender, RoutedEventArgs e) => MoveSelectedRenderOrderRow(-1);
+
+    private void MoveStructuralPartBackwardButton_OnClick(object sender, RoutedEventArgs e) => MoveSelectedRenderOrderRow(1);
+
+    private void MoveSelectedRenderOrderRow(int delta)
+    {
+        if (_structuralPartRenderOrderIsReadOnly)
+        {
+            return;
+        }
+
+        var currentIndex = StructuralPartRenderOrderListBox.SelectedIndex;
+        var targetIndex = currentIndex + delta;
+        if (currentIndex < 0 || targetIndex < 0 || targetIndex >= _structuralPartRenderOrder.Count)
+        {
+            return;
+        }
+
+        var selectedEntry = _structuralPartRenderOrder[currentIndex];
+        _structuralPartRenderOrder.Move(currentIndex, targetIndex);
+        _hasEditedStructuralPartRenderOrder = true;
+        var ranks = StructuralPartRelativeRenderOrderPolicy.AssignRelativeRanks(_structuralPartRenderOrder);
+        for (var index = 0; index < _structuralPartRenderOrder.Count; index++)
+        {
+            var entry = _structuralPartRenderOrder[index];
+            _structuralPartRenderOrder[index] = entry with
+            {
+                RelativeOrder = entry.IsParent
+                    ? 0
+                    : entry.ObjectId is Guid objectId && ranks.TryGetValue(objectId, out var rank)
+                        ? rank
+                        : null
+            };
+        }
+
+        StructuralPartRenderOrderListBox.SelectedItem = _structuralPartRenderOrder.First(entry =>
+            entry.IsParent == selectedEntry.IsParent && entry.ObjectId == selectedEntry.ObjectId);
+        StructuralPartRenderOrderHintTextBlock.Text = "Saved ranks are relative to the parent: positive is in front, negative is behind.";
+        GetOrientedDimensions(out var footprintWidth, out var footprintHeight);
+        UpdateStructuralPartMarker(
+            (_gridColumns - footprintWidth) * _cellSize / 2d,
+            (_gridRows - footprintHeight) * _cellSize / 2d);
+    }
+
     private void GuideSurfaceGrid_OnMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         GetOrientedDimensions(out var footprintWidth, out var footprintHeight);
@@ -267,7 +387,7 @@ public partial class LargeObjectVisualGuideDialog : Window
         {
             if (selectedPart.Placement.Mode != StructuralPartPlacementKind.ParentRelative)
             {
-                StructuralPartsHintTextBlock.Text = "This part uses fixed room coordinates. Change its placement mode to Relative to parent in Object Properties to place it here.";
+                StructuralPartRenderOrderHintTextBlock.Text = "This part uses fixed room coordinates. Change its placement mode to Relative to parent in Object Properties to place it here.";
                 e.Handled = true;
                 return;
             }
@@ -282,14 +402,14 @@ public partial class LargeObjectVisualGuideDialog : Window
             var maxOffsetY = Math.Max(0, footprintHeightPixels - partHeight);
             if (partWidth > footprintWidthPixels || partHeight > footprintHeightPixels)
             {
-                StructuralPartsHintTextBlock.Text = "This child's footprint is larger than the parent footprint and cannot fit inside it.";
+                StructuralPartRenderOrderHintTextBlock.Text = "This child's footprint is larger than the parent footprint and cannot fit inside it.";
                 e.Handled = true;
                 return;
             }
             selectedPart.Placement.ParentRelativeOffsetX = SnapPartOffset(point.X - footprintLeft - partWidth / 2d, maxOffsetX);
             selectedPart.Placement.ParentRelativeOffsetY = SnapPartOffset(point.Y - footprintTop - partHeight / 2d, maxOffsetY);
             UpdateStructuralPartMarker(footprintLeft, footprintTop);
-            StructuralPartsHintTextBlock.Text = $"Placed {selectedPart.Name}. Select another part or clear the list selection.";
+            StructuralPartRenderOrderHintTextBlock.Text = $"Placed {selectedPart.Name}. Select another child row to position it.";
             StatusTextBlock.Text = $"Footprint: {footprintWidth} × {footprintHeight} cells; placed {selectedPart.Name} at {selectedPart.Placement.ParentRelativeOffsetX:0} × {selectedPart.Placement.ParentRelativeOffsetY:0}px from the parent footprint's top-left.";
             e.Handled = true;
             return;
@@ -302,33 +422,6 @@ public partial class LargeObjectVisualGuideDialog : Window
         StatusTextBlock.Text = $"Footprint: {footprintWidth} × {footprintHeight} cells; light origin: {_pointLight.OffsetXPx:0} × {_pointLight.OffsetYPx:0}px from top-left.";
         _onPointLightChanged?.Invoke(LightingModelCloner.ClonePointLight(_pointLight));
         e.Handled = true;
-    }
-
-    private void StructuralPartsListBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        _selectedStructuralPartPlacement = StructuralPartsListBox.SelectedItem as StructuralPartPlacementEditItem;
-        StructuralPartsHintTextBlock.Text = _selectedStructuralPartPlacement?.Placement.Mode == StructuralPartPlacementKind.RoomCoordinates
-            ? "This part uses fixed room coordinates. Change its placement mode to Relative to parent in Object Properties to place it here."
-            : _selectedStructuralPartPlacement is null
-                ? "Select a part, then click its position on the parent footprint."
-                : $"Click to place {_selectedStructuralPartPlacement.Name}, or drag its purple outline. Its footprint snaps to the parent-aligned grid.";
-        GetOrientedDimensions(out var footprintWidth, out var footprintHeight);
-        if (_selectedStructuralPartPlacement is { } selectedPart)
-        {
-            var partWidth = Math.Max(1, selectedPart.FootprintWidthCells);
-            var partHeight = Math.Max(1, selectedPart.FootprintHeightCells);
-            if (selectedPart.FootprintOrientation is "E" or "W")
-            {
-                (partWidth, partHeight) = (partHeight, partWidth);
-            }
-            if (partWidth > footprintWidth || partHeight > footprintHeight)
-            {
-                StructuralPartsHintTextBlock.Text = "This child's footprint is larger than the parent footprint and cannot fit inside it.";
-            }
-        }
-        var footprintLeft = (_gridColumns - footprintWidth) * _cellSize / 2d;
-        var footprintTop = (_gridRows - footprintHeight) * _cellSize / 2d;
-        UpdateStructuralPartMarker(footprintLeft, footprintTop);
     }
 
     private void UpdateStructuralPartMarker(double footprintLeft, double footprintTop)
@@ -368,6 +461,12 @@ public partial class LargeObjectVisualGuideDialog : Window
         StructuralPartMarkerLabel.Height = height;
         StructuralPartMarkerLabel.Margin = new Thickness(footprintLeft + offsetX, footprintTop + offsetY, 0, 0);
         StructuralPartMarkerLabel.Text = part.Name;
+        var relativeOrder = _hasEditedStructuralPartRenderOrder
+            ? StructuralPartRelativeRenderOrderPolicy.AssignRelativeRanks(_structuralPartRenderOrder)
+                .GetValueOrDefault(part.ObjectId)
+            : part.StructuralPartRelativeRenderOrder;
+        System.Windows.Controls.Panel.SetZIndex(StructuralPartMarker, StructuralPartRelativeRenderOrderPolicy.RendersInFrontOfParent(relativeOrder) ? 1 : -1);
+        System.Windows.Controls.Panel.SetZIndex(StructuralPartMarkerLabel, 100);
         StructuralPartMarker.Visibility = Visibility.Visible;
         StructuralPartMarkerLabel.Visibility = Visibility.Visible;
     }
@@ -513,7 +612,7 @@ public partial class LargeObjectVisualGuideDialog : Window
 
         if (_selectedStructuralPartPlacement is { } part)
         {
-            StructuralPartsHintTextBlock.Text = $"Placed {part.Name} at {part.Placement.ParentRelativeOffsetX:0} × {part.Placement.ParentRelativeOffsetY:0}px from the parent footprint's top-left.";
+            StructuralPartRenderOrderHintTextBlock.Text = $"Placed {part.Name} at {part.Placement.ParentRelativeOffsetX:0} × {part.Placement.ParentRelativeOffsetY:0}px from the parent footprint's top-left.";
             GetOrientedDimensions(out var footprintWidth, out var footprintHeight);
             UpdateStructuralPartMarker(
                 (_gridColumns - footprintWidth) * _cellSize / 2d,

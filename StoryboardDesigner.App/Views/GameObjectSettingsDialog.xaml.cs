@@ -422,6 +422,10 @@ public partial class GameObjectSettingsDialog : Window
             ParticleEffectNewComputedVariableFactory: _particleEffectNewComputedVariableFactory,
             ParticleEffectNewVariables: _particleEffectNewVariables,
             StructuralPartPlacements: _structuralPartPlacements,
+            StructuralPartRenderOrderParentName: ObjectNameTextBox.Text.Trim(),
+            StructuralPartRenderOrderIsReadOnly: LinkedEditNoticeBorder.Visibility == Visibility.Visible
+                || _structuralPartPlacements.Any(static item => item.IsLinkedInstance
+                    && item.Placement.Mode == StructuralPartPlacementKind.ParentRelative),
             ImageTransparency: _imageTransparency))
         {
             Owner = this

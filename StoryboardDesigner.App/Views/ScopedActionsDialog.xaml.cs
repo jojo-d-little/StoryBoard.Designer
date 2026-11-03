@@ -16,7 +16,7 @@ public partial class ScopedActionsDialog : Window
     private readonly IReadOnlyList<GamePropertyChoiceItem> _variableChoices;
     private readonly GamePropertyPickerContext _pickerContext;
     private readonly IReadOnlyList<string> _echoReferenceTokens;
-    private readonly IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> _additionalLinkTargetActions;
+    private readonly IReadOnlyList<LinkedActionTargetChoice> _additionalLinkTargetActions;
     private readonly IReadOnlyList<ContainerTargetChoiceItem> _containerTargetChoices;
     private readonly IReadOnlyList<MaterializeSourceObjectChoiceItem> _materializeSourceObjectChoices;
     private readonly IReadOnlyList<ProcedureChoiceItem> _procedureChoices;
@@ -37,7 +37,7 @@ public partial class ScopedActionsDialog : Window
         PropertyResolutionScope variableScope,
         string scopeEntityName,
         IList<CommandAction> actions,
-        IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> additionalLinkTargetActions,
+        IReadOnlyList<LinkedActionTargetChoice> additionalLinkTargetActions,
         IReadOnlyList<ContainerTargetChoiceItem> containerTargetChoices,
         IReadOnlyList<MaterializeSourceObjectChoiceItem> materializeSourceObjectChoices,
         IReadOnlyList<ProcedureChoiceItem> procedureChoices,

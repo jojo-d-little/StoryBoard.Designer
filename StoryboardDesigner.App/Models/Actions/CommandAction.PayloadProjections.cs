@@ -563,8 +563,8 @@ public sealed partial class CommandAction
         {
             _payload = ActionType switch
             {
-                CommandActionType.AddObjectPresentationCue => new AddObjectPresentationCuePayload(value, ObjectPresentationCueEffectKey),
-                CommandActionType.RemoveObjectPresentationCue => new RemoveObjectPresentationCuePayload(value, ObjectPresentationCueEffectKey),
+                CommandActionType.AddObjectPresentationCue => new AddObjectPresentationCuePayload(value, ObjectPresentationCueEffectKey, (Payload as AddObjectPresentationCuePayload)?.ObjectSetReference),
+                CommandActionType.RemoveObjectPresentationCue => new RemoveObjectPresentationCuePayload(value, ObjectPresentationCueEffectKey, (Payload as RemoveObjectPresentationCuePayload)?.ObjectSetReference),
                 CommandActionType.ClearObjectPresentationCues => new ClearObjectPresentationCuesPayload(value),
                 _ => _payload
             };
@@ -586,8 +586,8 @@ public sealed partial class CommandAction
             var key = value?.Trim() ?? string.Empty;
             _payload = ActionType switch
             {
-                CommandActionType.AddObjectPresentationCue => new AddObjectPresentationCuePayload(ObjectPresentationCueObjectId, key),
-                CommandActionType.RemoveObjectPresentationCue => new RemoveObjectPresentationCuePayload(ObjectPresentationCueObjectId, key),
+                CommandActionType.AddObjectPresentationCue => new AddObjectPresentationCuePayload(ObjectPresentationCueObjectId, key, (Payload as AddObjectPresentationCuePayload)?.ObjectSetReference),
+                CommandActionType.RemoveObjectPresentationCue => new RemoveObjectPresentationCuePayload(ObjectPresentationCueObjectId, key, (Payload as RemoveObjectPresentationCuePayload)?.ObjectSetReference),
                 _ => _payload
             };
             OnPropertyChanged();

@@ -84,6 +84,8 @@ public partial class RoomActionEditorDialog : Window
     private readonly Dictionary<Guid, string> _compositeObjectNamesById;
     private readonly IReadOnlyList<MaterializeSourceObjectChoiceItem> _materializeSourceObjectChoices;
     private readonly Dictionary<Guid, MaterializeSourceObjectChoiceItem> _materializeSourceObjectChoicesById;
+    private Guid? _captureObjectSetTargetId;
+    private Guid? _checkObjectSetTargetId;
     private readonly IReadOnlyList<ProcedureChoiceItem> _procedureChoices;
     private readonly Dictionary<Guid, ProcedureChoiceItem> _procedureChoicesById;
     private readonly IReadOnlyList<SoundEffectChoiceItem> _soundEffectChoices;
@@ -435,6 +437,7 @@ public partial class RoomActionEditorDialog : Window
         SelectByPointSelectionCueEffectKeyComboBox.ItemsSource = BuildSelectionCueEffectKeyChoices();
         ObjectPresentationCueEffectKeyComboBox.ItemsSource = _presentationEffectsCatalogService.GetObjectCueEligibleEffectKeys();
         ObjectPresentationCueObjectIdComboBox.ItemsSource = BuildPresentationCueObjectChoices();
+        NavigateObjectSetDirectionComboBox.ItemsSource = Enum.GetNames<Direction10>().Where(static value => !string.Equals(value, "Unknown", StringComparison.OrdinalIgnoreCase)).ToList();
         TriggerParticleEffectObjectComboBox.ItemsSource = BuildTriggerParticleEffectObjectChoices();
         ClearActiveScopeComboBox.ItemsSource = ClearRoomObjectSelectionsScopeChoices.ClearActiveRoomObjects;
         MoveByPointsMovementEffectKeyComboBox.ItemsSource = configuredMovementEffects;
@@ -568,6 +571,7 @@ public partial class RoomActionEditorDialog : Window
         BreakCompositeTargetComboBox.DisplayMemberPath = nameof(BreakCompositeTargetChoiceItem.DisplayName);
         BreakCompositeTargetComboBox.SelectedItem = _breakCompositeTargetChoices.FirstOrDefault(choice => choice.TargetObjectId == _workingCopy.CompositeTargetObjectId)
             ?? _breakCompositeTargetChoices.FirstOrDefault(choice => !choice.TargetObjectId.HasValue);
+        RefreshObjectSetPayloadEditorFields();
         RefreshOutcomeEchoEntries();
         RefreshOutcomeSoundResultCodeChoices();
         RefreshOutcomeSoundChoiceFilter();
@@ -608,6 +612,7 @@ public partial class RoomActionEditorDialog : Window
             // Reinitialize result-code scripts for the newly selected action type.
             _workingCopy.NormalizeOutcomeMapForActionType(_workingCopy.ActionType, preserveUnsupportedTokens: false);
             RefreshCommandContextEditorFromPayload();
+            RefreshObjectSetPayloadEditorFields();
             RefreshVisibleEditorPanel();
             return;
         }
@@ -830,6 +835,9 @@ public partial class RoomActionEditorDialog : Window
         StackRoomObjectOnAnotherEditorPanel.Visibility = Visibility.Collapsed;
         SetActiveRoomObjectEditorPanel.Visibility = Visibility.Collapsed;
         ObjectPresentationCueEditorPanel.Visibility = Visibility.Collapsed;
+        CaptureObjectSetEditorPanel.Visibility = Visibility.Collapsed;
+        CheckObjectSetEditorPanel.Visibility = Visibility.Collapsed;
+        NavigateObjectSetEditorPanel.Visibility = Visibility.Collapsed;
         SelectRoomObjectByPointEditorPanel.Visibility = Visibility.Collapsed;
         ClearActiveRoomObjectsEditorPanel.Visibility = Visibility.Collapsed;
         ClearRoomObjectSelectionsEditorPanel.Visibility = Visibility.Collapsed;
@@ -899,6 +907,17 @@ public partial class RoomActionEditorDialog : Window
                 ObjectPresentationCueEffectLabel.Visibility = needsEffect ? Visibility.Visible : Visibility.Collapsed;
                 ObjectPresentationCueEffectKeyComboBox.Visibility = needsEffect ? Visibility.Visible : Visibility.Collapsed;
                 ObjectPresentationCueEffectLabel.Text = _workingCopy.ActionType == CommandActionType.RemoveObjectPresentationCue ? "Effect to remove" : "Effect";
+                ObjectPresentationCueSetModeCheckBox.Visibility = _workingCopy.ActionType is CommandActionType.AddObjectPresentationCue or CommandActionType.RemoveObjectPresentationCue ? Visibility.Visible : Visibility.Collapsed;
+                ObjectPresentationCueSetKeyComboBox.Visibility = _workingCopy.ActionType is CommandActionType.AddObjectPresentationCue or CommandActionType.RemoveObjectPresentationCue ? Visibility.Visible : Visibility.Collapsed;
+                break;
+            case CommandActionType.CaptureObjectsOnObjectFootprint:
+                CaptureObjectSetEditorPanel.Visibility = Visibility.Visible;
+                break;
+            case CommandActionType.CheckObjectSetContainsObject:
+                CheckObjectSetEditorPanel.Visibility = Visibility.Visible;
+                break;
+            case CommandActionType.NavigateObjectSetToAdjacent:
+                NavigateObjectSetEditorPanel.Visibility = Visibility.Visible;
                 break;
             case CommandActionType.SelectRoomObjectByPoint:
                 LoadSelectByPointEditorInputs();
@@ -981,6 +1000,9 @@ public partial class RoomActionEditorDialog : Window
             || StackRoomObjectOnAnotherEditorPanel.Visibility == Visibility.Visible
             || SetActiveRoomObjectEditorPanel.Visibility == Visibility.Visible
             || ObjectPresentationCueEditorPanel.Visibility == Visibility.Visible
+            || CaptureObjectSetEditorPanel.Visibility == Visibility.Visible
+            || CheckObjectSetEditorPanel.Visibility == Visibility.Visible
+            || NavigateObjectSetEditorPanel.Visibility == Visibility.Visible
             || SelectRoomObjectByPointEditorPanel.Visibility == Visibility.Visible
             || ClearActiveRoomObjectsEditorPanel.Visibility == Visibility.Visible
             || ClearRoomObjectSelectionsEditorPanel.Visibility == Visibility.Visible
@@ -1070,6 +1092,11 @@ public partial class RoomActionEditorDialog : Window
 
     private void Save_OnClick(object sender, RoutedEventArgs e)
     {
+        if (!TryApplyObjectSetPayloadInputs())
+        {
+            return;
+        }
+
         PersistOutcomeEchoEntriesToWorkingCopy();
 
         if (_workingCopy.ActionType == CommandActionType.TriggerParticleEffect)
@@ -1478,7 +1505,7 @@ public partial class RoomActionEditorDialog : Window
         {
             _sourceAction.ObjectPresentationCueEffectKey = _workingCopy.ObjectPresentationCueEffectKey;
         }
-        _sourceAction.Payload = _sourceAction.CreatePayloadSnapshot();
+        _sourceAction.Payload = _workingCopy.CreatePayloadSnapshot();
 
         DialogResult = true;
     }
@@ -1513,6 +1540,205 @@ public partial class RoomActionEditorDialog : Window
         {
             _workingCopy.DirectionQualifierText = string.Empty;
         }
+    }
+
+    private void RefreshObjectSetPayloadEditorFields()
+    {
+        var capture = _workingCopy.Payload as CaptureObjectsOnObjectFootprintPayload;
+        CaptureObjectSetKeyTextBox.Text = capture?.ObjectSetKey ?? string.Empty;
+        _captureObjectSetTargetId = capture?.TargetObjectId;
+        CaptureObjectSetTargetTextBox.Text = GetRoomObjectDisplayName(_captureObjectSetTargetId);
+
+        var check = _workingCopy.Payload as CheckObjectSetContainsObjectPayload;
+        ConfigureObjectSetKeyPicker(CheckObjectSetKeyComboBox, check?.ObjectSetKey);
+        _checkObjectSetTargetId = Guid.TryParse(check?.Target, out var explicitTarget) ? explicitTarget : null;
+        CheckObjectSetTargetComboBox.SelectedIndex = _checkObjectSetTargetId.HasValue ? 1 : 0;
+        RefreshCheckObjectSetTargetState();
+
+        var navigate = _workingCopy.Payload as NavigateObjectSetToAdjacentPayload;
+        ConfigureObjectSetKeyPicker(NavigateObjectSetKeyComboBox, navigate?.ObjectSetKey);
+        var direction = navigate?.Direction ?? "Unknown";
+        NavigateObjectSetDirectionComboBox.SelectedItem = NavigateObjectSetDirectionComboBox.Items
+            .Cast<object>()
+            .FirstOrDefault(item => string.Equals(item.ToString(), direction, StringComparison.OrdinalIgnoreCase));
+
+        var setReference = (_workingCopy.Payload as AddObjectPresentationCuePayload)?.ObjectSetReference
+            ?? (_workingCopy.Payload as RemoveObjectPresentationCuePayload)?.ObjectSetReference;
+        ObjectPresentationCueSetModeCheckBox.IsChecked = setReference is not null;
+        ConfigureObjectSetKeyPicker(ObjectPresentationCueSetKeyComboBox, setReference?.ObjectSetKey);
+        RefreshObjectPresentationCueSetMode();
+    }
+
+    private void ConfigureObjectSetKeyPicker(System.Windows.Controls.ComboBox picker, string? selectedKey)
+    {
+        var choices = _availableActions
+            .Where(static action => action.ActionType == CommandActionType.CaptureObjectsOnObjectFootprint)
+            .Select(static action => (action.Payload as CaptureObjectsOnObjectFootprintPayload)?.ObjectSetKey)
+            .Append(selectedKey)
+            .Select(static key => key?.Trim() ?? string.Empty)
+            .Where(static key => !string.IsNullOrWhiteSpace(key))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static key => key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        picker.ItemsSource = choices;
+        picker.Text = selectedKey?.Trim() ?? string.Empty;
+    }
+
+    private string GetRoomObjectDisplayName(Guid? objectId)
+    {
+        if (!objectId.HasValue) return string.Empty;
+        var choice = _materializeSourceObjectChoices.FirstOrDefault(item => item.ObjectId == objectId.Value);
+        return choice is null ? string.Empty : $"{choice.DisplayName} — {choice.ScopePath}";
+    }
+
+    private void RefreshObjectPresentationCueSetMode()
+    {
+        var setMode = ObjectPresentationCueSetModeCheckBox.IsChecked == true;
+        ObjectPresentationCueSetKeyComboBox.IsEnabled = setMode;
+        ObjectPresentationCueObjectIdComboBox.IsEnabled = !setMode;
+    }
+
+    private void RefreshCheckObjectSetTargetState()
+    {
+        ChooseCheckObjectSetTargetButton.IsEnabled = CheckObjectSetTargetComboBox.SelectedIndex == 1;
+        ChooseCheckObjectSetTargetButton.Content = _checkObjectSetTargetId.HasValue
+            ? GetRoomObjectDisplayName(_checkObjectSetTargetId)
+            : "Choose…";
+    }
+
+    private void ObjectPresentationCueSetMode_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (ObjectPresentationCueSetModeCheckBox.IsChecked == true)
+        {
+            ObjectPresentationCueObjectIdComboBox.SelectedValue = null;
+            _workingCopy.ObjectPresentationCueObjectId = null;
+            ApplyObjectPresentationCueTargetMode(
+                null,
+                GetObjectPresentationCueSetReference(ObjectPresentationCueSetKeyComboBox.Text));
+        }
+        else
+        {
+            ApplyObjectPresentationCueTargetMode(_workingCopy.ObjectPresentationCueObjectId, null);
+        }
+
+        RefreshObjectPresentationCueSetMode();
+    }
+
+    private ProjectObjectSetReferenceDto? GetObjectPresentationCueSetReference(string? key)
+    {
+        var normalizedKey = key?.Trim() ?? string.Empty;
+        return normalizedKey.Length == 0 ? null : new ProjectObjectSetReferenceDto { ObjectSetKey = normalizedKey };
+    }
+
+    private void ApplyObjectPresentationCueTargetMode(Guid? objectId, ProjectObjectSetReferenceDto? setReference)
+    {
+        if (_workingCopy.ActionType == CommandActionType.AddObjectPresentationCue)
+        {
+            _workingCopy.Payload = new AddObjectPresentationCuePayload(
+                objectId,
+                _workingCopy.ObjectPresentationCueEffectKey,
+                setReference);
+        }
+        else if (_workingCopy.ActionType == CommandActionType.RemoveObjectPresentationCue)
+        {
+            _workingCopy.Payload = new RemoveObjectPresentationCuePayload(
+                objectId,
+                _workingCopy.ObjectPresentationCueEffectKey,
+                setReference);
+        }
+    }
+
+    private void CheckObjectSetTarget_OnSelectionChanged(object sender, SelectionChangedEventArgs e) => RefreshCheckObjectSetTargetState();
+
+    private void ChooseCaptureObjectSetTarget_OnClick(object sender, RoutedEventArgs e)
+    {
+        _captureObjectSetTargetId = ChoosePlacedRoomObject(_captureObjectSetTargetId);
+        CaptureObjectSetTargetTextBox.Text = GetRoomObjectDisplayName(_captureObjectSetTargetId);
+    }
+
+    private void ChooseCheckObjectSetTarget_OnClick(object sender, RoutedEventArgs e)
+    {
+        _checkObjectSetTargetId = ChoosePlacedRoomObject(_checkObjectSetTargetId);
+        RefreshCheckObjectSetTargetState();
+    }
+
+    private Guid? ChoosePlacedRoomObject(Guid? currentObjectId)
+    {
+        var placedObjects = _materializeSourceObjectChoices
+            .Where(static choice => string.Equals(choice.SourceCategory, "Current Room", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (placedObjects.Count == 0)
+        {
+            System.Windows.MessageBox.Show(this, "No placed room objects are available in this scope.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+            return null;
+        }
+
+        var dialog = new SelectGameObjectDialog(
+            placedObjects,
+            currentObjectId,
+            new SelectGameObjectDialog.Options(
+                DefaultScopeSearchType: GameObjectOptionSourceTarget.RealObjects,
+                DefaultScopeSearchDepth: ScopeSearchDepth.Project,
+                DefaultRequiredFeatures: GameObjectFeatureRequirements.None,
+                DefaultCurrentObjectId: _defaultCurrentObjectId,
+                DefaultExcludeCurrentObject: false)) { Owner = this };
+        return dialog.ShowDialog() == true ? dialog.SelectedObjectId : null;
+    }
+
+    private bool TryApplyObjectSetPayloadInputs()
+    {
+        if (_workingCopy.ActionType == CommandActionType.CaptureObjectsOnObjectFootprint)
+        {
+            var key = CaptureObjectSetKeyTextBox.Text?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(key) || !_captureObjectSetTargetId.HasValue)
+            {
+                System.Windows.MessageBox.Show(this, "Enter a logical set key and choose the placed object whose footprint will be captured.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+                return false;
+            }
+            _workingCopy.Payload = new CaptureObjectsOnObjectFootprintPayload(key, _captureObjectSetTargetId);
+        }
+        else if (_workingCopy.ActionType == CommandActionType.CheckObjectSetContainsObject)
+        {
+            var key = CheckObjectSetKeyComboBox.Text?.Trim() ?? string.Empty;
+            var target = CheckObjectSetTargetComboBox.SelectedIndex == 1
+                ? _checkObjectSetTargetId?.ToString("D")
+                : "CurrentPlayer";
+            if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(target))
+            {
+                System.Windows.MessageBox.Show(this, "Enter a logical set key and choose an explicit object target.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+                return false;
+            }
+            _workingCopy.Payload = new CheckObjectSetContainsObjectPayload(key, target);
+        }
+        else if (_workingCopy.ActionType == CommandActionType.NavigateObjectSetToAdjacent)
+        {
+            var key = NavigateObjectSetKeyComboBox.Text?.Trim() ?? string.Empty;
+            var direction = NavigateObjectSetDirectionComboBox.SelectedItem?.ToString() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(direction) || string.Equals(direction, "Unknown", StringComparison.OrdinalIgnoreCase))
+            {
+                System.Windows.MessageBox.Show(this, "Enter a logical set key and choose a traversal direction.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+                return false;
+            }
+            _workingCopy.Payload = new NavigateObjectSetToAdjacentPayload(key, direction);
+        }
+        else if (_workingCopy.ActionType is CommandActionType.AddObjectPresentationCue or CommandActionType.RemoveObjectPresentationCue
+            && ObjectPresentationCueSetModeCheckBox.IsChecked == true)
+        {
+            var key = ObjectPresentationCueSetKeyComboBox.Text?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                System.Windows.MessageBox.Show(this, "Enter the logical key of the captured object set.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+                return false;
+            }
+            var reference = GetObjectPresentationCueSetReference(key)!;
+            _workingCopy.ObjectPresentationCueObjectId = null;
+            ApplyObjectPresentationCueTargetMode(null, reference);
+        }
+        else if (_workingCopy.ActionType is CommandActionType.AddObjectPresentationCue or CommandActionType.RemoveObjectPresentationCue)
+        {
+            ApplyObjectPresentationCueTargetMode(_workingCopy.ObjectPresentationCueObjectId, null);
+        }
+        return true;
     }
 
     private void NoVerbLinkage_OnClick(object sender, RoutedEventArgs e)
@@ -2021,7 +2247,8 @@ public partial class RoomActionEditorDialog : Window
         var selection = OpenActionPropertyChooser(
             "Choose Game Property",
             ActionPayloadAccessors.GetSetPropertyName(_workingCopy),
-            ActionPayloadAccessors.GetSetGamePropertyReference(_workingCopy));
+            ActionPayloadAccessors.GetSetGamePropertyReference(_workingCopy),
+            requireWritable: true);
         if (selection is not null)
         {
             ActionPayloadAccessors.SetSetGameProperty(
@@ -2040,7 +2267,8 @@ public partial class RoomActionEditorDialog : Window
         string title,
         string? currentPropertyName,
         ProjectGamePropertySourceReferenceDto? currentReference,
-        bool booleanOnly = false)
+        bool booleanOnly = false,
+        bool requireWritable = false)
     {
         var selectedReference = currentReference;
         if (selectedReference is null && !string.IsNullOrWhiteSpace(currentPropertyName))
@@ -2075,9 +2303,8 @@ public partial class RoomActionEditorDialog : Window
             DiscoverChoices = useReferenceChoices =>
             {
                 var choices = _pickerContext.DiscoverChoices(useReferenceChoices);
-                return booleanOnly
-                    ? choices.Where(static choice => choice.ValueRestriction == GamePropertyValueRestriction.TrueFalse).ToList()
-                    : choices;
+                return choices.Where(choice => (!booleanOnly || choice.ValueRestriction == GamePropertyValueRestriction.TrueFalse)
+                    && (!requireWritable || choice.CanWrite)).ToList();
             }
         };
         var dialog = new VariableChooserDialog(context, title, currentPropertyName)

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.ViewModels;
@@ -23,6 +24,14 @@ public sealed class BaseObjectPlacementCandidatePolicyTests
                     Name = "Left Door",
                     PositionX = 668,
                     PositionY = 155,
+                    IsPartOfParent = true,
+                    Placement = new StructuralPartPlacement
+                    {
+                        Mode = StructuralPartPlacementKind.ParentRelative,
+                        ParentRelativeOffsetX = 28,
+                        ParentRelativeOffsetY = 35
+                    },
+                    InheritParentCueCategories = ["Movement", "Scale", "Shake"],
                     ContainedObjects = [new GameObject { Name = "Door Handle", PositionX = 680, PositionY = 160 }]
                 },
                 new GameObject { Name = "Right Door", PositionX = 599, PositionY = 85 }
@@ -51,6 +60,9 @@ public sealed class BaseObjectPlacementCandidatePolicyTests
         Assert.Equal(0, placed.PositionY);
         Assert.NotEqual(root.ObjectId, placed.ObjectId);
         Assert.Equal(root.ObjectId, placed.LinkedBaseObjectId);
+        Assert.True(placed.ContainedObjects[0].IsPartOfParent);
+        Assert.Equal(StructuralPartPlacementKind.ParentRelative, placed.ContainedObjects[0].Placement.Mode);
+        Assert.Equal(new[] { "Movement", "Scale", "Shake" }, placed.ContainedObjects[0].InheritParentCueCategories);
         Assert.Equal((28d, 35d), (placed.ContainedObjects[0].PositionX, placed.ContainedObjects[0].PositionY));
         Assert.Equal((40d, 40d), (placed.ContainedObjects[0].ContainedObjects[0].PositionX, placed.ContainedObjects[0].ContainedObjects[0].PositionY));
         Assert.Equal((-41d, -35d), (placed.ContainedObjects[1].PositionX, placed.ContainedObjects[1].PositionY));
@@ -64,6 +76,9 @@ public sealed class BaseObjectPlacementCandidatePolicyTests
             export.SaveProjectModel(projectPath, project);
             var reopened = Assert.IsType<ProjectModel>(export.TryLoadProjectModel(projectPath));
             var reopenedPlacement = Assert.Single(reopened.Planets.Single().Countries.Single().Areas.Single().Rooms.Single().GameObjects);
+            Assert.True(reopenedPlacement.ContainedObjects[0].IsPartOfParent);
+            Assert.Equal(StructuralPartPlacementKind.ParentRelative, reopenedPlacement.ContainedObjects[0].Placement.Mode);
+            Assert.Equal(new[] { "Movement", "Scale", "Shake" }, reopenedPlacement.ContainedObjects[0].InheritParentCueCategories);
             Assert.Equal(placed.PositionX, reopenedPlacement.PositionX);
             Assert.Equal(placed.PositionY, reopenedPlacement.PositionY);
             Assert.Equal(placed.ContainedObjects[0].PositionX, reopenedPlacement.ContainedObjects[0].PositionX);
@@ -79,6 +94,10 @@ public sealed class BaseObjectPlacementCandidatePolicyTests
             Assert.Equal("0", RuntimeDefault(runtime.RootElement, "positionY"));
             Assert.Equal("28", RuntimeDefault(runtime.RootElement.GetProperty("containedObjects")[0], "positionX"));
             Assert.Equal("35", RuntimeDefault(runtime.RootElement.GetProperty("containedObjects")[0], "positionY"));
+            Assert.True(runtime.RootElement.GetProperty("containedObjects")[0].GetProperty("isPartOfParent").GetBoolean());
+            Assert.Equal("ParentRelative", runtime.RootElement.GetProperty("containedObjects")[0].GetProperty("partPlacementMode").GetString());
+            Assert.Equal(new[] { "Movement", "Scale", "Shake" }, runtime.RootElement.GetProperty("containedObjects")[0]
+                .GetProperty("inheritParentCueCategories").EnumerateArray().Select(static item => item.GetString()).ToArray());
             Assert.Equal("40", RuntimeDefault(runtime.RootElement.GetProperty("containedObjects")[0].GetProperty("containedObjects")[0], "positionX"));
             Assert.Equal("40", RuntimeDefault(runtime.RootElement.GetProperty("containedObjects")[0].GetProperty("containedObjects")[0], "positionY"));
             Assert.Equal(root.PositionX, Assert.Single(project.Planets.Single().Countries.Single().Areas.Single().BaseObjects).PositionX);
@@ -91,6 +110,128 @@ public sealed class BaseObjectPlacementCandidatePolicyTests
         static string RuntimeDefault(JsonElement obj, string propertyName) => obj.GetProperty("gameProperties").EnumerateArray()
             .Single(property => string.Equals(property.GetProperty("name").GetString(), propertyName, StringComparison.OrdinalIgnoreCase))
             .GetProperty("defaultValue").GetString()!;
+    }
+
+    [Fact]
+    public void ExistingLinkedStructuralChild_LoadExportUsesBaseMembershipAndSettings()
+    {
+        var floor = new GameObject
+        {
+            Name = "TheFloor",
+            IsPartOfParent = true,
+            Placement = new StructuralPartPlacement
+            {
+                Mode = StructuralPartPlacementKind.ParentRelative,
+                ParentRelativeOffsetX = 14,
+                ParentRelativeOffsetY = 22
+            },
+            InheritParentCueCategories = ["Movement", "Scale", "Shake"]
+        };
+        var elevator = new GameObject
+        {
+            Name = "Elevator",
+            IsQuantifiable = true,
+            ContainedObjects = [floor]
+        };
+        var placedFloor = new GameObject
+        {
+            Name = "TheFloor",
+            LinkedBaseObjectId = floor.ObjectId,
+            LinkActionsToBaseObject = true,
+            IsPartOfParent = false,
+            InheritParentCueCategories = null,
+            Placement = new StructuralPartPlacement
+            {
+                Mode = StructuralPartPlacementKind.RoomCoordinates,
+                ParentRelativeOffsetX = 7,
+                ParentRelativeOffsetY = 9,
+                RoomCoordinateX = 100,
+                RoomCoordinateY = 200
+            }
+        };
+        var placedElevator = new GameObject
+        {
+            Name = "Elevator",
+            LinkedBaseObjectId = elevator.ObjectId,
+            LinkActionsToBaseObject = true,
+            IsQuantifiable = true,
+            ContainedObjects = [placedFloor]
+        };
+        var room = new Room { Name = "Foyer", GameObjects = [placedElevator] };
+        var area = new Area { Name = "Area", BaseObjects = [elevator], Rooms = [room] };
+        var project = new ProjectModel
+        {
+            Name = "LinkedStructuralPart",
+            Planets = [new Planet { Name = "Planet", Countries = [new Country { Name = "Country", Areas = [area] }] }]
+        };
+        var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+
+        try
+        {
+            var projectPath = Path.Combine(tempRoot, "LinkedStructuralPart.sbe.json");
+            var service = new JsonExportService();
+            service.SaveProjectModel(projectPath, project);
+
+            var authoredElevatorPath = Directory.GetFiles(tempRoot, $"{placedElevator.ObjectId:N}.object.json", SearchOption.AllDirectories).Single();
+            var savedAuthoredElevator = JsonNode.Parse(File.ReadAllText(authoredElevatorPath))!.AsObject();
+            var savedAuthoredFloor = savedAuthoredElevator["containedObjects"]!.AsArray()[0]!.AsObject();
+            Assert.True(savedAuthoredFloor["isPartOfParent"]!.GetValue<bool>());
+            Assert.Equal("ParentRelative", savedAuthoredFloor["partPlacementMode"]!.GetValue<string>());
+            Assert.Equal(7, savedAuthoredFloor["parentRelativeOffsetX"]!.GetValue<double>());
+            Assert.Equal(9, savedAuthoredFloor["parentRelativeOffsetY"]!.GetValue<double>());
+            Assert.Equal(new[] { "Movement", "Scale", "Shake" }, savedAuthoredFloor["inheritParentCueCategories"]!.AsArray()
+                .Select(static item => item!.GetValue<string>()).ToArray());
+
+            service.ExportCleanProjectV1(projectPath, project);
+            using (var authoredRuntime = JsonDocument.Parse(File.ReadAllText(Path.Combine(
+                       tempRoot,
+                       "GameRuntimeJson",
+                       "GameObject",
+                       placedElevator.ObjectId.ToString("D").ToUpperInvariant() + ".runtime.json"))))
+            {
+                var authoredRuntimeFloor = authoredRuntime.RootElement.GetProperty("containedObjects")[0];
+                Assert.Equal(7, authoredRuntimeFloor.GetProperty("parentRelativeOffsetX").GetDouble());
+                Assert.Equal(9, authoredRuntimeFloor.GetProperty("parentRelativeOffsetY").GetDouble());
+            }
+
+            // Simulate a legacy saved linked instance whose duplicated structural fields
+            // were false/absent even though its linked base child is structural.
+            savedAuthoredFloor["isPartOfParent"] = false;
+            savedAuthoredFloor["partPlacementMode"] = "RoomCoordinates";
+            savedAuthoredFloor["parentRelativeOffsetX"] = null;
+            savedAuthoredFloor["parentRelativeOffsetY"] = null;
+            savedAuthoredFloor.Remove("inheritParentCueCategories");
+            File.WriteAllText(authoredElevatorPath, savedAuthoredElevator.ToJsonString());
+
+            var loaded = Assert.IsType<ProjectModel>(service.TryLoadProjectModel(projectPath));
+            var loadedPlacement = Assert.Single(loaded.Planets.Single().Countries.Single().Areas.Single().Rooms.Single().GameObjects);
+            var loadedFloor = Assert.Single(loadedPlacement.ContainedObjects);
+            Assert.True(loadedFloor.IsPartOfParent);
+            Assert.Equal(StructuralPartPlacementKind.ParentRelative, loadedFloor.Placement.Mode);
+            Assert.Equal(new[] { "Movement", "Scale", "Shake" }, loadedFloor.InheritParentCueCategories);
+            Assert.Equal(14, loadedFloor.Placement.ParentRelativeOffsetX);
+            Assert.Equal(22, loadedFloor.Placement.ParentRelativeOffsetY);
+
+            service.ExportCleanProjectV1(projectPath, loaded);
+            using var runtime = JsonDocument.Parse(File.ReadAllText(Path.Combine(
+                tempRoot,
+                "GameRuntimeJson",
+                "GameObject",
+                placedElevator.ObjectId.ToString("D").ToUpperInvariant() + ".runtime.json")));
+            var runtimeFloor = runtime.RootElement.GetProperty("containedObjects")[0];
+            Assert.True(runtimeFloor.GetProperty("isPartOfParent").GetBoolean());
+            Assert.Equal("ParentRelative", runtimeFloor.GetProperty("partPlacementMode").GetString());
+            Assert.Equal(new[] { "Movement", "Scale", "Shake" }, runtimeFloor.GetProperty("inheritParentCueCategories")
+                .EnumerateArray().Select(static item => item.GetString()).ToArray());
+            Assert.Equal(14, runtimeFloor.GetProperty("parentRelativeOffsetX").GetDouble());
+            Assert.Equal(22, runtimeFloor.GetProperty("parentRelativeOffsetY").GetDouble());
+            Assert.False(runtimeFloor.TryGetProperty("partRoomCoordinateX", out _));
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
     }
 
     [Fact]

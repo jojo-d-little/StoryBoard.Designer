@@ -10,7 +10,9 @@ public sealed record StructuralPartPlacementEditItem(
     int FootprintWidthCells,
     int FootprintHeightCells,
     string FootprintOrientation,
-    StructuralPartPlacement Placement);
+    StructuralPartPlacement Placement,
+    int? StructuralPartRelativeRenderOrder = null,
+    bool IsLinkedInstance = false);
 
 /// <summary>Immutable values presented by the Game Object Settings editor.</summary>
 /// <param name="InheritParentCueCategories">

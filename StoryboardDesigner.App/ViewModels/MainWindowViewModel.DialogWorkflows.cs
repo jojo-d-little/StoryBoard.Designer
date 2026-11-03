@@ -541,15 +541,15 @@ public sealed partial class MainWindowViewModel
         return choices;
     }
 
-    private IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> ResolveAdditionalLinkTargetActions(
+    private IReadOnlyList<LinkedActionTargetChoice> ResolveAdditionalLinkTargetActions(
         IList<CommandAction> currentScopeActions,
         IScopedAwareNode? currentScope)
     {
-        var choices = new List<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)>();
+        var choices = new List<LinkedActionTargetChoice>();
         var objectLookup = BuildObjectScopePathLookup();
-        var seenActionIds = currentScopeActions
+        var seenChoices = currentScopeActions
             .Where(static action => action.Id != Guid.Empty)
-            .Select(static action => action.Id)
+            .Select(static action => (action.Id, (Guid?)null))
             .ToHashSet();
 
         void AddScopeActions(IScopedAwareNode scope, LinkedActionTargetGroup group)
@@ -569,11 +569,16 @@ public sealed partial class MainWindowViewModel
                 actions = actions.Concat(baseObject.Object.AvailableActions);
             }
 
+            var targetObjectId = scope is GameObject placedObject
+                && (group == LinkedActionTargetGroup.Children || placedObject.IsRoomInstance)
+                && placedObject.ObjectId != Guid.Empty
+                ? placedObject.ObjectId
+                : (Guid?)null;
             foreach (var action in actions)
             {
-                if (action.Id != Guid.Empty && seenActionIds.Add(action.Id))
+                if (action.Id != Guid.Empty && seenChoices.Add((action.Id, targetObjectId)))
                 {
-                    choices.Add((action, GetScopeDisplayPath(scope), group));
+                    choices.Add(new LinkedActionTargetChoice(action, GetScopeDisplayPath(scope), group, targetObjectId));
                 }
             }
         }

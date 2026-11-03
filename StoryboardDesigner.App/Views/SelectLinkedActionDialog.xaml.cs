@@ -13,6 +13,7 @@ public partial class SelectLinkedActionDialog : Window
         public string Label { get; init; } = string.Empty;
         public string ScopeName { get; init; } = string.Empty;
         public LinkedActionTargetGroup Group { get; init; }
+        public Guid? TargetObjectId { get; init; }
     }
 
     private readonly List<Option> _options = new();
@@ -31,6 +32,14 @@ public partial class SelectLinkedActionDialog : Window
     }
 
     public SelectLinkedActionDialog(IEnumerable<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> scopedCandidates)
+        : this(scopedCandidates.Select(static candidate => new LinkedActionTargetChoice(
+            candidate.Action,
+            candidate.ScopeName,
+            candidate.Group)))
+    {
+    }
+
+    public SelectLinkedActionDialog(IEnumerable<LinkedActionTargetChoice> scopedCandidates)
     {
         InitializeComponent();
 
@@ -41,7 +50,10 @@ public partial class SelectLinkedActionDialog : Window
                 Action = candidate.Action,
                 ScopeName = candidate.ScopeName,
                 Group = candidate.Group,
-                Label = $"{candidate.Action.Name} ({candidate.Action.ActionType})"
+                TargetObjectId = candidate.TargetObjectId,
+                Label = candidate.TargetObjectId is Guid targetObjectId
+                    ? $"{candidate.Action.Name} ({candidate.Action.ActionType}) → object {targetObjectId:D}"
+                    : $"{candidate.Action.Name} ({candidate.Action.ActionType})"
             })
             .OrderBy(static option => option.ScopeName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(static option => option.Action.Name, StringComparer.OrdinalIgnoreCase));
@@ -70,6 +82,7 @@ public partial class SelectLinkedActionDialog : Window
     }
 
     public CommandAction? SelectedAction { get; private set; }
+    public Guid? SelectedTargetObjectId { get; private set; }
 
     private void Select_OnClick(object sender, RoutedEventArgs e)
     {
@@ -80,6 +93,7 @@ public partial class SelectLinkedActionDialog : Window
         }
 
         SelectedAction = option.Action;
+        SelectedTargetObjectId = option.TargetObjectId;
         DialogResult = true;
     }
 

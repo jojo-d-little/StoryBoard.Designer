@@ -9277,7 +9277,9 @@ public sealed partial class MainWindowViewModel
             CreateComputationEditorForScope(roomNode.Room, PropertyResolutionScope.Room),
             BuildSharedVariableChoiceOptions(),
             CreateGamePropertyPickerContext(roomNode.Room, PropertyResolutionScope.Room, allowReferenceModes: true,
-                anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" }));
+                anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" }),
+            roomNode.Room.PreRoomEntryActionId,
+            roomNode.Room.AvailableActions.ToList());
 
         if (!_treeContextInteractionService.TryEditRoomSettings(current, out var updated))
         {
@@ -9296,6 +9298,7 @@ public sealed partial class MainWindowViewModel
                          || roomNode.Room.SpawnPoints.FirstOrDefault(static point => point.IsDefault) != updated.SpawnPoint
                          || roomNode.Room.EnvironmentType != updated.EnvironmentType
                          || roomNode.Room.SoundLossPercentOverride != updated.SoundLossPercentOverride
+                         || roomNode.Room.PreRoomEntryActionId != updated.PreRoomEntryActionId
                          || !AreEnvironmentalEffectsEquivalent(roomNode.Room.EnvironmentalEffects, updated.EnvironmentalEffects);
 
         if (!hasChanges)
@@ -9319,6 +9322,7 @@ public sealed partial class MainWindowViewModel
             : null);
         roomNode.Room.EnvironmentType = updated.EnvironmentType;
         roomNode.Room.SoundLossPercentOverride = updated.SoundLossPercentOverride;
+        roomNode.Room.PreRoomEntryActionId = updated.PreRoomEntryActionId;
         roomNode.Room.EnvironmentalEffects = (updated.EnvironmentalEffects ?? new List<EnvironmentalEffectDefinition>()).Select(CloneEnvironmentalEffectDefinition).ToList();
         RefreshScopedNameIndex(area.Rooms, static room => room.Name);
 
@@ -9354,7 +9358,9 @@ public sealed partial class MainWindowViewModel
             templateRoomNode.Room.SpawnPoints.FirstOrDefault(static point => point.IsDefault),
             templateRoomNode.Room.EnvironmentType,
             templateRoomNode.Room.SoundLossPercentOverride,
-            templateRoomNode.Room.EnvironmentalEffects.Select(CloneEnvironmentalEffectDefinition).ToList());
+            templateRoomNode.Room.EnvironmentalEffects.Select(CloneEnvironmentalEffectDefinition).ToList(),
+            PreRoomEntryActionId: templateRoomNode.Room.PreRoomEntryActionId,
+            RoomActions: templateRoomNode.Room.AvailableActions.ToList());
 
         if (!_treeContextInteractionService.TryEditRoomSettings(current, out var updated))
         {
@@ -9372,6 +9378,7 @@ public sealed partial class MainWindowViewModel
                          || templateRoomNode.Room.SpawnPoints.FirstOrDefault(static point => point.IsDefault) != updated.SpawnPoint
                          || templateRoomNode.Room.EnvironmentType != updated.EnvironmentType
                          || templateRoomNode.Room.SoundLossPercentOverride != updated.SoundLossPercentOverride
+                         || templateRoomNode.Room.PreRoomEntryActionId != updated.PreRoomEntryActionId
                          || !AreEnvironmentalEffectsEquivalent(templateRoomNode.Room.EnvironmentalEffects, updated.EnvironmentalEffects);
 
         if (!hasChanges)
@@ -9395,6 +9402,7 @@ public sealed partial class MainWindowViewModel
             : null);
         templateRoomNode.Room.EnvironmentType = updated.EnvironmentType;
         templateRoomNode.Room.SoundLossPercentOverride = updated.SoundLossPercentOverride;
+        templateRoomNode.Room.PreRoomEntryActionId = updated.PreRoomEntryActionId;
         templateRoomNode.Room.EnvironmentalEffects = (updated.EnvironmentalEffects ?? new List<EnvironmentalEffectDefinition>()).Select(CloneEnvironmentalEffectDefinition).ToList();
         RefreshScopedNameIndex(_project.RoomTemplates, static room => room.Name);
 
@@ -9679,6 +9687,11 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.IsPartOfParent = updated.IsPartOfParent;
         objectNode.GameObject.InheritParentCueCategories = updated.InheritParentCueCategories?.ToList();
         objectNode.GameObject.Placement = CloneStructuralPartPlacement(updated.StructuralPartPlacement);
+        if (!objectNode.GameObject.IsPartOfParent
+            || objectNode.GameObject.Placement.Mode != StructuralPartPlacementKind.ParentRelative)
+        {
+            objectNode.GameObject.StructuralPartRelativeRenderOrder = null;
+        }
         ApplyStructuralPartPlacements(objectNode.GameObject, updated.StructuralPartPlacements);
         objectNode.GameObject.LightOcclusion = LightingModelCloner.CloneLightOcclusion(updated.LightOcclusion);
         objectNode.GameObject.IsPointLightEnabledDefaultValue = updated.IsPointLightEnabledDefaultValue;
@@ -9791,6 +9804,8 @@ public sealed partial class MainWindowViewModel
     private static ObjectBasicPropertiesEditRequest EnforceLinkedInstanceEditableFieldPolicy(GameObject instance, GameObject definition, ObjectBasicPropertiesEditRequest updated)
     {
         var settings = definition;
+        var structuralPlacement = CloneStructuralPartPlacement(updated.StructuralPartPlacement);
+        structuralPlacement.Mode = settings.Placement.Mode;
         return updated with
         {
             ProducerNotes = settings.ProducerNotes,
@@ -9837,7 +9852,10 @@ public sealed partial class MainWindowViewModel
             ImageVariants = settings.ImageVariants,
             ImageVariantChooserScript = settings.ImageVariantChooserScript,
             SoundEmitters = settings.SoundEmitters.Select(CloneObjectSoundEmitter).ToList(),
-            LockOperationRequirements = CloneLockOperationRequirements(settings.LockOperationRequirements)
+            LockOperationRequirements = CloneLockOperationRequirements(settings.LockOperationRequirements),
+            IsPartOfParent = settings.IsPartOfParent,
+            StructuralPartPlacement = structuralPlacement,
+            InheritParentCueCategories = settings.InheritParentCueCategories?.ToList()
         };
     }
 
@@ -10485,6 +10503,11 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.IsPartOfParent = updated.IsPartOfParent;
         objectNode.GameObject.InheritParentCueCategories = updated.InheritParentCueCategories?.ToList();
         objectNode.GameObject.Placement = CloneStructuralPartPlacement(updated.StructuralPartPlacement);
+        if (!objectNode.GameObject.IsPartOfParent
+            || objectNode.GameObject.Placement.Mode != StructuralPartPlacementKind.ParentRelative)
+        {
+            objectNode.GameObject.StructuralPartRelativeRenderOrder = null;
+        }
         ApplyStructuralPartPlacements(objectNode.GameObject, updated.StructuralPartPlacements);
         if (linkedDefinition is null && updated.SoundEmitters is not null)
         {
@@ -10762,6 +10785,11 @@ public sealed partial class MainWindowViewModel
         objectNode.GameObject.IsPartOfParent = updated.IsPartOfParent;
         objectNode.GameObject.InheritParentCueCategories = updated.InheritParentCueCategories?.ToList();
         objectNode.GameObject.Placement = CloneStructuralPartPlacement(updated.StructuralPartPlacement);
+        if (!objectNode.GameObject.IsPartOfParent
+            || objectNode.GameObject.Placement.Mode != StructuralPartPlacementKind.ParentRelative)
+        {
+            objectNode.GameObject.StructuralPartRelativeRenderOrder = null;
+        }
         ApplyStructuralPartPlacements(objectNode.GameObject, updated.StructuralPartPlacements);
         objectNode.GameObject.LightOcclusion = LightingModelCloner.CloneLightOcclusion(updated.LightOcclusion);
         objectNode.GameObject.IsPointLightEnabledDefaultValue = updated.IsPointLightEnabledDefaultValue;
@@ -13212,6 +13240,10 @@ public sealed partial class MainWindowViewModel
                     })
                     .ToList()
             }).ToList(),
+            IsPartOfParent = template.IsPartOfParent,
+            StructuralPartRelativeRenderOrder = template.StructuralPartRelativeRenderOrder,
+            InheritParentCueCategories = template.InheritParentCueCategories?.ToList(),
+            Placement = CloneStructuralPartPlacement(template.Placement),
             ContainedObjects = template.ContainedObjects.Select(CloneTemplateObject).ToList()
         };
 
@@ -13317,6 +13349,13 @@ public sealed partial class MainWindowViewModel
             {
                 action.ObjectPresentationCueObjectId = mappedCueId;
             }
+            foreach (var node in action.LinkedFlowDefinition.Nodes)
+            {
+                if (node.TargetObjectId is Guid targetId && objectIds.TryGetValue(targetId, out var mappedTargetId))
+                {
+                    node.TargetObjectId = mappedTargetId;
+                }
+            }
             ActionPayloadAccessors.RemapTriggerParticleEffectReferences(action, objectIds);
             action.Payload = action.CreatePayloadSnapshot();
         }
@@ -13378,8 +13417,22 @@ public sealed partial class MainWindowViewModel
         ClearBehaviorRecursively(instance);
         LinkedBaseObjectSharedVariableCloner.PreserveAuthoredMemberships(_project, source, instance);
 
-        static void LinkChildren(GameObject copy, GameObject original)
+        void LinkChildren(GameObject copy, GameObject original)
         {
+            var definition = original.ResolveEffectiveDefinitionOwnedSource(id =>
+                TryFindObjectById(_project, id, out var resolved) ? resolved : null);
+            copy.IsPartOfParent = definition.IsPartOfParent;
+            copy.StructuralPartRelativeRenderOrder = definition.IsPartOfParent
+                && definition.Placement.Mode == StructuralPartPlacementKind.ParentRelative
+                ? definition.StructuralPartRelativeRenderOrder
+                : null;
+            copy.InheritParentCueCategories = definition.InheritParentCueCategories?.ToList();
+
+            // Keep this placement's offsets while taking structural membership and mode
+            // from its linked definition.
+            copy.Placement = CloneStructuralPartPlacement(original.Placement);
+            copy.Placement.Mode = definition.Placement.Mode;
+
             for (var index = 0; index < Math.Min(copy.ContainedObjects.Count, original.ContainedObjects.Count); index++)
             {
                 var sourceChild = original.ContainedObjects[index];
@@ -13595,6 +13648,10 @@ public sealed partial class MainWindowViewModel
         target.IsPartOfParent = updated.IsPartOfParent;
         target.InheritParentCueCategories = updated.InheritParentCueCategories?.ToList();
         target.Placement = CloneStructuralPartPlacement(updated.StructuralPartPlacement);
+        if (!target.IsPartOfParent || target.Placement.Mode != StructuralPartPlacementKind.ParentRelative)
+        {
+            target.StructuralPartRelativeRenderOrder = null;
+        }
 
         if (target.IsCompositeTarget)
         {
@@ -13656,7 +13713,9 @@ public sealed partial class MainWindowViewModel
                 Math.Max(1, child.FootprintWidthCells),
                 Math.Max(1, child.FootprintHeightCells),
                 child.FootprintOrientation,
-                CloneStructuralPartPlacement(child.Placement)))
+                CloneStructuralPartPlacement(child.Placement),
+                child.StructuralPartRelativeRenderOrder,
+                child.LinkedBaseObjectId.HasValue))
             .ToList();
 
     private static bool AreStructuralPartPlacementsEquivalent(
@@ -13674,6 +13733,7 @@ public sealed partial class MainWindowViewModel
         return currentById.Count == updated.Count && updated.All(item =>
             currentById.TryGetValue(item.ObjectId, out var child)
             && child.Placement.Mode == item.Placement.Mode
+            && child.StructuralPartRelativeRenderOrder == item.StructuralPartRelativeRenderOrder
             && AreNearlyEqualNullable(child.Placement.ParentRelativeOffsetX, item.Placement.ParentRelativeOffsetX)
             && AreNearlyEqualNullable(child.Placement.ParentRelativeOffsetY, item.Placement.ParentRelativeOffsetY)
             && AreNearlyEqualNullable(child.Placement.RoomCoordinateX, item.Placement.RoomCoordinateX)
@@ -13714,6 +13774,13 @@ public sealed partial class MainWindowViewModel
             if (childrenById.TryGetValue(item.ObjectId, out var child) && child.IsPartOfParent)
             {
                 child.Placement = CloneStructuralPartPlacement(item.Placement);
+                if (parent.LinkedBaseObjectId is null && child.LinkedBaseObjectId is null)
+                {
+                    child.StructuralPartRelativeRenderOrder = child.Placement.Mode == StructuralPartPlacementKind.ParentRelative
+                    && item.StructuralPartRelativeRenderOrder is not 0
+                    ? item.StructuralPartRelativeRenderOrder
+                    : null;
+                }
             }
         }
     }
@@ -15888,15 +15955,18 @@ public sealed partial class MainWindowViewModel
             choices.Add(new GamePropertyChoiceItem
             {
                 Value = $"{source.OwnerId:N}:{property.Name}",
-                OwnerId = source.OwnerId,
-                PropertyName = property.Name,
                 ScopePath = source.ScopePath,
                 OwnerVariable = $"{source.OwnerName}.{property.Name}",
                 Scope = source.Scope,
                 ValueRestriction = property.ValueRestriction,
                 Priority = choices.Count,
                 Relation = GetRelation(ownerNode),
-                EligibleAnchors = source.EligibleAnchors
+                EligibleAnchors = source.EligibleAnchors,
+                OwnerId = source.OwnerId,
+                PropertyName = property.Name,
+                IsEngineProperty = source.IsEngineProperty,
+                CanWrite = source.CanWrite,
+                Documentation = source.Documentation
             });
         }
 

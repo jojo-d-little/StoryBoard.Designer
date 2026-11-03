@@ -13,6 +13,7 @@ public sealed class Room : ScopeNodeBase, INotifyPropertyChanged
     private int _roomImageCanvasWidth = 800;
     private int _roomImageCanvasHeight = 600;
     private List<RoomSpawnPoint> _spawnPoints = new();
+    private Guid? _preRoomEntryActionId;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -120,6 +121,18 @@ public sealed class Room : ScopeNodeBase, INotifyPropertyChanged
     }
 
     public RoomAmbientLighting? AmbientLighting { get; set; }
+
+    /// <summary>Action invoked while this room is the destination and the source room is still current.</summary>
+    public Guid? PreRoomEntryActionId
+    {
+        get => _preRoomEntryActionId;
+        set
+        {
+            if (_preRoomEntryActionId == value) return;
+            _preRoomEntryActionId = value;
+            OnPropertyChanged();
+        }
+    }
 
     /// <summary>Authored player arrival points. A room may have no default spawn point.</summary>
     public List<RoomSpawnPoint> SpawnPoints

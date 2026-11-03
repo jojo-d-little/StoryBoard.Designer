@@ -21,7 +21,8 @@ public class JsonExportServiceRuntimeExportTests
         try
         {
             var projectFilePath = Path.Combine(tempRoot, "CleanContract.sbe.json");
-            var room = new Room { Name = "Room One" };
+            var preRoomEntryActionId = Guid.NewGuid();
+            var room = new Room { Name = "Room One", PreRoomEntryActionId = preRoomEntryActionId };
             var area = new Area
             {
                 Name = "Area One",
@@ -80,6 +81,7 @@ public class JsonExportServiceRuntimeExportTests
             using var roomDoc = JsonDocument.Parse(File.ReadAllText(cleanRoomPath, Encoding.UTF8));
             Assert.False(roomDoc.RootElement.TryGetProperty("schemaVersion", out _));
             Assert.Equal("Room One", roomDoc.RootElement.GetProperty("name").GetString());
+            Assert.Equal(preRoomEntryActionId, roomDoc.RootElement.GetProperty("preRoomEntryActionId").GetGuid());
         }
         finally
         {

@@ -88,6 +88,100 @@ public sealed class ActionIntegrityRulesTests
     }
 
     [Fact]
+    public void LinkedActionMissingTargetRule_AllowsTargetInheritedFromPlacedRoomObject()
+    {
+        var elevatorTarget = new CommandAction { Name = "SetupForBelow", ActionType = CommandActionType.LinkedActions };
+        var elevatorTemplate = new GameObject
+        {
+            ObjectId = Guid.NewGuid(),
+            Name = "Elevator",
+            AvailableActions = [elevatorTarget]
+        };
+        var elevatorInstance = new GameObject
+        {
+            ObjectId = Guid.NewGuid(),
+            Name = "Elevator",
+            LinkedBaseObjectId = elevatorTemplate.ObjectId,
+            LinkActionsToBaseObject = true
+        };
+        var roomSetup = new CommandAction
+        {
+            Name = "RoomSetup",
+            ActionType = CommandActionType.LinkedActions,
+            LinkedFlowDefinition = new LinkedActionFlowDefinition
+            {
+                EntryNodeId = 1,
+                Nodes = [new LinkedActionFlowNode { NodeId = 1, ActionId = elevatorTarget.Id, TargetObjectId = elevatorInstance.ObjectId }]
+            }
+        };
+        var room = new Room
+        {
+            Name = "ElevatorFoyer",
+            GameObjects = [elevatorInstance],
+            AvailableActions = new ObservableCollection<CommandAction> { roomSetup }
+        };
+        var area = new Area { Name = "Area", Rooms = [room], BaseObjects = [elevatorTemplate] };
+        var country = new Country { Name = "Country", Areas = [area] };
+        var planet = new Planet { Name = "Planet", Countries = [country] };
+        var project = new ProjectModel { Planets = [planet] };
+        ScopeHierarchy.AttachParents(project);
+
+        var context = ValidationRuleTestContext.Create(project) with
+        {
+            CandidateNode = new ValidationActionCandidateNode(roomSetup, room, "Project / Room")
+        };
+
+        Assert.Empty(new LinkedActionMissingTargetRule().Evaluate(context));
+    }
+
+    [Fact]
+    public void LinkedActionMissingTargetRule_DescribesLookupAndProjectWideDefinitionLocation()
+    {
+        var elevatorTarget = new CommandAction { Name = "SetupForBelow", ActionType = CommandActionType.LinkedActions };
+        var elevatorTemplate = new GameObject
+        {
+            ObjectId = Guid.NewGuid(),
+            Name = "Elevator",
+            AvailableActions = [elevatorTarget]
+        };
+        var wrongTargetObject = new GameObject { ObjectId = Guid.NewGuid(), Name = "Bell" };
+        var roomSetup = new CommandAction
+        {
+            Name = "RoomSetup",
+            ActionType = CommandActionType.LinkedActions,
+            LinkedFlowDefinition = new LinkedActionFlowDefinition
+            {
+                EntryNodeId = 1,
+                Nodes = [new LinkedActionFlowNode { NodeId = 1, ActionId = elevatorTarget.Id, TargetObjectId = wrongTargetObject.ObjectId }]
+            }
+        };
+        var room = new Room
+        {
+            Name = "ElevatorFoyer",
+            GameObjects = [wrongTargetObject],
+            AvailableActions = new ObservableCollection<CommandAction> { roomSetup }
+        };
+        var area = new Area { Name = "Birmingham", Rooms = [room], BaseObjects = [elevatorTemplate] };
+        var country = new Country { Name = "England", Areas = [area] };
+        var planet = new Planet { Name = "Earth", Countries = [country] };
+        var project = new ProjectModel { Planets = [planet] };
+        ScopeHierarchy.AttachParents(project);
+        var context = ValidationRuleTestContext.Create(project) with
+        {
+            CandidateNode = new ValidationActionCandidateNode(roomSetup, room, "Earth / England / Birmingham / ElevatorFoyer")
+        };
+
+        var issue = Assert.Single(new LinkedActionMissingTargetRule().Evaluate(context));
+
+        Assert.Contains($"TargetObjectId '{wrongTargetObject.ObjectId}'", issue.Description, StringComparison.Ordinal);
+        Assert.Contains("object 'Bell'", issue.Description, StringComparison.Ordinal);
+        Assert.Contains("Available action(s): (none)", issue.Description, StringComparison.Ordinal);
+        Assert.Contains("Object:Elevator", issue.Description, StringComparison.Ordinal);
+        Assert.Contains("Action:SetupForBelow", issue.Description, StringComparison.Ordinal);
+        Assert.Contains(elevatorTarget.Id.ToString(), issue.Description, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void LinkedFlowTargetsSynonymRule_ReportsIssue_WhenLinkedFlowTargetsSynonym()
     {
         var source = new CommandAction

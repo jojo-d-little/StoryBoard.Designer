@@ -25,6 +25,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="150" />
@@ -152,7 +153,19 @@
                  VerticalScrollBarVisibility="Auto"
                  TextWrapping="Wrap" />
 
-        <StackPanel Grid.Row="14" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+        <TextBlock Grid.Row="14" Grid.Column="0" Margin="0,0,8,8" VerticalAlignment="Top" Text="Pre-room entry action"
+                   ToolTip="Runs after a traversal route is validated but before this destination room becomes current or is first projected." />
+        <StackPanel Grid.Row="14" Grid.Column="1" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="PreRoomEntryActionTextBlock" VerticalAlignment="Center" Foreground="#4B5563" Text="None selected" />
+                <Button Margin="10,0,6,0" Padding="8,3" Content="Choose..." Click="ChoosePreRoomEntryAction_OnClick" />
+                <Button Padding="8,3" Content="Clear" Click="ClearPreRoomEntryAction_OnClick" />
+            </StackPanel>
+            <TextBlock Margin="0,5,0,0" Foreground="#6B7280" TextWrapping="Wrap"
+                       Text="The hook runs with the source room as currentRoom. Use destination and transition context to target this room." />
+        </StackPanel>
+
+        <StackPanel Grid.Row="15" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
             <Button Width="100" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
             <Button Width="100" Content="Cancel" Click="Cancel_OnClick" />
         </StackPanel>

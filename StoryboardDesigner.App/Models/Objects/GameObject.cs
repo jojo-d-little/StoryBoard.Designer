@@ -412,6 +412,12 @@ public sealed class GameObject : ScopeNodeBase, INotifyPropertyChanged
     public ParticleEffectAttachment? ParticleEffect { get; set; }
     public bool IsPartOfParent { get; set; }
     /// <summary>
+    /// Optional authored front-to-back rank relative to this object's parent image.
+    /// Null preserves the Engine's legacy structural-part ordering; zero is reserved
+    /// for the parent placeholder and is never valid for a child.
+    /// </summary>
+    public int? StructuralPartRelativeRenderOrder { get; set; }
+    /// <summary>
     /// Gets or sets the complete set of installed catalog cue categories this direct structural child inherits from its parent.
     /// A null value preserves the contract's catalog-default behavior; an empty list explicitly inherits no categories.
     /// </summary>

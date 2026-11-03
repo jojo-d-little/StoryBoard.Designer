@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Reflection;
 using System.Threading;
+using System.Windows;
 using System.Windows.Controls;
 using Storyboard.Shared.DesignerContracts;
 using Storyboard.Shared.RuntimeContracts.Enums;
@@ -16,6 +17,70 @@ namespace StoryboardDesigner.App.Tests;
 [Collection("WPF STA")]
 public sealed class BaseActionDesignerSupportTests
 {
+    [Fact]
+    public void CaptureObjectSetEditor_ShowsPlacedObjectAndSetKeyFields()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var placed = new GameObject { Name = "Elevator" };
+                var action = new CommandAction
+                {
+                    Name = "Capture riders",
+                    ActionType = CommandActionType.CaptureObjectsOnObjectFootprint,
+                    Payload = new CaptureObjectsOnObjectFootprintPayload(string.Empty, null)
+                };
+                var choices = new List<MaterializeSourceObjectChoiceItem>
+                {
+                    new() { ObjectId = placed.ObjectId, SourceObject = placed, DisplayName = placed.Name, SourceCategory = "Current Room" }
+                };
+                var dialog = new RoomActionEditorDialog(
+                    action,
+                    PropertyResolutionScope.Room,
+                    new GamePropertyPickerContext(new ProjectModel(), placed, PropertyResolutionScope.Room, _ => []),
+                    [], choices, []);
+
+                Assert.Equal(Visibility.Visible, ((Border)dialog.FindName("ActionSpecificEditorBorder")!).Visibility);
+                Assert.Equal(Visibility.Visible, ((Grid)dialog.FindName("CaptureObjectSetEditorPanel")!).Visibility);
+                Assert.True(GetDialogField(dialog, "CaptureObjectSetKeyTextBox") is not null, "Set Key input must be present.");
+                Assert.True(GetDialogField(dialog, "CaptureObjectSetTargetTextBox") is not null, "Placed Object display must be present.");
+                Assert.True(GetDialogField(dialog, "CaptureObjectSetTargetButton") is not null, "Placed Object picker button must be present.");
+
+                ((TextBox)GetDialogField(dialog, "CaptureObjectSetKeyTextBox")!).Text = "liftOccupants";
+                typeof(RoomActionEditorDialog)
+                    .GetField("_captureObjectSetTargetId", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(dialog, placed.ObjectId);
+                typeof(RoomActionEditorDialog)
+                    .GetMethod("TryApplyObjectSetPayloadInputs", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .Invoke(dialog, null);
+
+                var workingCopy = (CommandAction)typeof(RoomActionEditorDialog)
+                    .GetField("_workingCopy", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .GetValue(dialog)!;
+                var payload = Assert.IsType<CaptureObjectsOnObjectFootprintPayload>(workingCopy.Payload);
+                Assert.Equal("liftOccupants", payload.ObjectSetKey);
+                Assert.Equal(placed.ObjectId, payload.TargetObjectId);
+                dialog.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        StaTestThreadRunner.StartAndWait(thread, nameof(CaptureObjectSetEditor_ShowsPlacedObjectAndSetKeyFields));
+        if (failure is not null) throw failure;
+    }
+
+    private static object? GetDialogField(RoomActionEditorDialog dialog, string fieldName)
+    {
+        return typeof(RoomActionEditorDialog)
+            .GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+            ?.GetValue(dialog);
+    }
+
     [Fact]
     public void CueChoices_PreserveSavedAbsoluteTargetAndOfferExplicitLocalAndClearChoices()
     {
@@ -119,6 +184,185 @@ public sealed class BaseActionDesignerSupportTests
             }
         });
         StaTestThreadRunner.StartAndWait(thread, nameof(CueDialog_LoadNoOpAndExplicitSelections_PreserveIntendedId));
+        if (failure is not null) throw failure;
+    }
+
+    [Fact]
+    public void CueDialog_SwitchingBetweenSingleAndSetTargetsKeepsPayloadAndExportsExclusive()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var objectId = Guid.NewGuid();
+                var gameObject = new GameObject { ObjectId = objectId, Name = "Elevator" };
+                var action = new CommandAction
+                {
+                    Name = "Show occupants",
+                    ActionType = CommandActionType.AddObjectPresentationCue,
+                    ObjectPresentationCueObjectId = objectId,
+                    ObjectPresentationCueEffectKey = new PresentationEffectsCatalogService().GetObjectCueEligibleEffectKeys().First(),
+                    Payload = new AddObjectPresentationCuePayload(objectId, "appearance.selection.outline.cyan")
+                };
+                var choices = new List<MaterializeSourceObjectChoiceItem>
+                {
+                    new() { ObjectId = objectId, SourceObject = gameObject, DisplayName = gameObject.Name, SourceCategory = "Current Room" }
+                };
+                var captureAction = new CommandAction
+                {
+                    Name = "Capture riders",
+                    ActionType = CommandActionType.CaptureObjectsOnObjectFootprint,
+                    Payload = new CaptureObjectsOnObjectFootprintPayload("liftOccupants", objectId)
+                };
+                var dialog = new RoomActionEditorDialog(
+                    action,
+                    PropertyResolutionScope.Object,
+                    new GamePropertyPickerContext(new ProjectModel(), gameObject, PropertyResolutionScope.Object, _ => []),
+                    [],
+                    choices,
+                    [],
+                    defaultCurrentObjectId: objectId,
+                    availableActions: [captureAction]);
+                dialog.Loaded += (_, _) =>
+                {
+                    try
+                    {
+                        var setMode = (CheckBox)dialog.FindName("ObjectPresentationCueSetModeCheckBox")!;
+                        setMode.IsChecked = true;
+                        typeof(RoomActionEditorDialog)
+                            .GetMethod("ObjectPresentationCueSetMode_OnClick", BindingFlags.Instance | BindingFlags.NonPublic)!
+                            .Invoke(dialog, [setMode, new System.Windows.RoutedEventArgs()]);
+                        var setKeyPicker = (ComboBox)dialog.FindName("ObjectPresentationCueSetKeyComboBox")!;
+                        Assert.Contains("liftOccupants", (IReadOnlyList<string>)setKeyPicker.ItemsSource!);
+                        setKeyPicker.SelectedItem = "liftOccupants";
+                        typeof(RoomActionEditorDialog)
+                            .GetMethod("TryApplyObjectSetPayloadInputs", BindingFlags.Instance | BindingFlags.NonPublic)!
+                            .Invoke(dialog, null);
+                        var workingCopy = (CommandAction)typeof(RoomActionEditorDialog)
+                            .GetField("_workingCopy", BindingFlags.Instance | BindingFlags.NonPublic)!
+                            .GetValue(dialog)!;
+                        Assert.Null(workingCopy.ObjectPresentationCueObjectId);
+                        Assert.Equal("liftOccupants", Assert.IsType<AddObjectPresentationCuePayload>(workingCopy.Payload).ObjectSetReference!.ObjectSetKey);
+
+                        setMode.IsChecked = false;
+                        typeof(RoomActionEditorDialog)
+                            .GetMethod("ObjectPresentationCueSetMode_OnClick", BindingFlags.Instance | BindingFlags.NonPublic)!
+                            .Invoke(dialog, [setMode, new System.Windows.RoutedEventArgs()]);
+                        ((ComboBox)dialog.FindName("ObjectPresentationCueObjectIdComboBox")!).SelectedValue = objectId;
+                        typeof(RoomActionEditorDialog)
+                            .GetMethod("TryApplyObjectSetPayloadInputs", BindingFlags.Instance | BindingFlags.NonPublic)!
+                            .Invoke(dialog, null);
+                        Assert.Equal(objectId, workingCopy.ObjectPresentationCueObjectId);
+                        Assert.Null(Assert.IsType<AddObjectPresentationCuePayload>(workingCopy.Payload).ObjectSetReference);
+                        typeof(RoomActionEditorDialog)
+                            .GetMethod("Save_OnClick", BindingFlags.Instance | BindingFlags.NonPublic)!
+                            .Invoke(dialog, [dialog, new System.Windows.RoutedEventArgs()]);
+                    }
+                    finally
+                    {
+                        if (dialog.IsVisible)
+                        {
+                            dialog.Close();
+                        }
+                    }
+                };
+
+                Assert.True(dialog.ShowDialog());
+                Assert.Equal(objectId, action.ObjectPresentationCueObjectId);
+                var payload = Assert.IsType<AddObjectPresentationCuePayload>(action.Payload);
+                Assert.Null(payload.ObjectSetReference);
+                var dto = JsonExportService.ToCommandActionDtoForSequence(action, []);
+                var exported = Assert.IsType<ProjectAddObjectPresentationCueActionPayloadDto>(dto.Payload);
+                Assert.Equal(objectId, exported.ObjectId);
+                Assert.Null(exported.ObjectSetReference);
+
+                var project = new ProjectModel { Name = "Cue Target Switch" };
+                project.GlobalScope.GameObjects.Add(gameObject);
+                project.GlobalScope.AvailableActions.Add(action);
+                var tempRoot = CreateTempRoot();
+                try
+                {
+                    var projectPath = Path.Combine(tempRoot, "CueTargetSwitch.sbe.json");
+                    var service = new JsonExportService();
+                    service.SaveProjectModel(projectPath, project);
+                    var runtimePath = service.ExportCleanProjectV1(projectPath, project);
+                    using var runtime = JsonDocument.Parse(File.ReadAllText(runtimePath));
+                    var runtimeCue = runtime.RootElement.GetProperty("availableGameActions").EnumerateArray()
+                        .Single(item => item.GetProperty("name").GetString() == "Show occupants")
+                        .GetProperty("payload");
+                    Assert.Equal(objectId, runtimeCue.GetProperty("objectId").GetGuid());
+                    Assert.False(runtimeCue.TryGetProperty("objectSetReference", out _));
+                }
+                finally
+                {
+                    if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+        StaTestThreadRunner.StartAndWait(thread, nameof(CueDialog_SwitchingBetweenSingleAndSetTargetsKeepsPayloadAndExportsExclusive));
+        if (failure is not null) throw failure;
+    }
+
+    [Fact]
+    public void ObjectSetReferenceEditors_OfferCapturedLogicalKeyForMembershipAndNavigation()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var gameObject = new GameObject { Name = "Elevator" };
+                var captureAction = new CommandAction
+                {
+                    Name = "Capture riders",
+                    ActionType = CommandActionType.CaptureObjectsOnObjectFootprint,
+                    Payload = new CaptureObjectsOnObjectFootprintPayload("liftOccupants", gameObject.ObjectId)
+                };
+                var project = new ProjectModel();
+                foreach (var (action, pickerName) in new[]
+                {
+                    (new CommandAction { Name = "Check riders", ActionType = CommandActionType.CheckObjectSetContainsObject,
+                        Payload = new CheckObjectSetContainsObjectPayload("liftOccupants", "CurrentPlayer") }, "CheckObjectSetKeyComboBox"),
+                    (new CommandAction { Name = "Ride riders", ActionType = CommandActionType.NavigateObjectSetToAdjacent,
+                        Payload = new NavigateObjectSetToAdjacentPayload("liftOccupants", "North") }, "NavigateObjectSetKeyComboBox")
+                })
+                {
+                    var dialog = new RoomActionEditorDialog(
+                        action,
+                        PropertyResolutionScope.Object,
+                        new GamePropertyPickerContext(project, gameObject, PropertyResolutionScope.Object, _ => []),
+                        [],
+                        [],
+                        [],
+                        availableActions: [captureAction]);
+                    dialog.Loaded += (_, _) =>
+                    {
+                        try
+                        {
+                            var picker = (ComboBox)dialog.FindName(pickerName)!;
+                            Assert.Contains("liftOccupants", (IReadOnlyList<string>)picker.ItemsSource!);
+                            picker.SelectedItem = "liftOccupants";
+                            Assert.Equal("liftOccupants", picker.Text);
+                        }
+                        finally
+                        {
+                            if (dialog.IsVisible) dialog.Close();
+                        }
+                    };
+                    Assert.False(dialog.ShowDialog());
+                }
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+        StaTestThreadRunner.StartAndWait(thread, nameof(ObjectSetReferenceEditors_OfferCapturedLogicalKeyForMembershipAndNavigation));
         if (failure is not null) throw failure;
     }
 
@@ -451,4 +695,11 @@ public sealed class BaseActionDesignerSupportTests
         ObjectPresentationCueObjectId = targetId,
         ObjectPresentationCueEffectKey = "scale.grow.medium"
     };
+
+    private static string CreateTempRoot()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(path);
+        return path;
+    }
 }

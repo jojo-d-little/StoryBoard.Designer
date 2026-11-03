@@ -17,4 +17,6 @@ public sealed record RoomSettingsEditRequest(
     List<EnvironmentalEffectDefinition>? EnvironmentalEffects = null,
     Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?>? EnvironmentalEffectComputationEditor = null,
     IReadOnlyList<SharedVariableChoiceOption>? EnvironmentalEffectSharedVariableOptions = null,
-    GamePropertyPickerContext? EnvironmentalEffectVariablePickerContext = null);
+    GamePropertyPickerContext? EnvironmentalEffectVariablePickerContext = null,
+    Guid? PreRoomEntryActionId = null,
+    IReadOnlyList<CommandAction>? RoomActions = null);

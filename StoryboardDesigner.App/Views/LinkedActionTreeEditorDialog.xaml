@@ -56,6 +56,7 @@
         <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Vertical">
             <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Actions" />
             <Button x:Name="AddExistingButton" Margin="0,0,0,8" Content="Add Existing" ToolTip="Attach an existing game action to the selected branch." Click="AddExisting_OnClick" />
+            <Button x:Name="AddForPlacedObjectButton" Margin="0,0,0,8" Content="Add for Placed Object…" ToolTip="Choose a placed room object first, then browse actions available on that object." Click="AddForPlacedObject_OnClick" />
             <Button x:Name="AddNewButton" Margin="0,0,0,8" Content="Add New" ToolTip="Create and attach a new game action to the selected branch." Click="AddNew_OnClick" />
             <Button x:Name="EditActionButton" Margin="0,0,0,8" Content="Edit Action" ToolTip="Open the selected action in the full action editor." Click="EditAction_OnClick" />
             <Button x:Name="RemoveLinkButton" Margin="0,0,0,14" Content="Remove Link" ToolTip="Remove the selected link from this flow tree." Click="RemoveLink_OnClick" />

@@ -46,4 +46,7 @@ public sealed class GamePropertyChoiceItem
     public Guid? OwnerId { get; init; }
     public string? PropertyName { get; init; }
     public IReadOnlyList<string> EligibleAnchors { get; init; } = Array.Empty<string>();
+    public bool IsEngineProperty { get; init; }
+    public bool CanWrite { get; init; } = true;
+    public string? Documentation { get; init; }
 }

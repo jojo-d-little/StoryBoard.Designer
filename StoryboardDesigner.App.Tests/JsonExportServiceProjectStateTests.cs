@@ -12,6 +12,64 @@ namespace StoryboardDesigner.App.Tests;
 public class JsonExportServiceProjectStateTests
 {
     [Fact]
+    public void SaveProjectModel_RoundTripsRoomPreRoomEntryActionReference()
+    {
+        var service = new JsonExportService();
+        var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+
+        try
+        {
+            var action = new CommandAction
+            {
+                Id = Guid.NewGuid(),
+                Name = "Prepare arrival",
+                ActionType = Storyboard.Shared.RuntimeContracts.Enums.CommandActionType.LinkedActions
+            };
+            var room = new Room
+            {
+                Name = "Destination",
+                PreRoomEntryActionId = action.Id,
+                AvailableActions = new System.Collections.ObjectModel.ObservableCollection<CommandAction> { action }
+            };
+            var project = new ProjectModel
+            {
+                Name = "PreRoomEntryRoundTrip",
+                Planets =
+                [
+                    new Planet
+                    {
+                        Name = "Planet",
+                        Countries =
+                        [
+                            new Country
+                            {
+                                Name = "Country",
+                                Areas = [new Area { Name = "Area", Rooms = [room] }]
+                            }
+                        ]
+                    }
+                ]
+            };
+            var projectFilePath = Path.Combine(tempRoot, "PreRoomEntryRoundTrip.sbe.json");
+
+            service.SaveProjectModel(projectFilePath, project);
+
+            var loaded = service.TryLoadProjectModel(projectFilePath);
+            Assert.NotNull(loaded);
+            var loadedRoom = Assert.Single(loaded!.Planets.SelectMany(planet => planet.Countries)
+                .SelectMany(country => country.Areas).SelectMany(area => area.Rooms));
+            Assert.Equal(action.Id, loadedRoom.PreRoomEntryActionId);
+            var roomSidecarPath = Assert.Single(Directory.GetFiles(tempRoot, "*.room.json", SearchOption.AllDirectories));
+            Assert.Contains("\"preRoomEntryActionId\"", File.ReadAllText(roomSidecarPath), StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
     public void SaveProjectModel_WritesUiStateToStateSidecar_AndOmitsUiStateFromProjectFile()
     {
         var service = new JsonExportService();

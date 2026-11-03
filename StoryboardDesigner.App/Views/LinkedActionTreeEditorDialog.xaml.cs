@@ -33,7 +33,7 @@ public partial class LinkedActionTreeEditorDialog : Window
     private readonly string _scopeLabel;
     private readonly CommandAction _rootAction;
     private readonly IList<CommandAction> _editableActions;
-    private readonly IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)> _externalActionChoices;
+    private readonly IReadOnlyList<LinkedActionTargetChoice> _externalActionChoices;
     private readonly IReadOnlyList<CommandAction> _externalActions;
     private readonly PropertyResolutionScope _variableScope;
     private readonly GamePropertyPickerContext _pickerContext;
@@ -59,7 +59,7 @@ public partial class LinkedActionTreeEditorDialog : Window
         CommandAction rootAction,
         IList<CommandAction> editableActions,
         GamePropertyPickerContext pickerContext,
-        IReadOnlyList<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)>? externalActions = null,
+        IReadOnlyList<LinkedActionTargetChoice>? externalActions = null,
         PropertyResolutionScope variableScope = PropertyResolutionScope.Room,
         IReadOnlyList<ContainerTargetChoiceItem>? containerTargetChoices = null,
         IReadOnlyList<MaterializeSourceObjectChoiceItem>? materializeSourceObjectChoices = null,
@@ -75,7 +75,7 @@ public partial class LinkedActionTreeEditorDialog : Window
         _scopeLabel = scopeLabel;
         _rootAction = rootAction;
         _editableActions = editableActions;
-        _externalActionChoices = externalActions ?? Array.Empty<(CommandAction Action, string ScopeName, LinkedActionTargetGroup Group)>();
+        _externalActionChoices = externalActions ?? Array.Empty<LinkedActionTargetChoice>();
         _externalActions = _externalActionChoices.Select(static choice => choice.Action).ToList();
         _variableScope = variableScope;
         _pickerContext = pickerContext;
@@ -133,7 +133,7 @@ public partial class LinkedActionTreeEditorDialog : Window
         var node = new TreeNode
         {
             Kind = NodeKind.LinkedAction,
-            Title = action is null ? $"-> missing action ({flowNode?.ActionId:N})" : $"-> {action.Name} ({action.ActionType})",
+            Title = action is null ? $"-> missing action ({flowNode?.ActionId:N})" : $"-> {action.Name} ({action.ActionType}){GetTargetObjectLabel(flowNode?.TargetObjectId)}",
             Action = action,
             ParentAction = parentFlowNodeId is null ? _rootAction : TryGetAction(_rootAction.LinkedFlowDefinition.Nodes.FirstOrDefault(candidate => candidate.NodeId == parentFlowNodeId.Value)?.ActionId ?? Guid.Empty),
             Link = parentFlowNodeId is null
@@ -211,6 +211,8 @@ public partial class LinkedActionTreeEditorDialog : Window
         var definition = _rootAction.LinkedFlowDefinition;
         AddExistingButton.IsEnabled = node?.Kind == NodeKind.Branch
             && (!node.IsEntryLink || !definition.EntryNodeId.HasValue);
+        AddForPlacedObjectButton.IsEnabled = AddExistingButton.IsEnabled
+            && _materializeSourceObjectChoices.Any(static choice => string.Equals(choice.SourceCategory, "Current Room", StringComparison.OrdinalIgnoreCase));
         AddNewButton.IsEnabled = AddExistingButton.IsEnabled;
         EditActionButton.IsEnabled = ResolveSelectedEditableLinkedAction(node) is not null;
         RemoveLinkButton.IsEnabled = node?.Kind == NodeKind.LinkedAction && (node.IsEntryLink || node.Link is not null);
@@ -421,11 +423,11 @@ public partial class LinkedActionTreeEditorDialog : Window
         }
 
         var candidates = _editableActions
-            .Select(action => (Action: action, ScopeName: _scopeLabel, Group: LinkedActionTargetGroup.CurrentScope))
+            .Select(action => new LinkedActionTargetChoice(action, _scopeLabel, LinkedActionTargetGroup.CurrentScope))
             .Concat(_externalActionChoices)
             .Where(candidate => candidate.Action.Id != branchNode.ParentAction.Id)
             .Where(static candidate => candidate.Action.ActionType != CommandActionType.Synonym)
-            .GroupBy(static candidate => candidate.Action.Id)
+            .GroupBy(static candidate => (candidate.Action.Id, candidate.TargetObjectId))
             .Select(static group => group.First())
             .OrderBy(candidate => candidate.Action.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(candidate => candidate.Action.Id)
@@ -446,7 +448,63 @@ public partial class LinkedActionTreeEditorDialog : Window
             return;
         }
 
-        AddLink(branchNode, picker.SelectedAction.Id, reuseExistingFlowNode: true);
+        AddLink(branchNode, picker.SelectedAction.Id, reuseExistingFlowNode: true, targetObjectId: picker.SelectedTargetObjectId);
+    }
+
+    private void AddForPlacedObject_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (FlowTree.SelectedItem is not TreeNode branchNode
+            || branchNode.Kind != NodeKind.Branch
+            || branchNode.ParentAction is null
+            || branchNode.RunWhen is null)
+        {
+            return;
+        }
+
+        var placedObjects = _materializeSourceObjectChoices
+            .Where(static choice => string.Equals(choice.SourceCategory, "Current Room", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (placedObjects.Count == 0)
+        {
+            System.Windows.MessageBox.Show(this, "No placed room objects are available for explicit linked-action targeting.", "Linked Actions", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var objectPicker = new SelectGameObjectDialog(
+            placedObjects,
+            null,
+            new SelectGameObjectDialog.Options(
+                DefaultScopeSearchType: GameObjectOptionSourceTarget.RealObjects,
+                DefaultScopeSearchDepth: ScopeSearchDepth.Project,
+                DefaultRequiredFeatures: GameObjectFeatureRequirements.None,
+                DefaultExcludeCurrentObject: false)) { Owner = this };
+        if (objectPicker.ShowDialog() != true || !objectPicker.SelectedObjectId.HasValue)
+        {
+            return;
+        }
+
+        var selectedObject = placedObjects.FirstOrDefault(choice => choice.ObjectId == objectPicker.SelectedObjectId.Value);
+        if (selectedObject is null)
+        {
+            return;
+        }
+
+        var candidates = _externalActionChoices
+            .Where(candidate => string.Equals(candidate.ScopeName, GetScopeDisplayPath(selectedObject.SourceObject), StringComparison.OrdinalIgnoreCase))
+            .Where(candidate => candidate.TargetObjectId == selectedObject.ObjectId)
+            .Where(candidate => candidate.Action.Id != branchNode.ParentAction.Id && candidate.Action.ActionType != CommandActionType.Synonym)
+            .ToList();
+        if (candidates.Count == 0)
+        {
+            System.Windows.MessageBox.Show(this, $"No linked actions are available on {selectedObject.DisplayName}.", "Linked Actions", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var actionPicker = new SelectLinkedActionDialog(candidates) { Owner = this };
+        if (actionPicker.ShowDialog() == true && actionPicker.SelectedAction is not null)
+        {
+            AddLink(branchNode, actionPicker.SelectedAction.Id, reuseExistingFlowNode: true, selectedObject.ObjectId);
+        }
     }
 
     private void AddNew_OnClick(object sender, RoutedEventArgs e)
@@ -495,7 +553,7 @@ public partial class LinkedActionTreeEditorDialog : Window
         AddLink(branchNode, created.Id, reuseExistingFlowNode: false);
     }
 
-    private void AddLink(TreeNode branchNode, Guid actionId, bool reuseExistingFlowNode)
+    private void AddLink(TreeNode branchNode, Guid actionId, bool reuseExistingFlowNode, Guid? targetObjectId = null)
     {
         if (branchNode.ParentAction?.Id == actionId)
         {
@@ -505,7 +563,7 @@ public partial class LinkedActionTreeEditorDialog : Window
 
         var definition = _rootAction.LinkedFlowDefinition;
         var existingNode = reuseExistingFlowNode
-            ? definition.Nodes.FirstOrDefault(node => node.ActionId == actionId)
+            ? definition.Nodes.FirstOrDefault(node => node.ActionId == actionId && node.TargetObjectId == targetObjectId)
             : null;
         var nodeId = existingNode?.NodeId
             ?? definition.Nodes.Select(static node => node.NodeId).DefaultIfEmpty(0).Max() + 1;
@@ -514,7 +572,8 @@ public partial class LinkedActionTreeEditorDialog : Window
             definition.Nodes.Add(new LinkedActionFlowNode
             {
                 NodeId = nodeId,
-                ActionId = actionId
+                ActionId = actionId,
+                TargetObjectId = targetObjectId
             });
         }
 
@@ -568,6 +627,20 @@ public partial class LinkedActionTreeEditorDialog : Window
         RebuildTree();
     }
 
+    private string GetTargetObjectLabel(Guid? objectId)
+    {
+        if (!objectId.HasValue) return string.Empty;
+        var choice = _materializeSourceObjectChoices.FirstOrDefault(item => item.ObjectId == objectId.Value);
+        return choice is null ? " (placed object)" : $" @ {choice.DisplayName}";
+    }
+
+    private static string GetScopeDisplayPath(IScopedAwareNode? scope)
+    {
+        if (scope is null) return string.Empty;
+        return string.Join(" / ", scope.EnumerateSelfAndAncestors().Reverse()
+            .Select(static node => string.IsNullOrWhiteSpace(node.ScopeName) ? node.ScopeKind.ToString() : node.ScopeName));
+    }
+
     private void RemoveLink_OnClick(object sender, RoutedEventArgs e)
     {
         if (FlowTree.SelectedItem is not TreeNode selected
@@ -589,37 +662,29 @@ public partial class LinkedActionTreeEditorDialog : Window
             parentNode?.Links.Remove(selected.Link);
         }
 
-        PruneUnreachableNodes(definition);
+        ReportPrunedNodes(LinkedActionFlowReachability.PruneUnreachableNodes(definition));
         RebuildTree();
     }
 
-    private static void PruneUnreachableNodes(LinkedActionFlowDefinition definition)
+    private void ReportPrunedNodes(IReadOnlyList<LinkedActionFlowNode> removed)
     {
-        if (definition.EntryNodeId is not int entryNodeId)
+        if (removed.Count == 0)
         {
-            definition.Nodes.Clear();
             return;
         }
 
-        var nodesById = definition.Nodes.ToDictionary(static node => node.NodeId);
-        var reachable = new HashSet<int>();
-        var pending = new Stack<int>();
-        pending.Push(entryNodeId);
-        while (pending.Count > 0)
+        var details = removed.Select(node => DescribeNode(node));
+        System.Windows.MessageBox.Show(this,
+            "Disconnected Linked Action nodes were removed:\n" + string.Join("\n", details),
+            "Linked Actions", MessageBoxButton.OK, MessageBoxImage.Information);
+
+        string DescribeNode(LinkedActionFlowNode node)
         {
-            var currentId = pending.Pop();
-            if (!reachable.Add(currentId) || !nodesById.TryGetValue(currentId, out var current))
-            {
-                continue;
-            }
-
-            foreach (var link in current.Links)
-            {
-                pending.Push(link.TargetNodeId);
-            }
+            var actionName = _allActionsById.TryGetValue(node.ActionId, out var action)
+                ? action.Name
+                : node.ActionId.ToString("N");
+            return $"Node {node.NodeId}: {actionName}";
         }
-
-        definition.Nodes.RemoveAll(node => !reachable.Contains(node.NodeId));
     }
 
     private void RunConditionally_OnClick(object sender, RoutedEventArgs e)
@@ -696,6 +761,7 @@ public partial class LinkedActionTreeEditorDialog : Window
 
     private void Save_OnClick(object sender, RoutedEventArgs e)
     {
+        ReportPrunedNodes(LinkedActionFlowReachability.PruneUnreachableNodes(_rootAction.LinkedFlowDefinition));
         var errors = LinkedActionGraphValidator.Validate(_editableActions.ToList(), _scopeLabel, _externalActions);
         if (errors.Count > 0)
         {

@@ -194,6 +194,9 @@ internal static class CommandActionPayloadCoordinator
             CommandActionType.StackRoomObjectOnAnother => new StackRoomObjectOnAnotherPayload(),
             CommandActionType.AddObjectPresentationCue => new AddObjectPresentationCuePayload(null, string.Empty),
             CommandActionType.RemoveObjectPresentationCue => new RemoveObjectPresentationCuePayload(null, string.Empty),
+            CommandActionType.CaptureObjectsOnObjectFootprint => new CaptureObjectsOnObjectFootprintPayload(string.Empty, null),
+            CommandActionType.CheckObjectSetContainsObject => new CheckObjectSetContainsObjectPayload(string.Empty, "CurrentPlayer"),
+            CommandActionType.NavigateObjectSetToAdjacent => new NavigateObjectSetToAdjacentPayload(string.Empty, "Unknown"),
             CommandActionType.ClearObjectPresentationCues => new ClearObjectPresentationCuesPayload(null),
             CommandActionType.OpenObject => new EchoPayload(),
             CommandActionType.CloseObject => new EchoPayload(),
@@ -269,8 +272,11 @@ internal static class CommandActionPayloadCoordinator
                 rotate.TargetObjectId),
             StackRoomObjectOnAnotherPayload stack => new StackRoomObjectOnAnotherPayload(
                 stack.MovementEffectKey),
-            AddObjectPresentationCuePayload addCue => new AddObjectPresentationCuePayload(addCue.ObjectId, addCue.EffectKey),
-            RemoveObjectPresentationCuePayload removeCue => new RemoveObjectPresentationCuePayload(removeCue.ObjectId, removeCue.EffectKey),
+            AddObjectPresentationCuePayload addCue => new AddObjectPresentationCuePayload(addCue.ObjectId, addCue.EffectKey, CloneObjectSetReference(addCue.ObjectSetReference)),
+            RemoveObjectPresentationCuePayload removeCue => new RemoveObjectPresentationCuePayload(removeCue.ObjectId, removeCue.EffectKey, CloneObjectSetReference(removeCue.ObjectSetReference)),
+            CaptureObjectsOnObjectFootprintPayload capture => new CaptureObjectsOnObjectFootprintPayload(capture.ObjectSetKey, capture.TargetObjectId),
+            CheckObjectSetContainsObjectPayload checkSet => new CheckObjectSetContainsObjectPayload(checkSet.ObjectSetKey, checkSet.Target),
+            NavigateObjectSetToAdjacentPayload navigateSet => new NavigateObjectSetToAdjacentPayload(navigateSet.ObjectSetKey, navigateSet.Direction),
             ClearObjectPresentationCuesPayload clearCues => new ClearObjectPresentationCuesPayload(clearCues.ObjectId),
             SetActiveRoomObjectPayload setActive => new SetActiveRoomObjectPayload(
                 setActive.SelectionCueEffectKey),
@@ -320,6 +326,9 @@ internal static class CommandActionPayloadCoordinator
             _ => payload
         };
     }
+
+    private static Storyboard.Shared.DesignerContracts.ProjectObjectSetReferenceDto? CloneObjectSetReference(Storyboard.Shared.DesignerContracts.ProjectObjectSetReferenceDto? reference) =>
+        reference is null ? null : new Storyboard.Shared.DesignerContracts.ProjectObjectSetReferenceDto { ObjectSetKey = reference.ObjectSetKey };
 
     public static string GetCheckPropertyName(IActionPayload payload)
     {

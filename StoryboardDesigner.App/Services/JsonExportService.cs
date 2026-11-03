@@ -332,6 +332,7 @@ public sealed class JsonExportService : IJsonExportService
 
     public void SaveProjectModel(string projectFilePath, ProjectModel project)
     {
+        SynchronizeLinkedStructuralPartSettings(project);
         EnsureAreaSpawnPoints(project);
         ValidateTraversalOrThrow(project, "save");
         SharedVariableReconciliationService.ReconcileInPlace(project);
@@ -601,6 +602,7 @@ public sealed class JsonExportService : IJsonExportService
                 RoomImageCanvasHeight = ResolveEffectiveRoomCanvasHeight(project, room),
                 AmbientLighting = LightingContractMapper.ToProjectRoomAmbientLightingDto(room.AmbientLighting),
                 SpawnPoints = ToRoomSpawnPointDtos(room, includeTraversalPoints: true),
+                PreRoomEntryActionId = room.PreRoomEntryActionId,
                 EnvironmentType = room.EnvironmentType,
                 SoundLossPercentOverride = NormalizePercent(room.SoundLossPercentOverride),
                 RoomDisplayMode = room.RoomDisplayMode,
@@ -1148,6 +1150,7 @@ public sealed class JsonExportService : IJsonExportService
             NormalizeDefinitionCatalogObjectLinkMetadata(loadedProject);
             RefreshRoomDerivedOccupancyCaches(loadedProject);
             SharedVariableReconciliationService.ReconcileInPlace(loadedProject);
+            SynchronizeLinkedStructuralPartSettings(loadedProject);
             return loadedProject;
         }
 
@@ -1412,6 +1415,7 @@ public sealed class JsonExportService : IJsonExportService
             RoomImageCanvasHeight = room.RoomImageCanvasHeight,
             AmbientLighting = LightingContractMapper.ToProjectRoomAmbientLightingDto(room.AmbientLighting),
             SpawnPoints = ToRoomSpawnPointDtos(room, includeTraversalPoints: false),
+            PreRoomEntryActionId = room.PreRoomEntryActionId,
             EnvironmentType = room.EnvironmentType,
             SoundLossPercentOverride = NormalizePercent(room.SoundLossPercentOverride),
             RoomDisplayMode = room.RoomDisplayMode,
@@ -1451,6 +1455,7 @@ public sealed class JsonExportService : IJsonExportService
 
     public string ExportCleanProjectV1(string projectFilePath, ProjectModel project)
     {
+        SynchronizeLinkedStructuralPartSettings(project);
         EnsureAreaSpawnPoints(project);
         ValidateTraversalOrThrow(project, "clean export");
         RefreshRoomDerivedOccupancyCaches(project);
@@ -2106,6 +2111,7 @@ public sealed class JsonExportService : IJsonExportService
                 ScopeNodeId = room.Id,
                 Name = room.Name,
                 NameInGame = room.NameInGame,
+                PreRoomEntryActionId = room.PreRoomEntryActionId,
                 NameSynonyms = NullIfEmpty(NormalizeNameSynonyms(room.NameSynonyms)),
                 Description = room.Description,
                 RoomImageCanvasWidth = ResolveEffectiveRoomCanvasWidth(project, room),
@@ -2983,6 +2989,9 @@ public sealed class JsonExportService : IJsonExportService
                 CommandActionType.StackRoomObjectOnAnother => BuildStackRoomObjectOnAnotherPayloadElement(stackPayload),
                 CommandActionType.AddObjectPresentationCue => BuildAddObjectPresentationCuePayloadElement(action),
                 CommandActionType.RemoveObjectPresentationCue => BuildRemoveObjectPresentationCuePayloadElement(action),
+                CommandActionType.CaptureObjectsOnObjectFootprint => BuildCaptureObjectsOnObjectFootprintPayloadElement(action),
+                CommandActionType.CheckObjectSetContainsObject => BuildCheckObjectSetContainsObjectPayloadElement(action),
+                CommandActionType.NavigateObjectSetToAdjacent => BuildNavigateObjectSetToAdjacentPayloadElement(action),
                 CommandActionType.ClearObjectPresentationCues => BuildClearObjectPresentationCuesPayloadElement(action),
                 CommandActionType.NavigateDirection => BuildNavigateDirectionPayloadElement(),
                 CommandActionType.NavigateDirectionPreFlightCheck => BuildNavigateDirectionPreFlightCheckPayloadElement(),
@@ -3182,17 +3191,31 @@ public sealed class JsonExportService : IJsonExportService
         {
             model.Payload = new AddObjectPresentationCuePayload(
                 TryGetObjectPresentationCueObjectIdFromPayload(action.Payload),
-                TryGetObjectPresentationCueEffectKeyFromPayload(action.Payload) ?? string.Empty);
+                TryGetObjectPresentationCueEffectKeyFromPayload(action.Payload) ?? string.Empty,
+                TryGetObjectPresentationCueObjectSetReferenceFromPayload(action.Payload));
         }
         else if (actionType == CommandActionType.RemoveObjectPresentationCue)
         {
             model.Payload = new RemoveObjectPresentationCuePayload(
                 TryGetObjectPresentationCueObjectIdFromPayload(action.Payload),
-                TryGetObjectPresentationCueEffectKeyFromPayload(action.Payload) ?? string.Empty);
+                TryGetObjectPresentationCueEffectKeyFromPayload(action.Payload) ?? string.Empty,
+                TryGetObjectPresentationCueObjectSetReferenceFromPayload(action.Payload));
         }
         else if (actionType == CommandActionType.ClearObjectPresentationCues)
         {
             model.Payload = new ClearObjectPresentationCuesPayload(TryGetObjectPresentationCueObjectIdFromPayload(action.Payload));
+        }
+        else if (action.Payload is ProjectCaptureObjectsOnObjectFootprintActionPayloadDto captureSet)
+        {
+            model.Payload = new CaptureObjectsOnObjectFootprintPayload(captureSet.ObjectSetReference?.ObjectSetKey ?? string.Empty, captureSet.TargetObjectId == Guid.Empty ? null : captureSet.TargetObjectId);
+        }
+        else if (action.Payload is ProjectCheckObjectSetContainsObjectActionPayloadDto checkSet)
+        {
+            model.Payload = new CheckObjectSetContainsObjectPayload(checkSet.ObjectSetReference?.ObjectSetKey ?? string.Empty, checkSet.Target ?? "CurrentPlayer");
+        }
+        else if (action.Payload is ProjectNavigateObjectSetToAdjacentActionPayloadDto navigateSet)
+        {
+            model.Payload = new NavigateObjectSetToAdjacentPayload(navigateSet.ObjectSetReference?.ObjectSetKey ?? string.Empty, navigateSet.Direction.ToString());
         }
 
         if (model.ActionType == CommandActionType.MoveRoomObjectByPoints)
@@ -4573,6 +4596,7 @@ public sealed class JsonExportService : IJsonExportService
             RoomImageCanvasWidth = roomCanvasWidth,
             RoomImageCanvasHeight = roomCanvasHeight,
             AmbientLighting = LightingContractMapper.ToRoomAmbientLightingModel(room.AmbientLighting),
+            PreRoomEntryActionId = room.PreRoomEntryActionId,
             SpawnPoints = (room.SpawnPoints ?? new List<RoomSpawnPointDto>())
                 .Select(point => new RoomSpawnPoint(
                     point.X,
@@ -4714,6 +4738,12 @@ public sealed class JsonExportService : IJsonExportService
                     Settings = ParticleEffectControlSettingCloner.CloneSettings(obj.ParticleEffect.Settings)
                 },
             IsPartOfParent = obj.IsPartOfParent,
+            StructuralPartRelativeRenderOrder = !isLinkedInstance
+                && obj.IsPartOfParent
+                && obj.Placement.Mode == StructuralPartPlacementKind.ParentRelative
+                && obj.StructuralPartRelativeRenderOrder is not 0
+                ? obj.StructuralPartRelativeRenderOrder
+                : null,
             InheritParentCueCategories = obj.InheritParentCueCategories?.ToList(),
             PartPlacementMode = obj.IsPartOfParent
                 ? Enum.Parse<Storyboard.Shared.RuntimeContracts.Enums.StructuralPartPlacementMode>(obj.Placement.Mode.ToString())
@@ -4902,6 +4932,9 @@ public sealed class JsonExportService : IJsonExportService
                     Settings = ParticleEffectControlSettingCloner.CloneSettings(obj.ParticleEffect.Settings)
                 },
             IsPartOfParent = obj.IsPartOfParent == true,
+            StructuralPartRelativeRenderOrder = obj.StructuralPartRelativeRenderOrder is 0
+                ? null
+                : obj.StructuralPartRelativeRenderOrder,
             InheritParentCueCategories = obj.InheritParentCueCategories?.ToList(),
             Placement = new StructuralPartPlacement
             {
@@ -5238,6 +5271,66 @@ public sealed class JsonExportService : IJsonExportService
         {
             yield return obj;
         }
+    }
+
+    private static void SynchronizeLinkedStructuralPartSettings(ProjectModel project)
+    {
+        var objectLookup = BuildCleanExportObjectLookup(project);
+
+        foreach (var instance in EnumerateAllProjectObjects(project))
+        {
+            if (NormalizePersistedLinkedBaseObjectId(instance) is not Guid linkedBaseObjectId
+                || !objectLookup.TryGetValue(linkedBaseObjectId, out var linkedDefinition))
+            {
+                continue;
+            }
+
+            var definition = linkedDefinition.ResolveEffectiveDefinitionOwnedSource(id =>
+                objectLookup.TryGetValue(id, out var resolved) ? resolved : null);
+            if (ReferenceEquals(definition, instance))
+            {
+                continue;
+            }
+
+            instance.IsPartOfParent = definition.IsPartOfParent;
+            instance.StructuralPartRelativeRenderOrder = definition.IsPartOfParent
+                && definition.Placement.Mode == StructuralPartPlacementKind.ParentRelative
+                && definition.StructuralPartRelativeRenderOrder is not 0
+                ? definition.StructuralPartRelativeRenderOrder
+                : null;
+            instance.InheritParentCueCategories = definition.InheritParentCueCategories?.ToList();
+
+            // Structural placement mode is definition-owned. The offsets remain on the
+            // instance when authored; legacy instances without finite offsets inherit the
+            // definition's baseline so a linked structural part remains valid.
+            instance.Placement ??= new StructuralPartPlacement();
+            instance.Placement.Mode = definition.Placement.Mode;
+            if (instance.Placement.Mode == StructuralPartPlacementKind.ParentRelative)
+            {
+                instance.Placement.ParentRelativeOffsetX = PreserveFiniteOrUseDefinition(
+                    instance.Placement.ParentRelativeOffsetX,
+                    definition.Placement.ParentRelativeOffsetX);
+                instance.Placement.ParentRelativeOffsetY = PreserveFiniteOrUseDefinition(
+                    instance.Placement.ParentRelativeOffsetY,
+                    definition.Placement.ParentRelativeOffsetY);
+            }
+            else if (instance.Placement.Mode == StructuralPartPlacementKind.RoomCoordinates)
+            {
+                instance.Placement.RoomCoordinateX = PreserveFiniteOrUseDefinition(
+                    instance.Placement.RoomCoordinateX,
+                    definition.Placement.RoomCoordinateX);
+                instance.Placement.RoomCoordinateY = PreserveFiniteOrUseDefinition(
+                    instance.Placement.RoomCoordinateY,
+                    definition.Placement.RoomCoordinateY);
+            }
+        }
+
+        static double? PreserveFiniteOrUseDefinition(double? instanceValue, double? definitionValue) =>
+            instanceValue.HasValue && double.IsFinite(instanceValue.Value)
+                ? instanceValue
+                : definitionValue.HasValue && double.IsFinite(definitionValue.Value)
+                    ? definitionValue
+                    : null;
     }
 
     private static void RefreshRoomDerivedOccupancyCaches(ProjectModel project)
@@ -6375,21 +6468,26 @@ public sealed class JsonExportService : IJsonExportService
                     OffsetYPx = effectiveDefinitionOwnedSource.ParticleEffect.OffsetYPx,
                     Settings = NullIfEmpty(effectiveDefinitionOwnedSource.ParticleEffect.Settings.Select(ToRuntimeParticleEffectControlSettingDto).ToList())
                 },
-            IsPartOfParent = obj.IsPartOfParent ? true : null,
-            InheritParentCueCategories = obj.InheritParentCueCategories?.ToList(),
-            PartPlacementMode = obj.IsPartOfParent
-                ? Enum.Parse<Storyboard.Shared.RuntimeContracts.Enums.StructuralPartPlacementMode>(obj.Placement.Mode.ToString())
+            IsPartOfParent = effectiveDefinitionOwnedSource.IsPartOfParent ? true : null,
+            StructuralPartRelativeRenderOrder = effectiveDefinitionOwnedSource.IsPartOfParent
+                && effectiveDefinitionOwnedSource.Placement.Mode == StructuralPartPlacementKind.ParentRelative
+                && effectiveDefinitionOwnedSource.StructuralPartRelativeRenderOrder is not 0
+                ? effectiveDefinitionOwnedSource.StructuralPartRelativeRenderOrder
                 : null,
-            ParentRelativeOffsetX = obj.IsPartOfParent && obj.Placement.Mode == StructuralPartPlacementKind.ParentRelative
+            InheritParentCueCategories = effectiveDefinitionOwnedSource.InheritParentCueCategories?.ToList(),
+            PartPlacementMode = effectiveDefinitionOwnedSource.IsPartOfParent
+                ? Enum.Parse<Storyboard.Shared.RuntimeContracts.Enums.StructuralPartPlacementMode>(effectiveDefinitionOwnedSource.Placement.Mode.ToString())
+                : null,
+            ParentRelativeOffsetX = effectiveDefinitionOwnedSource.IsPartOfParent && effectiveDefinitionOwnedSource.Placement.Mode == StructuralPartPlacementKind.ParentRelative
                 ? obj.Placement.ParentRelativeOffsetX
                 : null,
-            ParentRelativeOffsetY = obj.IsPartOfParent && obj.Placement.Mode == StructuralPartPlacementKind.ParentRelative
+            ParentRelativeOffsetY = effectiveDefinitionOwnedSource.IsPartOfParent && effectiveDefinitionOwnedSource.Placement.Mode == StructuralPartPlacementKind.ParentRelative
                 ? obj.Placement.ParentRelativeOffsetY
                 : null,
-            PartRoomCoordinateX = obj.IsPartOfParent && obj.Placement.Mode == StructuralPartPlacementKind.RoomCoordinates
+            PartRoomCoordinateX = effectiveDefinitionOwnedSource.IsPartOfParent && effectiveDefinitionOwnedSource.Placement.Mode == StructuralPartPlacementKind.RoomCoordinates
                 ? obj.Placement.RoomCoordinateX ?? obj.PositionX
                 : null,
-            PartRoomCoordinateY = obj.IsPartOfParent && obj.Placement.Mode == StructuralPartPlacementKind.RoomCoordinates
+            PartRoomCoordinateY = effectiveDefinitionOwnedSource.IsPartOfParent && effectiveDefinitionOwnedSource.Placement.Mode == StructuralPartPlacementKind.RoomCoordinates
                 ? obj.Placement.RoomCoordinateY ?? obj.PositionY
                 : null,
             LightOcclusion = LightingContractMapper.ToRuntimeLightOcclusionDto(ResolveDefaultLightOcclusion(effectiveDefinitionOwnedSource)),
@@ -7237,6 +7335,9 @@ public sealed class JsonExportService : IJsonExportService
                 CommandActionType.SetActiveRoomObject => BuildCleanSetActiveRoomObjectPayloadElement(setActivePayload.SelectionCueEffectKey),
                 CommandActionType.AddObjectPresentationCue => BuildCleanAddObjectPresentationCuePayloadElement(action),
                 CommandActionType.RemoveObjectPresentationCue => BuildCleanRemoveObjectPresentationCuePayloadElement(action),
+                CommandActionType.CaptureObjectsOnObjectFootprint => BuildCleanCaptureObjectsOnObjectFootprintPayloadElement(action),
+                CommandActionType.CheckObjectSetContainsObject => BuildCleanCheckObjectSetContainsObjectPayloadElement(action),
+                CommandActionType.NavigateObjectSetToAdjacent => BuildCleanNavigateObjectSetToAdjacentPayloadElement(action),
                 CommandActionType.ClearObjectPresentationCues => BuildCleanClearObjectPresentationCuesPayloadElement(action),
                 CommandActionType.SelectRoomObjectByPoint => BuildCleanSelectRoomObjectByPointPayloadElement(selectByPointPayload.SelectionCueEffectKey),
                 CommandActionType.SetGameProperty => BuildCleanSetGamePropertyPayloadElement(ActionPayloadAccessors.GetSetPropertyName(action), ActionPayloadAccessors.GetSetPropertyValue(action), ActionPayloadAccessors.GetSetGamePropertyReference(action)),
@@ -7593,51 +7694,21 @@ public sealed class JsonExportService : IJsonExportService
 
     private static List<ProjectCommandActionReferenceDto> BuildProjectLinkedFlowNodes(CommandAction rootAction)
     {
-        var definition = rootAction.LinkedFlowDefinition;
-        var nodesById = definition.Nodes
-            .Where(static node => node.NodeId > 0)
-            .GroupBy(static node => node.NodeId)
-            .ToDictionary(static group => group.Key, static group => group.First());
-        if (!definition.EntryNodeId.HasValue || !nodesById.ContainsKey(definition.EntryNodeId.Value))
+        var reachableNodes = LinkedActionFlowReachability.Analyze(rootAction.LinkedFlowDefinition).ReachableNodes;
+        if (reachableNodes.Count == 0)
         {
             return new List<ProjectCommandActionReferenceDto>();
         }
 
-        var orderedNodeIds = new List<int>();
-        var visitedNodeIds = new HashSet<int>();
-        var pending = new Queue<int>();
-        pending.Enqueue(definition.EntryNodeId.Value);
-        while (pending.Count > 0)
+        var reachableIds = reachableNodes.Select(static node => node.NodeId).ToHashSet();
+        var result = new List<ProjectCommandActionReferenceDto>(reachableNodes.Count);
+        foreach (var source in reachableNodes)
         {
-            var nodeId = pending.Dequeue();
-            if (!visitedNodeIds.Add(nodeId) || !nodesById.TryGetValue(nodeId, out var node))
-            {
-                continue;
-            }
-
-            orderedNodeIds.Add(nodeId);
-            foreach (var link in node.Links.OrderBy(static link => link.Order))
-            {
-                pending.Enqueue(link.TargetNodeId);
-            }
-        }
-
-        foreach (var nodeId in nodesById.Keys.OrderBy(static id => id))
-        {
-            if (visitedNodeIds.Add(nodeId))
-            {
-                orderedNodeIds.Add(nodeId);
-            }
-        }
-
-        var result = new List<ProjectCommandActionReferenceDto>(orderedNodeIds.Count);
-        foreach (var nodeId in orderedNodeIds)
-        {
-            var source = nodesById[nodeId];
             var node = new ProjectCommandActionReferenceDto
             {
                 NodeId = source.NodeId,
                 ActionId = source.ActionId,
+                TargetObjectId = source.TargetObjectId,
                 OnAlwaysExitResult = source.OnAlwaysExitResult,
                 OnSuccessExitResult = source.OnSuccessExitResult,
                 OnFailureExitResult = source.OnFailureExitResult,
@@ -7648,7 +7719,7 @@ public sealed class JsonExportService : IJsonExportService
 
             foreach (var link in source.Links.OrderBy(static link => link.Order))
             {
-                if (!nodesById.ContainsKey(link.TargetNodeId))
+                if (!reachableIds.Contains(link.TargetNodeId))
                 {
                     continue;
                 }
@@ -7849,19 +7920,72 @@ public sealed class JsonExportService : IJsonExportService
 
     private static ProjectCommandActionPayloadBaseDto BuildAddObjectPresentationCuePayloadElement(CommandAction action)
     {
+        var setReference = GetValidatedObjectPresentationCueSetReference(action);
         return new ProjectAddObjectPresentationCueActionPayloadDto
         {
             ObjectId = action.ObjectPresentationCueObjectId,
-            EffectKey = action.ObjectPresentationCueEffectKey ?? string.Empty
+            EffectKey = action.ObjectPresentationCueEffectKey ?? string.Empty,
+            ObjectSetReference = setReference
         };
     }
 
     private static ProjectCommandActionPayloadBaseDto BuildRemoveObjectPresentationCuePayloadElement(CommandAction action)
     {
+        var setReference = GetValidatedObjectPresentationCueSetReference(action);
         return new ProjectRemoveObjectPresentationCueActionPayloadDto
         {
             ObjectId = action.ObjectPresentationCueObjectId,
-            EffectKey = action.ObjectPresentationCueEffectKey ?? string.Empty
+            EffectKey = action.ObjectPresentationCueEffectKey ?? string.Empty,
+            ObjectSetReference = setReference
+        };
+    }
+
+    private static ProjectObjectSetReferenceDto? GetValidatedObjectPresentationCueSetReference(CommandAction action)
+    {
+        var setReference = action.Payload switch
+        {
+            AddObjectPresentationCuePayload add => add.ObjectSetReference,
+            RemoveObjectPresentationCuePayload remove => remove.ObjectSetReference,
+            _ => null
+        };
+        var hasObjectTarget = action.ObjectPresentationCueObjectId.HasValue;
+        var hasSetTarget = setReference is not null;
+        if (hasObjectTarget && hasSetTarget)
+        {
+            throw new InvalidOperationException(
+                $"Action '{action.Name}' cannot target both an object and a captured object set before export.");
+        }
+
+        return setReference;
+    }
+
+    private static ProjectCommandActionPayloadBaseDto BuildCaptureObjectsOnObjectFootprintPayloadElement(CommandAction action)
+    {
+        var payload = action.Payload as CaptureObjectsOnObjectFootprintPayload;
+        return new ProjectCaptureObjectsOnObjectFootprintActionPayloadDto
+        {
+            ObjectSetReference = new ProjectObjectSetReferenceDto { ObjectSetKey = payload?.ObjectSetKey ?? string.Empty },
+            TargetObjectId = payload?.TargetObjectId ?? Guid.Empty
+        };
+    }
+
+    private static ProjectCommandActionPayloadBaseDto BuildCheckObjectSetContainsObjectPayloadElement(CommandAction action)
+    {
+        var payload = action.Payload as CheckObjectSetContainsObjectPayload;
+        return new ProjectCheckObjectSetContainsObjectActionPayloadDto
+        {
+            ObjectSetReference = new ProjectObjectSetReferenceDto { ObjectSetKey = payload?.ObjectSetKey ?? string.Empty },
+            Target = payload?.Target ?? "CurrentPlayer"
+        };
+    }
+
+    private static ProjectCommandActionPayloadBaseDto BuildNavigateObjectSetToAdjacentPayloadElement(CommandAction action)
+    {
+        var payload = action.Payload as NavigateObjectSetToAdjacentPayload;
+        return new ProjectNavigateObjectSetToAdjacentActionPayloadDto
+        {
+            ObjectSetReference = new ProjectObjectSetReferenceDto { ObjectSetKey = payload?.ObjectSetKey ?? string.Empty },
+            Direction = Enum.TryParse<Direction10>(payload?.Direction, true, out var direction) ? direction : Direction10.Unknown
         };
     }
 
@@ -8057,6 +8181,7 @@ public sealed class JsonExportService : IJsonExportService
             {
                 NodeId = link.NodeId,
                 ActionId = link.ActionId,
+                TargetObjectId = link.TargetObjectId,
                 OnAlwaysExitResult = link.OnAlwaysExitResult,
                 OnSuccessExitResult = link.OnSuccessExitResult,
                 OnFailureExitResult = link.OnFailureExitResult,
@@ -8232,19 +8357,53 @@ public sealed class JsonExportService : IJsonExportService
 
     private static RuntimeCommandActionPayloadBaseDto BuildCleanAddObjectPresentationCuePayloadElement(CommandAction action)
     {
+        var setReference = GetValidatedObjectPresentationCueSetReference(action);
         return new RuntimeAddObjectPresentationCueActionPayloadDto
         {
             ObjectId = action.ObjectPresentationCueObjectId,
-            EffectKey = action.ObjectPresentationCueEffectKey ?? string.Empty
+            EffectKey = action.ObjectPresentationCueEffectKey ?? string.Empty,
+            ObjectSetReference = setReference is null ? null : new ObjectSetReferenceDto { ObjectSetKey = setReference.ObjectSetKey }
         };
     }
 
     private static RuntimeCommandActionPayloadBaseDto BuildCleanRemoveObjectPresentationCuePayloadElement(CommandAction action)
     {
+        var setReference = GetValidatedObjectPresentationCueSetReference(action);
         return new RuntimeRemoveObjectPresentationCueActionPayloadDto
         {
             ObjectId = action.ObjectPresentationCueObjectId,
-            EffectKey = action.ObjectPresentationCueEffectKey ?? string.Empty
+            EffectKey = action.ObjectPresentationCueEffectKey ?? string.Empty,
+            ObjectSetReference = setReference is null ? null : new ObjectSetReferenceDto { ObjectSetKey = setReference.ObjectSetKey }
+        };
+    }
+
+    private static RuntimeCommandActionPayloadBaseDto BuildCleanCaptureObjectsOnObjectFootprintPayloadElement(CommandAction action)
+    {
+        var payload = action.Payload as CaptureObjectsOnObjectFootprintPayload;
+        return new RuntimeCaptureObjectsOnObjectFootprintActionPayloadDto
+        {
+            ObjectSetReference = new ObjectSetReferenceDto { ObjectSetKey = payload?.ObjectSetKey ?? string.Empty },
+            TargetObjectId = payload?.TargetObjectId ?? Guid.Empty
+        };
+    }
+
+    private static RuntimeCommandActionPayloadBaseDto BuildCleanCheckObjectSetContainsObjectPayloadElement(CommandAction action)
+    {
+        var payload = action.Payload as CheckObjectSetContainsObjectPayload;
+        return new RuntimeCheckObjectSetContainsObjectActionPayloadDto
+        {
+            ObjectSetReference = new ObjectSetReferenceDto { ObjectSetKey = payload?.ObjectSetKey ?? string.Empty },
+            Target = payload?.Target ?? "CurrentPlayer"
+        };
+    }
+
+    private static RuntimeCommandActionPayloadBaseDto BuildCleanNavigateObjectSetToAdjacentPayloadElement(CommandAction action)
+    {
+        var payload = action.Payload as NavigateObjectSetToAdjacentPayload;
+        return new RuntimeNavigateObjectSetToAdjacentActionPayloadDto
+        {
+            ObjectSetReference = new ObjectSetReferenceDto { ObjectSetKey = payload?.ObjectSetKey ?? string.Empty },
+            Direction = Enum.TryParse<Direction10>(payload?.Direction, true, out var direction) ? direction : Direction10.Unknown
         };
     }
 
@@ -8761,6 +8920,17 @@ public sealed class JsonExportService : IJsonExportService
         };
     }
 
+    private static ProjectObjectSetReferenceDto? TryGetObjectPresentationCueObjectSetReferenceFromPayload(ProjectCommandActionPayloadBaseDto? payload)
+    {
+        var reference = payload switch
+        {
+            ProjectAddObjectPresentationCueActionPayloadDto add => add.ObjectSetReference,
+            ProjectRemoveObjectPresentationCueActionPayloadDto remove => remove.ObjectSetReference,
+            _ => null
+        };
+        return reference is null ? null : new ProjectObjectSetReferenceDto { ObjectSetKey = reference.ObjectSetKey };
+    }
+
     private static string? TryGetSelectByPointSelectionCueEffectKeyFromPayload(ProjectCommandActionPayloadBaseDto? payload)
     {
         if (payload is not ProjectSelectRoomObjectByPointActionPayloadDto selectByPointPayload)
@@ -9009,6 +9179,7 @@ public sealed class JsonExportService : IJsonExportService
             {
                 NodeId = link.NodeId,
                 ActionId = link.ActionId,
+                TargetObjectId = link.TargetObjectId,
                 OnAlwaysExitResult = link.OnAlwaysExitResult,
                 OnSuccessExitResult = link.OnSuccessExitResult,
                 OnFailureExitResult = link.OnFailureExitResult,
@@ -9047,6 +9218,10 @@ public sealed class JsonExportService : IJsonExportService
             return definition;
         }
 
+        // Keep imported disconnected nodes in the editable model so validation can
+        // identify their node IDs and actions. Reachability diagnostics, editor
+        // pruning, and both exporters use LinkedActionFlowReachability; exports never
+        // serialize these legacy orphans back into a flow.
         definition.EntryNodeId = validNodes[0].NodeId;
         foreach (var dto in validNodes)
         {
@@ -9054,6 +9229,7 @@ public sealed class JsonExportService : IJsonExportService
             {
                 NodeId = dto.NodeId,
                 ActionId = dto.ActionId,
+                TargetObjectId = dto.TargetObjectId == Guid.Empty ? null : dto.TargetObjectId,
                 OnAlwaysExitResult = dto.OnAlwaysExitResult,
                 OnSuccessExitResult = dto.OnSuccessExitResult,
                 OnFailureExitResult = dto.OnFailureExitResult

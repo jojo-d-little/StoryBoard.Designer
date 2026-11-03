@@ -30,6 +30,8 @@ public partial class ObjectImageVariantsDialog : Window
     private double _imageTransparency;
     private readonly List<ObjectImageVariant> _imageVariants;
     private readonly List<StructuralPartPlacementEditItem> _structuralPartPlacements;
+    private readonly string _structuralPartRenderOrderParentName;
+    private readonly bool _structuralPartRenderOrderIsReadOnly;
     private readonly IReadOnlyList<string> _chooserReferenceTokens;
     private readonly GamePropertyPickerContext _chooserPickerContext;
     private string _imageVariantChooserScript;
@@ -72,6 +74,8 @@ public partial class ObjectImageVariantsDialog : Window
             : 0;
         _imageVariants = NormalizeImageVariants(initial.ImageVariants);
         _structuralPartPlacements = CloneStructuralPartPlacements(initial.StructuralPartPlacements);
+        _structuralPartRenderOrderParentName = initial.StructuralPartRenderOrderParentName;
+        _structuralPartRenderOrderIsReadOnly = initial.StructuralPartRenderOrderIsReadOnly;
         _chooserReferenceTokens = initial.ImageVariantChooserReferenceTokens ?? Array.Empty<string>();
         _chooserPickerContext = initial.ImageVariantChooserPickerContext
             ?? throw new ArgumentException("A game-property picker context is required.", nameof(initial));
@@ -693,7 +697,9 @@ public partial class ObjectImageVariantsDialog : Window
                 _pointLight = LightingModelCloner.ClonePointLight(pointLight);
                 RefreshGuidePreview();
             },
-            _structuralPartPlacements)
+            _structuralPartPlacements,
+            _structuralPartRenderOrderParentName,
+            _structuralPartRenderOrderIsReadOnly)
         {
             Owner = this
         };

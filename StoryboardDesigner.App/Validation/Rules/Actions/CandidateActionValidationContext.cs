@@ -7,4 +7,6 @@ internal sealed record CandidateActionValidationContext(
     CommandAction Action,
     IReadOnlyList<CommandAction> Actions,
     IReadOnlyDictionary<Guid, CommandAction> ActionById,
-    IReadOnlyDictionary<Guid, CommandAction> LinkTargetById);
+    IReadOnlyDictionary<Guid, CommandAction> LinkTargetById,
+    IReadOnlyDictionary<Guid, GameObject> ObjectById,
+    IReadOnlyDictionary<Guid, IReadOnlyDictionary<Guid, CommandAction>> ActionsByObjectId);

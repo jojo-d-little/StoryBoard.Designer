@@ -395,6 +395,8 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="120" />
@@ -873,6 +875,8 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="140" />
@@ -891,6 +895,53 @@
                               IsEditable="False" IsTextSearchEnabled="True"
                               SelectedItem="{Binding ObjectPresentationCueEffectKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               ToolTip="Effects are filtered by category-level objectCueEligible metadata." />
+                    <CheckBox x:Name="ObjectPresentationCueSetModeCheckBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,10"
+                              Content="Apply to captured object set" Click="ObjectPresentationCueSetMode_OnClick" />
+                    <ComboBox x:Name="ObjectPresentationCueSetKeyComboBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,10"
+                              IsEditable="True" IsTextSearchEnabled="True"
+                              ToolTip="Choose the logical set key from a footprint-capture action." />
+                </Grid>
+
+                <Grid x:Name="CaptureObjectSetEditorPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="140"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Grid.ColumnSpan="3" Margin="0,0,0,10" TextWrapping="Wrap" Foreground="#4B5563"
+                               Text="Captures objects on the selected object's footprint into a sequence-run scoped set. Enter a logical key that later set actions will reference." />
+                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Set Key" />
+                    <TextBox x:Name="CaptureObjectSetKeyTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,8,10" />
+                    <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Placed Object" />
+                    <TextBox x:Name="CaptureObjectSetTargetTextBox" Grid.Row="2" Grid.Column="1" Margin="0,0,8,10" IsReadOnly="True" />
+                    <Button x:Name="CaptureObjectSetTargetButton" Grid.Row="2" Grid.Column="2" Margin="0,0,0,10" Content="Choose…" Click="ChooseCaptureObjectSetTarget_OnClick" />
+                </Grid>
+
+                <Grid x:Name="CheckObjectSetEditorPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="140"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Grid.ColumnSpan="3" Margin="0,0,0,10" TextWrapping="Wrap" Foreground="#4B5563"
+                               Text="Branches through the existing Success or Failure action outcomes depending on set membership. This check does not move or mutate objects." />
+                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Set Key" />
+                    <ComboBox x:Name="CheckObjectSetKeyComboBox" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,10"
+                              IsEditable="True" IsTextSearchEnabled="True"
+                              ToolTip="Choose the logical set key from a footprint-capture action." />
+                    <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Target" />
+                    <ComboBox x:Name="CheckObjectSetTargetComboBox" Grid.Row="2" Grid.Column="1" Margin="0,0,8,10" SelectionChanged="CheckObjectSetTarget_OnSelectionChanged">
+                        <ComboBoxItem Content="Current Player" Tag="CurrentPlayer" />
+                        <ComboBoxItem Content="Explicit Object" Tag="ExplicitObject" />
+                    </ComboBox>
+                    <Button x:Name="ChooseCheckObjectSetTargetButton" Grid.Row="2" Grid.Column="2" Margin="0,0,0,10" Content="Choose…" Click="ChooseCheckObjectSetTarget_OnClick" />
+                </Grid>
+
+                <Grid x:Name="NavigateObjectSetEditorPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="140"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,10" TextWrapping="Wrap" Foreground="#4B5563"
+                               Text="Navigates using the sequence-run set's resolved object. Player context is inferred by Engine." />
+                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Set Key" />
+                    <ComboBox x:Name="NavigateObjectSetKeyComboBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10"
+                              IsEditable="True" IsTextSearchEnabled="True"
+                              ToolTip="Choose the logical set key from a footprint-capture action." />
+                    <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Direction" />
+                    <ComboBox x:Name="NavigateObjectSetDirectionComboBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,10" />
                 </Grid>
 
                 <Grid x:Name="SelectRoomObjectByPointEditorPanel" Visibility="Collapsed">
