@@ -141,16 +141,18 @@ public sealed class StructuralPartRelativeRenderOrderTests
             var authoredInstancePath = Directory.GetFiles(tempRoot, $"{elevatorInstance.ObjectId:N}.object.json", SearchOption.AllDirectories).Single();
             using (var authored = JsonDocument.Parse(File.ReadAllText(authoredInstancePath)))
             {
-                Assert.False(authored.RootElement.GetProperty("containedObjects")[0]
-                    .TryGetProperty("structuralPartRelativeRenderOrder", out _));
+                Assert.Empty(authored.RootElement.GetProperty("containedObjects").EnumerateArray());
             }
 
             service.ExportCleanProjectV1(projectPath, project);
             var runtimeFile = Path.Combine(tempRoot, "GameRuntimeJson", "GameObject", elevatorInstance.ObjectId.ToString("D").ToUpperInvariant() + ".runtime.json");
             using var runtime = JsonDocument.Parse(File.ReadAllText(runtimeFile));
-            Assert.Equal(-2, runtime.RootElement.GetProperty("containedObjects")[0]
+            Assert.False(runtime.RootElement.TryGetProperty("containedObjects", out _));
+
+            var baseRuntimeFile = Path.Combine(tempRoot, "GameRuntimeJson", "GameObject", elevatorDefinition.ObjectId.ToString("D").ToUpperInvariant() + ".runtime.json");
+            using var baseRuntime = JsonDocument.Parse(File.ReadAllText(baseRuntimeFile));
+            Assert.Equal(-2, baseRuntime.RootElement.GetProperty("containedObjects")[0]
                 .GetProperty("structuralPartRelativeRenderOrder").GetInt32());
-            Assert.Equal(-2, floorInstance.StructuralPartRelativeRenderOrder);
         }
         finally
         {

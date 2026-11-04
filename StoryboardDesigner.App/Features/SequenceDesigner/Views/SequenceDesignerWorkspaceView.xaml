@@ -235,7 +235,7 @@
                                                                                                 </Style>
                                                                                             </TextBlock.Style>
                                                                                         </TextBlock>
-                                                                                        <TextBlock Text="{Binding ValidationMessage}" TextTrimming="CharacterEllipsis" Foreground="#B91C1C" FontSize="10" Margin="0,6,0,0">
+                                                                                        <TextBlock Text="{Binding ValidationMessage}" TextWrapping="Wrap" Foreground="#B91C1C" FontSize="10" Margin="0,6,0,0" ToolTip="{Binding ValidationMessage}">
                                                                                             <TextBlock.Style>
                                                                                                 <Style TargetType="TextBlock">
                                                                                                     <Setter Property="Visibility" Value="Collapsed" />

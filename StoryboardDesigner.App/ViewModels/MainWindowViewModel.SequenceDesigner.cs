@@ -1335,6 +1335,15 @@ public sealed partial class MainWindowViewModel
             : Array.Empty<SequenceDefinitionIssue>();
     }
 
+    private static string FormatSequenceValidationIssue(SequenceDefinitionIssue issue)
+    {
+        var description = issue.Description?.Trim() ?? string.Empty;
+        var hint = issue.Hint?.Trim() ?? string.Empty;
+        return string.IsNullOrWhiteSpace(hint)
+            ? description
+            : $"{description}{Environment.NewLine}Fix: {hint}";
+    }
+
     private void ValidateSelectedSequence()
     {
         if (SelectedSequenceDefinition is null)
@@ -1456,21 +1465,36 @@ public sealed partial class MainWindowViewModel
             .Distinct(StringComparer.Ordinal)
             .OrderBy(static id => id == MainSequenceBranchId ? 0 : 1)
             .ToList();
-        var maxCardsPerBranchColumn = branchIds.ToDictionary(static branchId => branchId, static _ => 1, StringComparer.Ordinal);
+        var maxBranchLaneHeights = branchIds.ToDictionary(static branchId => branchId, static _ => 184d, StringComparer.Ordinal);
         foreach (var groupSteps in stepsByOffset.Values)
         {
             var depths = groupSteps.ToDictionary(static step => step, ResolveDepth);
             foreach (var branchGroup in groupSteps.GroupBy(step => (BranchId: step.BranchId ?? MainSequenceBranchId, Depth: depths[step])))
             {
-                maxCardsPerBranchColumn[branchGroup.Key.BranchId] = Math.Max(
-                    maxCardsPerBranchColumn.GetValueOrDefault(branchGroup.Key.BranchId, 1),
-                    branchGroup.Count());
+                var estimatedLaneHeight = 26d + branchGroup.Sum(step => EstimateSequenceCardHeight(step) + 10d);
+                maxBranchLaneHeights[branchGroup.Key.BranchId] = Math.Max(
+                    maxBranchLaneHeights.GetValueOrDefault(branchGroup.Key.BranchId, 184d),
+                    estimatedLaneHeight);
             }
         }
-        var branchLaneHeights = maxCardsPerBranchColumn.ToDictionary(
-            static pair => pair.Key,
-            static pair => Math.Max(184d, pair.Value * 158d + 26d),
-            StringComparer.Ordinal);
+        var branchLaneHeights = maxBranchLaneHeights;
+
+        double EstimateSequenceCardHeight(ProjectSequenceStepDto step)
+        {
+            var validationMessage = GetSelectedSequenceValidationIssues()
+                .Where(issue => issue.StepId == step.StepId)
+                .Select(FormatSequenceValidationIssue)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (validationMessage.Count == 0)
+            {
+                return 158d;
+            }
+
+            var estimatedWrappedLines = validationMessage
+                .Sum(message => Math.Max(1, (int)Math.Ceiling(message.Length / 26d)));
+            return 158d + Math.Max(0, estimatedWrappedLines - validationMessage.Count) * 12d;
+        }
         var soundTimings = steps
             .Where(static step => step.StepType == SequenceStepType.Sound && step.SoundEffectId.HasValue)
             .Select(step => (Step: step, Choice: _sequenceSoundEffectChoices.FirstOrDefault(choice => choice.SoundEffectId == step.SoundEffectId)))
@@ -1583,7 +1607,7 @@ public sealed partial class MainWindowViewModel
                         string Target(Guid? id) => id.HasValue && stepNumbers.TryGetValue(id.Value, out var label) ? label : "End";
                         var stepValidationIssues = GetSelectedSequenceValidationIssues()
                             .Where(issue => issue.StepId == step.StepId)
-                            .Select(static issue => issue.Description)
+                            .Select(FormatSequenceValidationIssue)
                             .Distinct(StringComparer.OrdinalIgnoreCase)
                             .ToList();
                         var playback = soundTimings.GetValueOrDefault(step);
@@ -1623,7 +1647,7 @@ public sealed partial class MainWindowViewModel
                                 ? $"Merge → {Target(step.MergeTargetStepId)}"
                                 : string.Empty,
                             HasValidationIssues = stepValidationIssues.Count > 0,
-                            ValidationMessage = string.Join(" ", stepValidationIssues)
+                            ValidationMessage = string.Join(Environment.NewLine, stepValidationIssues)
                         });
                     }
                     lane.Columns.Add(column);
@@ -2045,6 +2069,11 @@ public sealed partial class MainWindowViewModel
 
     private string GetSequenceActionDisplayName(ProjectSequenceStepDto step)
     {
+        if (step.StepType == SequenceStepType.Sound)
+        {
+            return GetSequenceSoundEffectDisplayName(step.SoundEffectId);
+        }
+
         if (step.InlineAction is not null)
         {
             return step.InlineAction.Name;
@@ -2059,6 +2088,32 @@ public sealed partial class MainWindowViewModel
         }
 
         return "Action not configured";
+    }
+
+    private string GetSequenceSoundEffectDisplayName(Guid? soundEffectId)
+    {
+        if (soundEffectId is not Guid id || id == Guid.Empty)
+        {
+            return "Sound effect not configured";
+        }
+
+        var choice = _sequenceSoundEffectChoices.FirstOrDefault(candidate => candidate.SoundEffectId == id);
+        var displayName = !string.IsNullOrWhiteSpace(choice?.DisplayName)
+            ? choice.DisplayName.Trim()
+            : choice?.SoundEffectKey.Trim();
+        if (!string.IsNullOrWhiteSpace(displayName))
+        {
+            return $"Sound effect: {displayName}";
+        }
+
+        var libraryEntry = EnumerateProjectSoundEffectLibraryEntries()
+            .FirstOrDefault(entry => entry.SoundEffectId == id);
+        displayName = !string.IsNullOrWhiteSpace(libraryEntry?.DisplayName)
+            ? libraryEntry.DisplayName.Trim()
+            : libraryEntry?.SoundEffectKey?.Trim();
+        return !string.IsNullOrWhiteSpace(displayName)
+            ? $"Sound effect: {displayName}"
+            : $"Missing sound effect ({id:D})";
     }
 
     private (CommandAction Action, string ScopeName)? ResolveSequenceAction(Guid actionId)

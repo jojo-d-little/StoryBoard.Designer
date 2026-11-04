@@ -578,7 +578,7 @@ public sealed class BaseActionDesignerSupportTests
                     .Invoke(viewModel, [clone, baseObject, baseObject.ObjectId]);
                 Assert.Empty(clone.AvailableActions);
                 Assert.Empty(clone.SequenceDefinitions);
-                Assert.All(clone.ContainedObjects, child => Assert.True(child.LinkedBaseObjectId.HasValue));
+                Assert.Empty(clone.ContainedObjects);
                 // Legacy copied behavior must also be stripped when old project data is loaded or exported.
                 clone.AvailableActions.Add(Cue("Stale", null));
                 clone.SequenceDefinitions.Add(new ProjectSequenceDefinitionDto { SequenceId = Guid.NewGuid(), DisplayName = "Stale" });
@@ -632,6 +632,7 @@ public sealed class BaseActionDesignerSupportTests
                 Assert.Equal(baseObject.ObjectId, placement.LinkedBaseObjectId);
                 Assert.Empty(placement.AvailableActions);
                 Assert.Empty(placement.SequenceDefinitions);
+                Assert.Empty(placement.ContainedObjects);
             });
             Assert.Equal(3, Assert.Single(reopened.BaseObjects).AvailableActions.Count);
             Assert.Single(Assert.Single(reopened.BaseObjects).SequenceDefinitions);
@@ -645,17 +646,13 @@ public sealed class BaseActionDesignerSupportTests
                 Assert.Equal(baseObject.ObjectId, root.GetProperty("linkedBaseObjectId").GetGuid());
                 Assert.False(root.TryGetProperty("availableGameActions", out _));
                 Assert.False(root.TryGetProperty("sequenceDefinitions", out _));
-                var children = root.GetProperty("containedObjects").EnumerateArray().ToArray();
-                Assert.Equal(2, children.Select(child => child.GetProperty("Id").GetGuid()).Distinct().Count());
-                Assert.All(children, child => Assert.Equal(doorTemplate.ObjectId, child.GetProperty("linkedBaseObjectId").GetGuid()));
+                Assert.False(root.TryGetProperty("containedObjects", out _));
                 Assert.Equal(sharedId, root.GetProperty("gameProperties").EnumerateArray()
                     .Single(property => property.GetProperty("name").GetString() == "IsMoving")
                     .GetProperty("sharedVariableId").GetGuid());
             }
 
             Assert.NotEqual(first.ObjectId, second.ObjectId);
-            Assert.NotEqual(first.ContainedObjects[0].ObjectId, second.ContainedObjects[0].ObjectId);
-            Assert.NotEqual(first.ContainedObjects[1].ObjectId, second.ContainedObjects[1].ObjectId);
             using var baseDoc = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempRoot, "GameRuntimeJson", "GameObject", baseObject.ObjectId.ToString("D").ToUpperInvariant() + ".runtime.json")));
             Assert.True(baseDoc.RootElement.TryGetProperty("availableGameActions", out _));
             Assert.True(baseDoc.RootElement.TryGetProperty("sequenceDefinitions", out _));

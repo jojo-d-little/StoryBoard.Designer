@@ -39,10 +39,29 @@
                   HeadersVisibility="Column"
                   SelectionMode="Single"
                   Margin="0,0,0,10">
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Setter Property="Height" Value="Auto" />
+                    <Setter Property="MinHeight" Value="34" />
+                    <Setter Property="VerticalContentAlignment" Value="Top" />
+                </Style>
+            </DataGrid.RowStyle>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Rule ID" Binding="{Binding RuleId}" Width="Auto" />
-                <DataGridTextColumn Header="Path" Binding="{Binding Path}" Width="2*" />
-                <DataGridTextColumn Header="Problem" Binding="{Binding Problem}" Width="3*" />
+                <DataGridTemplateColumn Header="Path" Width="2*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Path}" TextWrapping="Wrap" Margin="4,3" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Problem" Width="3*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Problem}" TextWrapping="Wrap" Margin="4,3" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTemplateColumn Header="Navigate" Width="120">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>

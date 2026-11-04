@@ -332,6 +332,7 @@ public sealed class JsonExportService : IJsonExportService
 
     public void SaveProjectModel(string projectFilePath, ProjectModel project)
     {
+        NormalizeLinkedRoomPlacementChildren(project);
         SynchronizeLinkedStructuralPartSettings(project);
         EnsureAreaSpawnPoints(project);
         ValidateTraversalOrThrow(project, "save");
@@ -1148,6 +1149,7 @@ public sealed class JsonExportService : IJsonExportService
             }
 
             NormalizeDefinitionCatalogObjectLinkMetadata(loadedProject);
+            NormalizeLinkedRoomPlacementChildren(loadedProject);
             RefreshRoomDerivedOccupancyCaches(loadedProject);
             SharedVariableReconciliationService.ReconcileInPlace(loadedProject);
             SynchronizeLinkedStructuralPartSettings(loadedProject);
@@ -1455,6 +1457,7 @@ public sealed class JsonExportService : IJsonExportService
 
     public string ExportCleanProjectV1(string projectFilePath, ProjectModel project)
     {
+        NormalizeLinkedRoomPlacementChildren(project);
         SynchronizeLinkedStructuralPartSettings(project);
         EnsureAreaSpawnPoints(project);
         ValidateTraversalOrThrow(project, "clean export");
@@ -4795,12 +4798,14 @@ public sealed class JsonExportService : IJsonExportService
                 : obj.InstanceOverrides
                     .Where(static pair => !string.IsNullOrWhiteSpace(pair.Key))
                     .ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.OrdinalIgnoreCase),
-            ContainedObjects = obj.ContainedObjects.Select(child => ToProjectGameObjectDto(
-                child,
-                obj.ObjectId,
-                null,
-                scopeKindOverride,
-                linkedActionLookup)).ToList()
+            ContainedObjects = isLinkedInstance
+                ? new List<ProjectGameObjectDto>()
+                : obj.ContainedObjects.Select(child => ToProjectGameObjectDto(
+                    child,
+                    obj.ObjectId,
+                    null,
+                    scopeKindOverride,
+                    linkedActionLookup)).ToList()
         };
     }
 
@@ -5272,6 +5277,37 @@ public sealed class JsonExportService : IJsonExportService
                      .SelectMany(static room => EnumerateGameObjectsRecursive(room.GameObjects)))
         {
             yield return obj;
+        }
+    }
+
+    private static void NormalizeLinkedRoomPlacementChildren(ProjectModel project)
+    {
+        var rooms = project.EnumerateAllRoomTemplateRoots()
+            .Concat(project.Planets
+                .SelectMany(static planet => planet.Countries)
+                .SelectMany(static country => country.Areas)
+                .SelectMany(static area => area.Rooms));
+
+        foreach (var room in rooms)
+        {
+            foreach (var rootObject in room.GameObjects)
+            {
+                StripDerivedChildren(rootObject);
+            }
+        }
+
+        static void StripDerivedChildren(GameObject gameObject)
+        {
+            if (gameObject.LinkedBaseObjectId.HasValue && gameObject.LinkedBaseObjectId.Value != Guid.Empty)
+            {
+                gameObject.ContainedObjects.Clear();
+                return;
+            }
+
+            foreach (var child in gameObject.ContainedObjects)
+            {
+                StripDerivedChildren(child);
+            }
         }
     }
 
@@ -6518,10 +6554,12 @@ public sealed class JsonExportService : IJsonExportService
                     .ThenBy(action => action.Id)
                     .ToList()),
             GameProperties = NullIfEmpty(BuildCleanObjectGameProperties(obj, effectiveDefinitionOwnedSource)),
-            ContainedObjects = NullIfEmpty(obj.ContainedObjects
-                .OrderBy(child => child.Name, StringComparer.OrdinalIgnoreCase)
-                .Select(child => ToCleanGameObjectDto(child, obj.ObjectId, resolveImagePath, resolveSoundAssetRef, null, resolveDefinition, linkedActionLookup))
-                .ToList())
+            ContainedObjects = persistedLinkedBaseObjectId.HasValue
+                ? null
+                : NullIfEmpty(obj.ContainedObjects
+                    .OrderBy(child => child.Name, StringComparer.OrdinalIgnoreCase)
+                    .Select(child => ToCleanGameObjectDto(child, obj.ObjectId, resolveImagePath, resolveSoundAssetRef, null, resolveDefinition, linkedActionLookup))
+                    .ToList())
         };
     }
 

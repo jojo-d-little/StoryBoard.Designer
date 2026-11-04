@@ -13413,35 +13413,23 @@ public sealed partial class MainWindowViewModel
         instance.StackScaleStepOverride = null;
         instance.MinStackScaleOverride = null;
         instance.MovementRestrictions = null;
-        LinkChildren(instance, source);
+
+        var definition = source.ResolveEffectiveDefinitionOwnedSource(id =>
+            TryFindObjectById(_project, id, out var resolved) ? resolved : null);
+        instance.IsPartOfParent = definition.IsPartOfParent;
+        instance.StructuralPartRelativeRenderOrder = definition.IsPartOfParent
+            && definition.Placement.Mode == StructuralPartPlacementKind.ParentRelative
+            ? definition.StructuralPartRelativeRenderOrder
+            : null;
+        instance.InheritParentCueCategories = definition.InheritParentCueCategories?.ToList();
+
+        // Linked placements store only their root instance and placement overrides.
+        // Engine materializes the current Base Object child definitions at runtime.
+        instance.Placement = CloneStructuralPartPlacement(source.Placement);
+        instance.Placement.Mode = definition.Placement.Mode;
+        instance.ContainedObjects.Clear();
         ClearBehaviorRecursively(instance);
         LinkedBaseObjectSharedVariableCloner.PreserveAuthoredMemberships(_project, source, instance);
-
-        void LinkChildren(GameObject copy, GameObject original)
-        {
-            var definition = original.ResolveEffectiveDefinitionOwnedSource(id =>
-                TryFindObjectById(_project, id, out var resolved) ? resolved : null);
-            copy.IsPartOfParent = definition.IsPartOfParent;
-            copy.StructuralPartRelativeRenderOrder = definition.IsPartOfParent
-                && definition.Placement.Mode == StructuralPartPlacementKind.ParentRelative
-                ? definition.StructuralPartRelativeRenderOrder
-                : null;
-            copy.InheritParentCueCategories = definition.InheritParentCueCategories?.ToList();
-
-            // Keep this placement's offsets while taking structural membership and mode
-            // from its linked definition.
-            copy.Placement = CloneStructuralPartPlacement(original.Placement);
-            copy.Placement.Mode = definition.Placement.Mode;
-
-            for (var index = 0; index < Math.Min(copy.ContainedObjects.Count, original.ContainedObjects.Count); index++)
-            {
-                var sourceChild = original.ContainedObjects[index];
-                var placedChild = copy.ContainedObjects[index];
-                placedChild.LinkedBaseObjectId = sourceChild.LinkedBaseObjectId ?? sourceChild.ObjectId;
-                placedChild.LinkActionsToBaseObject = true;
-                LinkChildren(placedChild, sourceChild);
-            }
-        }
     }
 
     private static void ClearBehaviorRecursively(GameObject obj)
