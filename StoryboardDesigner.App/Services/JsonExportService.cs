@@ -7280,10 +7280,10 @@ public sealed class JsonExportService : IJsonExportService
                         ContinuationMode = step.ContinuationMode,
                         StepType = step.StepType,
                         OffsetMs = step.OffsetMs,
-                        Order = step.Order,
                         ActionId = step.ActionId,
                         InlineAction = ToRuntimeSequenceInlineAction(step.InlineAction),
                         SoundEffectId = step.SoundEffectId,
+                        OnContinueStepId = step.OnContinueStepId,
                         OnSuccessStepId = step.OnSuccessStepId,
                         OnFailureStepId = step.OnFailureStepId,
                         MergeTargetStepId = step.MergeTargetStepId

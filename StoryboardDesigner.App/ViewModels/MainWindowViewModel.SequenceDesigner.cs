@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Windows.Input;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Models.Enums;
+using StoryboardDesigner.App.Models.Sequences;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.Validation.Rules.Project;
 using Storyboard.Shared.DesignerContracts;
@@ -59,6 +60,7 @@ public sealed partial class MainWindowViewModel
     {
         public ProjectSequenceStepDto Step { get; init; } = null!;
         public string StepLabel { get; init; } = string.Empty;
+        public bool IsStart { get; init; }
         public bool IsAction => Step.StepType == SequenceStepType.Action;
         public bool IsSound => Step.StepType == SequenceStepType.Sound;
         public bool HasActionRouteTargets => IsAction && (Step.ContinuationMode ?? ContinuationMode.Continue) is ContinuationMode.Branch or ContinuationMode.Merge;
@@ -279,15 +281,19 @@ public sealed partial class MainWindowViewModel
         && SelectedSequenceContinuationMode is ContinuationMode.Branch or ContinuationMode.Merge;
     public bool IsSelectedSequenceSoundMergeMode => IsSelectedSequenceSoundStep
         && SelectedSequenceContinuationMode == ContinuationMode.Merge;
+    public bool IsSelectedSequenceContinueMode => SelectedSequenceContinuationMode == ContinuationMode.Continue;
+    public string SelectedSequenceStepDisplayLabel => SelectedSequenceStep is null
+        ? string.Empty
+        : $"Step {_sequenceSteps.IndexOf(SelectedSequenceStep) + 1} · visual only";
     public string SelectedSequenceContinuationDescription => !string.IsNullOrWhiteSpace(_sequenceContinuationEditMessage)
         ? _sequenceContinuationEditMessage
         : SelectedSequenceContinuationMode switch
         {
-            ContinuationMode.Continue => "Continue to the next step on this branch, regardless of action result.",
-            ContinuationMode.Branch => "Success and failure each transfer to the first step on a new branch. An unset outcome ends the run.",
+            ContinuationMode.Continue => "Continue follows the saved target, regardless of action result.",
+            ContinuationMode.Branch => "Success and failure follow their saved targets. An unset outcome ends the run.",
             ContinuationMode.Merge => IsSelectedSequenceActionStep
-                ? "Choose a same-time or future destination on another branch for each action outcome. An unset outcome ends the run."
-                : "Transfer to a same-time or future step on another branch.",
+                ? "Choose a saved destination for each action outcome. An unset outcome ends the run."
+                : "Transfer to the saved merge target.",
             ContinuationMode.End => "End the sequence after this step, regardless of action result.",
             _ => string.Empty
         };
@@ -295,6 +301,8 @@ public sealed partial class MainWindowViewModel
         .Where(static issue => issue.StepId is null)
         .Select(static issue => issue.Description)
         .Distinct(StringComparer.OrdinalIgnoreCase));
+    public IReadOnlyList<SequenceDefinitionIssue> SequenceValidationIssues => GetSelectedSequenceValidationIssues();
+    public bool HasSequenceValidationIssues => SequenceValidationIssues.Count > 0;
     public ObservableCollection<ProjectSequenceDefinitionDto> SequenceDefinitions => _sequenceDefinitions;
     public ObservableCollection<ProjectSequenceStepDto> SequenceSteps => _sequenceSteps;
     public ObservableCollection<SequenceTimelineTimeSliceViewModel> SequenceTimeSlices => _sequenceTimeSlices;
@@ -312,16 +320,22 @@ public sealed partial class MainWindowViewModel
         get
         {
             var onMainBranch = string.Equals(SelectedSequenceStep?.BranchId, MainSequenceBranchId, StringComparison.Ordinal);
+            IReadOnlyList<ContinuationMode> choices;
             if (IsSelectedSequenceSoundStep)
             {
-                return onMainBranch
+                choices = onMainBranch
                     ? new[] { ContinuationMode.Continue, ContinuationMode.End }
                     : new[] { ContinuationMode.Continue, ContinuationMode.Merge, ContinuationMode.End };
             }
-
-            return onMainBranch
+            else
+            {
+                choices = onMainBranch
                 ? new[] { ContinuationMode.Continue, ContinuationMode.Branch, ContinuationMode.End }
                 : Enum.GetValues<ContinuationMode>();
+            }
+
+            var currentMode = SelectedSequenceStep?.ContinuationMode ?? ContinuationMode.Continue;
+            return choices.Contains(currentMode) ? choices : choices.Append(currentMode).ToArray();
         }
     }
     public IReadOnlyList<string> SequenceBranchChoices => (SelectedSequenceDefinition?.Branches ?? new List<ProjectSequenceBranchDto>())
@@ -546,11 +560,6 @@ public sealed partial class MainWindowViewModel
             return "Select an action step in Branch mode before adding an outcome step.";
         }
 
-        if (offset < source.OffsetMs)
-        {
-            return $"An outcome branch cannot start before its source step ({source.OffsetMs:N0} ms). Choose that time or later.";
-        }
-
         return null;
     }
     public string SelectedSequenceBranchId
@@ -566,6 +575,7 @@ public sealed partial class MainWindowViewModel
 
             SelectedSequenceStep.BranchId = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(SelectedSequenceStepDisplayLabel));
             OnPropertyChanged(nameof(SequenceBranchChoices));
             OnPropertyChanged(nameof(SelectedSequenceContinuationModeChoices));
             RefreshSequenceSteps();
@@ -582,13 +592,23 @@ public sealed partial class MainWindowViewModel
         get => SelectedSequenceStep?.OnSuccessStepId;
         set => SetSelectedStepTarget(value, static step => step.OnSuccessStepId, static (step, target) => step.OnSuccessStepId = target, nameof(SelectedSequenceSuccessTargetStepId));
     }
+    public Guid? SelectedSequenceContinueTargetStepId
+    {
+        get => SelectedSequenceStep?.OnContinueStepId;
+        set => SetSelectedStepTarget(value, static step => step.OnContinueStepId, static (step, target) => step.OnContinueStepId = target, nameof(SelectedSequenceContinueTargetStepId));
+    }
+    public SequenceStepTargetChoice? SelectedSequenceContinueTargetChoice
+    {
+        get => _sequenceStepTargetChoices.FirstOrDefault(choice => choice.StepId == SelectedSequenceContinueTargetStepId);
+        set { if (value is not null) SelectedSequenceContinueTargetStepId = value.StepId; }
+    }
     public SequenceStepTargetChoice? SelectedSequenceSuccessTargetChoice
     {
         get => _sequenceStepTargetChoices.FirstOrDefault(choice => choice.StepId == SelectedSequenceSuccessTargetStepId);
         set
         {
             // WPF can report a transient null SelectedItem while a bound ItemsSource
-            // is rebuilt. Only the explicit "End this outcome" choice may clear a route.
+            // is rebuilt. A null choice is applied only when the dropdown closes.
             if (value is not null) SelectedSequenceSuccessTargetStepId = value.StepId;
         }
     }
@@ -677,14 +697,7 @@ public sealed partial class MainWindowViewModel
         var stepNumber = _sequenceSteps.IndexOf(step) + 1;
         var sourceBranchName = GetSequenceBranchDisplayName(step.BranchId ?? MainSequenceBranchId);
         var targetBranchName = GetSequenceBranchDisplayName(targetBranchId);
-        var insertionNote = SelectedSequenceDefinition?.Steps?.Any(candidate =>
-                !ReferenceEquals(candidate, step)
-                && candidate.OffsetMs == targetOffsetMs
-                && string.Equals(candidate.BranchId, targetBranchId, StringComparison.Ordinal)) == true
-            ? "at the end of that branch's steps in this time slot"
-            : "at this time on the destination branch";
-
-        return $"Relocate Step {stepNumber} from {sourceBranchName} to {targetBranchName} at {targetOffsetMs:N0} ms, {insertionNote}. Explicit outcome links stay attached; Continue flow follows the new branch order.";
+        return $"Relocate Step {stepNumber} from {sourceBranchName} to {targetBranchName} at {targetOffsetMs:N0} ms. Saved route links stay attached; time changes do not change flow.";
     }
 
     public bool RelocateSequenceStepTo(
@@ -711,8 +724,7 @@ public sealed partial class MainWindowViewModel
         var sourceBranchId = step.BranchId ?? MainSequenceBranchId;
         var destinationTimeGroup = steps
             .Where(candidate => !ReferenceEquals(candidate, step) && candidate.OffsetMs == targetOffsetMs)
-            .OrderBy(static candidate => candidate.Order)
-            .ThenBy(static candidate => candidate.StepId)
+            .OrderBy(static candidate => candidate.StepId)
             .ToList();
         var destinationBranchSteps = destinationTimeGroup
             .Where(candidate => string.Equals(candidate.BranchId ?? MainSequenceBranchId, targetBranchId, StringComparison.Ordinal))
@@ -728,20 +740,6 @@ public sealed partial class MainWindowViewModel
         step.OffsetMs = targetOffsetMs;
         step.BranchId = targetBranchId;
         destinationTimeGroup.Insert(Math.Clamp(insertionIndex, 0, destinationTimeGroup.Count), step);
-        for (var index = 0; index < destinationTimeGroup.Count; index++)
-        {
-            destinationTimeGroup[index].Order = index;
-        }
-
-        foreach (var timeGroup in steps.GroupBy(static candidate => candidate.OffsetMs))
-        {
-            var orderedGroup = timeGroup.OrderBy(static candidate => candidate.Order).ThenBy(static candidate => candidate.StepId).ToList();
-            for (var index = 0; index < orderedGroup.Count; index++)
-            {
-                orderedGroup[index].Order = index;
-            }
-        }
-
         SelectedSequenceStep = step;
         RefreshSequenceSteps();
         OnPropertyChanged(nameof(SelectedSequenceStep));
@@ -777,19 +775,10 @@ public sealed partial class MainWindowViewModel
             .Where(candidate => !ReferenceEquals(candidate, step)
                 && string.Equals(candidate.BranchId, step.BranchId, StringComparison.Ordinal))
             .OrderBy(static candidate => candidate.OffsetMs)
-            .ThenBy(static candidate => candidate.Order)
+            .ThenBy(static candidate => candidate.StepId)
             .ToList();
-        var previousInBranch = orderedBranch.LastOrDefault(candidate =>
-            candidate.OffsetMs < sourceOffsetMs || candidate.OffsetMs == sourceOffsetMs && candidate.Order < step.Order);
-        var nextInBranch = orderedBranch.FirstOrDefault(candidate =>
-            candidate.OffsetMs > sourceOffsetMs || candidate.OffsetMs == sourceOffsetMs && candidate.Order > step.Order);
-        if (_sequenceTimelineToolMode == SequenceTimelineToolMode.Move
-            && ((previousInBranch is not null && targetOffsetMs < previousInBranch.OffsetMs)
-                || (nextInBranch is not null && targetOffsetMs > nextInBranch.OffsetMs)))
-        {
-            return false;
-        }
-
+        var previousInBranch = orderedBranch.LastOrDefault(candidate => candidate.OffsetMs < sourceOffsetMs);
+        var nextInBranch = orderedBranch.FirstOrDefault(candidate => candidate.OffsetMs > sourceOffsetMs);
         var offsetDelta = targetOffsetMs - sourceOffsetMs;
         List<ProjectSequenceStepDto>? rippleGroup = null;
         if (_sequenceTimelineToolMode == SequenceTimelineToolMode.Ripple)
@@ -799,8 +788,7 @@ public sealed partial class MainWindowViewModel
             rippleGroup = steps
                 .Where(candidate => string.Equals(candidate.BranchId, step.BranchId, StringComparison.Ordinal)
                     && candidate.OffsetMs == sourceOffsetMs)
-                .OrderBy(static candidate => candidate.Order)
-                .ThenBy(static candidate => candidate.StepId)
+                .OrderBy(static candidate => candidate.StepId)
                 .ToList();
 
             foreach (var futureStep in steps.Where(candidate => string.Equals(candidate.BranchId, step.BranchId, StringComparison.Ordinal)
@@ -817,8 +805,7 @@ public sealed partial class MainWindowViewModel
             var rippleGroupSet = rippleGroup.ToHashSet();
             targetTimeGroup = steps
                 .Where(candidate => candidate.OffsetMs == targetOffsetMs && !rippleGroupSet.Contains(candidate))
-                .OrderBy(static candidate => candidate.Order)
-                .ThenBy(static candidate => candidate.StepId)
+                .OrderBy(static candidate => candidate.StepId)
                 .ToList();
             targetTimeGroup.AddRange(rippleGroup);
         }
@@ -826,8 +813,7 @@ public sealed partial class MainWindowViewModel
         {
             targetTimeGroup = steps
                 .Where(candidate => !ReferenceEquals(candidate, step) && candidate.OffsetMs == targetOffsetMs)
-                .OrderBy(static candidate => candidate.Order)
-                .ThenBy(static candidate => candidate.StepId)
+                .OrderBy(static candidate => candidate.StepId)
                 .ToList();
             var insertionIndex = targetTimeGroup.Count;
             if (nextInBranch?.OffsetMs == targetOffsetMs)
@@ -840,20 +826,6 @@ public sealed partial class MainWindowViewModel
             }
 
             targetTimeGroup.Insert(Math.Clamp(insertionIndex, 0, targetTimeGroup.Count), step);
-        }
-
-        for (var index = 0; index < targetTimeGroup.Count; index++)
-        {
-            targetTimeGroup[index].Order = index;
-        }
-
-        foreach (var timeGroup in steps.GroupBy(static candidate => candidate.OffsetMs))
-        {
-            var orderedGroup = timeGroup.OrderBy(static candidate => candidate.Order).ThenBy(static candidate => candidate.StepId).ToList();
-            for (var index = 0; index < orderedGroup.Count; index++)
-            {
-                orderedGroup[index].Order = index;
-            }
         }
 
         SelectedSequenceStep = step;
@@ -874,12 +846,6 @@ public sealed partial class MainWindowViewModel
         if (SelectedSequenceStep is null || SelectedSequenceDefinition?.Steps is not { } steps)
         {
             return;
-        }
-
-        foreach (var timeGroup in steps.GroupBy(static step => step.OffsetMs))
-        {
-            var ordered = timeGroup.OrderBy(static step => step.Order).ThenBy(static step => step.StepId).ToList();
-            for (var index = 0; index < ordered.Count; index++) ordered[index].Order = index;
         }
 
         RefreshSequenceSteps();
@@ -915,6 +881,10 @@ public sealed partial class MainWindowViewModel
 
         switch (routeKind)
         {
+            case "Continue":
+                SetSequenceStepTarget(source, targetStepId, static step => step.OnContinueStepId,
+                    static (step, target) => step.OnContinueStepId = target, nameof(SelectedSequenceContinueTargetStepId));
+                break;
             case "Success":
                 SetSequenceStepTarget(source, targetStepId, static step => step.OnSuccessStepId,
                     static (step, target) => step.OnSuccessStepId = target, nameof(SelectedSequenceSuccessTargetStepId));
@@ -954,6 +924,7 @@ public sealed partial class MainWindowViewModel
             OnPropertyChanged(nameof(SelectedSequenceFailureTargetChoice));
             OnPropertyChanged(nameof(SelectedSequenceMergeTargetChoice));
             OnPropertyChanged(nameof(SelectedSequenceContinuationDescription));
+            OnPropertyChanged(nameof(SelectedSequenceContinueTargetChoice));
         }
         OnPropertyChanged(nameof(SequenceBranchChoices));
         RefreshSequenceTargetChoiceLabels();
@@ -973,20 +944,14 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
-        var orderedSteps = steps
-            .OrderBy(static step => step.OffsetMs)
-            .ThenBy(static step => step.Order)
-            .ToList();
-        var labelsByStepId = orderedSteps
-            .Select((step, index) => (step.StepId, Label: $"Step {index + 1}"))
-            .ToDictionary(static item => item.StepId, static item => item.Label);
+        var orderedSteps = SequenceVisualOrdering.CreatePresentation(steps, Array.Empty<SequenceDefinitionIssue>());
 
         foreach (var choice in _sequenceStepTargetChoices.Where(static choice => choice.StepId.HasValue))
         {
-            var target = orderedSteps.FirstOrDefault(step => step.StepId == choice.StepId);
+            var target = orderedSteps.FirstOrDefault(item => item.Step.StepId == choice.StepId);
             if (target is null) continue;
-            var currentLinkNote = choice.IsPreservedCurrentTarget ? " · current link outside eligible range" : string.Empty;
-            choice.DisplayName = $"{labelsByStepId[target.StepId]} · {GetSequenceActionDisplayName(target)} · {target.OffsetMs} ms · {GetSequenceBranchDisplayName(target.BranchId)}{currentLinkNote}";
+            var currentLinkNote = choice.IsPreservedCurrentTarget ? " · preserved current link" : string.Empty;
+            choice.DisplayName = $"{target.Label} · {GetSequenceActionDisplayName(target.Step)} · {target.Step.OffsetMs} ms · {GetSequenceBranchDisplayName(target.Step.BranchId)}{currentLinkNote}";
         }
 
         _lastSequenceRouteLabelsMs = elapsed.Elapsed.TotalMilliseconds;
@@ -1015,21 +980,29 @@ public sealed partial class MainWindowViewModel
         switch (mode)
         {
             case ContinuationMode.Continue:
+                break;
             case ContinuationMode.End:
+                step.OnContinueStepId = null;
                 break;
             case ContinuationMode.Branch:
+                step.OnContinueStepId = null;
                 step.MergeTargetStepId = null;
                 break;
             case ContinuationMode.Merge when step.StepType == SequenceStepType.Action:
+                step.OnContinueStepId = null;
                 step.MergeTargetStepId = null;
                 break;
             case ContinuationMode.Merge:
+                step.OnContinueStepId = null;
                 step.OnSuccessStepId = null;
                 step.OnFailureStepId = null;
                 break;
         }
 
         OnPropertyChanged(nameof(SelectedSequenceContinuationMode));
+        OnPropertyChanged(nameof(IsSelectedSequenceContinueMode));
+        OnPropertyChanged(nameof(SelectedSequenceContinueTargetStepId));
+        OnPropertyChanged(nameof(SelectedSequenceContinueTargetChoice));
         OnPropertyChanged(nameof(IsSelectedSequenceActionRouteMode));
         OnPropertyChanged(nameof(IsSelectedSequenceSoundMergeMode));
         OnPropertyChanged(nameof(SelectedSequenceContinuationDescription));
@@ -1099,11 +1072,15 @@ public sealed partial class MainWindowViewModel
             OnPropertyChanged(nameof(SequenceActionPickerButtonText));
             OnPropertyChanged(nameof(IsSelectedSequenceActionRouteMode));
             OnPropertyChanged(nameof(IsSelectedSequenceSoundMergeMode));
+            OnPropertyChanged(nameof(IsSelectedSequenceContinueMode));
+            OnPropertyChanged(nameof(SelectedSequenceStepDisplayLabel));
             OnPropertyChanged(nameof(SelectedSequenceContinuationDescription));
             OnPropertyChanged(nameof(SelectedSequenceContinuationMode));
             OnPropertyChanged(nameof(SelectedSequenceContinuationModeChoices));
             OnPropertyChanged(nameof(SelectedSequenceBranchId));
             OnPropertyChanged(nameof(SelectedSequenceSuccessTargetStepId));
+            OnPropertyChanged(nameof(SelectedSequenceContinueTargetStepId));
+            OnPropertyChanged(nameof(SelectedSequenceContinueTargetChoice));
             OnPropertyChanged(nameof(SelectedSequenceFailureTargetStepId));
             OnPropertyChanged(nameof(SelectedSequenceMergeTargetStepId));
             _editSequenceActionCommand?.RaiseCanExecuteChanged();
@@ -1217,8 +1194,10 @@ public sealed partial class MainWindowViewModel
     {
         var elapsed = Stopwatch.StartNew();
         _sequenceSteps.Clear();
-        foreach (var step in SelectedSequenceDefinition?.Steps?.OrderBy(static step => step.OffsetMs).ThenBy(static step => step.Order)
-                     ?? Enumerable.Empty<ProjectSequenceStepDto>())
+        var orderedSteps = SelectedSequenceDefinition?.Steps is { } selectedSteps
+            ? SequenceVisualOrdering.OrderSteps(selectedSteps)
+            : Array.Empty<ProjectSequenceStepDto>();
+        foreach (var step in orderedSteps)
         {
             _sequenceSteps.Add(step);
         }
@@ -1229,6 +1208,9 @@ public sealed partial class MainWindowViewModel
         }
         RefreshSequenceStepTargetChoices();
         OnPropertyChanged(nameof(SequenceSteps));
+        OnPropertyChanged(nameof(SequenceValidationIssues));
+        OnPropertyChanged(nameof(HasSequenceValidationIssues));
+        OnPropertyChanged(nameof(SelectedSequenceStepDisplayLabel));
         OnPropertyChanged(nameof(SequenceBranchDefinitions));
         OnPropertyChanged(nameof(SequenceBranchChoices));
         OnPropertyChanged(nameof(HasSelectedSequenceSteps));
@@ -1243,23 +1225,16 @@ public sealed partial class MainWindowViewModel
         _sequenceStepTargetChoices.Add(new SequenceStepTargetChoice
         {
             StepId = null,
-                DisplayName = "End this outcome"
+                DisplayName = "No target"
         });
-        var steps = SelectedSequenceDefinition?.Steps
-            .OrderBy(static step => step.OffsetMs)
-            .ThenBy(static step => step.Order)
-            .ToList() ?? new List<ProjectSequenceStepDto>();
+        var steps = SelectedSequenceDefinition?.Steps is { } selectedSteps
+            ? SequenceVisualOrdering.OrderSteps(selectedSteps).ToList()
+            : new List<ProjectSequenceStepDto>();
         var selected = SelectedSequenceStep;
-        var isBranch = SelectedSequenceContinuationMode == ContinuationMode.Branch;
         for (var index = 0; index < steps.Count; index++)
         {
             var step = steps[index];
-            var isMerge = SelectedSequenceContinuationMode == ContinuationMode.Merge;
-            if (selected is not null
-                && (step.OffsetMs < selected.OffsetMs
-                    || step.OffsetMs == selected.OffsetMs && step.Order <= selected.Order && !isMerge && !isBranch
-                    || isMerge
-                        && string.Equals(step.BranchId, selected.BranchId, StringComparison.Ordinal)))
+            if (selected is not null && step.StepId == selected.StepId)
             {
                 continue;
             }
@@ -1271,15 +1246,14 @@ public sealed partial class MainWindowViewModel
             });
         }
 
-        // Keep already-authored links selectable even when they violate the normal
-        // forward-time filter. The flow canvas draws the stored IDs, so hiding these
-        // choices made arrows appear while the corresponding property looked empty.
+        // Keep every existing route selectable even when it points backward in time.
         var includedTargetIds = _sequenceStepTargetChoices
             .Where(static choice => choice.StepId.HasValue)
             .Select(static choice => choice.StepId!.Value)
             .ToHashSet();
         var existingTargetIds = new[]
             {
+                selected?.OnContinueStepId,
                 selected?.OnSuccessStepId,
                 selected?.OnFailureStepId,
                 selected?.MergeTargetStepId
@@ -1301,7 +1275,7 @@ public sealed partial class MainWindowViewModel
                 {
                     StepId = targetId,
                     IsPreservedCurrentTarget = true,
-                    DisplayName = $"Missing step · {targetId:D} · current link outside eligible range"
+                    DisplayName = $"Missing step · {targetId:D} · preserved current link"
                 });
                 continue;
             }
@@ -1316,12 +1290,13 @@ public sealed partial class MainWindowViewModel
 
         string FormatTargetChoice(ProjectSequenceStepDto step, int index, bool isPreservedCurrentTarget)
         {
-            var currentLinkNote = isPreservedCurrentTarget ? " · current link outside eligible range" : string.Empty;
+            var currentLinkNote = isPreservedCurrentTarget ? " · preserved current link" : string.Empty;
             return $"Step {index + 1} · {GetSequenceActionDisplayName(step)} · {step.OffsetMs} ms · {GetSequenceBranchDisplayName(step.BranchId)}{currentLinkNote}";
         }
 
         OnPropertyChanged(nameof(SequenceStepTargetChoices));
         OnPropertyChanged(nameof(SequenceMergeTargetChoices));
+        OnPropertyChanged(nameof(SelectedSequenceContinueTargetChoice));
         OnPropertyChanged(nameof(SelectedSequenceSuccessTargetChoice));
         OnPropertyChanged(nameof(SelectedSequenceFailureTargetChoice));
         OnPropertyChanged(nameof(SelectedSequenceMergeTargetChoice));
@@ -1351,21 +1326,45 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
-        var issues = SequenceDefinitionIntegrityEvaluator.Evaluate(SelectedSequenceDefinition);
-        _sequenceValidationResults[SelectedSequenceDefinition.SequenceId] = issues;
-        OnPropertyChanged(nameof(SequenceValidationSummary));
+        RefreshSelectedSequenceValidation();
+        var issues = GetSelectedSequenceValidationIssues();
         RefreshSequenceTimeline();
         ExportStatus = issues.Count == 0
             ? $"Sequence '{SelectedSequenceDefinition.DisplayName}' passed validation."
             : $"Sequence '{SelectedSequenceDefinition.DisplayName}' has {issues.Count} validation issue(s).";
     }
 
+    private void RefreshSelectedSequenceValidation()
+    {
+        if (SelectedSequenceDefinition is null) return;
+        _sequenceValidationResults[SelectedSequenceDefinition.SequenceId] = SequenceDefinitionIntegrityEvaluator.Evaluate(SelectedSequenceDefinition);
+        OnPropertyChanged(nameof(SequenceValidationSummary));
+        OnPropertyChanged(nameof(SequenceValidationIssues));
+        OnPropertyChanged(nameof(HasSequenceValidationIssues));
+    }
+
+    public void SelectSequenceValidationIssue(Guid? stepId)
+    {
+        if (stepId is Guid id && SelectedSequenceDefinition?.Steps?.FirstOrDefault(step => step.StepId == id) is { } step)
+        {
+            SelectedSequenceStep = step;
+        }
+    }
+
     private void RefreshSequenceTimeline()
     {
+        RefreshSelectedSequenceValidation();
         var elapsed = Stopwatch.StartNew();
         _sequenceTimeSlices.Clear();
         _sequenceFlowTimeSlices.Clear();
         var steps = _sequenceSteps.ToList();
+        var stepPresentations = SequenceVisualOrdering.CreatePresentation(steps, GetSelectedSequenceValidationIssues());
+        var presentationByStep = new Dictionary<ProjectSequenceStepDto, SequenceVisualOrdering.StepPresentation>(ReferenceEqualityComparer.Instance);
+        foreach (var item in stepPresentations)
+        {
+            presentationByStep.Add(item.Step, item);
+        }
+        var startStepId = GetSequenceRootStepId(SelectedSequenceDefinition);
         var soundEffectNamesById = new Dictionary<Guid, string>();
         foreach (var choice in _sequenceSoundEffectChoices)
         {
@@ -1411,9 +1410,14 @@ public sealed partial class MainWindowViewModel
             }
         }
 
-        var stepNumbers = steps.Select((step, index) => (step.StepId, Label: $"Step {index + 1}"))
-            .Where(static pair => pair.StepId != Guid.Empty)
-            .ToDictionary(static pair => pair.StepId, static pair => pair.Label);
+        var targetLabelsById = stepPresentations
+            .Where(static item => item.Step.StepId != Guid.Empty)
+            .GroupBy(static item => item.Step.StepId)
+            .ToDictionary(
+                static group => group.Key,
+                static group => group.Count() == 1
+                    ? group.First().Label
+                    : $"{group.First().Label} (ambiguous duplicate ID)");
         var sameTimeDepths = new Dictionary<ProjectSequenceStepDto, int>();
         var calculating = new HashSet<ProjectSequenceStepDto>();
 
@@ -1422,14 +1426,7 @@ public sealed partial class MainWindowViewModel
             var mode = source.ContinuationMode ?? ContinuationMode.Continue;
             if (mode == ContinuationMode.Continue)
             {
-                var nextOnBranch = steps
-                    .Where(candidate => string.Equals(candidate.BranchId, source.BranchId, StringComparison.Ordinal)
-                        && (candidate.OffsetMs > source.OffsetMs
-                            || candidate.OffsetMs == source.OffsetMs && candidate.Order > source.Order))
-                    .OrderBy(static candidate => candidate.OffsetMs)
-                    .ThenBy(static candidate => candidate.Order)
-                    .FirstOrDefault();
-                return ReferenceEquals(nextOnBranch, target);
+                return source.OnContinueStepId == target.StepId;
             }
 
             if (source.StepType == SequenceStepType.Action
@@ -1456,7 +1453,7 @@ public sealed partial class MainWindowViewModel
         }
 
         var stepsByOffset = steps.GroupBy(static step => step.OffsetMs)
-            .ToDictionary(static group => group.Key, static group => group.OrderBy(step => step.Order).ThenBy(step => step.StepId).ToList());
+            .ToDictionary(static group => group.Key, static group => group.OrderBy(step => step.StepId).ToList());
         var actualOffsets = stepsByOffset.Keys.ToHashSet();
         var branchIds = (SelectedSequenceDefinition?.Branches ?? new List<ProjectSequenceBranchDto>())
             .Select(static branch => branch.BranchId)
@@ -1602,11 +1599,11 @@ public sealed partial class MainWindowViewModel
                 foreach (var depthGroup in depthGroups)
                 {
                     var column = new SequenceTimelineColumnViewModel();
-                    foreach (var step in depthGroup.OrderBy(static step => step.Order).ThenBy(static step => step.StepId))
+                    foreach (var step in depthGroup.OrderBy(static step => step.StepId))
                     {
-                        string Target(Guid? id) => id.HasValue && stepNumbers.TryGetValue(id.Value, out var label) ? label : "End";
-                        var stepValidationIssues = GetSelectedSequenceValidationIssues()
-                            .Where(issue => issue.StepId == step.StepId)
+                        string Target(Guid? id) => id.HasValue && targetLabelsById.TryGetValue(id.Value, out var label) ? label : "End";
+                        var stepPresentation = presentationByStep[step];
+                        var stepValidationIssues = stepPresentation.ValidationIssues
                             .Select(FormatSequenceValidationIssue)
                             .Distinct(StringComparer.OrdinalIgnoreCase)
                             .ToList();
@@ -1615,14 +1612,15 @@ public sealed partial class MainWindowViewModel
                         var soundName = step.SoundEffectId is Guid selectedSoundId
                             ? soundEffectNamesById.GetValueOrDefault(selectedSoundId) ?? selectedSoundId.ToString("D")
                             : "Sound effect";
-                        var stepLabel = stepNumbers.TryGetValue(step.StepId, out var label) ? label : "Step";
+                        var stepLabel = stepPresentation.Label;
                         var repeatNote = playback is not null && !string.Equals(playback.Choice.RepeatMode, "None", StringComparison.OrdinalIgnoreCase)
                             ? $" Repeats may continue after this single-play marker ({playback.Choice.RepeatMode})."
                             : string.Empty;
                         column.Cards.Add(new SequenceTimelineCardViewModel
                         {
                             Step = step,
-                            StepLabel = $"{stepLabel} - {step.OffsetMs:N0} ms",
+                            StepLabel = $"{(step.StepId == startStepId ? "Start · " : string.Empty)}{stepLabel} · {step.OffsetMs:N0} ms",
+                            IsStart = step.StepId == startStepId,
                             BranchDisplayName = GetSequenceBranchDisplayName(step.BranchId ?? MainSequenceBranchId),
                             ActionDisplayName = GetSequenceActionDisplayName(step),
                             ActionSourceLabel = step.InlineAction is null ? "Shared" : "Inline",
@@ -1674,6 +1672,31 @@ public sealed partial class MainWindowViewModel
         OnPropertyChanged(nameof(SequenceTimeSlices));
         OnPropertyChanged(nameof(SequenceFlowTimeSlices));
         _lastSequenceTimelineModelMs = elapsed.Elapsed.TotalMilliseconds;
+    }
+
+    private static Guid? GetSequenceRootStepId(ProjectSequenceDefinitionDto? definition)
+    {
+        var steps = definition?.Steps ?? new List<ProjectSequenceStepDto>();
+        var byId = steps.Where(static step => step.StepId != Guid.Empty)
+            .GroupBy(static step => step.StepId).Where(static group => group.Count() == 1)
+            .ToDictionary(static group => group.Key, static group => group.Single());
+        var incoming = new HashSet<Guid>();
+        foreach (var step in byId.Values)
+        {
+            var mode = step.ContinuationMode ?? ContinuationMode.Continue;
+            IEnumerable<Guid?> targets = mode switch
+            {
+                ContinuationMode.Continue => new[] { step.OnContinueStepId },
+                ContinuationMode.Branch => new[] { step.OnSuccessStepId, step.OnFailureStepId },
+                ContinuationMode.Merge when step.StepType == SequenceStepType.Action => new[] { step.OnSuccessStepId, step.OnFailureStepId },
+                ContinuationMode.Merge => new[] { step.MergeTargetStepId },
+                _ => Array.Empty<Guid?>()
+            };
+            foreach (var target in targets)
+                if (target.HasValue && byId.ContainsKey(target.Value)) incoming.Add(target.Value);
+        }
+        var roots = byId.Keys.Where(id => !incoming.Contains(id)).Take(2).ToArray();
+        return roots.Length == 1 ? roots[0] : null;
     }
 
     private IEnumerable<SoundEffectLibraryEntry> EnumerateProjectSoundEffectLibraryEntries()
@@ -1800,14 +1823,9 @@ public sealed partial class MainWindowViewModel
         var removedIndex = steps.IndexOf(removedStep);
         var survivingRoutes = steps
             .Where(step => !ReferenceEquals(step, removedStep))
-            .Select(step => (Step: step, Success: step.OnSuccessStepId, Failure: step.OnFailureStepId, Merge: step.MergeTargetStepId))
+            .Select(step => (Step: step, Continue: step.OnContinueStepId, Success: step.OnSuccessStepId, Failure: step.OnFailureStepId, Merge: step.MergeTargetStepId))
             .ToList();
         steps.Remove(removedStep);
-        foreach (var timeGroup in steps.GroupBy(static step => step.OffsetMs))
-        {
-            var ordered = timeGroup.OrderBy(static step => step.Order).ThenBy(static step => step.StepId).ToList();
-            for (var index = 0; index < ordered.Count; index++) ordered[index].Order = index;
-        }
 
         RefreshSequenceSteps();
         if (_sequenceSteps.Count > 0)
@@ -1819,11 +1837,13 @@ public sealed partial class MainWindowViewModel
         // Only links that pointed at the deleted step are intentionally removed.
         foreach (var route in survivingRoutes)
         {
+            route.Step.OnContinueStepId = route.Continue == removedStep.StepId ? null : route.Continue;
             route.Step.OnSuccessStepId = route.Success == removedStep.StepId ? null : route.Success;
             route.Step.OnFailureStepId = route.Failure == removedStep.StepId ? null : route.Failure;
             route.Step.MergeTargetStepId = route.Merge == removedStep.StepId ? null : route.Merge;
         }
         OnPropertyChanged(nameof(SelectedSequenceSuccessTargetStepId));
+        OnPropertyChanged(nameof(SelectedSequenceContinueTargetStepId));
         OnPropertyChanged(nameof(SelectedSequenceFailureTargetStepId));
         OnPropertyChanged(nameof(SelectedSequenceMergeTargetStepId));
         OnPropertyChanged(nameof(SelectedSequenceSuccessTargetChoice));
@@ -1922,9 +1942,9 @@ public sealed partial class MainWindowViewModel
 
         var step = CreateNewActionSequenceStep(offset);
         step.BranchId = branchId;
-        step.Order = NextSequenceOrderAtOffset(SelectedSequenceDefinition.Steps, offset);
         if (!EditSequenceStepAction(step)) return false;
         SelectedSequenceDefinition.Steps.Add(step);
+        LinkInsertedSequenceStep(step);
         RefreshSequenceSteps();
         SelectedSequenceStep = step;
         NotifySequenceProjectEdited();
@@ -2004,10 +2024,10 @@ public sealed partial class MainWindowViewModel
             BranchId = branchId,
             ContinuationMode = ContinuationMode.Continue,
             OffsetMs = offset,
-            Order = NextSequenceOrderAtOffset(steps, offset),
             ActionId = action.Id
         };
         steps.Add(step);
+        LinkInsertedSequenceStep(step);
         RefreshSequenceSteps();
         SelectedSequenceStep = step;
         NotifySequenceProjectEdited();
@@ -2019,7 +2039,6 @@ public sealed partial class MainWindowViewModel
         if (SelectedSequenceDefinition?.Steps is not { } steps
             || SelectedSequenceStep is not { StepType: SequenceStepType.Action } source
             || (source.ContinuationMode ?? ContinuationMode.Continue) != ContinuationMode.Branch
-            || offset < source.OffsetMs
             || action.Id == Guid.Empty)
         {
             return false;
@@ -2030,21 +2049,14 @@ public sealed partial class MainWindowViewModel
             return false;
         }
 
-        var order = NextSequenceOrderAtOffset(steps, offset);
-        if (offset == source.OffsetMs && order <= source.Order)
-        {
-            return false;
-        }
-
         var branch = CreateForkBranch(source, success ? "success" : "failure");
         var branchStep = new ProjectSequenceStepDto
         {
             StepId = Guid.NewGuid(),
             BranchId = branch.BranchId,
-            ContinuationMode = ContinuationMode.Continue,
+            ContinuationMode = ContinuationMode.End,
             StepType = SequenceStepType.Action,
             OffsetMs = offset,
-            Order = order,
             ActionId = action.Id
         };
         steps.Add(branchStep);
@@ -2221,6 +2233,67 @@ public sealed partial class MainWindowViewModel
         AddSoundSequenceStepAtOffset(offset, SelectedSequenceStep?.BranchId ?? MainSequenceBranchId);
     }
 
+    private void LinkInsertedSequenceStep(ProjectSequenceStepDto inserted)
+    {
+        if (SelectedSequenceDefinition?.Steps is not { } steps)
+        {
+            inserted.ContinuationMode = ContinuationMode.End;
+            return;
+        }
+
+        var predecessor = SelectedSequenceStep is { } selected
+            && selected.StepId != inserted.StepId
+            && string.Equals(selected.BranchId, inserted.BranchId, StringComparison.Ordinal)
+            && (selected.ContinuationMode ?? ContinuationMode.Continue) is ContinuationMode.Continue or ContinuationMode.End
+                ? selected
+                : null;
+
+        if (predecessor is null)
+        {
+            var sameBranchSteps = steps.Where(step => step.StepId != inserted.StepId
+                && string.Equals(step.BranchId, inserted.BranchId, StringComparison.Ordinal)).ToList();
+            var sameBranchIds = sameBranchSteps.Select(static step => step.StepId).ToHashSet();
+            var hasIncoming = sameBranchSteps.SelectMany(GetSequenceTargets).Where(sameBranchIds.Contains).ToHashSet();
+            var roots = sameBranchSteps.Where(step => !hasIncoming.Contains(step.StepId)).ToList();
+            var hasExternalOrOtherIncoming = roots.Count == 1 && steps.Any(source =>
+                source.StepId != roots[0].StepId && GetSequenceTargets(source).Contains(roots[0].StepId));
+            if (roots.Count == 1 && sameBranchSteps.Count == 1 && !hasExternalOrOtherIncoming)
+            {
+                // A deliberate add to a one-step linear path makes the new card its entry.
+                inserted.OnContinueStepId = roots[0].StepId;
+                inserted.ContinuationMode = ContinuationMode.Continue;
+                return;
+            }
+        }
+
+        if (predecessor is null)
+        {
+            inserted.ContinuationMode = ContinuationMode.End;
+            inserted.OnContinueStepId = null;
+            return;
+        }
+
+        var oldMode = predecessor.ContinuationMode ?? ContinuationMode.Continue;
+        inserted.OnContinueStepId = oldMode == ContinuationMode.Continue ? predecessor.OnContinueStepId : null;
+        inserted.ContinuationMode = oldMode == ContinuationMode.End || !inserted.OnContinueStepId.HasValue
+            ? ContinuationMode.End
+            : ContinuationMode.Continue;
+        predecessor.ContinuationMode = ContinuationMode.Continue;
+        predecessor.OnContinueStepId = inserted.StepId;
+
+        static IEnumerable<Guid> GetSequenceTargets(ProjectSequenceStepDto step)
+        {
+            var mode = step.ContinuationMode ?? ContinuationMode.Continue;
+            if (mode == ContinuationMode.Continue && step.OnContinueStepId is Guid next) yield return next;
+            if (mode is ContinuationMode.Branch or ContinuationMode.Merge)
+            {
+                if (step.OnSuccessStepId is Guid success) yield return success;
+                if (step.OnFailureStepId is Guid failure) yield return failure;
+                if (step.StepType == SequenceStepType.Sound && step.MergeTargetStepId is Guid merge) yield return merge;
+            }
+        }
+    }
+
     public bool AddSoundSequenceStepAtOffset(int offset, string branchId)
     {
         if (SelectedSequenceDefinition is null || string.IsNullOrWhiteSpace(branchId)
@@ -2236,10 +2309,10 @@ public sealed partial class MainWindowViewModel
             BranchId = branchId,
             ContinuationMode = ContinuationMode.Continue,
             OffsetMs = offset,
-            Order = NextSequenceOrderAtOffset(SelectedSequenceDefinition.Steps, offset),
             SoundEffectId = Guid.Empty
         };
         SelectedSequenceDefinition.Steps.Add(step);
+        LinkInsertedSequenceStep(step);
         RefreshSequenceSteps();
         SelectedSequenceStep = step;
         NotifySequenceProjectEdited();
@@ -2250,8 +2323,7 @@ public sealed partial class MainWindowViewModel
     {
         if (SelectedSequenceDefinition?.Steps is not { } steps
             || SelectedSequenceStep is not { StepType: SequenceStepType.Action } source
-            || (source.ContinuationMode ?? ContinuationMode.Continue) != ContinuationMode.Branch
-            || offset < source.OffsetMs)
+            || (source.ContinuationMode ?? ContinuationMode.Continue) != ContinuationMode.Branch)
         {
             return false;
         }
@@ -2263,11 +2335,6 @@ public sealed partial class MainWindowViewModel
         }
 
         var branch = CreateForkBranch(source, success ? "success" : "failure");
-        var order = NextSequenceOrderAtOffset(steps, offset);
-        if (offset == source.OffsetMs && order <= source.Order)
-        {
-            return false;
-        }
         ProjectSequenceStepDto branchStep;
         if (sound)
         {
@@ -2275,10 +2342,9 @@ public sealed partial class MainWindowViewModel
             {
                 StepId = Guid.NewGuid(),
                 BranchId = branch.BranchId,
-                ContinuationMode = ContinuationMode.Continue,
+                ContinuationMode = ContinuationMode.End,
                 StepType = SequenceStepType.Sound,
                 OffsetMs = offset,
-                Order = order,
                 SoundEffectId = Guid.Empty
             };
         }
@@ -2286,7 +2352,6 @@ public sealed partial class MainWindowViewModel
         {
             branchStep = CreateNewActionSequenceStep(offset);
             branchStep.BranchId = branch.BranchId;
-            branchStep.Order = order;
             if (!EditSequenceStepAction(branchStep))
             {
                 return false;
@@ -2318,9 +2383,8 @@ public sealed partial class MainWindowViewModel
         StepId = Guid.NewGuid(),
         StepType = SequenceStepType.Action,
         BranchId = MainSequenceBranchId,
-        ContinuationMode = ContinuationMode.Continue,
+        ContinuationMode = ContinuationMode.End,
         OffsetMs = offset,
-        Order = 0,
         InlineAction = new CommandActionDto
         {
             Id = Guid.NewGuid(),
@@ -2331,9 +2395,4 @@ public sealed partial class MainWindowViewModel
         }
     };
 
-    private static int NextSequenceOrderAtOffset(IEnumerable<ProjectSequenceStepDto> steps, int offset) =>
-        steps.Where(step => step.OffsetMs == offset)
-            .Select(static step => step.Order)
-            .DefaultIfEmpty(-1)
-            .Max() + 1;
 }

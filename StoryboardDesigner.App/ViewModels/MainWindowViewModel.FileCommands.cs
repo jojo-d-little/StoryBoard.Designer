@@ -1479,6 +1479,7 @@ public sealed partial class MainWindowViewModel
                         step.BranchId = newBranchId;
                     }
 
+                    step.OnContinueStepId = RemapStepId(step.OnContinueStepId, stepIds);
                     step.OnSuccessStepId = RemapStepId(step.OnSuccessStepId, stepIds);
                     step.OnFailureStepId = RemapStepId(step.OnFailureStepId, stepIds);
                     step.MergeTargetStepId = RemapStepId(step.MergeTargetStepId, stepIds);

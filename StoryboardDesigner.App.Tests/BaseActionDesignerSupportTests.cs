@@ -490,6 +490,8 @@ public sealed class BaseActionDesignerSupportTests
                 {
                     StepId = Guid.NewGuid(),
                     StepType = SequenceStepType.Action,
+                    BranchId = "main",
+                    ContinuationMode = ContinuationMode.End,
                     InlineAction = JsonExportService.ToCommandActionDtoForSequence(inline, [])
                 }
             ]
@@ -591,25 +593,33 @@ public sealed class BaseActionDesignerSupportTests
             baseObject.AvailableActions[0].ObjectPresentationCueObjectId = baseObject.ObjectId;
             baseObject.AvailableActions[1].ObjectPresentationCueObjectId = baseChildA.ObjectId;
             baseObject.AvailableActions[2].ObjectPresentationCueObjectId = first.ObjectId;
+            var rootStepId = Guid.NewGuid();
+            var childStepId = Guid.NewGuid();
             baseObject.SequenceDefinitions[0].Steps.Add(new ProjectSequenceStepDto
             {
-                StepId = Guid.NewGuid(),
+                StepId = rootStepId,
                 BranchId = "main",
                 StepType = SequenceStepType.Action,
+                ContinuationMode = ContinuationMode.Continue,
+                OnContinueStepId = childStepId,
                 InlineAction = JsonExportService.ToCommandActionDtoForSequence(Cue("CueInlineBaseRoot", baseObject.ObjectId), [])
             });
             baseObject.SequenceDefinitions[0].Steps.Add(new ProjectSequenceStepDto
             {
-                StepId = Guid.NewGuid(),
+                StepId = childStepId,
                 BranchId = "main",
                 StepType = SequenceStepType.Action,
+                ContinuationMode = ContinuationMode.Continue,
+                OnContinueStepId = Guid.NewGuid(),
                 InlineAction = JsonExportService.ToCommandActionDtoForSequence(Cue("CueInlineBaseChild", baseChildB.ObjectId), [])
             });
+            var finalStepId = baseObject.SequenceDefinitions[0].Steps[1].OnContinueStepId!.Value;
             baseObject.SequenceDefinitions[0].Steps.Add(new ProjectSequenceStepDto
             {
-                StepId = Guid.NewGuid(),
+                StepId = finalStepId,
                 BranchId = "main",
                 StepType = SequenceStepType.Action,
+                ContinuationMode = ContinuationMode.End,
                 InlineAction = JsonExportService.ToCommandActionDtoForSequence(Cue("CueInlineAbsolutePlacement", first.ObjectId), [])
             });
             var room = new Room
@@ -704,6 +714,8 @@ public sealed class BaseActionDesignerSupportTests
                 {
                     StepId = Guid.NewGuid(),
                     StepType = SequenceStepType.Action,
+                    BranchId = "main",
+                    ContinuationMode = ContinuationMode.End,
                     InlineAction = JsonExportService.ToCommandActionDtoForSequence(Cue("Cue self", source.ObjectId), [])
                 }
             ]

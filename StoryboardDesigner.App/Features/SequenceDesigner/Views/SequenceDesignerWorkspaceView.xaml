@@ -337,6 +337,58 @@
                                     <TextBlock Text="Selected step properties" FontWeight="SemiBold" Foreground="#374151" />
                                     <TextBlock DockPanel.Dock="Right" Text="{Binding SequenceValidationSummary}" Foreground="#B91C1C" TextTrimming="CharacterEllipsis" />
                                 </DockPanel>
+                                <Expander Header="Validation details" IsExpanded="False" Margin="0,0,0,6">
+                                    <Expander.Style>
+                                        <Style TargetType="Expander">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasSequenceValidationIssues}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Expander.Style>
+                                    <Border BorderBrush="#FCA5A5" BorderThickness="1" Background="#FFF7F7" Padding="6" MaxHeight="190">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                            <ItemsControl ItemsSource="{Binding SequenceValidationIssues}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,0,0,8">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding RouteTargetLabel}" TextWrapping="Wrap" Foreground="#374151" FontWeight="SemiBold">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Setter Property="Visibility" Value="Visible" />
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding RouteTargetLabel}" Value=""><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                                                                                <DataTrigger Binding="{Binding RouteTargetLabel}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+                                                                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Foreground="#7F1D1D" />
+                                                                <TextBlock Text="Fix:" Foreground="#4B5563" Margin="0,2,0,0" />
+                                                                <TextBlock Text="{Binding Hint}" TextWrapping="Wrap" Foreground="#4B5563" Margin="0,0,0,0" />
+                                                            </StackPanel>
+                                                            <Button Grid.Column="1" Content="Go to step" Tag="{Binding StepId}" Click="SequenceValidationIssue_OnClick" Padding="6,2" Margin="8,0,0,0" VerticalAlignment="Top">
+                                                                <Button.Style>
+                                                                    <Style TargetType="Button">
+                                                                        <Setter Property="Visibility" Value="Visible" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding StepId}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Button.Style>
+                                                            </Button>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Expander>
                                 <Grid Margin="0,2,0,0">
                                     <Grid.Style>
                                         <Style TargetType="Grid">
@@ -433,18 +485,30 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Offset ms" Foreground="#6B7280" />
-                                <TextBlock Grid.Row="0" Grid.Column="1" Text="Order" Foreground="#6B7280" />
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="Display label" Foreground="#6B7280" />
                                 <TextBlock Grid.Row="0" Grid.Column="2" Text="Step type" Foreground="#6B7280" />
                                 <TextBlock Grid.Row="0" Grid.Column="3" Text="Branch" Foreground="#6B7280" />
                                 <TextBlock Grid.Row="0" Grid.Column="4" Text="Continue mode" Foreground="#6B7280" />
                                 <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding SelectedSequenceStep.OffsetMs, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,6,0" LostFocus="SequenceStepTiming_OnLostFocus" />
-                                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SelectedSequenceStep.Order, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,6,0" LostFocus="SequenceStepTiming_OnLostFocus" />
-                                <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding SelectedSequenceStep.StepType}" IsReadOnly="True" Margin="0,2,6,0" />
+                                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SelectedSequenceStepDisplayLabel, Mode=OneWay}" IsReadOnly="True" Margin="0,2,6,0" ToolTip="Calculated for visual reference only; it does not control execution." />
+                                <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding SelectedSequenceStep.StepType, Mode=OneWay}" IsReadOnly="True" Margin="0,2,6,0" />
                                 <ComboBox Grid.Row="1" Grid.Column="3" ItemsSource="{Binding SequenceBranchDefinitions}"
                                           DisplayMemberPath="DisplayName" SelectedValuePath="BranchId"
                                           SelectedValue="{Binding SelectedSequenceBranchId, Mode=TwoWay}" Margin="0,2,6,0"
-                                          ToolTip="Branch steps continue in authored time and order." />
+                                          ToolTip="Branch identifies the lane. Explicit saved targets control flow." />
                                 <ComboBox Grid.Row="1" Grid.Column="4" ItemsSource="{Binding SelectedSequenceContinuationModeChoices}" SelectedItem="{Binding SelectedSequenceContinuationMode, Mode=TwoWay}" Margin="0,2,6,0" />
+                                <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="7" Orientation="Horizontal" Margin="0,5,0,0">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSelectedSequenceContinueMode}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+                                    <TextBlock Text="Continue target" Foreground="#4B5563" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <ComboBox Width="360" Tag="Continue" ItemsSource="{Binding SequenceStepTargetChoices}" DisplayMemberPath="DisplayName" SelectedItem="{Binding SelectedSequenceContinueTargetChoice, Mode=OneWay}" DropDownOpened="SequenceTargetComboBox_OnDropDownOpened" DropDownClosed="SequenceTargetComboBox_OnDropDownClosed" />
+                                </StackPanel>
                                 <Grid Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="7" Margin="0,5,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />

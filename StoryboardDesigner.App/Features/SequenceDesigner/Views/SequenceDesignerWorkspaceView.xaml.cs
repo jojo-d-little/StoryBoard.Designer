@@ -149,6 +149,22 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
         }
     }
 
+    private void SequenceValidationIssue_OnClick(object sender, System.Windows.RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button { Tag: Guid stepId }
+            && DataContext is StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel)
+        {
+            viewModel.SelectSequenceValidationIssue(stepId);
+            Dispatcher.BeginInvoke(() =>
+            {
+                var target = FindVisualChildren<System.Windows.Controls.Button>(SequenceCanvasContent)
+                    .FirstOrDefault(button => button.DataContext is StoryboardDesigner.App.ViewModels.MainWindowViewModel.SequenceTimelineCardViewModel card
+                        && card.Step.StepId == stepId);
+                target?.BringIntoView();
+            }, System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+    }
+
     private void SequenceTargetComboBox_OnDropDownOpened(object sender, System.EventArgs e)
     {
         if (sender is not System.Windows.Controls.ComboBox comboBox
@@ -161,6 +177,7 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
 
         var currentTargetStepId = routeKind switch
         {
+            "Continue" => source.OnContinueStepId,
             "Success" => source.OnSuccessStepId,
             "Failure" => source.OnFailureStepId,
             "Merge" => source.MergeTargetStepId,
@@ -890,7 +907,7 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
             .ToDictionary(static group => group.Key, static group => group.First());
 
         var layoutKey = string.Join("|", cards.Select(card =>
-            $"{card.Card.Step.StepId:N}:{card.Position.X:0.0},{card.Position.Y:0.0},{card.Button.ActualWidth:0.0},{card.Button.ActualHeight:0.0}:{card.Card.Step.BranchId}:{card.Card.Step.ContinuationMode}:{card.Card.Step.OnSuccessStepId}:{card.Card.Step.OnFailureStepId}:{card.Card.Step.MergeTargetStepId}:{card.Card.PlaybackStartOffsetMs}:{card.Card.PlaybackEndOffsetMs}"))
+            $"{card.Card.Step.StepId:N}:{card.Position.X:0.0},{card.Position.Y:0.0},{card.Button.ActualWidth:0.0},{card.Button.ActualHeight:0.0}:{card.Card.Step.BranchId}:{card.Card.Step.ContinuationMode}:{card.Card.Step.OnContinueStepId}:{card.Card.Step.OnSuccessStepId}:{card.Card.Step.OnFailureStepId}:{card.Card.Step.MergeTargetStepId}:{card.Card.PlaybackStartOffsetMs}:{card.Card.PlaybackEndOffsetMs}"))
             + string.Join("|", timeCells.Select(cell => $"{cell.Slice.RangeStartOffsetMs}-{cell.Slice.RangeEndOffsetMs}:{cell.Position.X:0.0}:{cell.Width:0.0}"));
         var scanMs = scan.Elapsed.TotalMilliseconds;
         if (string.Equals(layoutKey, _lastFlowConnectionLayout, StringComparison.Ordinal))
@@ -915,18 +932,7 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
             var mode = step.ContinuationMode ?? Storyboard.Shared.RuntimeContracts.Enums.ContinuationMode.Continue;
             if (mode == Storyboard.Shared.RuntimeContracts.Enums.ContinuationMode.Continue)
             {
-                var nextOnBranch = cards
-                    .Where(candidate => !ReferenceEquals(candidate, card)
-                        && string.Equals(candidate.Card.Step.BranchId, step.BranchId, StringComparison.Ordinal)
-                        && (candidate.Card.Step.OffsetMs > step.OffsetMs
-                            || candidate.Card.Step.OffsetMs == step.OffsetMs && candidate.Card.Step.Order > step.Order))
-                    .OrderBy(static candidate => candidate.Card.Step.OffsetMs)
-                    .ThenBy(static candidate => candidate.Card.Step.Order)
-                    .FirstOrDefault();
-                if (nextOnBranch is not null)
-                {
-                    AddConnection(card, nextOnBranch.Card.Step.StepId, "Continue", System.Windows.Media.Color.FromRgb(71, 85, 105), 0.50d, byStepId);
-                }
+                AddConnection(card, step.OnContinueStepId, "Continue", System.Windows.Media.Color.FromRgb(71, 85, 105), 0.50d, byStepId);
             }
             else if (mode == Storyboard.Shared.RuntimeContracts.Enums.ContinuationMode.Branch
                      || mode == Storyboard.Shared.RuntimeContracts.Enums.ContinuationMode.Merge && step.StepType == Storyboard.Shared.RuntimeContracts.Enums.SequenceStepType.Action)
@@ -1127,7 +1133,6 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
                 && card.Card.PlaybackStartOffsetMs.HasValue
                 && card.Card.PlaybackEndOffsetMs.HasValue)
             .OrderBy(static card => card.Card.Step.OffsetMs)
-            .ThenBy(static card => card.Card.Step.Order)
             .ThenBy(static card => card.Card.Step.StepId)
             .ToList();
         var selectedStepId = (DataContext as StoryboardDesigner.App.ViewModels.MainWindowViewModel)?.SelectedSequenceStep?.StepId;
