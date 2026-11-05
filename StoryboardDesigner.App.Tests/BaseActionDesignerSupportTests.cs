@@ -30,7 +30,7 @@ public sealed class BaseActionDesignerSupportTests
                 {
                     Name = "Capture riders",
                     ActionType = CommandActionType.CaptureObjectsOnObjectFootprint,
-                    Payload = new CaptureObjectsOnObjectFootprintPayload(string.Empty, null)
+                    Payload = new CaptureObjectsOnObjectFootprintPayload(string.Empty, null, FootprintMatchMode.AnyOverlap)
                 };
                 var choices = new List<MaterializeSourceObjectChoiceItem>
                 {
@@ -248,7 +248,7 @@ public sealed class BaseActionDesignerSupportTests
                 {
                     Name = "Capture riders",
                     ActionType = CommandActionType.CaptureObjectsOnObjectFootprint,
-                    Payload = new CaptureObjectsOnObjectFootprintPayload("liftOccupants", objectId)
+                    Payload = new CaptureObjectsOnObjectFootprintPayload("liftOccupants", objectId, FootprintMatchMode.AnyOverlap)
                 };
                 var dialog = new RoomActionEditorDialog(
                     action,
@@ -356,7 +356,7 @@ public sealed class BaseActionDesignerSupportTests
                 {
                     Name = "Capture riders",
                     ActionType = CommandActionType.CaptureObjectsOnObjectFootprint,
-                    Payload = new CaptureObjectsOnObjectFootprintPayload("liftOccupants", gameObject.ObjectId)
+                    Payload = new CaptureObjectsOnObjectFootprintPayload("liftOccupants", gameObject.ObjectId, FootprintMatchMode.AnyOverlap)
                 };
                 var project = new ProjectModel();
                 foreach (var (action, pickerName) in new[]

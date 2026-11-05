@@ -279,7 +279,12 @@ public sealed class JsonExportService : IJsonExportService
     private const string ScopeNodeFileSuffix = ".runtime.json";
 
     private readonly JsonSerializerOptions _jsonOptions = CreateJsonOptions();
-    private readonly JsonSerializerOptions _jsonReadOptions = CreateJsonOptions(propertyNameCaseInsensitive: true);
+    private readonly JsonSerializerOptions _jsonReadOptions = CreateJsonReadOptions();
+
+    internal static JsonSerializerOptions CreateJsonReadOptions()
+    {
+        return CreateJsonOptions(propertyNameCaseInsensitive: true);
+    }
 
     internal static JsonSerializerOptions CreateJsonOptions(bool propertyNameCaseInsensitive = false)
     {
@@ -296,6 +301,15 @@ public sealed class JsonExportService : IJsonExportService
             {
                 AddPayloadDerivedType(typeInfo, typeof(RuntimeCheckCommandContextActionPayloadDto), "checkCommandContext");
                 AddPayloadDerivedType(typeInfo, typeof(RuntimeNavigateDirectionPreFlightCheckActionPayloadDto), "navigateDirectionPreFlightCheck");
+            }
+            else if (typeInfo.Type == typeof(ProjectCaptureObjectsOnObjectFootprintActionPayloadDto)
+                || typeInfo.Type == typeof(RuntimeCaptureObjectsOnObjectFootprintActionPayloadDto))
+            {
+                foreach (var property in typeInfo.Properties.Where(static property => property.Name == "FootprintMatchMode"))
+                {
+                    // AnyOverlap is enum value zero but is required on the wire.
+                    property.ShouldSerialize = static (_, _) => true;
+                }
             }
         });
         options.TypeInfoResolver = resolver;
@@ -3211,7 +3225,10 @@ public sealed class JsonExportService : IJsonExportService
         }
         else if (action.Payload is ProjectCaptureObjectsOnObjectFootprintActionPayloadDto captureSet)
         {
-            model.Payload = new CaptureObjectsOnObjectFootprintPayload(captureSet.ObjectSetReference?.ObjectSetKey ?? string.Empty, captureSet.TargetObjectId == Guid.Empty ? null : captureSet.TargetObjectId);
+            model.Payload = new CaptureObjectsOnObjectFootprintPayload(
+                captureSet.ObjectSetReference?.ObjectSetKey ?? string.Empty,
+                captureSet.TargetObjectId == Guid.Empty ? null : captureSet.TargetObjectId,
+                Enum.IsDefined(captureSet.FootprintMatchMode) ? captureSet.FootprintMatchMode : null);
         }
         else if (action.Payload is ProjectCheckObjectSetContainsObjectActionPayloadDto checkSet)
         {
@@ -8001,13 +8018,14 @@ public sealed class JsonExportService : IJsonExportService
         return setReference;
     }
 
-    private static ProjectCommandActionPayloadBaseDto BuildCaptureObjectsOnObjectFootprintPayloadElement(CommandAction action)
+    internal static ProjectCommandActionPayloadBaseDto BuildCaptureObjectsOnObjectFootprintPayloadElement(CommandAction action)
     {
         var payload = action.Payload as CaptureObjectsOnObjectFootprintPayload;
         return new ProjectCaptureObjectsOnObjectFootprintActionPayloadDto
         {
             ObjectSetReference = new ProjectObjectSetReferenceDto { ObjectSetKey = payload?.ObjectSetKey ?? string.Empty },
-            TargetObjectId = payload?.TargetObjectId ?? Guid.Empty
+            TargetObjectId = payload?.TargetObjectId ?? Guid.Empty,
+            FootprintMatchMode = GetRequiredFootprintMatchMode(payload)
         };
     }
 
@@ -8421,14 +8439,25 @@ public sealed class JsonExportService : IJsonExportService
         };
     }
 
-    private static RuntimeCommandActionPayloadBaseDto BuildCleanCaptureObjectsOnObjectFootprintPayloadElement(CommandAction action)
+    internal static RuntimeCommandActionPayloadBaseDto BuildCleanCaptureObjectsOnObjectFootprintPayloadElement(CommandAction action)
     {
         var payload = action.Payload as CaptureObjectsOnObjectFootprintPayload;
         return new RuntimeCaptureObjectsOnObjectFootprintActionPayloadDto
         {
             ObjectSetReference = new ObjectSetReferenceDto { ObjectSetKey = payload?.ObjectSetKey ?? string.Empty },
-            TargetObjectId = payload?.TargetObjectId ?? Guid.Empty
+            TargetObjectId = payload?.TargetObjectId ?? Guid.Empty,
+            FootprintMatchMode = GetRequiredFootprintMatchMode(payload)
         };
+    }
+
+    private static FootprintMatchMode GetRequiredFootprintMatchMode(CaptureObjectsOnObjectFootprintPayload? payload)
+    {
+        if (payload?.FootprintMatchMode is not { } mode || !Enum.IsDefined(mode))
+        {
+            throw new InvalidOperationException("Capture Objects On Object Footprint requires a supported footprint match mode before export.");
+        }
+
+        return mode;
     }
 
     private static RuntimeCommandActionPayloadBaseDto BuildCleanCheckObjectSetContainsObjectPayloadElement(CommandAction action)
@@ -9525,6 +9554,7 @@ public sealed class JsonExportService : IJsonExportService
         {
             var normalizedJson = NormalizePreRetirementComputedPropertyWireName(json);
             normalizedJson = NormalizeLegacySoundEmitterActivationPropertyIds(normalizedJson);
+            normalizedJson = CaptureFootprintMatchModeJsonNormalizer.MarkMissingOrUnsupportedAsInvalid(normalizedJson);
             if (typeof(T) == typeof(RoomDto))
                 normalizedJson = NormalizeLegacyRoomSpawnPoint(normalizedJson);
             return JsonSerializer.Deserialize<T>(normalizedJson, options);

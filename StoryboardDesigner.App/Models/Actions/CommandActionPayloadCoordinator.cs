@@ -194,7 +194,10 @@ internal static class CommandActionPayloadCoordinator
             CommandActionType.StackRoomObjectOnAnother => new StackRoomObjectOnAnotherPayload(),
             CommandActionType.AddObjectPresentationCue => new AddObjectPresentationCuePayload(null, string.Empty),
             CommandActionType.RemoveObjectPresentationCue => new RemoveObjectPresentationCuePayload(null, string.Empty),
-            CommandActionType.CaptureObjectsOnObjectFootprint => new CaptureObjectsOnObjectFootprintPayload(string.Empty, null),
+            CommandActionType.CaptureObjectsOnObjectFootprint => new CaptureObjectsOnObjectFootprintPayload(
+                string.Empty,
+                null,
+                Storyboard.Shared.RuntimeContracts.Enums.FootprintMatchMode.AnyOverlap),
             CommandActionType.CheckObjectSetContainsObject => new CheckObjectSetContainsObjectPayload(string.Empty, "CurrentPlayer"),
             CommandActionType.NavigateObjectSetToAdjacent => new NavigateObjectSetToAdjacentPayload(string.Empty, "Unknown"),
             CommandActionType.ClearObjectPresentationCues => new ClearObjectPresentationCuesPayload(null),
@@ -274,7 +277,10 @@ internal static class CommandActionPayloadCoordinator
                 stack.MovementEffectKey),
             AddObjectPresentationCuePayload addCue => new AddObjectPresentationCuePayload(addCue.ObjectId, addCue.EffectKey, CloneObjectSetReference(addCue.ObjectSetReference)),
             RemoveObjectPresentationCuePayload removeCue => new RemoveObjectPresentationCuePayload(removeCue.ObjectId, removeCue.EffectKey, CloneObjectSetReference(removeCue.ObjectSetReference)),
-            CaptureObjectsOnObjectFootprintPayload capture => new CaptureObjectsOnObjectFootprintPayload(capture.ObjectSetKey, capture.TargetObjectId),
+            CaptureObjectsOnObjectFootprintPayload capture => new CaptureObjectsOnObjectFootprintPayload(
+                capture.ObjectSetKey,
+                capture.TargetObjectId,
+                capture.FootprintMatchMode),
             CheckObjectSetContainsObjectPayload checkSet => new CheckObjectSetContainsObjectPayload(checkSet.ObjectSetKey, checkSet.Target),
             NavigateObjectSetToAdjacentPayload navigateSet => new NavigateObjectSetToAdjacentPayload(navigateSet.ObjectSetKey, navigateSet.Direction),
             ClearObjectPresentationCuesPayload clearCues => new ClearObjectPresentationCuesPayload(clearCues.ObjectId),

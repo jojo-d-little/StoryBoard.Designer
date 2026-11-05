@@ -143,7 +143,7 @@ public sealed class ElevatorStage3AuthoringTests
         {
             root,
             new() { Name = "Capture occupants", ActionType = CommandActionType.CaptureObjectsOnObjectFootprint,
-                Payload = new CaptureObjectsOnObjectFootprintPayload("liftOccupants", targetObjectId) },
+                Payload = new CaptureObjectsOnObjectFootprintPayload("liftOccupants", targetObjectId, FootprintMatchMode.AnyOverlap) },
             new() { Name = "Check player", ActionType = CommandActionType.CheckObjectSetContainsObject,
                 Payload = new CheckObjectSetContainsObjectPayload("liftOccupants", "CurrentPlayer") },
             new() { Name = "Check explicit object", ActionType = CommandActionType.CheckObjectSetContainsObject,

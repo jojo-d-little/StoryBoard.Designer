@@ -21,7 +21,10 @@ public sealed record ClearObjectPresentationCuesPayload(Guid? ObjectId) : IActio
     public IReadOnlyList<(string FieldName, string Value)> GetScriptFields() => [];
 }
 
-public sealed record CaptureObjectsOnObjectFootprintPayload(string ObjectSetKey, Guid? TargetObjectId) : IActionPayload
+public sealed record CaptureObjectsOnObjectFootprintPayload(
+    string ObjectSetKey,
+    Guid? TargetObjectId,
+    Storyboard.Shared.RuntimeContracts.Enums.FootprintMatchMode? FootprintMatchMode) : IActionPayload
 {
     public CommandActionType ActionType => CommandActionType.CaptureObjectsOnObjectFootprint;
     public IReadOnlyList<string> GetReferenceTokens() => StoryboardDesigner.App.Services.ActionManifestCatalog.GetOutputVariableTokens(ActionType);

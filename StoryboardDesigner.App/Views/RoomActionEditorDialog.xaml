@@ -925,7 +925,7 @@
                 </Grid>
 
                 <Grid x:Name="CaptureObjectSetEditorPanel" Visibility="Collapsed">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="140"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <TextBlock Grid.Row="0" Grid.ColumnSpan="3" Margin="0,0,0,10" TextWrapping="Wrap" Foreground="#4B5563"
                                Text="Captures objects on the selected object's footprint into a sequence-run scoped set. Enter a logical key that later set actions will reference." />
@@ -934,6 +934,11 @@
                     <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Placed Object" />
                     <TextBox x:Name="CaptureObjectSetTargetTextBox" Grid.Row="2" Grid.Column="1" Margin="0,0,8,10" IsReadOnly="True" />
                     <Button x:Name="CaptureObjectSetTargetButton" Grid.Row="2" Grid.Column="2" Margin="0,0,0,10" Content="Choose…" Click="ChooseCaptureObjectSetTarget_OnClick" />
+                    <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Footprint match" />
+                    <ComboBox x:Name="CaptureFootprintMatchModeComboBox" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,6"
+                              DisplayMemberPath="DisplayName" SelectedValuePath="Value" />
+                    <TextBlock Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,10" TextWrapping="Wrap" Foreground="#4B5563"
+                               Text="Any overlap includes objects sharing one or more grid cells. Fully contained includes only objects whose entire footprint lies within the target footprint." />
                 </Grid>
 
                 <Grid x:Name="CheckObjectSetEditorPanel" Visibility="Collapsed">

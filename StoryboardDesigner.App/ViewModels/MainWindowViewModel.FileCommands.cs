@@ -1994,6 +1994,7 @@ public sealed partial class MainWindowViewModel
         registry.Register(new MaterializeSourceObjectReferenceExistsRule());
         registry.Register(new OutcomeSoundEffectReferenceExistsRule());
         registry.Register(new ObjectPresentationCueTargetReferenceExistsRule());
+        registry.Register(new CaptureFootprintMatchModeRule());
         registry.Register(new PreRoomEntrySetupAdvisoryRule());
         registry.Register(new TriggerParticleEffectTargetIsBurstEligibleRule());
         registry.Register(new TriggerParticleEffectQuantityMultiplierRule());

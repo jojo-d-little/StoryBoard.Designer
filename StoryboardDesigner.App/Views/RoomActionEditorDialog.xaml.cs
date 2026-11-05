@@ -156,6 +156,7 @@ public partial class RoomActionEditorDialog : Window
         IReadOnlyList<string>? objectSetKeySuggestions = null)
     {
         InitializeComponent();
+        CaptureFootprintMatchModeComboBox.ItemsSource = CaptureFootprintMatchModeChoices.All;
         _sourceAction = sourceAction;
         _defaultCurrentObjectId = defaultCurrentObjectId;
         _objectSetKeySuggestions = objectSetKeySuggestions ?? Array.Empty<string>();
@@ -1566,6 +1567,7 @@ public partial class RoomActionEditorDialog : Window
         CaptureObjectSetKeyTextBox.Text = capture?.ObjectSetKey ?? string.Empty;
         _captureObjectSetTargetId = capture?.TargetObjectId;
         CaptureObjectSetTargetTextBox.Text = GetRoomObjectDisplayName(_captureObjectSetTargetId);
+        CaptureFootprintMatchModeComboBox.SelectedValue = capture?.FootprintMatchMode;
 
         var check = _workingCopy.Payload as CheckObjectSetContainsObjectPayload;
         ConfigureObjectSetKeyPicker(CheckObjectSetKeyComboBox, check?.ObjectSetKey);
@@ -1712,7 +1714,15 @@ public partial class RoomActionEditorDialog : Window
                 System.Windows.MessageBox.Show(this, "Enter a logical set key and choose the placed object whose footprint will be captured.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
                 return false;
             }
-            _workingCopy.Payload = new CaptureObjectsOnObjectFootprintPayload(key, _captureObjectSetTargetId);
+
+            if (CaptureFootprintMatchModeComboBox.SelectedValue is not FootprintMatchMode footprintMatchMode
+                || !Enum.IsDefined(footprintMatchMode))
+            {
+                System.Windows.MessageBox.Show(this, "Choose a supported footprint match mode.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+                return false;
+            }
+
+            _workingCopy.Payload = new CaptureObjectsOnObjectFootprintPayload(key, _captureObjectSetTargetId, footprintMatchMode);
         }
         else if (_workingCopy.ActionType == CommandActionType.CheckObjectSetContainsObject)
         {
