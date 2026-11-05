@@ -1074,6 +1074,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         RefreshSharedPropertyIndicators();
         var sharedPropertiesMs = phase.Elapsed.TotalMilliseconds;
 
+        foreach (var roomEditor in OpenRoomEditors)
+        {
+            roomEditor.BuildRoomChildObjects();
+        }
+
         if (measureSequenceEdit)
         {
             _lastSequenceProjectEditPerformance = new SequenceProjectEditPerformance(
@@ -1558,6 +1563,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         {
             return;
         }
+
+        editor.Dispose();
 
         if (ReferenceEquals(SelectedRoomEditor, editor) || SelectedRoomEditor?.Room.Id == editor.Room.Id)
         {

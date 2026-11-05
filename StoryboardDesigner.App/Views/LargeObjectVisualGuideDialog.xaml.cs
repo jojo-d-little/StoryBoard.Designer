@@ -378,11 +378,6 @@ public partial class LargeObjectVisualGuideDialog : Window
         var footprintLeft = (_gridColumns * _cellSize - footprintWidthPixels) / 2d;
         var footprintTop = (_gridRows * _cellSize - footprintHeightPixels) / 2d;
         var point = e.GetPosition(GuideSurfaceGrid);
-        if (point.X < footprintLeft || point.Y < footprintTop || point.X > footprintLeft + footprintWidthPixels || point.Y > footprintTop + footprintHeightPixels)
-        {
-            return;
-        }
-
         if (_selectedStructuralPartPlacement is { } selectedPart)
         {
             if (selectedPart.Placement.Mode != StructuralPartPlacementKind.ParentRelative)
@@ -398,20 +393,17 @@ public partial class LargeObjectVisualGuideDialog : Window
             {
                 (partWidth, partHeight) = (partHeight, partWidth);
             }
-            var maxOffsetX = Math.Max(0, footprintWidthPixels - partWidth);
-            var maxOffsetY = Math.Max(0, footprintHeightPixels - partHeight);
-            if (partWidth > footprintWidthPixels || partHeight > footprintHeightPixels)
-            {
-                StructuralPartRenderOrderHintTextBlock.Text = "This child's footprint is larger than the parent footprint and cannot fit inside it.";
-                e.Handled = true;
-                return;
-            }
-            selectedPart.Placement.ParentRelativeOffsetX = SnapPartOffset(point.X - footprintLeft - partWidth / 2d, maxOffsetX);
-            selectedPart.Placement.ParentRelativeOffsetY = SnapPartOffset(point.Y - footprintTop - partHeight / 2d, maxOffsetY);
+            selectedPart.Placement.ParentRelativeOffsetX = SnapPartOffset(point.X - footprintLeft - partWidth / 2d);
+            selectedPart.Placement.ParentRelativeOffsetY = SnapPartOffset(point.Y - footprintTop - partHeight / 2d);
             UpdateStructuralPartMarker(footprintLeft, footprintTop);
             StructuralPartRenderOrderHintTextBlock.Text = $"Placed {selectedPart.Name}. Select another child row to position it.";
             StatusTextBlock.Text = $"Footprint: {footprintWidth} × {footprintHeight} cells; placed {selectedPart.Name} at {selectedPart.Placement.ParentRelativeOffsetX:0} × {selectedPart.Placement.ParentRelativeOffsetY:0}px from the parent footprint's top-left.";
             e.Handled = true;
+            return;
+        }
+
+        if (point.X < footprintLeft || point.Y < footprintTop || point.X > footprintLeft + footprintWidthPixels || point.Y > footprintTop + footprintHeightPixels)
+        {
             return;
         }
 
@@ -441,17 +433,8 @@ public partial class LargeObjectVisualGuideDialog : Window
         {
             (width, height) = (height, width);
         }
-        GetOrientedDimensions(out var parentWidthCells, out var parentHeightCells);
-        if (width > parentWidthCells * _cellSize || height > parentHeightCells * _cellSize)
-        {
-            StructuralPartMarker.Visibility = Visibility.Collapsed;
-            StructuralPartMarkerLabel.Visibility = Visibility.Collapsed;
-            return;
-        }
-        var maxOffsetX = Math.Max(0, (parentWidthCells * _cellSize) - width);
-        var maxOffsetY = Math.Max(0, (parentHeightCells * _cellSize) - height);
-        offsetX = SnapPartOffset(offsetX, maxOffsetX);
-        offsetY = SnapPartOffset(offsetY, maxOffsetY);
+        offsetX = SnapPartOffset(offsetX);
+        offsetY = SnapPartOffset(offsetY);
         part.Placement.ParentRelativeOffsetX = offsetX;
         part.Placement.ParentRelativeOffsetY = offsetY;
         StructuralPartMarker.Width = width;
@@ -580,20 +563,8 @@ public partial class LargeObjectVisualGuideDialog : Window
         var deltaY = current.Y - _structuralPartDragStartPoint.Y;
         if (_selectedStructuralPartPlacement is { } part)
         {
-            GetOrientedDimensions(out var parentWidth, out var parentHeight);
-            var partWidth = Math.Max(1, part.FootprintWidthCells) * _cellSize;
-            var partHeight = Math.Max(1, part.FootprintHeightCells) * _cellSize;
-            if (part.FootprintOrientation is "E" or "W")
-            {
-                (partWidth, partHeight) = (partHeight, partWidth);
-            }
-
-            part.Placement.ParentRelativeOffsetX = SnapPartOffset(
-                _structuralPartDragStartOffsetX + deltaX,
-                Math.Max(0, parentWidth * _cellSize - partWidth));
-            part.Placement.ParentRelativeOffsetY = SnapPartOffset(
-                _structuralPartDragStartOffsetY + deltaY,
-                Math.Max(0, parentHeight * _cellSize - partHeight));
+            part.Placement.ParentRelativeOffsetX = SnapPartOffset(_structuralPartDragStartOffsetX + deltaX);
+            part.Placement.ParentRelativeOffsetY = SnapPartOffset(_structuralPartDragStartOffsetY + deltaY);
             GetOrientedDimensions(out var footprintWidth, out var footprintHeight);
             UpdateStructuralPartMarker(
                 (_gridColumns - footprintWidth) * _cellSize / 2d,
@@ -627,10 +598,9 @@ public partial class LargeObjectVisualGuideDialog : Window
         e.Handled = true;
     }
 
-    private double SnapPartOffset(double offset, double maxOffset)
+    private double SnapPartOffset(double offset)
     {
-        var clampedOffset = Math.Clamp(offset, 0, maxOffset);
-        return Math.Clamp(Math.Round(clampedOffset / _cellSize) * _cellSize, 0, maxOffset);
+        return Math.Round(offset / _cellSize, MidpointRounding.AwayFromZero) * _cellSize;
     }
 
     private static List<StructuralPartPlacementEditItem> CloneStructuralPartPlacements(IEnumerable<StructuralPartPlacementEditItem>? source) =>

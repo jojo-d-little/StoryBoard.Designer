@@ -13,7 +13,7 @@ public enum RoomDesignerPreviewPlacementComparisonMode
     SharedOnly
 }
 
-public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
+public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase, IDisposable
 {
     private readonly Action? _onEdited;
     private readonly Func<string?>? _projectFilePathAccessor;
@@ -110,6 +110,10 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
         get => GameObject.PositionX;
         set
         {
+            if (GameObject.IsPartOfParent && GameObject.IsRoomInstance)
+            {
+                return;
+            }
             if (Math.Abs(GameObject.PositionX - value) < 0.0001)
             {
                 return;
@@ -126,6 +130,10 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
         get => GameObject.PositionY;
         set
         {
+            if (GameObject.IsPartOfParent && GameObject.IsRoomInstance)
+            {
+                return;
+            }
             if (Math.Abs(GameObject.PositionY - value) < 0.0001)
             {
                 return;
@@ -142,6 +150,10 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
         get => GameObject.ImageRotationDegrees;
         set
         {
+            if (GameObject.IsPartOfParent && GameObject.IsRoomInstance)
+            {
+                return;
+            }
             var sanitized = double.IsFinite(value) ? value : 0;
             var snapped = SnapRoomRotationToQuarterTurn(sanitized);
             if (Math.Abs(GameObject.ImageRotationDegrees - snapped) < 0.0001)
@@ -158,6 +170,12 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
 
     // Final image angle shown in room preview: room-authored rotation + variant-local fit rotation.
     public double ImageRotationDegrees => GameObject.ImageRotationDegrees + _effectiveDefinitionOwnedSource.ResolveImageLocalAlignmentRotationDegrees(SelectedPreviewVariantName);
+
+    public string? StructuralPartOffsetSummary => !GameObject.IsPartOfParent
+        ? null
+        : GameObject.Placement.Mode == StructuralPartPlacementKind.ParentRelative
+            ? $"Base Object local offset: {GameObject.Placement.ParentRelativeOffsetX.GetValueOrDefault():0.##}, {GameObject.Placement.ParentRelativeOffsetY.GetValueOrDefault():0.##} px. Edit this part in its Base Object."
+            : $"Room coordinates: {GameObject.Placement.RoomCoordinateX.GetValueOrDefault():0.##}, {GameObject.Placement.RoomCoordinateY.GetValueOrDefault():0.##} px. Edit this part in its Base Object.";
 
     // Local icon placement inside the footprint frame after applying preview transform rules.
     public double ImageLocalAlignmentOffsetX => ResolveRotatedImageLocalAlignmentOffset().X;
@@ -408,6 +426,15 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase
         OnPropertyChanged(nameof(IconLayerOffsetYPixels));
         OnPropertyChanged(nameof(IconLayerPositionX));
         OnPropertyChanged(nameof(IconLayerPositionY));
+    }
+
+    public void Dispose()
+    {
+        GameObject.PropertyChanged -= OnGameObjectPropertyChanged;
+        if (!ReferenceEquals(_effectiveDefinitionOwnedSource, GameObject))
+        {
+            _effectiveDefinitionOwnedSource.PropertyChanged -= OnEffectiveDefinitionOwnedSourcePropertyChanged;
+        }
     }
 
     private void SelectPreviewVariant(string? variantName)

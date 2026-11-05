@@ -150,6 +150,12 @@ public sealed class RoomDesignerRenderOrderItemViewModel : ViewModelBase
 
     private void PreviewObject_OnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (string.IsNullOrWhiteSpace(e.PropertyName)
+            || string.Equals(e.PropertyName, nameof(RoomDesignerPreviewObjectViewModel.DrawOrderZIndex), StringComparison.Ordinal))
+        {
+            OnPropertyChanged(nameof(DrawOrderZIndex));
+        }
+
         OnPropertyChanged(nameof(DisplayName));
         OnPropertyChanged(nameof(ToolTipText));
         OnPropertyChanged(nameof(PositionX));

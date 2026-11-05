@@ -357,6 +357,7 @@
                                                             <RowDefinition Height="Auto" />
                                                             <RowDefinition Height="Auto" />
                                                             <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="Auto" />
                                                         </Grid.RowDefinitions>
 
                                                         <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" FontWeight="SemiBold" Text="Selected Object / Spawn Transform" />
@@ -366,7 +367,7 @@
                                                                  Grid.Column="1"
                                                                  Margin="0,8,0,0"
                                                                  Text="{Binding SelectedRoomChildObject.PositionX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}">
-                                                            <TextBox.Style><Style TargetType="TextBox"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding IsSelectedSpawnPoint}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBox.Style>
+                                                            <TextBox.Style><Style TargetType="TextBox"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding IsSelectedSpawnPoint}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding SelectedRoomChildObject.GameObject.IsPartOfParent}" Value="True"><Setter Property="IsReadOnly" Value="True"/></DataTrigger></Style.Triggers></Style></TextBox.Style>
                                                         </TextBox>
                                                         <TextBox Grid.Row="1" Grid.Column="1" Margin="0,8,0,0"
                                                                  Text="{Binding SelectedSpawnPointX, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=F2}">
@@ -378,7 +379,7 @@
                                                                  Grid.Column="1"
                                                                  Margin="0,8,0,0"
                                                                  Text="{Binding SelectedRoomChildObject.PositionY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}">
-                                                            <TextBox.Style><Style TargetType="TextBox"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding IsSelectedSpawnPoint}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBox.Style>
+                                                            <TextBox.Style><Style TargetType="TextBox"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding IsSelectedSpawnPoint}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding SelectedRoomChildObject.GameObject.IsPartOfParent}" Value="True"><Setter Property="IsReadOnly" Value="True"/></DataTrigger></Style.Triggers></Style></TextBox.Style>
                                                         </TextBox>
                                                         <TextBox Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
                                                                  Text="{Binding SelectedSpawnPointY, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=F2}">
@@ -391,11 +392,35 @@
                                                                   Margin="0,8,0,0"
                                                                   SelectedValuePath="Tag"
                                                                   SelectedValue="{Binding SelectedRoomChildObject.RoomRotationDegrees, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                                                            <ComboBox.Style>
+                                                                <Style TargetType="ComboBox">
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding SelectedRoomChildObject.GameObject.IsPartOfParent}" Value="True">
+                                                                            <Setter Property="IsEnabled" Value="False" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </ComboBox.Style>
                                                             <ComboBoxItem Content="0" Tag="0" />
                                                             <ComboBoxItem Content="90" Tag="90" />
                                                             <ComboBoxItem Content="180" Tag="180" />
                                                             <ComboBoxItem Content="270" Tag="270" />
                                                         </ComboBox>
+
+                                                        <TextBlock Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,8,0,0"
+                                                                   Text="{Binding SelectedRoomChildObject.StructuralPartOffsetSummary}"
+                                                                   TextWrapping="Wrap" Foreground="#475569">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding SelectedRoomChildObject.GameObject.IsPartOfParent}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
 
                                                         <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,8,8,0" VerticalAlignment="Center" Text="Facing Override">
                                                             <TextBlock.Style>

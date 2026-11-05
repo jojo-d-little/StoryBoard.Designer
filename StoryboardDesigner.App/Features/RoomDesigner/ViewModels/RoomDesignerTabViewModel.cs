@@ -1,13 +1,14 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Windows.Input;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 
 namespace StoryboardDesigner.App.ViewModels;
 
-public sealed class RoomDesignerTabViewModel : ViewModelBase
+public sealed class RoomDesignerTabViewModel : ViewModelBase, IDisposable
 {
     private readonly record struct RoomChildMoveUndoEntry(Guid ObjectId, double PreviousX, double PreviousY, double NextX, double NextY);
 
@@ -19,6 +20,8 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
     private readonly Area? _area;
     private readonly Stack<RoomChildMoveUndoEntry> _roomChildMoveUndoStack = new();
     private readonly HashSet<GameObject> _definitionSettingsSubscriptions = new();
+    private readonly HashSet<GameObject> _rootPlacementSubscriptions = new();
+    private readonly Dictionary<Guid, (Guid ParentPlacementId, int? RelativeOrder)> _derivedStructuralPartOrders = new();
     private int _designerCanvasWidth;
     private int _designerCanvasHeight;
     private int _roomGridCellSize;
@@ -63,6 +66,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         RoomImageSlots = new ObservableCollection<RoomDesignerImageSlotViewModel>();
         RoomChildObjects = new ObservableCollection<RoomDesignerPreviewObjectViewModel>();
         RoomRenderOrderItems = new ObservableCollection<RoomDesignerRenderOrderItemViewModel>();
+        RoomPreviewRenderOrderItems = new ObservableCollection<RoomDesignerRenderOrderItemViewModel>();
         SelectRoomChildObjectCommand = new RelayCommandOfT<RoomDesignerPreviewObjectViewModel>(SelectRoomChildObject);
         MoveRoomChildObjectUpCommand = new RelayCommandOfT<object>(MoveRoomChildObjectUp, CanMoveRoomChildObjectUp);
         MoveRoomChildObjectDownCommand = new RelayCommandOfT<object>(MoveRoomChildObjectDown, CanMoveRoomChildObjectDown);
@@ -79,6 +83,8 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
     public ObservableCollection<RoomDesignerPreviewObjectViewModel> RoomChildObjects { get; }
 
     public ObservableCollection<RoomDesignerRenderOrderItemViewModel> RoomRenderOrderItems { get; }
+
+    public ObservableCollection<RoomDesignerRenderOrderItemViewModel> RoomPreviewRenderOrderItems { get; }
 
     public IReadOnlyList<string> RoomChildObjectFilterOptions { get; } = ["All", "Visible", "Hidden"];
 
@@ -366,7 +372,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
     };
 
     public IReadOnlyList<RoomDesignerRenderOrderItemViewModel> RenderableRoomRenderOrderItems =>
-        RoomRenderOrderItems.Where(static item => item.IsRenderable).ToList();
+        RoomPreviewRenderOrderItems.Where(static item => item.IsRenderable).ToList();
 
     public IReadOnlyList<string> RoomDesignerDiagnosticsLines => BuildRoomDesignerDiagnosticsLines();
 
@@ -591,26 +597,35 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
     public void BuildRoomChildObjects()
     {
         RefreshDefinitionSettingsSubscriptions();
+        RefreshRootPlacementSubscriptions();
         var selectedObjectId = SelectedRoomChildObject?.GameObject.ObjectId;
         var selectedSpawnPoint = _selectedRoomRenderOrderItem?.IsSpawnPoint == true;
 
+        foreach (var preview in RoomChildObjects)
+        {
+            preview.Dispose();
+        }
+        _derivedStructuralPartOrders.Clear();
         RoomChildObjects.Clear();
 
-        var totalObjectCount = CountRoomObjectTree(Room.GameObjects);
-        var drawOrderStride = totalObjectCount + 1;
+        // Leave a full room-object/family rank interval between each root so structural
+        // part ranks cannot cross the Z layer assigned to a neighboring room object.
+        var drawOrderStride = GetRoomDrawOrderStride();
         for (var index = 0; index < Room.GameObjects.Count; index++)
         {
             var gameObject = Room.GameObjects[index];
             var rootDrawOrder = (Room.GameObjects.Count - index) * drawOrderStride;
             var preview = new RoomDesignerPreviewObjectViewModel(gameObject, OnRoomChildObjectEdited, _projectFilePathAccessor, _definitionResolver)
             {
-                DrawOrderZIndex = gameObject.RenderZOrder != 0 ? gameObject.RenderZOrder : rootDrawOrder
+                DrawOrderZIndex = gameObject.RenderZOrder != 0
+                    ? gameObject.RenderZOrder * drawOrderStride
+                    : rootDrawOrder
             };
             preview.PlacementComparisonMode = _previewPlacementComparisonMode;
             preview.UpdateGridCellSize(_roomGridCellSize);
 
             RoomChildObjects.Add(preview);
-            AddVisibleContainedObjectPreviews(gameObject, rootDrawOrder, 1);
+            AddVisibleContainedObjectPreviews(gameObject, preview.DrawOrderZIndex, 1);
         }
 
         // Once the author has explicitly arranged the visible room objects, preserve that
@@ -624,7 +639,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
             RoomChildObjects.Clear();
             foreach (var preview in orderedPreviews)
             {
-                preview.DrawOrderZIndex = preview.GameObject.RenderZOrder;
+                preview.DrawOrderZIndex = preview.GameObject.RenderZOrder * drawOrderStride;
                 RoomChildObjects.Add(preview);
             }
         }
@@ -648,22 +663,56 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         RaiseRoomChildCommandStates();
     }
 
+    public void Dispose()
+    {
+        Room.PropertyChanged -= Room_OnPropertyChanged;
+        foreach (var root in _rootPlacementSubscriptions)
+        {
+            root.PropertyChanged -= OnRootPlacementPropertyChanged;
+        }
+        _rootPlacementSubscriptions.Clear();
+        foreach (var source in _definitionSettingsSubscriptions)
+        {
+            source.PropertyChanged -= OnDefinitionSettingsPropertyChanged;
+        }
+        _definitionSettingsSubscriptions.Clear();
+        foreach (var preview in RoomChildObjects)
+        {
+            preview.Dispose();
+        }
+        _derivedStructuralPartOrders.Clear();
+        RoomChildObjects.Clear();
+        foreach (var renderOrderItem in RoomPreviewRenderOrderItems)
+        {
+            renderOrderItem.Detach();
+        }
+        RoomPreviewRenderOrderItems.Clear();
+        RoomRenderOrderItems.Clear();
+    }
+
     private void BuildRoomRenderOrderItems()
     {
-        foreach (var existingItem in RoomRenderOrderItems)
+        foreach (var existingItem in RoomPreviewRenderOrderItems)
         {
             existingItem.Detach();
         }
 
+        RoomPreviewRenderOrderItems.Clear();
         RoomRenderOrderItems.Clear();
         foreach (var preview in RoomChildObjects)
         {
-            RoomRenderOrderItems.Add(new RoomDesignerRenderOrderItemViewModel(Room, preview, preview.DrawOrderZIndex));
+            var item = new RoomDesignerRenderOrderItemViewModel(Room, preview, preview.DrawOrderZIndex);
+            RoomPreviewRenderOrderItems.Add(item);
+            if (!preview.GameObject.IsPartOfParent)
+            {
+                RoomRenderOrderItems.Add(item);
+            }
         }
 
-        var defaultSpawnPointOrder = RoomRenderOrderItems.Count == 0
-            ? 1
-            : RoomRenderOrderItems.Max(static item => item.DrawOrderZIndex) + 1;
+        var drawOrderStride = GetRoomDrawOrderStride();
+        var defaultSpawnPointOrder = RoomPreviewRenderOrderItems.Count == 0
+            ? drawOrderStride
+            : RoomPreviewRenderOrderItems.Max(static item => item.DrawOrderZIndex) + drawOrderStride;
         var spawnPoints = Room.SpawnPoints;
         for (var index = 0; index < spawnPoints.Count; index++)
         {
@@ -682,8 +731,21 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
                     ? "?"
                     : GetSpawnPointDirectionMarker(RoomSpawnPointAuthoringService.DirectionFromRoom(traversal, Room.Id));
             }
-            var spawnOrder = point.RenderZOrder ?? defaultSpawnPointOrder + index;
-            RoomRenderOrderItems.Add(new RoomDesignerRenderOrderItemViewModel(Room, point, label, markerText, spawnOrder));
+            var spawnOrder = point.RenderZOrder is int authoredSpawnOrder
+                ? authoredSpawnOrder * drawOrderStride
+                : defaultSpawnPointOrder + index * drawOrderStride;
+            var item = new RoomDesignerRenderOrderItemViewModel(Room, point, label, markerText, spawnOrder);
+            RoomPreviewRenderOrderItems.Add(item);
+            RoomRenderOrderItems.Add(item);
+        }
+
+        var orderedPreviewItems = RoomPreviewRenderOrderItems
+            .OrderByDescending(static item => item.DrawOrderZIndex)
+            .ToList();
+        RoomPreviewRenderOrderItems.Clear();
+        foreach (var item in orderedPreviewItems)
+        {
+            RoomPreviewRenderOrderItems.Add(item);
         }
 
         var orderedItems = RoomRenderOrderItems
@@ -715,9 +777,13 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         _onEdited?.Invoke();
     }
 
-    private int GetTopSpawnPointRenderOrder() => RoomRenderOrderItems.Count == 0
-        ? 1
-        : RoomRenderOrderItems.Max(static item => item.DrawOrderZIndex) + 1;
+    private int GetTopSpawnPointRenderOrder()
+    {
+        var drawOrderStride = GetRoomDrawOrderStride();
+        return RoomRenderOrderItems.Count == 0
+            ? 1
+            : (RoomRenderOrderItems.Max(static item => item.DrawOrderZIndex) / drawOrderStride) + 1;
+    }
 
     private static string GetSpawnPointDirectionMarker(Direction10 direction) => direction switch
     {
@@ -759,8 +825,10 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         var activeSources = new HashSet<GameObject>();
         void Visit(GameObject current)
         {
-            activeSources.Add(current.ResolveEffectiveDefinitionOwnedSource(_definitionResolver));
-            foreach (var child in current.ContainedObjects)
+            var effectiveSource = current.ResolveEffectiveDefinitionOwnedSource(_definitionResolver);
+            activeSources.Add(effectiveSource);
+            var children = current.IsRoomInstance ? effectiveSource.ContainedObjects : current.ContainedObjects;
+            foreach (var child in children)
             {
                 Visit(child);
             }
@@ -793,29 +861,151 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         }
     }
 
+    private void RefreshRootPlacementSubscriptions()
+    {
+        var currentRoots = Room.GameObjects.ToHashSet();
+        foreach (var obsolete in _rootPlacementSubscriptions.Except(currentRoots).ToList())
+        {
+            obsolete.PropertyChanged -= OnRootPlacementPropertyChanged;
+            _rootPlacementSubscriptions.Remove(obsolete);
+        }
+        foreach (var root in currentRoots.Except(_rootPlacementSubscriptions))
+        {
+            root.PropertyChanged += OnRootPlacementPropertyChanged;
+            _rootPlacementSubscriptions.Add(root);
+        }
+    }
+
+    private void OnRootPlacementPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is null
+            || e.PropertyName == nameof(GameObject.PositionX)
+            || e.PropertyName == nameof(GameObject.PositionY)
+            || e.PropertyName == nameof(GameObject.ImageRotationDegrees))
+        {
+            BuildRoomChildObjects();
+        }
+    }
+
     private void AddVisibleContainedObjectPreviews(GameObject parent, int rootDrawOrder, int depth)
     {
-        foreach (var child in parent.ContainedObjects)
+        var effectiveParent = parent.ResolveEffectiveDefinitionOwnedSource(_definitionResolver);
+        var children = parent.IsRoomInstance ? effectiveParent.ContainedObjects : parent.ContainedObjects;
+        foreach (var child in children)
         {
-            var isVisibleWhileContained = child.IsInventoriable && child.ShowWhenContained.HasValue
-                ? child.ShowWhenContained.Value
-                : !parent.ResolveEffectiveDefinitionOwnedSource(_definitionResolver).HideContainedObjects;
+            var effectiveChild = child.ResolveEffectiveDefinitionOwnedSource(_definitionResolver);
+            var isStructuralPart = effectiveChild.IsPartOfParent;
+            if (parent.IsRoomInstance && !isStructuralPart)
+            {
+                continue;
+            }
+            var isVisibleWhileContained = isStructuralPart
+                || (effectiveChild.IsInventoriable && effectiveChild.ShowWhenContained.HasValue
+                    ? effectiveChild.ShowWhenContained.Value
+                    : !effectiveParent.HideContainedObjects);
             if (!isVisibleWhileContained)
             {
                 continue;
             }
 
-            var preview = new RoomDesignerPreviewObjectViewModel(child, OnRoomChildObjectEdited, _projectFilePathAccessor, _definitionResolver)
+            // Linked placements own only their root transform. Build a throwaway visual
+            // proxy for each definition child so the room tree never gains persisted clones.
+            var previewObject = parent.IsRoomInstance && isStructuralPart
+                ? CreateLinkedStructuralPartPreview(parent, child, effectiveParent, effectiveChild)
+                : child;
+            if (parent.IsRoomInstance && isStructuralPart)
             {
-                // Contained parts start behind their parent. The list controls can move
-                // them in front later when the authored scene requires it.
-                DrawOrderZIndex = child.RenderZOrder != 0 ? child.RenderZOrder : rootDrawOrder - depth
+                _derivedStructuralPartOrders[previewObject.ObjectId] =
+                    (parent.ObjectId, effectiveChild.StructuralPartRelativeRenderOrder);
+            }
+
+            var preview = new RoomDesignerPreviewObjectViewModel(previewObject, OnRoomChildObjectEdited, _projectFilePathAccessor, _definitionResolver)
+            {
+                // Structural children use their definition-owned rank relative to the
+                // parent's draw order; ordinary contained objects retain room ordering.
+                DrawOrderZIndex = isStructuralPart
+                    ? ResolveStructuralPartDrawOrder(rootDrawOrder, effectiveChild.StructuralPartRelativeRenderOrder)
+                    : rootDrawOrder + (effectiveChild.RenderZOrder != 0 ? effectiveChild.RenderZOrder : -depth)
             };
             preview.PlacementComparisonMode = _previewPlacementComparisonMode;
             preview.UpdateGridCellSize(_roomGridCellSize);
             RoomChildObjects.Add(preview);
 
-            AddVisibleContainedObjectPreviews(child, rootDrawOrder, depth + 1);
+            if (!parent.IsRoomInstance)
+            {
+                AddVisibleContainedObjectPreviews(child, rootDrawOrder, depth + 1);
+            }
+        }
+    }
+
+    private static GameObject CreateLinkedStructuralPartPreview(GameObject parent, GameObject child, GameObject effectiveParent, GameObject effectiveChild)
+    {
+        var placement = effectiveChild.Placement ?? new StructuralPartPlacement();
+        var offsetX = placement.Mode == StructuralPartPlacementKind.ParentRelative
+            ? placement.ParentRelativeOffsetX.GetValueOrDefault()
+            : placement.RoomCoordinateX.GetValueOrDefault();
+        var offsetY = placement.Mode == StructuralPartPlacementKind.ParentRelative
+            ? placement.ParentRelativeOffsetY.GetValueOrDefault()
+            : placement.RoomCoordinateY.GetValueOrDefault();
+        if (placement.Mode == StructuralPartPlacementKind.ParentRelative)
+        {
+            var parentScale = effectiveParent.ResolveImageScale(null);
+            if (double.IsFinite(parentScale) && parentScale > 0)
+            {
+                offsetX *= parentScale;
+                offsetY *= parentScale;
+            }
+        }
+        var radians = parent.ImageRotationDegrees * Math.PI / 180d;
+        var roomOffsetX = placement.Mode == StructuralPartPlacementKind.ParentRelative
+            ? (offsetX * Math.Cos(radians)) - (offsetY * Math.Sin(radians))
+            : offsetX - parent.PositionX;
+        var roomOffsetY = placement.Mode == StructuralPartPlacementKind.ParentRelative
+            ? (offsetX * Math.Sin(radians)) + (offsetY * Math.Cos(radians))
+            : offsetY - parent.PositionY;
+
+        return new GameObject
+        {
+            ObjectId = CreateDerivedPreviewId(parent.ObjectId, child.ObjectId),
+            Name = effectiveChild.Name,
+            LinkedBaseObjectId = child.ObjectId,
+            IsPartOfParent = true,
+            Placement = new StructuralPartPlacement
+            {
+                Mode = placement.Mode,
+                ParentRelativeOffsetX = placement.ParentRelativeOffsetX,
+                ParentRelativeOffsetY = placement.ParentRelativeOffsetY,
+                RoomCoordinateX = placement.RoomCoordinateX,
+                RoomCoordinateY = placement.RoomCoordinateY
+            },
+            PositionX = parent.PositionX + roomOffsetX,
+            PositionY = parent.PositionY + roomOffsetY,
+            ImageRotationDegrees = placement.Mode == StructuralPartPlacementKind.ParentRelative
+                ? parent.ImageRotationDegrees + effectiveChild.ImageRotationDegrees
+                : effectiveChild.ImageRotationDegrees
+        };
+    }
+
+    private static Guid CreateDerivedPreviewId(Guid parentPlacementId, Guid childDefinitionId)
+    {
+        var material = parentPlacementId.ToByteArray().Concat(childDefinitionId.ToByteArray()).ToArray();
+        return new Guid(SHA256.HashData(material).AsSpan(0, 16));
+    }
+
+    private static int ResolveStructuralPartDrawOrder(int parentDrawOrder, int? relativeOrder) =>
+        parentDrawOrder + (relativeOrder is null or 0 ? 1 : relativeOrder.Value);
+
+    private void RefreshDerivedStructuralPartDrawOrders()
+    {
+        foreach (var (previewObjectId, placement) in _derivedStructuralPartOrders)
+        {
+            var parent = RoomChildObjects.FirstOrDefault(preview =>
+                !preview.GameObject.IsPartOfParent && preview.GameObject.ObjectId == placement.ParentPlacementId);
+            var part = RoomChildObjects.FirstOrDefault(preview => preview.GameObject.ObjectId == previewObjectId);
+            if (parent is not null && part is not null)
+            {
+                part.DrawOrderZIndex = ResolveStructuralPartDrawOrder(parent.DrawOrderZIndex, placement.RelativeOrder);
+            }
         }
     }
 
@@ -829,6 +1019,34 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         }
 
         return count;
+    }
+
+    private int GetRoomDrawOrderStride()
+    {
+        var maximumRelativeOrder = 1L;
+        foreach (var roomObject in Room.GameObjects)
+        {
+            if (!roomObject.IsRoomInstance)
+            {
+                continue;
+            }
+
+            var effectiveParent = roomObject.ResolveEffectiveDefinitionOwnedSource(_definitionResolver);
+            foreach (var child in effectiveParent.ContainedObjects)
+            {
+                var effectiveChild = child.ResolveEffectiveDefinitionOwnedSource(_definitionResolver);
+                if (effectiveChild.IsPartOfParent)
+                {
+                    maximumRelativeOrder = Math.Max(
+                        maximumRelativeOrder,
+                        Math.Abs((long)(effectiveChild.StructuralPartRelativeRenderOrder ?? 1)));
+                }
+            }
+        }
+
+        var minimumStride = (long)CountRoomObjectTree(Room.GameObjects) + 1;
+        var familyStride = (maximumRelativeOrder * 2) + 1;
+        return (int)Math.Min(int.MaxValue, Math.Max(minimumStride, familyStride));
     }
 
     private void OnSlotEdited()
@@ -1022,9 +1240,9 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
             return;
         }
 
+        SelectedRoomRenderOrderItem = item;
         RoomRenderOrderItems.Move(currentIndex, currentIndex - 1);
         SaveRoomPreviewDrawOrder();
-        SelectedRoomRenderOrderItem = item;
         OnPropertyChanged(nameof(RenderableRoomRenderOrderItems));
         OnPropertyChanged(nameof(FilteredRoomChildObjects));
         OnPropertyChanged(nameof(FilteredRoomRenderOrderItems));
@@ -1046,9 +1264,9 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
             return;
         }
 
+        SelectedRoomRenderOrderItem = item;
         RoomRenderOrderItems.Move(currentIndex, currentIndex + 1);
         SaveRoomPreviewDrawOrder();
-        SelectedRoomRenderOrderItem = item;
         OnPropertyChanged(nameof(RenderableRoomRenderOrderItems));
         OnPropertyChanged(nameof(FilteredRoomChildObjects));
         OnPropertyChanged(nameof(FilteredRoomRenderOrderItems));
@@ -1062,11 +1280,12 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         try
         {
             var count = RoomRenderOrderItems.Count;
+            var drawOrderStride = GetRoomDrawOrderStride();
             for (var index = 0; index < count; index++)
             {
                 var item = RoomRenderOrderItems[index];
                 var zOrder = count - index;
-                item.DrawOrderZIndex = zOrder;
+                item.DrawOrderZIndex = zOrder * drawOrderStride;
                 if (item.IsSpawnPoint)
                 {
                     if (item.SpawnPoint is { } point)
@@ -1078,15 +1297,6 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
                 }
             }
 
-            var orderedObjectPreviews = RoomRenderOrderItems
-                .Where(static item => item.PreviewObject is not null)
-                .Select(static item => item.PreviewObject!)
-                .ToList();
-            RoomChildObjects.Clear();
-            foreach (var preview in orderedObjectPreviews)
-            {
-                RoomChildObjects.Add(preview);
-            }
         }
         finally
         {
@@ -1096,6 +1306,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase
         OnPropertyChanged(nameof(RenderableRoomChildObjects));
         OnPropertyChanged(nameof(RenderableRoomRenderOrderItems));
         OnPropertyChanged(nameof(HasRenderableRoomChildObjects));
+        RefreshDerivedStructuralPartDrawOrders();
     }
 
     private void EditRoomChildObjectImage(RoomDesignerPreviewObjectViewModel? preview)

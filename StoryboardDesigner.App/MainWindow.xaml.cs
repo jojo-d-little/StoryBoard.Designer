@@ -266,7 +266,12 @@ public partial class MainWindow : Window
 
     private void OnAnySelectorChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!IsLoaded || e.OriginalSource is not System.Windows.Controls.Primitives.Selector selector || !selector.IsKeyboardFocusWithin)
+        if (!IsLoaded
+            || e.OriginalSource is not System.Windows.Controls.Primitives.Selector selector
+            // ListBox selection chooses what the editor is inspecting; it does not edit project data.
+            // Treating it as an edit rebuilds room rows while WPF is processing selection changes.
+            || selector is System.Windows.Controls.ListBox
+            || !selector.IsKeyboardFocusWithin)
         {
             return;
         }

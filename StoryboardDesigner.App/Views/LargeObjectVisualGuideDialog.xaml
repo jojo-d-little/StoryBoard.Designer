@@ -25,7 +25,7 @@
 
             <Border Grid.Column="0" BorderBrush="#D1D5DB" BorderThickness="1" Background="#F3F4F6" Padding="8">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                    <Grid x:Name="GuideSurfaceGrid" Background="#FFFFFF" HorizontalAlignment="Left" VerticalAlignment="Top" Cursor="Hand" ToolTip="Select a child part, then click inside the blue footprint to place it. Drag its purple outline to move it. Child positions snap to the parent-aligned grid." MouseLeftButtonDown="GuideSurfaceGrid_OnMouseLeftButtonDown">
+                    <Grid x:Name="GuideSurfaceGrid" Background="#FFFFFF" HorizontalAlignment="Left" VerticalAlignment="Top" Cursor="Hand" ToolTip="Select a child part, then click to place it relative to the blue parent footprint. Parts can extend beyond the parent; offsets may be negative. Drag its purple outline to move it." MouseLeftButtonDown="GuideSurfaceGrid_OnMouseLeftButtonDown">
                         <Canvas x:Name="GuideCellGrid" IsHitTestVisible="False" />
                         <Border x:Name="FootprintOverlay"
                                 HorizontalAlignment="Left"
