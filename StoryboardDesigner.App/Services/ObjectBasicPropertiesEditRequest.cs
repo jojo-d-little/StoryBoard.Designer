@@ -12,7 +12,13 @@ public sealed record StructuralPartPlacementEditItem(
     string FootprintOrientation,
     StructuralPartPlacement Placement,
     int? StructuralPartRelativeRenderOrder = null,
-    bool IsLinkedInstance = false);
+    bool IsLinkedInstance = false,
+    string PreviewImagePath = "",
+    double PreviewImageScale = 1,
+    double PreviewImageRotationDegrees = 0,
+    double PreviewImageOffsetX = 0,
+    double PreviewImageOffsetY = 0,
+    double PreviewImageTransparency = 0);
 
 /// <summary>Immutable values presented by the Game Object Settings editor.</summary>
 /// <param name="InheritParentCueCategories">

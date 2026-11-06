@@ -3804,14 +3804,17 @@ public sealed partial class MainWindowViewModel
         return true;
     }
 
-    private bool EditSingleScopedActionForNode(HierarchyNodeViewModel node)
+    private bool EditSingleScopedActionForNode(HierarchyNodeViewModel node, bool selectNode = true)
     {
         if (node is not ScopedActionEntryNodeViewModel actionEntryNode)
         {
             return false;
         }
 
-        SelectedNode = actionEntryNode;
+        if (selectNode)
+        {
+            SelectedNode = actionEntryNode;
+        }
 
         var target = ResolveScopedActionEditTarget(actionEntryNode);
         if (target is null)
@@ -3861,7 +3864,10 @@ public sealed partial class MainWindowViewModel
                 return false;
             }
 
-            RefreshScopedActionNodesForSelection();
+            if (ResolveScopedActionsNode(actionEntryNode) is { } linkedActionsNode)
+            {
+                RefreshScopedActionNodes(linkedActionsNode);
+            }
             NotifyProjectEdited();
             return true;
         }
@@ -3884,7 +3890,10 @@ public sealed partial class MainWindowViewModel
             return false;
         }
 
-        RefreshScopedActionNodesForSelection();
+        if (ResolveScopedActionsNode(actionEntryNode) is { } actionsNode)
+        {
+            RefreshScopedActionNodes(actionsNode);
+        }
         NotifyProjectEdited();
         return true;
     }
@@ -13704,15 +13713,25 @@ public sealed partial class MainWindowViewModel
     private static List<StructuralPartPlacementEditItem> CreateStructuralPartPlacementEditItems(GameObject parent) =>
         parent.ContainedObjects
             .Where(static child => child.IsPartOfParent)
-            .Select(child => new StructuralPartPlacementEditItem(
-                child.ObjectId,
-                child.Name,
-                Math.Max(1, child.FootprintWidthCells),
-                Math.Max(1, child.FootprintHeightCells),
-                child.FootprintOrientation,
-                CloneStructuralPartPlacement(child.Placement),
-                child.StructuralPartRelativeRenderOrder,
-                child.LinkedBaseObjectId.HasValue))
+            .Select(child =>
+            {
+                var defaultVariant = child.ResolveDefaultImageVariant();
+                return new StructuralPartPlacementEditItem(
+                    child.ObjectId,
+                    child.Name,
+                    Math.Max(1, child.FootprintWidthCells),
+                    Math.Max(1, child.FootprintHeightCells),
+                    child.FootprintOrientation,
+                    CloneStructuralPartPlacement(child.Placement),
+                    child.StructuralPartRelativeRenderOrder,
+                    child.LinkedBaseObjectId.HasValue,
+                    defaultVariant?.FullImagePath ?? string.Empty,
+                    defaultVariant?.ImageScale ?? 1,
+                    defaultVariant?.ImageLocalAlignmentRotationDegrees ?? 0,
+                    defaultVariant?.ImageLocalAlignmentOffsetX ?? 0,
+                    defaultVariant?.ImageLocalAlignmentOffsetY ?? 0,
+                    child.ImageTransparency);
+            })
             .ToList();
 
     private static bool AreStructuralPartPlacementsEquivalent(

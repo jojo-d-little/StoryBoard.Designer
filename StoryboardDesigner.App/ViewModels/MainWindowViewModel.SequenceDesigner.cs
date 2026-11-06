@@ -22,6 +22,8 @@ public enum SequenceTimelineToolMode
 
 public sealed partial class MainWindowViewModel
 {
+    private sealed record SequenceActionScopeTarget(IList<CommandAction> Actions, HierarchyNodeViewModel? HierarchyNode);
+
     public sealed class SequenceTimelineTimeSliceViewModel
     {
         public int OffsetMs { get; init; }
@@ -235,6 +237,14 @@ public sealed partial class MainWindowViewModel
     public bool IsSelectedSequenceSoundStep => SelectedSequenceStep?.StepType == SequenceStepType.Sound;
     public bool IsSelectedSequenceActionStep => SelectedSequenceStep?.StepType == SequenceStepType.Action;
     public bool IsSelectedSequenceInlineAction => IsSelectedSequenceActionStep && SelectedSequenceStep?.InlineAction is not null;
+    public bool IsSelectedSequenceSharedAction => SelectedSequenceStep is { StepType: SequenceStepType.Action, InlineAction: null, ActionId: Guid actionId }
+        && ResolveSequenceAction(actionId) is not null;
+    public bool IsSelectedSequenceMissingSharedAction => SelectedSequenceStep is { StepType: SequenceStepType.Action, InlineAction: null, ActionId: Guid actionId }
+        && ResolveSequenceAction(actionId) is null;
+    public bool CanMakeSelectedSequenceActionInline => SelectedSequenceStep is { StepType: SequenceStepType.Action, InlineAction: null, ActionId: not null } step
+        && ResolveSequenceAction(step.ActionId.Value) is not null;
+    public bool CanPromoteSelectedSequenceInlineAction => IsSelectedSequenceInlineAction
+        && GetSequenceScopedActionEditTarget() is not null;
     public Guid? SelectedSequenceActionId
     {
         get => SelectedSequenceStep is { StepType: SequenceStepType.Action, InlineAction: null } step ? step.ActionId : null;
@@ -254,6 +264,9 @@ public sealed partial class MainWindowViewModel
             step.InlineAction = null;
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsSelectedSequenceInlineAction));
+            OnPropertyChanged(nameof(IsSelectedSequenceSharedAction));
+            OnPropertyChanged(nameof(IsSelectedSequenceMissingSharedAction));
+            OnPropertyChanged(nameof(CanMakeSelectedSequenceActionInline));
             OnPropertyChanged(nameof(SelectedSequenceActionDisplayName));
             OnPropertyChanged(nameof(SelectedSequenceActionSourceDescription));
             OnPropertyChanged(nameof(SequenceActionPickerButtonText));
@@ -261,6 +274,73 @@ public sealed partial class MainWindowViewModel
             RefreshSequenceTimeline();
             NotifySequenceProjectEdited();
         }
+    }
+
+    public bool MakeSelectedSequenceActionInline()
+    {
+        if (SelectedSequenceStep is not { StepType: SequenceStepType.Action, InlineAction: null, ActionId: Guid actionId } step
+            || ResolveSequenceAction(actionId) is not { } resolved)
+        {
+            return false;
+        }
+
+        var availableActions = GetSequenceActionPickerChoices()
+            .Select(static choice => choice.Action)
+            .ToList();
+        var inlineCopy = JsonExportService.ToCommandActionDtoForSequence(resolved.Action, availableActions);
+        inlineCopy.Id = Guid.NewGuid();
+        step.InlineAction = inlineCopy;
+        step.ActionId = null;
+        RefreshSequenceTimeline();
+        OnPropertyChanged(nameof(IsSelectedSequenceInlineAction));
+        OnPropertyChanged(nameof(IsSelectedSequenceSharedAction));
+        OnPropertyChanged(nameof(IsSelectedSequenceMissingSharedAction));
+        OnPropertyChanged(nameof(CanMakeSelectedSequenceActionInline));
+        OnPropertyChanged(nameof(CanPromoteSelectedSequenceInlineAction));
+        OnPropertyChanged(nameof(SelectedSequenceActionId));
+        OnPropertyChanged(nameof(SelectedSequenceActionDisplayName));
+        OnPropertyChanged(nameof(SelectedSequenceActionSourceDescription));
+        OnPropertyChanged(nameof(SequenceActionPickerButtonText));
+        _editSequenceActionCommand?.RaiseCanExecuteChanged();
+        NotifySequenceProjectEdited();
+        return true;
+    }
+
+    public bool PromoteSelectedSequenceInlineAction(string name)
+    {
+        if (SelectedSequenceStep is not { StepType: SequenceStepType.Action, InlineAction: { } inlineAction } step
+            || string.IsNullOrWhiteSpace(name)
+            || GetSequenceScopedActionEditTarget() is not { } target)
+        {
+            return false;
+        }
+
+        var action = JsonExportService.ToCommandActionModel(inlineAction);
+        action.Id = Guid.NewGuid();
+        action.Name = name.Trim();
+        target.Actions.Add(action);
+        step.ActionId = action.Id;
+        step.InlineAction = null;
+
+        if (target.HierarchyNode is { } hierarchyNode
+            && ResolveScopedActionsNode(hierarchyNode) is { } actionsNode)
+        {
+            RefreshScopedActionNodes(actionsNode);
+        }
+
+        RefreshSequenceTimeline();
+        OnPropertyChanged(nameof(IsSelectedSequenceInlineAction));
+        OnPropertyChanged(nameof(IsSelectedSequenceSharedAction));
+        OnPropertyChanged(nameof(IsSelectedSequenceMissingSharedAction));
+        OnPropertyChanged(nameof(CanMakeSelectedSequenceActionInline));
+        OnPropertyChanged(nameof(CanPromoteSelectedSequenceInlineAction));
+        OnPropertyChanged(nameof(SelectedSequenceActionId));
+        OnPropertyChanged(nameof(SelectedSequenceActionDisplayName));
+        OnPropertyChanged(nameof(SelectedSequenceActionSourceDescription));
+        OnPropertyChanged(nameof(SequenceActionPickerButtonText));
+        _editSequenceActionCommand?.RaiseCanExecuteChanged();
+        NotifySequenceProjectEdited();
+        return true;
     }
     public string SequenceActionPickerButtonText => IsSelectedSequenceInlineAction
         ? "Replace with shared action…"
@@ -1066,6 +1146,10 @@ public sealed partial class MainWindowViewModel
             OnPropertyChanged(nameof(SelectedSequenceSoundEffectId));
             OnPropertyChanged(nameof(IsSelectedSequenceActionStep));
             OnPropertyChanged(nameof(IsSelectedSequenceInlineAction));
+            OnPropertyChanged(nameof(IsSelectedSequenceSharedAction));
+            OnPropertyChanged(nameof(IsSelectedSequenceMissingSharedAction));
+            OnPropertyChanged(nameof(CanMakeSelectedSequenceActionInline));
+            OnPropertyChanged(nameof(CanPromoteSelectedSequenceInlineAction));
             OnPropertyChanged(nameof(SelectedSequenceActionDisplayName));
             OnPropertyChanged(nameof(SelectedSequenceActionSourceDescription));
             OnPropertyChanged(nameof(SelectedSequenceActionId));
@@ -1106,7 +1190,10 @@ public sealed partial class MainWindowViewModel
     private void InitializeSequenceDesignerCommands()
     {
         _addActionSequenceStepAtOffsetCommand = new RelayCommandOfT<int>(AddActionSequenceStep, offset => SelectedSequenceDefinition is not null && offset >= 0 && offset % 50 == 0);
-        _editSequenceActionCommand = new RelayCommand(EditSelectedSequenceAction, () => SelectedSequenceStep?.StepType == SequenceStepType.Action && SelectedSequenceStep.InlineAction is not null);
+        _editSequenceActionCommand = new RelayCommand(EditSelectedSequenceAction, () => SelectedSequenceStep is { StepType: SequenceStepType.Action } step
+            && (step.InlineAction is not null
+                || step.ActionId is Guid actionId
+                && (FindSequenceActionEntry(actionId) is not null || ResolveSequenceAction(actionId) is null)));
         _deleteSequenceStepCommand = new RelayCommand(DeleteSelectedSequenceStep, () => SelectedSequenceStep is not null && SelectedSequenceDefinition?.Steps?.Contains(SelectedSequenceStep) == true);
         _validateSequenceCommand = new RelayCommand(ValidateSelectedSequence, () => SelectedSequenceDefinition is not null);
         _addSoundSequenceStepAtOffsetCommand = new RelayCommandOfT<int>(AddSoundSequenceStep, offset => SelectedSequenceDefinition is not null && offset >= 0 && offset % 50 == 0);
@@ -2173,7 +2260,79 @@ public sealed partial class MainWindowViewModel
                 RefreshSequenceSteps();
                 NotifySequenceProjectEdited();
             }
+
+            return;
         }
+
+        if (SelectedSequenceStep is { StepType: SequenceStepType.Action, ActionId: Guid actionId }
+            && FindSequenceActionEntry(actionId) is { } actionEntry
+            && EditSingleScopedActionForNode(actionEntry, selectNode: false))
+        {
+            RefreshSequenceTimeline();
+            NotifySequenceProjectEdited();
+            return;
+        }
+
+        if (IsSelectedSequenceMissingSharedAction)
+        {
+            CreateInlineReplacementForMissingSequenceAction();
+        }
+    }
+
+    public bool CreateInlineReplacementForMissingSequenceAction()
+    {
+        if (SelectedSequenceStep is not { StepType: SequenceStepType.Action, InlineAction: null, ActionId: Guid missingActionId } step
+            || ResolveSequenceAction(missingActionId) is not null)
+        {
+            return false;
+        }
+
+        step.InlineAction = CreateNewActionSequenceStep(step.OffsetMs).InlineAction;
+        if (!EditSequenceStepAction(step))
+        {
+            step.InlineAction = null;
+            return false;
+        }
+
+        step.ActionId = null;
+        RefreshSequenceSteps();
+        SelectedSequenceStep = step;
+        RefreshSequenceTimeline();
+        OnPropertyChanged(nameof(IsSelectedSequenceInlineAction));
+        OnPropertyChanged(nameof(IsSelectedSequenceSharedAction));
+        OnPropertyChanged(nameof(IsSelectedSequenceMissingSharedAction));
+        OnPropertyChanged(nameof(CanMakeSelectedSequenceActionInline));
+        OnPropertyChanged(nameof(CanPromoteSelectedSequenceInlineAction));
+        OnPropertyChanged(nameof(SelectedSequenceActionId));
+        OnPropertyChanged(nameof(SelectedSequenceActionDisplayName));
+        OnPropertyChanged(nameof(SelectedSequenceActionSourceDescription));
+        OnPropertyChanged(nameof(SequenceActionPickerButtonText));
+        _editSequenceActionCommand?.RaiseCanExecuteChanged();
+        NotifySequenceProjectEdited();
+        return true;
+    }
+
+    private ScopedActionEntryNodeViewModel? FindSequenceActionEntry(Guid actionId)
+    {
+        return EnumerateHierarchyNodes(HierarchyRoots)
+            .OfType<ScopedActionEntryNodeViewModel>()
+            .FirstOrDefault(node => node.Action.Id == actionId);
+    }
+
+    private SequenceActionScopeTarget? GetSequenceScopedActionEditTarget()
+    {
+        if (SelectedSequenceScope is null)
+        {
+            return null;
+        }
+
+        var ownerHierarchyNode = SelectedNode is null
+            ? null
+            : GetAncestry(SelectedNode).FirstOrDefault(node => node is not SequenceDefinitionNodeViewModel
+                and not SequencesNodeViewModel
+                && ReferenceEquals(ResolveSequenceScopeOwner(node), SelectedSequenceScope));
+        var target = ownerHierarchyNode is null ? null : ResolveScopedActionEditTarget(ownerHierarchyNode);
+        return target is null ? null : new SequenceActionScopeTarget(target.Actions, ownerHierarchyNode);
     }
 
     private bool EditSequenceStepAction(ProjectSequenceStepDto step)

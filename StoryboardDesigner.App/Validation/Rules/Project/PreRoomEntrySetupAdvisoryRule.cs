@@ -119,6 +119,13 @@ public sealed class PreRoomEntrySetupAdvisoryRule : IValidationRule
             return true;
         }
 
+        // StartTimer only queues future work. Its callback is not part of this
+        // synchronous setup walk and must not be classified as an immediate leaf.
+        if (action.ActionType == CommandActionType.StartTimer)
+        {
+            return true;
+        }
+
         if (action.ActionType != CommandActionType.SetGameProperty)
         {
             return false;

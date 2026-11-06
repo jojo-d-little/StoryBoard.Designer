@@ -431,10 +431,50 @@
                                         <ColumnDefinition Width="90" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.ColumnSpan="2" Orientation="Horizontal">
+                                    <WrapPanel Grid.ColumnSpan="2" VerticalAlignment="Center">
                                         <TextBlock Text="Action source" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,8,0" />
                                         <Button Content="{Binding SequenceActionPickerButtonText}" Click="ChooseSequenceAction_OnClick"
                                                 Padding="8,3" ToolTip="Choose from the current scope, its ancestors, or its children. Replacing an inline action discards its inline definition." />
+                                        <Button Content="Edit reusable action…" Command="{Binding EditSequenceActionCommand}"
+                                                Margin="8,0,0,0" Padding="8,3" ToolTip="Edit this reusable action. Changes affect every sequence that uses it.">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelectedSequenceSharedAction}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <Button Content="Replace missing action with inline…" Command="{Binding EditSequenceActionCommand}"
+                                                Margin="8,0,0,0" Padding="8,3" ToolTip="Create an inline action for this step because its reusable action reference can no longer be resolved.">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelectedSequenceMissingSharedAction}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <Button Content="Make inline copy" Click="MakeSequenceActionInline_OnClick"
+                                                Margin="8,0,0,0" Padding="8,3" ToolTip="Copy this reusable action into this sequence step so it can be changed independently.">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Setter Property="IsEnabled" Value="{Binding CanMakeSelectedSequenceActionInline}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelectedSequenceSharedAction}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
                                         <Button Content="Edit inline action…" Command="{Binding EditSequenceActionCommand}"
                                                 Margin="8,0,0,0" Padding="8,3">
                                             <Button.Style>
@@ -448,7 +488,21 @@
                                                 </Style>
                                             </Button.Style>
                                         </Button>
-                                    </StackPanel>
+                                        <Button Content="Promote to reusable…" Click="PromoteSequenceAction_OnClick"
+                                                Margin="8,0,0,0" Padding="8,3" ToolTip="Create a reusable action in this sequence's scope and make this step reference it.">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Setter Property="IsEnabled" Value="{Binding CanPromoteSelectedSequenceInlineAction}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelectedSequenceInlineAction}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </WrapPanel>
                                 </Grid>
                                 <Grid Margin="0,2,0,0">
                                     <Grid.Style>

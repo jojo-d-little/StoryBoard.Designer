@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Storyboard.Shared.DesignerContracts;
+using Storyboard.Shared.RuntimeContracts.Dtos;
 using Storyboard.Shared.RuntimeContracts.Enums;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
@@ -325,6 +326,115 @@ public sealed class ElevatorStage3AuthoringTests
         var navigationIssue = Assert.Single(issues, issue => issue.Path.Contains("Navigate (NavigateDirection)", StringComparison.Ordinal));
         Assert.Contains("Linked Flow Node 4", navigationIssue.Path, StringComparison.Ordinal);
         Assert.Contains("Navigation can redirect", navigationIssue.Description, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PreRoomSetupAdvisory_DirectStartTimerIsReviewed_AndCallbackIsNotTreatedAsSetup()
+    {
+        var sequenceId = Guid.NewGuid();
+        var callback = new CommandAction { Name = "Start ride", ActionType = CommandActionType.StartSequence };
+        ActionPayloadAccessors.SetStartSequenceId(callback, sequenceId);
+        var startTimer = new CommandAction
+        {
+            Name = "Queue ride",
+            ActionType = CommandActionType.StartTimer,
+            Payload = new StartTimerPayload("lift.start", TimerOwnerType.Room)
+        };
+        var room = new Room { Name = "Lift", PreRoomEntryActionId = startTimer.Id };
+        room.AvailableActions.Add(startTimer);
+        room.AvailableActions.Add(callback);
+        room.TimerDefinitions.Add(new RuntimeTimerDefinitionDto
+        {
+            TimerKey = "lift.start",
+            ScheduleAfterMs = 50,
+            FireMode = TimerFireMode.OneShot,
+            TargetActionRef = callback.Id.ToString("D"),
+            LifetimeOwnerType = TimerOwnerType.Room,
+            ConflictBehavior = TimerConflictBehavior.ReplaceExisting,
+            Enabled = true
+        });
+        room.SequenceDefinitions.Add(new ProjectSequenceDefinitionDto
+        {
+            SequenceId = sequenceId,
+            DisplayName = "Lift ride"
+        });
+        var project = new ProjectModel { Name = "StartTimerSetup", RoomTemplates = [room] };
+
+        var issues = new PreRoomEntrySetupAdvisoryRule().Evaluate(ValidationRuleTestContext.Create(project)).ToList();
+
+        Assert.Empty(issues);
+
+        var tempRoot = CreateTempRoot();
+        try
+        {
+            var projectPath = Path.Combine(tempRoot, "StartTimerSetup.sbe.json");
+            var service = new JsonExportService();
+            service.SaveProjectModel(projectPath, project);
+            var loadedRoom = service.TryLoadProjectModel(projectPath)!.RoomTemplates.Single();
+            var loadedTimer = Assert.Single(loadedRoom.TimerDefinitions);
+            var loadedStartTimer = loadedRoom.AvailableActions.Single(action => action.Name == "Queue ride");
+            var loadedCallback = loadedRoom.AvailableActions.Single(action => action.Name == "Start ride");
+
+            Assert.Equal("lift.start", loadedTimer.TimerKey);
+            Assert.Equal(TimerOwnerType.Room, loadedTimer.LifetimeOwnerType);
+            Assert.Equal(callback.Id, loadedCallback.Id);
+            Assert.Equal(callback.Id.ToString("D"), loadedTimer.TargetActionRef);
+            Assert.Equal(sequenceId, loadedRoom.SequenceDefinitions.Single().SequenceId);
+            Assert.Equal(sequenceId, ActionPayloadAccessors.GetStartSequenceId(loadedCallback));
+            Assert.Equal("lift.start", ActionPayloadAccessors.GetStartTimerKey(loadedStartTimer));
+            Assert.Equal(TimerOwnerType.Room, ActionPayloadAccessors.GetStartTimerOwnerScopeKindOverride(loadedStartTimer));
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void PreRoomSetupAdvisory_NestedStartTimerIsReviewed_WhileOtherNestedLeavesRemainAdvisory()
+    {
+        var callback = new CommandAction { Name = "Start ride", ActionType = CommandActionType.StartSequence };
+        var startTimer = new CommandAction
+        {
+            Name = "Queue ride",
+            ActionType = CommandActionType.StartTimer,
+            Payload = new StartTimerPayload("lift.start", TimerOwnerType.Room)
+        };
+        var navigation = new CommandAction { Name = "Navigate", ActionType = CommandActionType.NavigateDirection };
+        var setup = new CommandAction { Name = "Lift setup", ActionType = CommandActionType.LinkedActions };
+        setup.LinkedFlowDefinition = new LinkedActionFlowDefinition
+        {
+            EntryNodeId = 1,
+            Nodes =
+            [
+                new LinkedActionFlowNode { NodeId = 1, ActionId = startTimer.Id },
+                new LinkedActionFlowNode { NodeId = 2, ActionId = navigation.Id }
+            ]
+        };
+        var room = new Room { Name = "Lift", PreRoomEntryActionId = setup.Id };
+        room.AvailableActions.Add(setup);
+        room.AvailableActions.Add(startTimer);
+        room.AvailableActions.Add(callback);
+        room.AvailableActions.Add(navigation);
+        room.TimerDefinitions.Add(new RuntimeTimerDefinitionDto
+        {
+            TimerKey = "lift.start",
+            ScheduleAfterMs = 50,
+            FireMode = TimerFireMode.OneShot,
+            TargetActionRef = callback.Id.ToString("D"),
+            LifetimeOwnerType = TimerOwnerType.Room,
+            ConflictBehavior = TimerConflictBehavior.ReplaceExisting,
+            Enabled = true
+        });
+        var project = new ProjectModel { RoomTemplates = [room] };
+
+        var issues = new PreRoomEntrySetupAdvisoryRule().Evaluate(ValidationRuleTestContext.Create(project)).ToList();
+
+        var issue = Assert.Single(issues);
+        Assert.Contains("Navigate (NavigateDirection)", issue.Path, StringComparison.Ordinal);
+        Assert.Contains("Navigation can redirect", issue.Description, StringComparison.Ordinal);
+        Assert.DoesNotContain(issues, item => item.Path.Contains("Queue ride", StringComparison.Ordinal)
+            || item.Path.Contains("Start ride", StringComparison.Ordinal));
     }
 
     [Fact]

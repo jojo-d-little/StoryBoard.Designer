@@ -141,6 +141,13 @@
                         <Button Width="60" Margin="8,0,0,0" Content="Apply" Click="ApplyGridButton_OnClick" />
                     </StackPanel>
                     <TextBlock Margin="0,4,0,12" Foreground="#6B7280" FontSize="11" Text="Child placements snap to precise cells inside the parent footprint. Parent image alignment remains pixel-based." TextWrapping="Wrap" />
+                    <CheckBox x:Name="ShowChildImagesCheckBox"
+                              Margin="0,0,0,8"
+                              Content="Show child images"
+                              IsChecked="True"
+                              Checked="ShowChildImagesCheckBox_OnChanged"
+                              Unchecked="ShowChildImagesCheckBox_OnChanged"
+                              ToolTip="Overlay the default image for each parent-relative structural child at its saved position." />
                     <CheckBox x:Name="ShowBitmapBoundaryCheckBox"
                               Margin="0,0,0,12"
                               Content="Show bitmap boundary"

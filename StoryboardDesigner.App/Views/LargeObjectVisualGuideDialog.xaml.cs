@@ -37,6 +37,7 @@ public partial class LargeObjectVisualGuideDialog : Window
     private int _gridColumns;
     private int _gridRows;
     private bool _isRefreshingEditors;
+    private bool _isDialogInitialized;
 
     public LargeObjectVisualGuideDialog(
         ObjectImageVariant variant,
@@ -87,6 +88,7 @@ public partial class LargeObjectVisualGuideDialog : Window
         GetOrientedDimensions(out var orientedWidth, out var orientedHeight);
         _gridColumns = Math.Max(_gridColumns, orientedWidth);
         _gridRows = Math.Max(_gridRows, orientedHeight);
+        _isDialogInitialized = true;
         RefreshEditors();
         RefreshPreview();
     }
@@ -147,6 +149,8 @@ public partial class LargeObjectVisualGuideDialog : Window
 
         var source = LoadImage(_variant.FullImagePath);
         GuideImage.Source = source;
+        System.Windows.Controls.Panel.SetZIndex(GuideImage, 0);
+        System.Windows.Controls.Panel.SetZIndex(BitmapBoundaryOverlay, 20);
         var scale = _variant.ImageScale <= 0 ? 1 : _variant.ImageScale;
         var rawWidth = source?.PixelWidth ?? _cellSize;
         var rawHeight = source?.PixelHeight ?? _cellSize;
@@ -418,6 +422,7 @@ public partial class LargeObjectVisualGuideDialog : Window
 
     private void UpdateStructuralPartMarker(double footprintLeft, double footprintTop)
     {
+        RefreshStructuralPartImages(footprintLeft, footprintTop);
         if (_selectedStructuralPartPlacement is not { Placement.Mode: StructuralPartPlacementKind.ParentRelative } part
             || part.Placement.ParentRelativeOffsetX is not double offsetX
             || part.Placement.ParentRelativeOffsetY is not double offsetY)
@@ -452,6 +457,107 @@ public partial class LargeObjectVisualGuideDialog : Window
         System.Windows.Controls.Panel.SetZIndex(StructuralPartMarkerLabel, 100);
         StructuralPartMarker.Visibility = Visibility.Visible;
         StructuralPartMarkerLabel.Visibility = Visibility.Visible;
+    }
+
+    private void RefreshStructuralPartImages(double footprintLeft, double footprintTop)
+    {
+        foreach (var part in _structuralPartPlacements)
+        {
+            var existing = BitmapPreviewCanvas.Children
+                .OfType<System.Windows.Controls.Image>()
+                .Where(image => image != GuideImage)
+                .FirstOrDefault(image => Equals(image.Tag, part.ObjectId));
+            if (existing is not null)
+            {
+                BitmapPreviewCanvas.Children.Remove(existing);
+            }
+        }
+
+        if (ShowChildImagesCheckBox.IsChecked != true)
+        {
+            return;
+        }
+
+        var relativeOrderRanks = _hasEditedStructuralPartRenderOrder
+            ? StructuralPartRelativeRenderOrderPolicy.AssignRelativeRanks(_structuralPartRenderOrder)
+            : null;
+        foreach (var part in _structuralPartPlacements)
+        {
+            if (part.Placement.Mode != StructuralPartPlacementKind.ParentRelative
+                || string.IsNullOrWhiteSpace(part.PreviewImagePath))
+            {
+                continue;
+            }
+
+            var childOffsetX = part.Placement.ParentRelativeOffsetX ?? 0d;
+            var childOffsetY = part.Placement.ParentRelativeOffsetY ?? 0d;
+
+            var source = LoadImage(part.PreviewImagePath);
+            if (source is null)
+            {
+                continue;
+            }
+
+            var widthCells = Math.Max(1, part.FootprintWidthCells);
+            var heightCells = Math.Max(1, part.FootprintHeightCells);
+            if (part.FootprintOrientation is "E" or "W")
+            {
+                (widthCells, heightCells) = (heightCells, widthCells);
+            }
+
+            var childFootprintWidth = widthCells * _cellSize;
+            var childFootprintHeight = heightCells * _cellSize;
+            var scale = part.PreviewImageScale > 0 && double.IsFinite(part.PreviewImageScale)
+                ? part.PreviewImageScale
+                : 1d;
+            var imageWidth = source.PixelWidth * scale;
+            var imageHeight = source.PixelHeight * scale;
+            var rotation = double.IsFinite(part.PreviewImageRotationDegrees) ? part.PreviewImageRotationDegrees : 0d;
+            var imagePlacement = ComputeImagePlacement(
+                rotation,
+                double.IsFinite(part.PreviewImageOffsetX) ? part.PreviewImageOffsetX : 0d,
+                double.IsFinite(part.PreviewImageOffsetY) ? part.PreviewImageOffsetY : 0d,
+                childFootprintWidth,
+                childFootprintHeight,
+                imageWidth,
+                imageHeight);
+            var transparency = double.IsFinite(part.PreviewImageTransparency)
+                ? Math.Clamp(part.PreviewImageTransparency, 0d, 1d)
+                : 0d;
+            var childImage = new System.Windows.Controls.Image
+            {
+                Tag = part.ObjectId,
+                Source = source,
+                Width = imageWidth,
+                Height = imageHeight,
+                Stretch = System.Windows.Media.Stretch.Uniform,
+                Opacity = 0.88d * (1d - transparency),
+                RenderTransformOrigin = new System.Windows.Point(0d, 0d),
+                RenderTransform = new RotateTransform(rotation),
+                IsHitTestVisible = false
+            };
+            Canvas.SetLeft(childImage, footprintLeft + childOffsetX + imagePlacement.X);
+            Canvas.SetTop(childImage, footprintTop + childOffsetY + imagePlacement.Y);
+            var renderOrder = relativeOrderRanks?.GetValueOrDefault(part.ObjectId) ?? part.StructuralPartRelativeRenderOrder;
+            System.Windows.Controls.Panel.SetZIndex(childImage, StructuralPartRelativeRenderOrderPolicy.RendersInFrontOfParent(renderOrder) ? 1 : -1);
+            BitmapPreviewCanvas.Children.Add(childImage);
+        }
+    }
+
+    private void ShowChildImagesCheckBox_OnChanged(object sender, RoutedEventArgs e)
+    {
+        // XAML raises Checked while InitializeComponent is still creating the
+        // visual tree. The preview canvas and the dialog's model state are not
+        // ready until the constructor has finished its setup.
+        if (!_isDialogInitialized)
+        {
+            return;
+        }
+
+        GetOrientedDimensions(out var footprintWidth, out var footprintHeight);
+        UpdateStructuralPartMarker(
+            (_gridColumns - footprintWidth) * _cellSize / 2d,
+            (_gridRows - footprintHeight) * _cellSize / 2d);
     }
 
     private void RefreshPreciseFootprintGrid(double footprintLeft, double footprintTop, int footprintWidthCells, int footprintHeightCells)

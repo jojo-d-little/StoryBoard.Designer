@@ -39,7 +39,7 @@
             <TextBox x:Name="TimerKeyTextBox" Grid.Row="0" Grid.Column="1" Margin="0,0,0,10" />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Delay (ms)"
-                       ToolTip="Delay in milliseconds before the timer first fires after it is started." />
+                       ToolTip="Delay in milliseconds before the timer is dispatched by the Engine. A callback is later Engine work and does not wait for the browser to render a room." />
             <TextBox x:Name="ScheduleAfterMsTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" />
 
             <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center" Text="Fire Mode"

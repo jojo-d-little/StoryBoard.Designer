@@ -607,6 +607,32 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
         }
     }
 
+    private void MakeSequenceActionInline_OnClick(object sender, System.Windows.RoutedEventArgs e)
+    {
+        if (DataContext is StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel)
+        {
+            viewModel.MakeSelectedSequenceActionInline();
+        }
+    }
+
+    private void PromoteSequenceAction_OnClick(object sender, System.Windows.RoutedEventArgs e)
+    {
+        if (DataContext is not StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel
+            || viewModel.SelectedSequenceStep?.InlineAction is not { } inlineAction)
+        {
+            return;
+        }
+
+        var dialog = new PromoteSequenceActionDialog(inlineAction.Name)
+        {
+            Owner = System.Windows.Window.GetWindow(this)
+        };
+        if (dialog.ShowDialog() == true)
+        {
+            viewModel.PromoteSelectedSequenceInlineAction(dialog.ActionName);
+        }
+    }
+
     private static System.Windows.Controls.MenuItem CreateForkStepMenuItem(
         string outcome,
         int offsetMs,
