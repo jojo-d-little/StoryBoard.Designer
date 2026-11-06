@@ -478,9 +478,10 @@ public partial class LargeObjectVisualGuideDialog : Window
             return;
         }
 
-        var relativeOrderRanks = _hasEditedStructuralPartRenderOrder
-            ? StructuralPartRelativeRenderOrderPolicy.AssignRelativeRanks(_structuralPartRenderOrder)
-            : null;
+        // The list is the authoritative front-to-back order even before the user
+        // edits it. Normalize it around the parent so sibling overlap and the
+        // parent/child relationship use the same complete ordering.
+        var relativeOrderRanks = StructuralPartRelativeRenderOrderPolicy.AssignRelativeRanks(_structuralPartRenderOrder);
         foreach (var part in _structuralPartPlacements)
         {
             if (part.Placement.Mode != StructuralPartPlacementKind.ParentRelative
@@ -538,8 +539,8 @@ public partial class LargeObjectVisualGuideDialog : Window
             };
             Canvas.SetLeft(childImage, footprintLeft + childOffsetX + imagePlacement.X);
             Canvas.SetTop(childImage, footprintTop + childOffsetY + imagePlacement.Y);
-            var renderOrder = relativeOrderRanks?.GetValueOrDefault(part.ObjectId) ?? part.StructuralPartRelativeRenderOrder;
-            System.Windows.Controls.Panel.SetZIndex(childImage, StructuralPartRelativeRenderOrderPolicy.RendersInFrontOfParent(renderOrder) ? 1 : -1);
+            var renderOrder = relativeOrderRanks.GetValueOrDefault(part.ObjectId);
+            System.Windows.Controls.Panel.SetZIndex(childImage, renderOrder);
             BitmapPreviewCanvas.Children.Add(childImage);
         }
     }
