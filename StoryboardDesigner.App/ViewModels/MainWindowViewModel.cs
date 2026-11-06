@@ -2227,8 +2227,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             }
         }
 
-        foreach (var variable in obj.Variables)
+        var project = EnumerateScopeAncestors(obj).OfType<ProjectModel>().FirstOrDefault();
+        var effectiveProperties = project is null
+            ? obj.Variables.Select(variable => new EffectiveGamePropertyResolver.EffectiveProperty(variable, obj, false)).ToList()
+            : EffectiveGamePropertyResolver.Resolve(obj, id => EffectiveGamePropertyResolver.ResolveBaseObject(project, id));
+        foreach (var effectiveProperty in effectiveProperties)
         {
+            var variable = effectiveProperty.Definition;
             var variableName = variable.Name?.Trim() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(variableName))
             {

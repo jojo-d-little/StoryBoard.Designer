@@ -7,18 +7,23 @@ public sealed class GamePropertyNodeViewModel : HierarchyNodeViewModel
     private bool _isShared;
     private int _sharedEndpointCount;
 
-    public GamePropertyNodeViewModel(GamePropertyDefinition variable, PropertyResolutionScope scope, GamePropertiesContainerNodeViewModel parent)
+    public GamePropertyNodeViewModel(GamePropertyDefinition variable, PropertyResolutionScope scope, GamePropertiesContainerNodeViewModel parent, GameObject? definitionOwner = null, bool isInherited = false)
         : base(variable.Name, parent)
     {
         Variable = variable;
         Scope = scope;
         VariablesContainer = parent;
+        DefinitionOwner = definitionOwner ?? parent.ScopeOwner as GameObject;
+        IsInherited = isInherited;
         NodeTypeLabel = "Variable";
     }
 
     public GamePropertyDefinition Variable { get; }
     public PropertyResolutionScope Scope { get; }
     public GamePropertiesContainerNodeViewModel VariablesContainer { get; }
+    public GameObject? DefinitionOwner { get; }
+    public bool IsInherited { get; }
+    public string InheritedSourceDisplay => IsInherited ? $"(Base: {DefinitionOwner?.Name ?? "Object"})" : string.Empty;
     public bool IsComputed => Variable.Computation is not null;
     public bool IsGeneratedEnvironmentalProperty => Variable.IsGeneratedEnvironmentalProperty;
     public string DisplayValue => Variable.GeneratedPreviewValue ?? Variable.DefaultValue;

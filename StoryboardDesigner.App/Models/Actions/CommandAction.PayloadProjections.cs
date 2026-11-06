@@ -563,7 +563,7 @@ public sealed partial class CommandAction
         {
             _payload = ActionType switch
             {
-                CommandActionType.AddObjectPresentationCue => new AddObjectPresentationCuePayload(value, ObjectPresentationCueEffectKey, (Payload as AddObjectPresentationCuePayload)?.ObjectSetReference),
+                CommandActionType.AddObjectPresentationCue => new AddObjectPresentationCuePayload(value, ObjectPresentationCueEffectKey, (Payload as AddObjectPresentationCuePayload)?.ObjectSetReference, (Payload as AddObjectPresentationCuePayload)?.Lifetime ?? PresentationCueLifetime.UntilRemoved),
                 CommandActionType.RemoveObjectPresentationCue => new RemoveObjectPresentationCuePayload(value, ObjectPresentationCueEffectKey, (Payload as RemoveObjectPresentationCuePayload)?.ObjectSetReference),
                 CommandActionType.ClearObjectPresentationCues => new ClearObjectPresentationCuesPayload(value),
                 _ => _payload
@@ -586,10 +586,31 @@ public sealed partial class CommandAction
             var key = value?.Trim() ?? string.Empty;
             _payload = ActionType switch
             {
-                CommandActionType.AddObjectPresentationCue => new AddObjectPresentationCuePayload(ObjectPresentationCueObjectId, key, (Payload as AddObjectPresentationCuePayload)?.ObjectSetReference),
+                CommandActionType.AddObjectPresentationCue => new AddObjectPresentationCuePayload(ObjectPresentationCueObjectId, key, (Payload as AddObjectPresentationCuePayload)?.ObjectSetReference, (Payload as AddObjectPresentationCuePayload)?.Lifetime ?? PresentationCueLifetime.UntilRemoved),
                 CommandActionType.RemoveObjectPresentationCue => new RemoveObjectPresentationCuePayload(ObjectPresentationCueObjectId, key, (Payload as RemoveObjectPresentationCuePayload)?.ObjectSetReference),
                 _ => _payload
             };
+            OnPropertyChanged();
+            RaiseSummaryChanged();
+        }
+    }
+
+    public PresentationCueLifetime ObjectPresentationCueLifetime
+    {
+        get => (Payload as AddObjectPresentationCuePayload)?.Lifetime ?? PresentationCueLifetime.UntilRemoved;
+        set
+        {
+            if (ActionType != CommandActionType.AddObjectPresentationCue)
+            {
+                return;
+            }
+
+            var payload = Payload as AddObjectPresentationCuePayload;
+            _payload = new AddObjectPresentationCuePayload(
+                payload?.ObjectId ?? ObjectPresentationCueObjectId,
+                payload?.EffectKey ?? ObjectPresentationCueEffectKey,
+                payload?.ObjectSetReference,
+                Enum.IsDefined(value) ? value : PresentationCueLifetime.UntilRemoved);
             OnPropertyChanged();
             RaiseSummaryChanged();
         }

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Storyboard.Shared.DesignerContracts;
 using StoryboardDesigner.App.Models;
+using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.Validation.Contracts;
 
 namespace StoryboardDesigner.App.Validation.Rules.Project;
@@ -257,7 +258,10 @@ public sealed class ComputedGamePropertyIntegrityRule : IValidationRule
                     && string.Equals(obj.Name, project.PlayerCharacterObjectName, StringComparison.OrdinalIgnoreCase))
                 || obj.Variables.Any(property => string.Equals(property.Name, "isPlayer", StringComparison.OrdinalIgnoreCase)
                     && bool.TryParse(property.DefaultValue, out var markedPlayer) && markedPlayer);
-            yield return new OwnerInfo(obj.ObjectId, $"{path}.Object.{obj.Name}", PropertyResolutionScope.Object, obj.Variables, obj.AvailableActions, isPlayer);
+            var effectiveProperties = EffectiveGamePropertyResolver.Resolve(obj, id => EffectiveGamePropertyResolver.ResolveBaseObject(project, id))
+                .Select(static property => property.Definition)
+                .ToList();
+            yield return new OwnerInfo(obj.ObjectId, $"{path}.Object.{obj.Name}", PropertyResolutionScope.Object, effectiveProperties, obj.AvailableActions, isPlayer);
             foreach (var child in obj.ContainedObjects) foreach (var nested in EnumerateObject(child, path + "." + obj.Name)) yield return nested;
         }
 

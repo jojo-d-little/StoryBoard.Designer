@@ -34,8 +34,9 @@
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    <RowDefinition Height="190" />
+                        <RowDefinition Height="*" MinHeight="120" />
+                        <RowDefinition Height="8" />
+                        <RowDefinition Height="190" MinHeight="120" />
                     </Grid.RowDefinitions>
                     <StackPanel Grid.Row="0" Margin="12,10" Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBox Text="{Binding SelectedSequenceDefinition.DisplayName, UpdateSourceTrigger=PropertyChanged}"
@@ -325,7 +326,11 @@
                             </Grid>
                         </ScrollViewer>
                     </Border>
-                    <Border Grid.Row="2" Padding="12,8" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0">
+                    <GridSplitter Grid.Row="2" Height="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  ResizeDirection="Rows" ResizeBehavior="PreviousAndNext" ShowsPreview="True"
+                                  Background="#D1D5DB" Cursor="SizeNS" ToolTip="Drag to resize the sequence flow and selected step details"
+                                  AutomationProperties.Name="Resize sequence flow and selected step details" />
+                    <Border Grid.Row="3" Padding="12,8" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -468,7 +473,8 @@
                                               SelectedValue="{Binding SelectedSequenceSoundEffectId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 </Grid>
                             </StackPanel>
-                            <Grid Grid.Row="1">
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                            <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="70" />
                                     <ColumnDefinition Width="60" />
@@ -545,6 +551,7 @@
                                 </StackPanel>
                                 <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="7" Text="{Binding SelectedSequenceContinuationDescription}" Foreground="#64748B" FontSize="10" Margin="0,4,0,0" TextWrapping="Wrap" />
                             </Grid>
+                            </ScrollViewer>
                         </Grid>
                     </Border>
                 </Grid>

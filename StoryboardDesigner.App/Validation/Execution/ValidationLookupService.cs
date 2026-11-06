@@ -1,4 +1,5 @@
 using StoryboardDesigner.App.Models;
+using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.Validation.Contracts;
 
 namespace StoryboardDesigner.App.Validation.Execution;
@@ -84,23 +85,48 @@ public sealed class ValidationLookupService : IValidationLookupService
             }
         }
 
+        void AddObjects(IEnumerable<GameObject> roots, string scopePath, string semanticHint)
+        {
+            foreach (var root in roots)
+            {
+                AddObject(root);
+            }
+
+            void AddObject(GameObject gameObject)
+            {
+                var effectiveProperties = EffectiveGamePropertyResolver.Resolve(gameObject, id => EffectiveGamePropertyResolver.ResolveBaseObject(project, id));
+                AddRange(effectiveProperties.Select(static property => property.Definition), scopePath, semanticHint);
+                AddObjects(gameObject.ContainedObjects, scopePath, semanticHint);
+            }
+        }
+
         AddRange(project.GlobalVariables, "Global", "ProjectGlobalVariable");
         AddRange(project.GlobalScope.GameProperties, "Global / Game Properties", "GlobalScopeVariable");
-        AddRange(project.GlobalScope.GameObjects.SelectMany(static obj => obj.Variables), "Global / Game Objects", "GameObjectVariable");
-        AddRange(project.EnumerateAllObjectTemplateRoots().SelectMany(static obj => obj.Variables), "Global / Templates", "TemplateObjectVariable");
+        AddObjects(project.BaseObjects, "Global / Base Objects", "BaseObjectVariable");
+        AddObjects(project.GlobalScope.GameObjects, "Global / Game Objects", "GameObjectVariable");
+        AddObjects(project.EnumerateAllObjectTemplateRoots(), "Global / Templates", "TemplateObjectVariable");
 
         foreach (var planet in project.Planets)
         {
             AddRange(planet.Variables, $"Global / {planet.Name}", "PlanetVariable");
+            AddObjects(planet.BaseObjects, $"Global / {planet.Name} / Base Objects", "BaseObjectVariable");
+            AddObjects(planet.ObjectTemplates, $"Global / {planet.Name} / Templates", "TemplateObjectVariable");
+            AddObjects(planet.GameObjects, $"Global / {planet.Name} / Game Objects", "GameObjectVariable");
 
             foreach (var country in planet.Countries)
             {
                 AddRange(country.Variables, $"Global / {planet.Name} / {country.Name}", "CountryVariable");
+                AddObjects(country.BaseObjects, $"Global / {planet.Name} / {country.Name} / Base Objects", "BaseObjectVariable");
+                AddObjects(country.ObjectTemplates, $"Global / {planet.Name} / {country.Name} / Templates", "TemplateObjectVariable");
+                AddObjects(country.GameObjects, $"Global / {planet.Name} / {country.Name} / Game Objects", "GameObjectVariable");
 
                 foreach (var area in country.Areas)
                 {
                     var areaPath = $"Global / {planet.Name} / {country.Name} / {area.Name}";
                     AddRange(area.Variables, areaPath, "AreaVariable");
+                    AddObjects(area.BaseObjects, areaPath + " / Base Objects", "BaseObjectVariable");
+                    AddObjects(area.ObjectTemplates, areaPath + " / Templates", "TemplateObjectVariable");
+                    AddObjects(area.GameObjects, areaPath + " / Game Objects", "GameObjectVariable");
                     AddRange(area.TraversalConnections.SelectMany(static connection => connection.Variables), areaPath + " / Traversal", "TraversalConnectionVariable");
 
                     foreach (var connection in area.TraversalConnections)
@@ -113,7 +139,7 @@ public sealed class ValidationLookupService : IValidationLookupService
                     {
                         var roomPath = areaPath + $" / {room.Name}";
                         AddRange(room.Variables, roomPath, "RoomVariable");
-                        AddRange(room.GameObjects.SelectMany(static obj => obj.Variables), roomPath + " / Objects", "GameObjectVariable");
+                        AddObjects(room.GameObjects, roomPath + " / Objects", "GameObjectVariable");
                     }
                 }
             }

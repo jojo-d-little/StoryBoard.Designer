@@ -278,7 +278,16 @@ public sealed class BaseActionDesignerSupportTests
                             .GetField("_workingCopy", BindingFlags.Instance | BindingFlags.NonPublic)!
                             .GetValue(dialog)!;
                         Assert.Null(workingCopy.ObjectPresentationCueObjectId);
-                        Assert.Equal("liftOccupants", Assert.IsType<AddObjectPresentationCuePayload>(workingCopy.Payload).ObjectSetReference!.ObjectSetKey);
+                        var setPayload = Assert.IsType<AddObjectPresentationCuePayload>(workingCopy.Payload);
+                        Assert.Equal("liftOccupants", setPayload.ObjectSetReference!.ObjectSetKey);
+                        var lifetimePicker = (ComboBox)dialog.FindName("ObjectPresentationCueLifetimeComboBox")!;
+                        var lifetimeChoices = lifetimePicker.Items.Cast<object>().ToDictionary(
+                            item => (PresentationCueLifetime)item.GetType().GetProperty("Value")!.GetValue(item)!,
+                            item => (string)item.GetType().GetProperty("Label")!.GetValue(item)!);
+                        Assert.Equal("Until removed", lifetimeChoices[PresentationCueLifetime.UntilRemoved]);
+                        Assert.Equal("Current room", lifetimeChoices[PresentationCueLifetime.CurrentRoom]);
+                        lifetimePicker.SelectedValue = PresentationCueLifetime.CurrentRoom;
+                        Assert.Equal(PresentationCueLifetime.CurrentRoom, Assert.IsType<AddObjectPresentationCuePayload>(workingCopy.Payload).Lifetime);
 
                         setMode.IsChecked = false;
                         typeof(RoomActionEditorDialog)
@@ -289,7 +298,10 @@ public sealed class BaseActionDesignerSupportTests
                             .GetMethod("TryApplyObjectSetPayloadInputs", BindingFlags.Instance | BindingFlags.NonPublic)!
                             .Invoke(dialog, null);
                         Assert.Equal(objectId, workingCopy.ObjectPresentationCueObjectId);
-                        Assert.Null(Assert.IsType<AddObjectPresentationCuePayload>(workingCopy.Payload).ObjectSetReference);
+                        var singlePayload = Assert.IsType<AddObjectPresentationCuePayload>(workingCopy.Payload);
+                        Assert.Null(singlePayload.ObjectSetReference);
+                        Assert.Equal(PresentationCueLifetime.CurrentRoom, singlePayload.Lifetime);
+                        lifetimePicker.SelectedValue = PresentationCueLifetime.UntilRemoved;
                         typeof(RoomActionEditorDialog)
                             .GetMethod("Save_OnClick", BindingFlags.Instance | BindingFlags.NonPublic)!
                             .Invoke(dialog, [dialog, new System.Windows.RoutedEventArgs()]);
@@ -307,10 +319,12 @@ public sealed class BaseActionDesignerSupportTests
                 Assert.Equal(objectId, action.ObjectPresentationCueObjectId);
                 var payload = Assert.IsType<AddObjectPresentationCuePayload>(action.Payload);
                 Assert.Null(payload.ObjectSetReference);
+                Assert.Equal(PresentationCueLifetime.UntilRemoved, payload.Lifetime);
                 var dto = JsonExportService.ToCommandActionDtoForSequence(action, []);
                 var exported = Assert.IsType<ProjectAddObjectPresentationCueActionPayloadDto>(dto.Payload);
                 Assert.Equal(objectId, exported.ObjectId);
                 Assert.Null(exported.ObjectSetReference);
+                Assert.Equal(PresentationCueLifetime.UntilRemoved, exported.Lifetime);
 
                 var project = new ProjectModel { Name = "Cue Target Switch" };
                 project.GlobalScope.GameObjects.Add(gameObject);
@@ -328,6 +342,7 @@ public sealed class BaseActionDesignerSupportTests
                         .GetProperty("payload");
                     Assert.Equal(objectId, runtimeCue.GetProperty("objectId").GetGuid());
                     Assert.False(runtimeCue.TryGetProperty("objectSetReference", out _));
+                    Assert.Equal(nameof(PresentationCueLifetime.UntilRemoved), runtimeCue.GetProperty("lifetime").GetString());
                 }
                 finally
                 {

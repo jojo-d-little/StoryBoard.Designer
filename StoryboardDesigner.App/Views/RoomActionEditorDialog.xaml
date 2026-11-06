@@ -899,6 +899,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="140" />
@@ -922,6 +923,11 @@
                     <ComboBox x:Name="ObjectPresentationCueSetKeyComboBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,10"
                               IsEditable="True" IsTextSearchEnabled="True"
                               ToolTip="Choose the logical set key from a footprint-capture action." />
+                    <TextBlock x:Name="ObjectPresentationCueLifetimeLabel" Grid.Row="5" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Lifetime" />
+                    <ComboBox x:Name="ObjectPresentationCueLifetimeComboBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,10"
+                              DisplayMemberPath="Label" SelectedValuePath="Value"
+                              SelectionChanged="ObjectPresentationCueLifetime_OnSelectionChanged"
+                              ToolTip="Choose whether this cue lasts until removed or only for the current room." />
                 </Grid>
 
                 <Grid x:Name="CaptureObjectSetEditorPanel" Visibility="Collapsed">

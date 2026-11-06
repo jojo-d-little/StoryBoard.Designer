@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
 using System.Windows;
@@ -8,15 +9,30 @@ using StoryboardDesigner.App.Models;
 
 namespace StoryboardDesigner.App.Views;
 
-public sealed class ExpressionTreeItem
+public sealed class ExpressionTreeItem : INotifyPropertyChanged
 {
-    public string Title { get; set; } = string.Empty;
+    private string _title = string.Empty;
+
+    public string Title
+    {
+        get => _title;
+        set
+        {
+            if (string.Equals(_title, value, StringComparison.Ordinal)) return;
+            _title = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Title)));
+        }
+    }
+
+    public string? Role { get; init; }
     public ProjectGamePropertyExpressionDto? Expression { get; init; }
     public Action<ProjectGamePropertyExpressionDto>? Replace { get; init; }
     public Action? Remove { get; init; }
     public ProjectGamePropertyExpressionDto? ParentExpression { get; init; }
     public ProjectGamePropertySelectBranchDto? Branch { get; init; }
     public ObservableCollection<ExpressionTreeItem> Children { get; } = new();
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 }
 
 public partial class GamePropertyComputationEditorDialog : Window
@@ -91,7 +107,7 @@ public partial class GamePropertyComputationEditorDialog : Window
     private ExpressionTreeItem BuildNode(ProjectGamePropertyExpressionDto expression, Action<ProjectGamePropertyExpressionDto> replace,
         ProjectGamePropertyExpressionDto? parent, Action? remove = null, string? role = null)
     {
-        var item = new ExpressionTreeItem { Expression = expression, Replace = replace, ParentExpression = parent, Remove = remove,
+        var item = new ExpressionTreeItem { Expression = expression, Replace = replace, ParentExpression = parent, Remove = remove, Role = role,
             Title = role is null ? NodeTitle(expression) : $"{role}: {NodeTitle(expression)}" };
         if (expression.Left is not null)
             item.Children.Add(BuildNode(expression.Left, value => expression.Left = value, expression, () => expression.Left = null!, "left"));
@@ -242,7 +258,9 @@ public partial class GamePropertyComputationEditorDialog : Window
             default: expression.Value = LiteralTextBox.Text; break;
         }
         ExpressionErrorTextBlock.Text = string.Empty;
-        RefreshTree(expression);
+        selected.Title = selected.Role is null ? NodeTitle(expression) : $"{selected.Role}: {NodeTitle(expression)}";
+        RefreshPreview();
+        ExpressionWarningTextBlock.Text = string.Join(Environment.NewLine, GamePropertyArithmeticAnalysis.DivisionByZeroWarnings(_root));
     }
 
     private void OperatorComboBox_OnChanged(object sender, SelectionChangedEventArgs e)

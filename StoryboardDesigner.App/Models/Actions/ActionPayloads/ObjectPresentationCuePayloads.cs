@@ -1,6 +1,10 @@
 namespace StoryboardDesigner.App.Models;
 
-public sealed record AddObjectPresentationCuePayload(Guid? ObjectId, string EffectKey, Storyboard.Shared.DesignerContracts.ProjectObjectSetReferenceDto? ObjectSetReference = null) : IActionPayload
+public sealed record AddObjectPresentationCuePayload(
+    Guid? ObjectId,
+    string EffectKey,
+    Storyboard.Shared.DesignerContracts.ProjectObjectSetReferenceDto? ObjectSetReference = null,
+    PresentationCueLifetime Lifetime = PresentationCueLifetime.UntilRemoved) : IActionPayload
 {
     public CommandActionType ActionType => CommandActionType.AddObjectPresentationCue;
     public IReadOnlyList<string> GetReferenceTokens() => StoryboardDesigner.App.Services.ActionManifestCatalog.GetOutputVariableTokens(ActionType);

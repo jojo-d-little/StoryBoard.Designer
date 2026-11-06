@@ -1,5 +1,6 @@
 using Storyboard.Shared.DesignerContracts;
 using StoryboardDesigner.App.Models;
+using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.Validation.Contracts;
 
 namespace StoryboardDesigner.App.Validation.Rules.Objects;
@@ -61,7 +62,7 @@ public sealed class SoundEmitterActivationPropertyReferenceRule : IValidationRul
             }
 
             var invalidOwners = owners
-                .Select(owner => (Owner: owner, Matches: GetProperties(owner)
+                .Select(owner => (Owner: owner, Matches: GetProperties(context.Project, owner)
                     .Where(property => string.Equals(property.Name?.Trim(), propertyName, StringComparison.OrdinalIgnoreCase))
                     .ToList()))
                 .Where(static item => item.Matches.Count > 1
@@ -154,15 +155,15 @@ public sealed class SoundEmitterActivationPropertyReferenceRule : IValidationRul
         _ => Guid.Empty
     };
 
-    private static IEnumerable<GamePropertyDefinition> GetProperties(ScopeNodeBase owner) => owner switch
+    private static IEnumerable<GamePropertyDefinition> GetProperties(ProjectModel project, ScopeNodeBase owner) => owner switch
     {
-        GameObject gameObject => gameObject.Variables,
+        GameObject gameObject => EffectiveGamePropertyResolver.Resolve(gameObject, id => EffectiveGamePropertyResolver.ResolveBaseObject(project, id)).Select(static property => property.Definition),
         Room room => room.Variables,
         Planet planet => planet.Variables,
         Country country => country.Variables,
         Area area => area.Variables,
         PhaseNode phase => phase.Variables,
-        ProjectModel project => project.GlobalVariables,
+        ProjectModel projectOwner => projectOwner.GlobalVariables,
         _ => Array.Empty<GamePropertyDefinition>()
     };
 

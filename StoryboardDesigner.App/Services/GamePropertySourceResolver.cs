@@ -85,20 +85,21 @@ internal static class GamePropertySourceResolver
         var result = new List<OwnerDefinition>();
         var playerName = project.PlayerCharacterObjectName?.Trim() ?? string.Empty;
 
-        void Add(ScopeNodeBase owner, IEnumerable<GamePropertyDefinition> properties, IReadOnlyList<string>? anchors = null)
+        void Add(ScopeNodeBase owner, IEnumerable<GamePropertyDefinition> properties, IReadOnlyList<string>? anchors = null, IEnumerable<GamePropertyDefinition>? authoredPropertySource = null)
         {
             var ownerId = GetOwnerId(owner);
             var ownerName = owner.ScopeName;
             var scopePath = GetScopePath(owner);
             var scope = GetResolutionScope(owner);
             var eligibleAnchors = anchors ?? Array.Empty<string>();
-            var authoredProperties = properties.Where(static property => !string.IsNullOrWhiteSpace(property.Name)).ToList();
+            var effectiveProperties = properties.Where(static property => !string.IsNullOrWhiteSpace(property.Name)).ToList();
+            var authoredProperties = (authoredPropertySource ?? effectiveProperties).Where(static property => !string.IsNullOrWhiteSpace(property.Name)).ToList();
             var descriptors = EnginePropertyCatalogService.ForScope(scope)
                 .GroupBy(static descriptor => descriptor.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(static group => group.First())
                 .ToList();
             var catalogKeys = descriptors.Select(static descriptor => descriptor.Key).ToList();
-            var ownerProperties = authoredProperties
+            var ownerProperties = effectiveProperties
                 .Where(property => !catalogKeys.Contains(property.Name.Trim(), StringComparer.OrdinalIgnoreCase))
                 .GroupBy(static property => property.Name.Trim(), StringComparer.OrdinalIgnoreCase)
                 .Select(static group => group.First())
@@ -130,7 +131,8 @@ internal static class GamePropertySourceResolver
                     && string.Equals(obj.Name, playerName, StringComparison.OrdinalIgnoreCase))
                 || obj.Variables.Any(property => string.Equals(property.Name, "isPlayer", StringComparison.OrdinalIgnoreCase)
                     && bool.TryParse(property.DefaultValue, out var markedPlayer) && markedPlayer);
-            Add(obj, obj.Variables, isPlayer ? ["activePlayer"] : null);
+            var effectiveProperties = EffectiveGamePropertyResolver.Resolve(obj, id => EffectiveGamePropertyResolver.ResolveBaseObject(project, id));
+            Add(obj, effectiveProperties.Select(static property => property.Definition), isPlayer ? ["activePlayer"] : null, obj.Variables);
             foreach (var child in obj.ContainedObjects) AddObject(child);
         }
 

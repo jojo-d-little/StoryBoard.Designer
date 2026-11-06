@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Storyboard.Shared.DesignerContracts;
 using Storyboard.Shared.RuntimeContracts.Enums;
 using StoryboardDesigner.App.Models;
@@ -151,11 +152,13 @@ public sealed class ElevatorStage3AuthoringTests
             new() { Name = "Ride", ActionType = CommandActionType.NavigateObjectSetToAdjacent,
                 Payload = new NavigateObjectSetToAdjacentPayload("liftOccupants", Direction10.North.ToString()) },
             new() { Name = "Cue set", ActionType = CommandActionType.AddObjectPresentationCue,
-                Payload = new AddObjectPresentationCuePayload(null, "Selected", new ProjectObjectSetReferenceDto { ObjectSetKey = "liftOccupants" }) },
+                Payload = new AddObjectPresentationCuePayload(null, "Selected", new ProjectObjectSetReferenceDto { ObjectSetKey = "liftOccupants" }, PresentationCueLifetime.CurrentRoom) },
             new() { Name = "Remove set cue", ActionType = CommandActionType.RemoveObjectPresentationCue,
                 Payload = new RemoveObjectPresentationCuePayload(null, "Selected", new ProjectObjectSetReferenceDto { ObjectSetKey = "liftOccupants" }) },
             new() { Name = "Legacy single cue", ActionType = CommandActionType.AddObjectPresentationCue,
                 Payload = new AddObjectPresentationCuePayload(targetObjectId, "Selected") },
+            new() { Name = "Current room single cue", ActionType = CommandActionType.AddObjectPresentationCue,
+                Payload = new AddObjectPresentationCuePayload(targetObjectId, "Selected", Lifetime: PresentationCueLifetime.CurrentRoom) },
             new() { Name = "Command context cue", ActionType = CommandActionType.AddObjectPresentationCue,
                 Payload = new AddObjectPresentationCuePayload(null, "Selected") }
         };
@@ -173,6 +176,11 @@ public sealed class ElevatorStage3AuthoringTests
             var projectPath = Path.Combine(tempRoot, "ElevatorStage3.sbe.json");
             var service = new JsonExportService();
             service.SaveProjectModel(projectPath, project);
+            var legacyActionFile = Directory.EnumerateFiles(tempRoot, "*.json", SearchOption.AllDirectories)
+                .First(path => FindNamedActionJsonNode(JsonNode.Parse(File.ReadAllText(path)), "Legacy single cue") is not null);
+            var legacyActionRoot = JsonNode.Parse(File.ReadAllText(legacyActionFile))!;
+            FindNamedActionJsonNode(legacyActionRoot, "Legacy single cue")!["payload"]!.AsObject().Remove("lifetime");
+            File.WriteAllText(legacyActionFile, legacyActionRoot.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
             var loaded = service.TryLoadProjectModel(projectPath)!;
             var loadedActions = loaded.GlobalScope.AvailableActions;
 
@@ -182,9 +190,16 @@ public sealed class ElevatorStage3AuthoringTests
             Assert.Equal(Direction10.North.ToString(), Assert.IsType<NavigateObjectSetToAdjacentPayload>(loadedActions.Single(action => action.ActionType == CommandActionType.NavigateObjectSetToAdjacent).Payload).Direction);
             var cue = Assert.IsType<AddObjectPresentationCuePayload>(loadedActions.Single(action => action.Name == "Cue set").Payload);
             Assert.Equal("liftOccupants", cue.ObjectSetReference!.ObjectSetKey);
+            Assert.Equal(PresentationCueLifetime.CurrentRoom, cue.Lifetime);
             var removeSetCue = Assert.IsType<RemoveObjectPresentationCuePayload>(loadedActions.Single(action => action.Name == "Remove set cue").Payload);
             Assert.Equal("liftOccupants", removeSetCue.ObjectSetReference!.ObjectSetKey);
-            Assert.Equal(targetObjectId, Assert.IsType<AddObjectPresentationCuePayload>(loadedActions.Single(action => action.Name == "Legacy single cue").Payload).ObjectId);
+            var legacySingleCue = Assert.IsType<AddObjectPresentationCuePayload>(loadedActions.Single(action => action.Name == "Legacy single cue").Payload);
+            Assert.Equal(targetObjectId, legacySingleCue.ObjectId);
+            Assert.Equal(PresentationCueLifetime.UntilRemoved, legacySingleCue.Lifetime);
+            Assert.Equal(PresentationCueLifetime.CurrentRoom, Assert.IsType<AddObjectPresentationCuePayload>(loadedActions.Single(action => action.Name == "Current room single cue").Payload).Lifetime);
+            service.SaveProjectModel(projectPath, loaded);
+            loaded = service.TryLoadProjectModel(projectPath)!;
+            Assert.Equal(PresentationCueLifetime.UntilRemoved, Assert.IsType<AddObjectPresentationCuePayload>(loaded.GlobalScope.AvailableActions.Single(action => action.Name == "Legacy single cue").Payload).Lifetime);
             Assert.Null(Assert.IsType<AddObjectPresentationCuePayload>(loadedActions.Single(action => action.Name == "Command context cue").Payload).ObjectId);
             Assert.Equal(targetObjectId, loadedActions.Single(action => action.Name == "Stage Lift").LinkedFlowDefinition.Nodes.Single().TargetObjectId);
 
@@ -197,10 +212,16 @@ public sealed class ElevatorStage3AuthoringTests
                 .GetProperty("payload").GetProperty("target").GetString());
             Assert.Equal("liftOccupants", runtimeActions.Single(action => action.GetProperty("name").GetString() == "Cue set")
                 .GetProperty("payload").GetProperty("objectSetReference").GetProperty("objectSetKey").GetString());
+            Assert.Equal(nameof(PresentationCueLifetime.CurrentRoom), runtimeActions.Single(action => action.GetProperty("name").GetString() == "Cue set")
+                .GetProperty("payload").GetProperty("lifetime").GetString());
             Assert.Equal("liftOccupants", runtimeActions.Single(action => action.GetProperty("name").GetString() == "Remove set cue")
                 .GetProperty("payload").GetProperty("objectSetReference").GetProperty("objectSetKey").GetString());
             Assert.Equal(targetObjectId, runtimeActions.Single(action => action.GetProperty("name").GetString() == "Legacy single cue")
                 .GetProperty("payload").GetProperty("objectId").GetGuid());
+            Assert.Equal(nameof(PresentationCueLifetime.UntilRemoved), runtimeActions.Single(action => action.GetProperty("name").GetString() == "Legacy single cue")
+                .GetProperty("payload").GetProperty("lifetime").GetString());
+            Assert.Equal(nameof(PresentationCueLifetime.CurrentRoom), runtimeActions.Single(action => action.GetProperty("name").GetString() == "Current room single cue")
+                .GetProperty("payload").GetProperty("lifetime").GetString());
             var commandContextCue = runtimeActions.Single(action => action.GetProperty("name").GetString() == "Command context cue")
                 .GetProperty("payload");
             Assert.False(commandContextCue.TryGetProperty("objectId", out _));
@@ -212,6 +233,35 @@ public sealed class ElevatorStage3AuthoringTests
         {
             if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
         }
+    }
+
+    private static JsonNode? FindNamedActionJsonNode(JsonNode? node, string actionName)
+    {
+        if (node is JsonObject obj
+            && obj["name"]?.GetValue<string>() == actionName
+            && obj["payload"] is not null)
+        {
+            return obj;
+        }
+
+        if (node is JsonObject objectNode)
+        {
+            foreach (var child in objectNode.Select(static pair => pair.Value))
+            {
+                var result = FindNamedActionJsonNode(child, actionName);
+                if (result is not null) return result;
+            }
+        }
+        else if (node is JsonArray array)
+        {
+            foreach (var child in array)
+            {
+                var result = FindNamedActionJsonNode(child, actionName);
+                if (result is not null) return result;
+            }
+        }
+
+        return null;
     }
 
     [Fact]

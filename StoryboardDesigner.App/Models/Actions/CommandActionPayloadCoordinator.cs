@@ -275,7 +275,7 @@ internal static class CommandActionPayloadCoordinator
                 rotate.TargetObjectId),
             StackRoomObjectOnAnotherPayload stack => new StackRoomObjectOnAnotherPayload(
                 stack.MovementEffectKey),
-            AddObjectPresentationCuePayload addCue => new AddObjectPresentationCuePayload(addCue.ObjectId, addCue.EffectKey, CloneObjectSetReference(addCue.ObjectSetReference)),
+            AddObjectPresentationCuePayload addCue => new AddObjectPresentationCuePayload(addCue.ObjectId, addCue.EffectKey, CloneObjectSetReference(addCue.ObjectSetReference), addCue.Lifetime),
             RemoveObjectPresentationCuePayload removeCue => new RemoveObjectPresentationCuePayload(removeCue.ObjectId, removeCue.EffectKey, CloneObjectSetReference(removeCue.ObjectSetReference)),
             CaptureObjectsOnObjectFootprintPayload capture => new CaptureObjectsOnObjectFootprintPayload(
                 capture.ObjectSetKey,

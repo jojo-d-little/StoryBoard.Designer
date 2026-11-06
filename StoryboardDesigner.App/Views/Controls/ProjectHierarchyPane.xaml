@@ -603,6 +603,12 @@
                              Visibility="{Binding IsShared, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 </Canvas>
                 <TextBlock VerticalAlignment="Center" Text="{Binding EditableName}" />
+                <TextBlock Margin="4,0,0,0"
+                           VerticalAlignment="Center"
+                           Foreground="#6B7280"
+                           Text="{Binding InheritedSourceDisplay}"
+                           ToolTip="This property is defined by the linked Base Object. Changes apply to the Base Object."
+                           Visibility="{Binding IsInherited, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <TextBlock Margin="6,0,0,0"
                            VerticalAlignment="Center"
                            Foreground="#6B7280"

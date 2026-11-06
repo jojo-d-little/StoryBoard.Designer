@@ -6106,6 +6106,10 @@ public sealed partial class MainWindowViewModel
     {
         if (variableNode.IsGeneratedEnvironmentalProperty) return false;
         var (collection, _) = ResolveVariableCollectionAndScope(variableNode.VariablesContainer);
+        if (variableNode.IsInherited && variableNode.DefinitionOwner is GameObject baseObject)
+        {
+            collection = baseObject.Variables;
+        }
         if (collection is null)
         {
             return false;
@@ -6382,7 +6386,7 @@ public sealed partial class MainWindowViewModel
 
         var shareTitle = $"Share {BuildVariablePropertyPath(variableNode)} with...";
         var pickerContext = CreateGamePropertyPickerContext(
-            variableNode.VariablesContainer.ScopeOwner,
+            variableNode.DefinitionOwner ?? variableNode.VariablesContainer.ScopeOwner,
             PropertyResolutionScope.Object,
             customChoiceDiscovery: () => BuildShareTargetVariableChoices(variableNode));
 
@@ -6495,14 +6499,14 @@ public sealed partial class MainWindowViewModel
         var choices = new List<GamePropertyChoiceItem>();
         var seenObjectIds = new HashSet<Guid>();
 
-        Area? sourceArea = sourceNode.VariablesContainer.ScopeOwner as Area;
-        Room? sourceRoom = sourceNode.VariablesContainer.ScopeOwner as Room;
+        Area? sourceArea = sourceNode.DefinitionOwner?.ParentScope as Area ?? sourceNode.VariablesContainer.ScopeOwner as Area;
+        Room? sourceRoom = sourceNode.DefinitionOwner?.ParentScope as Room ?? sourceNode.VariablesContainer.ScopeOwner as Room;
         if (hasSourceObject)
         {
             TryFindRoomAndAreaForObject(_project, sourceObject, out sourceArea, out sourceRoom);
         }
 
-        var sourceScopeOwner = sourceNode.VariablesContainer.ScopeOwner;
+        var sourceScopeOwner = sourceNode.DefinitionOwner ?? sourceNode.VariablesContainer.ScopeOwner;
         foreach (var (scopePath, scope, variable, scopeOwner) in EnumerateShareableScopedProperties())
         {
             if (ReferenceEquals(variable, sourceVariable) || variable.Id == sourceVariable.Id
@@ -8377,6 +8381,11 @@ public sealed partial class MainWindowViewModel
     private static bool TryResolveVariableOwnerObject(GamePropertyNodeViewModel variableNode, out GameObject ownerObject)
     {
         ownerObject = null!;
+        if (variableNode.DefinitionOwner is GameObject definitionOwner)
+        {
+            ownerObject = definitionOwner;
+            return true;
+        }
         switch (variableNode.VariablesContainer.ScopeOwner)
         {
             case GameObject objectModel:
@@ -15311,12 +15320,34 @@ public sealed partial class MainWindowViewModel
             ownerDisplayName ?? scopeOwner.ScopeName,
             parent,
             traversalLegOwner);
+        if (scopeOwner is GameObject instance && instance.LinkedBaseObjectId is Guid baseId)
+        {
+            var project = EnumerateScopeAncestors(scopeOwner).OfType<ProjectModel>().FirstOrDefault();
+            var baseObject = project is null ? null : EffectiveGamePropertyResolver.ResolveBaseObject(project, baseId);
+            if (baseObject is not null)
+            {
+                foreach (var property in EffectiveGamePropertyResolver.Resolve(instance, id => id == baseId ? baseObject : null))
+                {
+                    variablesNode.Children.Add(new GamePropertyNodeViewModel(property.Definition, scope, variablesNode, property.DefinitionOwner, property.IsInherited));
+                }
+                return variablesNode;
+            }
+        }
+
         foreach (var variable in source)
         {
-            variablesNode.Children.Add(new GamePropertyNodeViewModel(variable, scope, variablesNode));
+            variablesNode.Children.Add(new GamePropertyNodeViewModel(variable, scope, variablesNode, scopeOwner as GameObject));
         }
 
         return variablesNode;
+    }
+
+    private static IEnumerable<IScopedAwareNode> EnumerateScopeAncestors(IScopedAwareNode node)
+    {
+        for (IScopedAwareNode? current = node; current is not null; current = current.ParentScope)
+        {
+            yield return current;
+        }
     }
 
     private static ScopedActionsNodeViewModel CreateActionsNode(HierarchyNodeViewModel parent, PropertyResolutionScope scope, IList<CommandAction> source)
@@ -15763,6 +15794,10 @@ public sealed partial class MainWindowViewModel
         GamePropertyNodeViewModel propertyNode,
         bool readOnly = false)
     {
+        if (propertyNode.IsInherited && propertyNode.DefinitionOwner is GameObject definitionOwner)
+        {
+            return CreateComputationEditorForScope(definitionOwner, PropertyResolutionScope.Object, definitionOwner.ObjectId);
+        }
         return EditComputationForContainer(propertyNode.VariablesContainer, readOnly);
     }
 
@@ -16043,7 +16078,7 @@ public sealed partial class MainWindowViewModel
         // Keep the source list aligned with tree nodes so the review dialog always reflects what is visible.
         foreach (var node in variablesNode.Children.OfType<GamePropertyNodeViewModel>())
         {
-            if (!collection.Contains(node.Variable))
+            if (!node.IsInherited && !collection.Contains(node.Variable))
             {
                 collection.Add(node.Variable);
             }
@@ -16101,7 +16136,7 @@ public sealed partial class MainWindowViewModel
 
         var staleNodes = variablesNode.Children
             .OfType<GamePropertyNodeViewModel>()
-            .Where(node => !collection.Any(variable => ReferenceEquals(variable, node.Variable)))
+            .Where(node => !node.IsInherited && !collection.Any(variable => ReferenceEquals(variable, node.Variable)))
             .ToList();
 
         foreach (var staleNode in staleNodes)
@@ -16118,6 +16153,7 @@ public sealed partial class MainWindowViewModel
     public IReadOnlyCollection<string> GetVariableNamesReservedInScope(GamePropertyNodeViewModel variableNode)
     {
         var (collection, _) = ResolveVariableCollectionAndScope(variableNode.VariablesContainer);
+        if (variableNode.IsInherited && variableNode.DefinitionOwner is GameObject baseObject) collection = baseObject.Variables;
         if (collection is null)
         {
             return Array.Empty<string>();
@@ -16132,6 +16168,7 @@ public sealed partial class MainWindowViewModel
     public void RefreshVariableNameIndex(GamePropertyNodeViewModel variableNode)
     {
         var (collection, _) = ResolveVariableCollectionAndScope(variableNode.VariablesContainer);
+        if (variableNode.IsInherited && variableNode.DefinitionOwner is GameObject baseObject) collection = baseObject.Variables;
         if (collection is not null)
         {
             RefreshVariableNameIndex(collection);

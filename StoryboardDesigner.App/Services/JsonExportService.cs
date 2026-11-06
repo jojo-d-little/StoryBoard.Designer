@@ -3210,7 +3210,10 @@ public sealed class JsonExportService : IJsonExportService
             model.Payload = new AddObjectPresentationCuePayload(
                 TryGetObjectPresentationCueObjectIdFromPayload(action.Payload),
                 TryGetObjectPresentationCueEffectKeyFromPayload(action.Payload) ?? string.Empty,
-                TryGetObjectPresentationCueObjectSetReferenceFromPayload(action.Payload));
+                TryGetObjectPresentationCueObjectSetReferenceFromPayload(action.Payload),
+                action.Payload is ProjectAddObjectPresentationCueActionPayloadDto addCue
+                    ? addCue.Lifetime ?? PresentationCueLifetime.UntilRemoved
+                    : PresentationCueLifetime.UntilRemoved);
         }
         else if (actionType == CommandActionType.RemoveObjectPresentationCue)
         {
@@ -7984,7 +7987,8 @@ public sealed class JsonExportService : IJsonExportService
         {
             ObjectId = action.ObjectPresentationCueObjectId,
             EffectKey = action.ObjectPresentationCueEffectKey ?? string.Empty,
-            ObjectSetReference = setReference
+            ObjectSetReference = setReference,
+            Lifetime = (action.Payload as AddObjectPresentationCuePayload)?.Lifetime ?? PresentationCueLifetime.UntilRemoved
         };
     }
 
@@ -8424,7 +8428,8 @@ public sealed class JsonExportService : IJsonExportService
         {
             ObjectId = action.ObjectPresentationCueObjectId,
             EffectKey = action.ObjectPresentationCueEffectKey ?? string.Empty,
-            ObjectSetReference = setReference is null ? null : new ObjectSetReferenceDto { ObjectSetKey = setReference.ObjectSetKey }
+            ObjectSetReference = setReference is null ? null : new ObjectSetReferenceDto { ObjectSetKey = setReference.ObjectSetKey },
+            Lifetime = (action.Payload as AddObjectPresentationCuePayload)?.Lifetime ?? PresentationCueLifetime.UntilRemoved
         };
     }
 

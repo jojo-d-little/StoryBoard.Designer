@@ -17,6 +17,8 @@ namespace StoryboardDesigner.App.Views;
 
 public partial class RoomActionEditorDialog : Window
 {
+    private sealed record PresentationCueLifetimeChoiceItem(string Label, PresentationCueLifetime Value);
+
     private const string EchoPropertyChooserEntry = "Property Chooser...";
     private const string PlaySoundEffectDefaultResultCodeToken = "Success";
     private static readonly IReadOnlyList<string> ActionPropertyAnchorKeys =
@@ -446,6 +448,11 @@ public partial class RoomActionEditorDialog : Window
         SelectByPointSelectionCueEffectKeyComboBox.ItemsSource = BuildSelectionCueEffectKeyChoices();
         ObjectPresentationCueEffectKeyComboBox.ItemsSource = _presentationEffectsCatalogService.GetObjectCueEligibleEffectKeys();
         ObjectPresentationCueObjectIdComboBox.ItemsSource = BuildPresentationCueObjectChoices();
+        ObjectPresentationCueLifetimeComboBox.ItemsSource = new[]
+        {
+            new PresentationCueLifetimeChoiceItem("Until removed", PresentationCueLifetime.UntilRemoved),
+            new PresentationCueLifetimeChoiceItem("Current room", PresentationCueLifetime.CurrentRoom)
+        };
         NavigateObjectSetDirectionComboBox.ItemsSource = Enum.GetNames<Direction10>().Where(static value => !string.Equals(value, "Unknown", StringComparison.OrdinalIgnoreCase)).ToList();
         TriggerParticleEffectObjectComboBox.ItemsSource = BuildTriggerParticleEffectObjectChoices();
         ClearActiveScopeComboBox.ItemsSource = ClearRoomObjectSelectionsScopeChoices.ClearActiveRoomObjects;
@@ -918,6 +925,8 @@ public partial class RoomActionEditorDialog : Window
                 ObjectPresentationCueEffectLabel.Text = _workingCopy.ActionType == CommandActionType.RemoveObjectPresentationCue ? "Effect to remove" : "Effect";
                 ObjectPresentationCueSetModeCheckBox.Visibility = _workingCopy.ActionType is CommandActionType.AddObjectPresentationCue or CommandActionType.RemoveObjectPresentationCue ? Visibility.Visible : Visibility.Collapsed;
                 ObjectPresentationCueSetKeyComboBox.Visibility = _workingCopy.ActionType is CommandActionType.AddObjectPresentationCue or CommandActionType.RemoveObjectPresentationCue ? Visibility.Visible : Visibility.Collapsed;
+                ObjectPresentationCueLifetimeLabel.Visibility = _workingCopy.ActionType == CommandActionType.AddObjectPresentationCue ? Visibility.Visible : Visibility.Collapsed;
+                ObjectPresentationCueLifetimeComboBox.Visibility = _workingCopy.ActionType == CommandActionType.AddObjectPresentationCue ? Visibility.Visible : Visibility.Collapsed;
                 break;
             case CommandActionType.CaptureObjectsOnObjectFootprint:
                 CaptureObjectSetEditorPanel.Visibility = Visibility.Visible;
@@ -1584,6 +1593,7 @@ public partial class RoomActionEditorDialog : Window
 
         var setReference = (_workingCopy.Payload as AddObjectPresentationCuePayload)?.ObjectSetReference
             ?? (_workingCopy.Payload as RemoveObjectPresentationCuePayload)?.ObjectSetReference;
+        ObjectPresentationCueLifetimeComboBox.SelectedValue = _workingCopy.ObjectPresentationCueLifetime;
         ObjectPresentationCueSetModeCheckBox.IsChecked = setReference is not null;
         ConfigureObjectSetKeyPicker(ObjectPresentationCueSetKeyComboBox, setReference?.ObjectSetKey);
         RefreshObjectPresentationCueSetMode();
@@ -1658,7 +1668,8 @@ public partial class RoomActionEditorDialog : Window
             _workingCopy.Payload = new AddObjectPresentationCuePayload(
                 objectId,
                 _workingCopy.ObjectPresentationCueEffectKey,
-                setReference);
+                setReference,
+                _workingCopy.ObjectPresentationCueLifetime);
         }
         else if (_workingCopy.ActionType == CommandActionType.RemoveObjectPresentationCue)
         {
@@ -1666,6 +1677,15 @@ public partial class RoomActionEditorDialog : Window
                 objectId,
                 _workingCopy.ObjectPresentationCueEffectKey,
                 setReference);
+        }
+    }
+
+    private void ObjectPresentationCueLifetime_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_workingCopy.ActionType == CommandActionType.AddObjectPresentationCue
+            && ObjectPresentationCueLifetimeComboBox.SelectedValue is PresentationCueLifetime lifetime)
+        {
+            _workingCopy.ObjectPresentationCueLifetime = lifetime;
         }
     }
 

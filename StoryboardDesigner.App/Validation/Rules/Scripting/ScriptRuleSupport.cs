@@ -25,12 +25,12 @@ internal static class ScriptRuleSupport
 
         foreach (var globalObject in EnumerateGameObjects(project.GlobalScope.GameObjects))
         {
-            AddObjectVariableTokens(tokens, globalObject);
+            AddObjectVariableTokens(tokens, globalObject, project);
         }
 
         foreach (var templateObject in EnumerateGameObjects(project.EnumerateAllObjectTemplateRoots()))
         {
-            AddObjectVariableTokens(tokens, templateObject);
+            AddObjectVariableTokens(tokens, templateObject, project);
         }
 
         foreach (var planet in project.Planets)
@@ -38,7 +38,7 @@ internal static class ScriptRuleSupport
             AddScopedVariables(tokens, planet.Variables);
             foreach (var planetObject in EnumerateGameObjects(planet.GameObjects))
             {
-                AddObjectVariableTokens(tokens, planetObject);
+                AddObjectVariableTokens(tokens, planetObject, project);
             }
 
             foreach (var country in planet.Countries)
@@ -46,7 +46,7 @@ internal static class ScriptRuleSupport
                 AddScopedVariables(tokens, country.Variables);
                 foreach (var countryObject in EnumerateGameObjects(country.GameObjects))
                 {
-                    AddObjectVariableTokens(tokens, countryObject);
+                    AddObjectVariableTokens(tokens, countryObject, project);
                 }
 
                 foreach (var area in country.Areas)
@@ -54,7 +54,7 @@ internal static class ScriptRuleSupport
                     AddScopedVariables(tokens, area.Variables);
                     foreach (var areaObject in EnumerateGameObjects(area.GameObjects))
                     {
-                        AddObjectVariableTokens(tokens, areaObject);
+                        AddObjectVariableTokens(tokens, areaObject, project);
                     }
 
                     foreach (var room in area.Rooms)
@@ -63,7 +63,7 @@ internal static class ScriptRuleSupport
 
                         foreach (var roomObject in EnumerateGameObjects(room.GameObjects))
                         {
-                            AddObjectVariableTokens(tokens, roomObject);
+                            AddObjectVariableTokens(tokens, roomObject, project);
                         }
                     }
                 }
@@ -248,7 +248,7 @@ internal static class ScriptRuleSupport
         tokens.Add(name);
     }
 
-    private static void AddObjectVariableTokens(HashSet<string> tokens, GameObject obj)
+    private static void AddObjectVariableTokens(HashSet<string> tokens, GameObject obj, ProjectModel project)
     {
         var objectToken = obj.Name?.Trim() ?? string.Empty;
         if (!string.IsNullOrWhiteSpace(objectToken))
@@ -266,8 +266,9 @@ internal static class ScriptRuleSupport
             }
         }
 
-        foreach (var variable in obj.Variables)
+        foreach (var effectiveProperty in EffectiveGamePropertyResolver.Resolve(obj, id => EffectiveGamePropertyResolver.ResolveBaseObject(project, id)))
         {
+            var variable = effectiveProperty.Definition;
             var variableName = variable.Name?.Trim() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(variableName))
             {
