@@ -405,14 +405,14 @@
                            Text="Room coordinates are absolute pixel positions." />
                 <Border x:Name="ParentCueInheritancePanel" Margin="0,8,0,0" Padding="8" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4" Background="White" Visibility="Collapsed">
                     <StackPanel>
-                        <TextBlock FontWeight="SemiBold" Foreground="#374151" Text="Inherit Parent Presentation Cues" />
+                        <TextBlock FontWeight="SemiBold" Foreground="#374151" Text="Inherit Parent Cues and Scaling" />
                         <TextBlock x:Name="ParentCueInheritanceHintTextBlock" Margin="0,3,0,5" Foreground="#6B7280" FontSize="11" TextWrapping="Wrap"
-                                   Text="Choose which catalog cue categories this parent-relative child follows. The child keeps its own artwork, light, and particle settings." />
+                                   Text="Choose which parent cues this parent-relative child inherits. Scale also controls inheritance of the parent's effective situational scaling. Movement controls cue animation only; parent-relative position and rotation still follow the parent. The child keeps its own artwork, light, and particle settings." />
                         <StackPanel x:Name="ParentCueInheritanceCategoriesPanel" />
                     </StackPanel>
                 </Border>
                 <TextBlock x:Name="RoomCoordinateCueInheritanceHintTextBlock" Margin="0,8,0,0" Foreground="#6B7280" FontSize="11" TextWrapping="Wrap" Visibility="Collapsed"
-                           Text="This part stays at its fixed room coordinates and does not follow its parent. Parent movement and scale cue choices are unavailable for this placement." />
+                           Text="This part stays at its fixed room coordinates and does not follow its parent. It uses its own scaling and does not inherit parent cues or situational scaling. Parent inheritance choices are unavailable for this placement." />
             </StackPanel>
         </Border>
         </StackPanel>

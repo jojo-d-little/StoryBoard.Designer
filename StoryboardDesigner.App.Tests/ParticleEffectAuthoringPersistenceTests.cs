@@ -226,8 +226,20 @@ public sealed class ParticleEffectAuthoringPersistenceTests
                 checkBoxes["Scale"].IsChecked = false;
                 checkBoxes["Highlight"].IsChecked = true;
                 Assert.Equal(new[] { "Highlight" }, dialog.Values.InheritParentCueCategories);
-                Assert.Contains("snaps", checkBoxes["Movement"].ToolTip!.ToString(), StringComparison.OrdinalIgnoreCase);
-                Assert.Contains("situational scaling", checkBoxes["Scale"].ToolTip!.ToString(), StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("snaps", Assert.IsType<TextBlock>(checkBoxes["Movement"].ToolTip).Text, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("situational scaling", Assert.IsType<TextBlock>(checkBoxes["Scale"].ToolTip).Text, StringComparison.OrdinalIgnoreCase);
+
+                checkBoxes["Highlight"].IsChecked = false;
+                Assert.Empty(dialog.Values.InheritParentCueCategories!);
+                checkBoxes["Scale"].IsChecked = true;
+                Assert.Equal(new[] { "Scale" }, dialog.Values.InheritParentCueCategories);
+                Assert.False(checkBoxes["Movement"].IsChecked);
+
+                var placementMode = (ComboBox)dialog.FindName("StructuralPlacementModeComboBox");
+                placementMode.SelectedIndex = 1;
+                Assert.Null(dialog.Values.InheritParentCueCategories);
+                placementMode.SelectedIndex = 0;
+                Assert.Equal(new[] { "Scale" }, dialog.Values.InheritParentCueCategories);
                 dialog.Close();
 
                 var emptyDialog = new GameObjectSettingsDialog(CreateSettingsRequest(
@@ -835,6 +847,8 @@ public sealed class ParticleEffectAuthoringPersistenceTests
             var relativePartId = Guid.Parse("a1000000-0000-4000-8000-000000000002");
             var roomCoordinatePartId = Guid.Parse("a1000000-0000-4000-8000-000000000003");
             var unsetInheritancePartId = Guid.Parse("a1000000-0000-4000-8000-000000000004");
+            var optedOutPartId = Guid.Parse("a1000000-0000-4000-8000-000000000005");
+            var movementOnlyPartId = Guid.Parse("a1000000-0000-4000-8000-000000000006");
             var fireRatePropertyId = Guid.Parse("a1000000-0000-4000-8000-000000000011");
             var fireCorePropertyId = Guid.Parse("a1000000-0000-4000-8000-000000000012");
             var fireEdgePropertyId = Guid.Parse("a1000000-0000-4000-8000-000000000013");
@@ -967,7 +981,23 @@ public sealed class ParticleEffectAuthoringPersistenceTests
                 IsPartOfParent = true,
                 Placement = new StructuralPartPlacement { Mode = StructuralPartPlacementKind.ParentRelative }
             };
-            parent.ContainedObjects = [relativePart, roomCoordinatePart, unsetInheritancePart];
+            var optedOutPart = new GameObject
+            {
+                ObjectId = optedOutPartId,
+                Name = "Parent-relative scale opt-out",
+                IsPartOfParent = true,
+                InheritParentCueCategories = [],
+                Placement = new StructuralPartPlacement { Mode = StructuralPartPlacementKind.ParentRelative }
+            };
+            var movementOnlyPart = new GameObject
+            {
+                ObjectId = movementOnlyPartId,
+                Name = "Movement without parent scaling",
+                IsPartOfParent = true,
+                InheritParentCueCategories = ["Movement"],
+                Placement = new StructuralPartPlacement { Mode = StructuralPartPlacementKind.ParentRelative }
+            };
+            parent.ContainedObjects = [relativePart, roomCoordinatePart, unsetInheritancePart, optedOutPart, movementOnlyPart];
 
             var rainDefaults = new EnvironmentalEffectDefinition
             {
@@ -1052,6 +1082,8 @@ public sealed class ParticleEffectAuthoringPersistenceTests
             Assert.Same(firstParent, firstRoomCoordinatePart.ParentScope);
             Assert.Equal(parentId, firstParent.ObjectId);
             Assert.Null(firstUnsetInheritancePart.InheritParentCueCategories);
+            Assert.Empty(firstParent.ContainedObjects.Single(child => child.ObjectId == optedOutPartId).InheritParentCueCategories!);
+            Assert.Equal(new[] { "Movement" }, firstParent.ContainedObjects.Single(child => child.ObjectId == movementOnlyPartId).InheritParentCueCategories);
             Assert.Equal(roomId, firstRoom.Id);
             Assert.Equal(fireRatePropertyId, firstParent.Variables.Single(variable => variable.Name == "FireRate").Id);
             Assert.Equal(new[] { "Movement", "Scale", "Highlight" }, firstRelativePart.InheritParentCueCategories);
@@ -1091,6 +1123,8 @@ public sealed class ParticleEffectAuthoringPersistenceTests
             Assert.Equal(new[] { "Movement", "Scale", "Highlight" }, reloadedFlame.InheritParentCueCategories);
             Assert.Empty(reloadedSmoke.InheritParentCueCategories!);
             Assert.Null(reloadedUnsetInheritancePart.InheritParentCueCategories);
+            Assert.Empty(reloadedParent.ContainedObjects.Single(child => child.ObjectId == optedOutPartId).InheritParentCueCategories!);
+            Assert.Equal(new[] { "Movement" }, reloadedParent.ContainedObjects.Single(child => child.ObjectId == movementOnlyPartId).InheritParentCueCategories);
 
             service.ExportCleanProjectV1(path, reopenedAgain);
             var runtimeRoot = Path.Combine(tempRoot, "GameRuntimeJson");
@@ -1118,6 +1152,12 @@ public sealed class ParticleEffectAuthoringPersistenceTests
             Assert.Equal(parentId.ToString(), cleanFlame.GetProperty("designTimeParentObjectId").GetString());
             Assert.Equal(parentId.ToString(), cleanSmoke.GetProperty("designTimeParentObjectId").GetString());
             Assert.False(cleanUnsetInheritancePart.TryGetProperty("inheritParentCueCategories", out _));
+            var cleanOptedOutPart = Assert.Single(cleanParts, child => child.GetProperty("Id").GetGuid() == optedOutPartId);
+            Assert.Equal("ParentRelative", cleanOptedOutPart.GetProperty("partPlacementMode").GetString());
+            Assert.Empty(cleanOptedOutPart.GetProperty("inheritParentCueCategories").EnumerateArray());
+            var cleanMovementOnlyPart = Assert.Single(cleanParts, child => child.GetProperty("Id").GetGuid() == movementOnlyPartId);
+            Assert.Equal("ParentRelative", cleanMovementOnlyPart.GetProperty("partPlacementMode").GetString());
+            Assert.Equal(new[] { "Movement" }, cleanMovementOnlyPart.GetProperty("inheritParentCueCategories").EnumerateArray().Select(value => value.GetString()));
             Assert.Equal("ParentRelative", cleanFlame.GetProperty("partPlacementMode").GetString());
             Assert.Equal(new[] { "Movement", "Scale", "Highlight" }, cleanFlame.GetProperty("inheritParentCueCategories").EnumerateArray().Select(value => value.GetString()));
             Assert.Equal(parentId, cleanParent.GetProperty("Id").GetGuid());

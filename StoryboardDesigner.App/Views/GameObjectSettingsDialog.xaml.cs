@@ -527,7 +527,12 @@ public partial class GameObjectSettingsDialog : Window
                 Content = category.Category,
                 IsChecked = initialSelection.Contains(category.Category),
                 Margin = new Thickness(2, 3, 2, 3),
-                ToolTip = GetParentCueInheritanceTooltip(category.Category)
+                ToolTip = new TextBlock
+                {
+                    Text = GetParentCueInheritanceTooltip(category.Category),
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 420
+                }
             };
             _parentCueInheritanceCheckBoxes[category.Category] = checkBox;
             ParentCueInheritanceCategoriesPanel.Children.Add(checkBox);
@@ -536,8 +541,8 @@ public partial class GameObjectSettingsDialog : Window
 
     private static string GetParentCueInheritanceTooltip(string category) => category switch
     {
-        "Movement" => "When unchecked, this child snaps to its new parent-relative destination while the parent may animate.",
-        "Scale" => "When unchecked, this child does not inherit authored Scale cues. Structural placement and situational scaling remain governed by the part relationship.",
+        "Movement" => "Controls inherited Movement cue animation only. When unchecked, this child still follows the parent's structural position and rotation, and snaps to its new parent-relative destination while the parent may animate.",
+        "Scale" => "When checked, this child inherits both parent Scale cues and the parent's effective situational scaling. When unchecked, it uses its own artwork fit, situational scaling and pivot, and keeps its own Scale cues. Parent-relative position and rotation still follow the parent.",
         _ => $"When checked, this child inherits the parent's {category} cues."
     };
 
