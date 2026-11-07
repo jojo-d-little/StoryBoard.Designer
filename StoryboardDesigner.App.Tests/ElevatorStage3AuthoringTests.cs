@@ -266,15 +266,16 @@ public sealed class ElevatorStage3AuthoringTests
     }
 
     [Fact]
-    public void PreRoomSetupAdvisory_AllowsWritableCatalogSetAndSynchronousCheck_RecursesWithNestedPaths()
+    public void PreRoomSetupAdvisory_AllowsPropertyActionsRegardlessOfPayload_AndWarnsForUnlistedNestedType()
     {
         var target = new GameObject { Name = "Destination Elevator" };
         var writableSet = new CommandAction
         {
-            Name = "Stage scale",
+            Name = "TellElevatorWhatFloorWeAre",
             ActionType = CommandActionType.SetGameProperty,
-            Payload = new SetGamePropertyPayload("additionalSituationalScale", "0.5",
-                new ProjectGamePropertySourceReferenceDto { OwnerId = target.ObjectId, PropertyName = "additionalSituationalScale" })
+            Payload = new SetGamePropertyPayload("elevatorHomeFloor", "",
+                new ProjectGamePropertySourceReferenceDto { OwnerId = target.ObjectId, PropertyName = "elevatorHomeFloor" },
+                new ProjectGamePropertySourceReferenceDto { PropertyName = "floorNumber" })
         };
         var check = new CommandAction
         {
@@ -291,6 +292,13 @@ public sealed class ElevatorStage3AuthoringTests
             Payload = new SetGamePropertyPayload("floorNumber", "2",
                 new ProjectGamePropertySourceReferenceDto { OwnerId = room.Id, PropertyName = "floorNumber" })
         };
+        var missingTargetSet = new CommandAction
+        {
+            Name = "Write missing target",
+            ActionType = CommandActionType.SetGameProperty,
+            Payload = new SetGamePropertyPayload("missingProperty", "2",
+                new ProjectGamePropertySourceReferenceDto { OwnerId = Guid.NewGuid(), PropertyName = "missingProperty" })
+        };
         var navigation = new CommandAction { Name = "Navigate", ActionType = CommandActionType.NavigateDirection };
         var setup = new CommandAction { Name = "Elevator setup", ActionType = CommandActionType.LinkedActions };
         setup.LinkedFlowDefinition = new LinkedActionFlowDefinition
@@ -301,7 +309,8 @@ public sealed class ElevatorStage3AuthoringTests
                 new LinkedActionFlowNode { NodeId = 1, ActionId = writableSet.Id, TargetObjectId = target.ObjectId },
                 new LinkedActionFlowNode { NodeId = 2, ActionId = check.Id },
                 new LinkedActionFlowNode { NodeId = 3, ActionId = readOnlySet.Id },
-                new LinkedActionFlowNode { NodeId = 4, ActionId = navigation.Id }
+                new LinkedActionFlowNode { NodeId = 4, ActionId = missingTargetSet.Id },
+                new LinkedActionFlowNode { NodeId = 5, ActionId = navigation.Id }
             ]
         };
         room.PreRoomEntryActionId = setup.Id;
@@ -309,6 +318,7 @@ public sealed class ElevatorStage3AuthoringTests
         room.AvailableActions.Add(writableSet);
         room.AvailableActions.Add(check);
         room.AvailableActions.Add(readOnlySet);
+        room.AvailableActions.Add(missingTargetSet);
         room.AvailableActions.Add(navigation);
         var project = new ProjectModel
         {
@@ -317,15 +327,17 @@ public sealed class ElevatorStage3AuthoringTests
 
         var issues = new PreRoomEntrySetupAdvisoryRule().Evaluate(ValidationRuleTestContext.Create(project)).ToList();
 
-        Assert.Equal(3, issues.Count);
-        Assert.All(issues, issue => Assert.Equal(ValidationSeverity.Warning, issue.Severity));
-        Assert.Contains(issues, issue => issue.Description.Contains("currentRoom", StringComparison.OrdinalIgnoreCase)
-            && issue.Path.Contains("Check floor (CheckGameProperty)", StringComparison.Ordinal));
-        var readOnlyIssue = Assert.Single(issues, issue => issue.Path.Contains("Write floor (SetGameProperty)", StringComparison.Ordinal));
-        Assert.Contains("cataloged writable Engine property", readOnlyIssue.Description, StringComparison.OrdinalIgnoreCase);
-        var navigationIssue = Assert.Single(issues, issue => issue.Path.Contains("Navigate (NavigateDirection)", StringComparison.Ordinal));
-        Assert.Contains("Linked Flow Node 4", navigationIssue.Path, StringComparison.Ordinal);
-        Assert.Contains("Navigation can redirect", navigationIssue.Description, StringComparison.Ordinal);
+        var navigationIssue = Assert.Single(issues);
+        Assert.Equal(ValidationSeverity.Warning, navigationIssue.Severity);
+        Assert.Contains("Action type 'NavigateDirection' is not on the pre-room setup allowlist", navigationIssue.Description, StringComparison.Ordinal);
+        Assert.Contains("Linked Flow Node 5", navigationIssue.Path, StringComparison.Ordinal);
+        Assert.Contains("Navigate (NavigateDirection)", navigationIssue.Path, StringComparison.Ordinal);
+        Assert.DoesNotContain(issues, issue => issue.Path.Contains("TellElevatorWhatFloorWeAre", StringComparison.Ordinal)
+            || issue.Path.Contains("Check floor", StringComparison.Ordinal)
+            || issue.Path.Contains("Write floor", StringComparison.Ordinal)
+            || issue.Path.Contains("Write missing target", StringComparison.Ordinal));
+        Assert.DoesNotContain(issues, issue => issue.Description.Contains("currentRoom", StringComparison.OrdinalIgnoreCase)
+            || issue.Description.Contains("property", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -431,8 +443,9 @@ public sealed class ElevatorStage3AuthoringTests
         var issues = new PreRoomEntrySetupAdvisoryRule().Evaluate(ValidationRuleTestContext.Create(project)).ToList();
 
         var issue = Assert.Single(issues);
+        Assert.Equal(ValidationSeverity.Warning, issue.Severity);
         Assert.Contains("Navigate (NavigateDirection)", issue.Path, StringComparison.Ordinal);
-        Assert.Contains("Navigation can redirect", issue.Description, StringComparison.Ordinal);
+        Assert.Contains("not on the pre-room setup allowlist", issue.Description, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(issues, item => item.Path.Contains("Queue ride", StringComparison.Ordinal)
             || item.Path.Contains("Start ride", StringComparison.Ordinal));
     }
@@ -451,7 +464,7 @@ public sealed class ElevatorStage3AuthoringTests
         var issue = Assert.Single(new PreRoomEntrySetupAdvisoryRule().Evaluate(ValidationRuleTestContext.Create(project)));
 
         Assert.Equal(ValidationSeverity.Warning, issue.Severity);
-        Assert.Contains("not been reviewed for pre-room-entry setup", issue.Description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not on the pre-room setup allowlist", issue.Description, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Future action (98765)", issue.Path, StringComparison.Ordinal);
     }
 

@@ -1,7 +1,4 @@
-using System.Text.RegularExpressions;
-using Storyboard.Shared.DesignerContracts;
 using StoryboardDesigner.App.Models;
-using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.Validation.Contracts;
 
 namespace StoryboardDesigner.App.Validation.Rules.Project;
@@ -9,9 +6,14 @@ namespace StoryboardDesigner.App.Validation.Rules.Project;
 /// <summary>Advises which authored actions are safe to run before a destination Room becomes current.</summary>
 public sealed class PreRoomEntrySetupAdvisoryRule : IValidationRule
 {
-    private static readonly Regex CurrentRoomReference = new(@"(?<![A-Za-z0-9_])currentRoom(?:\.|\[|$)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly IReadOnlySet<CommandActionType> AllowedActionTypes = new HashSet<CommandActionType>
+    {
+        CommandActionType.SetGameProperty,
+        CommandActionType.CheckGameProperty,
+        CommandActionType.StartTimer
+    };
 
-    private sealed record ActionEntry(CommandAction Action, Guid OwnerId);
+    private sealed record ActionEntry(CommandAction Action);
 
     public ValidationRuleMetadata Metadata { get; } = new(
         "ELEV-001",
@@ -47,37 +49,27 @@ public sealed class PreRoomEntrySetupAdvisoryRule : IValidationRule
             var roomPath = string.Join(" / ", room.EnumerateSelfAndAncestors().Reverse()
                 .Select(static node => node.ScopeName).Where(static name => !string.IsNullOrWhiteSpace(name)));
             var rootPath = $"{roomPath} / Pre-Room Entry";
-            foreach (var leaf in Walk(root, root.OwnerId, rootPath, actionLookup, new HashSet<Guid>()))
+            foreach (var leaf in Walk(root, rootPath, actionLookup, new HashSet<Guid>()))
             {
-                var action = leaf.Entry.Action;
-                if (ReferencesCurrentRoom(action))
+                if (AllowedActionTypes.Contains(leaf.Action.ActionType))
                 {
-                    yield return new ValidationIssue(
-                        Metadata.RuleId,
-                        ValidationSeverity.Warning,
-                        leaf.Path,
-                        $"{action.ActionType} action '{action.Name}' explicitly references currentRoom, which remains the source Room until setup finishes.",
-                        "Use an explicit destination or placed-object reference for destination setup. This advisory does not block authoring or navigation.");
+                    continue;
                 }
 
-                if (!IsQuietLeafAction(project, action, leaf.RelativeOwnerId))
-                {
-                    yield return new ValidationIssue(
-                        Metadata.RuleId,
-                        ValidationSeverity.Warning,
-                        leaf.Path,
-                        BuildLeafWarning(action),
-                        "Review the action's synchronous effects and target scope. This warning is advisory and does not block authoring or runtime navigation.");
-                }
+                yield return new ValidationIssue(
+                    Metadata.RuleId,
+                    ValidationSeverity.Warning,
+                    leaf.Path,
+                    $"Action type '{leaf.Action.ActionType}' is not on the pre-room setup allowlist.",
+                    "This warning is advisory and does not block authoring or runtime navigation.");
             }
         }
     }
 
-    private sealed record LeafAction(ActionEntry Entry, Guid RelativeOwnerId, string Path);
+    private sealed record LeafAction(CommandAction Action, string Path);
 
     private static IEnumerable<LeafAction> Walk(
         ActionEntry entry,
-        Guid relativeOwnerId,
         string parentPath,
         IReadOnlyDictionary<Guid, ActionEntry> actionsById,
         HashSet<Guid> ancestorIds)
@@ -91,7 +83,7 @@ public sealed class PreRoomEntrySetupAdvisoryRule : IValidationRule
         var path = $"{parentPath} / {action.Name} ({action.ActionType})";
         if (action.ActionType != CommandActionType.LinkedActions)
         {
-            yield return new LeafAction(entry, relativeOwnerId, path);
+            yield return new LeafAction(action, path);
             yield break;
         }
 
@@ -102,132 +94,32 @@ public sealed class PreRoomEntrySetupAdvisoryRule : IValidationRule
                 continue;
             }
 
-            var nestedOwnerId = node.TargetObjectId
-                ?? (nested.OwnerId != Guid.Empty ? nested.OwnerId : relativeOwnerId);
             var nodePath = $"{path} / Linked Flow Node {node.NodeId}";
-            foreach (var leaf in Walk(nested, nestedOwnerId, nodePath, actionsById, new HashSet<Guid>(ancestorIds)))
+            foreach (var leaf in Walk(nested, nodePath, actionsById, new HashSet<Guid>(ancestorIds)))
             {
                 yield return leaf;
             }
         }
     }
 
-    private static bool IsQuietLeafAction(ProjectModel project, CommandAction action, Guid relativeOwnerId)
-    {
-        if (action.ActionType == CommandActionType.CheckGameProperty)
-        {
-            return true;
-        }
-
-        // StartTimer only queues future work. Its callback is not part of this
-        // synchronous setup walk and must not be classified as an immediate leaf.
-        if (action.ActionType == CommandActionType.StartTimer)
-        {
-            return true;
-        }
-
-        if (action.ActionType != CommandActionType.SetGameProperty)
-        {
-            return false;
-        }
-
-        var reference = ActionPayloadAccessors.GetSetGamePropertyReference(action);
-        if (reference is null)
-        {
-            return false;
-        }
-
-        var targets = GamePropertySourceResolver.Resolve(project, reference, relativeOwnerId);
-        return targets.Count > 0 && targets.All(static target => target.IsEngineProperty && target.CanWrite);
-    }
-
-    private static string BuildLeafWarning(CommandAction action)
-    {
-        if (!Enum.IsDefined(action.ActionType))
-        {
-            return $"Action type '{action.ActionType}' has not been reviewed for pre-room-entry setup.";
-        }
-
-        var explanation = action.ActionType switch
-        {
-            CommandActionType.NavigateDirection or CommandActionType.NavigateDirectionPreFlightCheck
-                or CommandActionType.NavigateToAdjacent or CommandActionType.NavigateObjectSetToAdjacent
-                => "Navigation can redirect or re-enter a transition while the source Room is still active.",
-            CommandActionType.StartSequence
-                => "A timed sequence can continue after the synchronous destination setup boundary has finished.",
-            CommandActionType.MoveRoomObjectOnGrid or CommandActionType.MoveRoomObjectByPoints
-                or CommandActionType.RotateRoomObjectOnGrid or CommandActionType.StackRoomObjectOnAnother
-                => "Room-object mutation may target the still-active source Room before destination activation.",
-            CommandActionType.CaptureObjectsOnObjectFootprint or CommandActionType.CheckObjectSetContainsObject
-                or CommandActionType.ClearActiveRoomObjects or CommandActionType.SelectRoomObjectByPoint
-                or CommandActionType.SetActiveRoomObject
-                => "This action reads or changes current-room object state while the source Room is still active.",
-            CommandActionType.AddObjectPresentationCue or CommandActionType.RemoveObjectPresentationCue
-                or CommandActionType.ClearObjectPresentationCues or CommandActionType.TriggerParticleEffect
-                => "Presentation effects may be applied to the source Room before the destination is activated.",
-            CommandActionType.SetGameProperty
-                => "The target is not a cataloged writable Engine property for the selected scope.",
-            _ => $"Action type '{action.ActionType}' has not been reviewed for pre-room-entry setup."
-        };
-
-        return $"Pre-room setup action '{action.Name}' ({action.ActionType}) is not allowlisted. {explanation}";
-    }
-
-    private static bool ReferencesCurrentRoom(CommandAction action)
-    {
-        var texts = action.OutcomeMessageMap.Values
-            .Concat(action.GetScriptFields().Select(static field => field.Value))
-            .ToList();
-        if (action.ActionType == CommandActionType.EchoMessage)
-        {
-            texts.Add(ActionPayloadAccessors.GetEchoMessage(action));
-        }
-
-        if (action.ActionType == CommandActionType.CheckGameProperty)
-        {
-            texts.Add(ActionPayloadAccessors.GetCheckPropertyName(action));
-            var reference = ActionPayloadAccessors.GetCheckGamePropertyReference(action);
-            if (reference is not null)
-            {
-                texts.Add(reference.AnchorKey ?? string.Empty);
-                if (string.Equals(reference.AnchorKey, "currentRoom", StringComparison.OrdinalIgnoreCase))
-                    texts.Add($"currentRoom.{reference.PropertyName}");
-            }
-        }
-
-        if (action.ActionType == CommandActionType.SetGameProperty)
-        {
-            texts.Add(ActionPayloadAccessors.GetSetPropertyName(action));
-            var reference = ActionPayloadAccessors.GetSetGamePropertyReference(action);
-            if (reference is not null)
-            {
-                texts.Add(reference.AnchorKey ?? string.Empty);
-                if (string.Equals(reference.AnchorKey, "currentRoom", StringComparison.OrdinalIgnoreCase))
-                    texts.Add($"currentRoom.{reference.PropertyName}");
-            }
-        }
-
-        return texts.Any(text => !string.IsNullOrWhiteSpace(text) && CurrentRoomReference.IsMatch(text));
-    }
-
     private static IEnumerable<ActionEntry> EnumerateActionEntries(ProjectModel project)
     {
         foreach (var scope in EnumerateScopes(project))
         {
-            var (ownerId, actions) = scope switch
+            var actions = scope switch
             {
-                ProjectModel projectScope => (Guid.Empty, projectScope.GlobalScope.AvailableActions),
-                GameObject gameObject => (gameObject.ObjectId, gameObject.AvailableActions),
-                Room room => (room.Id, room.AvailableActions),
-                Planet planet => (planet.Id, planet.AvailableActions),
-                Country country => (country.Id, country.AvailableActions),
-                Area area => (area.Id, area.AvailableActions),
-                PhaseNode phase => (phase.Id, phase.AvailableActions),
-                _ => (Guid.Empty, Enumerable.Empty<CommandAction>())
+                ProjectModel projectScope => projectScope.GlobalScope.AvailableActions,
+                GameObject gameObject => gameObject.AvailableActions,
+                Room room => room.AvailableActions,
+                Planet planet => planet.AvailableActions,
+                Country country => country.AvailableActions,
+                Area area => area.AvailableActions,
+                PhaseNode phase => phase.AvailableActions,
+                _ => Enumerable.Empty<CommandAction>()
             };
             foreach (var action in actions)
             {
-                yield return new ActionEntry(action, ownerId);
+                yield return new ActionEntry(action);
             }
         }
 
