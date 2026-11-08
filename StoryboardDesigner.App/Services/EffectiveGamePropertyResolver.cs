@@ -7,7 +7,10 @@ public static class EffectiveGamePropertyResolver
     public sealed record EffectiveProperty(
         GamePropertyDefinition Definition,
         GameObject DefinitionOwner,
-        bool IsInherited);
+        bool IsInherited,
+        bool IsBaseOwned = false,
+        Guid? BaseDefinitionId = null,
+        bool HasValueOverride = false);
 
     public static IReadOnlyList<EffectiveProperty> Resolve(
         GameObject instance,
@@ -30,6 +33,10 @@ public static class EffectiveGamePropertyResolver
             .Where(static property => !string.IsNullOrWhiteSpace(property.Name))
             .GroupBy(static property => property.Name.Trim(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(static group => group.Key, static group => group.ToList(), StringComparer.OrdinalIgnoreCase);
+        var instanceById = instance.Variables
+            .Where(static property => property.Id != Guid.Empty)
+            .GroupBy(static property => property.Id)
+            .ToDictionary(static group => group.Key, static group => group.ToList());
         var handledNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var instancePropertiesAdded = new HashSet<GamePropertyDefinition>();
         var result = new List<EffectiveProperty>();
@@ -37,20 +44,31 @@ public static class EffectiveGamePropertyResolver
         foreach (var baseProperty in baseObject.Variables)
         {
             var name = baseProperty.Name?.Trim() ?? string.Empty;
-            if (name.Length > 0 && instanceByName.TryGetValue(name, out var instanceProperties))
+            var instanceProperties = instanceById.TryGetValue(baseProperty.Id, out var sameIdentityProperties)
+                ? sameIdentityProperties
+                : name.Length > 0 && instanceByName.TryGetValue(name, out var sameNameProperties)
+                    ? sameNameProperties
+                    : null;
+            if (instanceProperties is not null)
             {
                 if (handledNames.Add(name))
                 {
+                    var legacyValue = instanceProperties.FirstOrDefault();
+                    var hasLegacyValue = legacyValue is not null;
+                    var hasOverride = hasLegacyValue;
+                    var effectiveDefinition = hasLegacyValue
+                        ? CloneWithPlacementValue(baseProperty, legacyValue!.Id, legacyValue.DefaultValue, legacyValue.SharedVariableId)
+                        : baseProperty;
+                    result.Add(new EffectiveProperty(effectiveDefinition, baseObject, IsInherited: true, IsBaseOwned: true, BaseDefinitionId: baseProperty.Id, HasValueOverride: hasOverride));
                     foreach (var instanceProperty in instanceProperties)
                     {
-                        result.Add(new EffectiveProperty(instanceProperty, instance, IsInherited: false));
                         instancePropertiesAdded.Add(instanceProperty);
                     }
                 }
             }
             else
             {
-                result.Add(new EffectiveProperty(baseProperty, baseObject, IsInherited: true));
+                result.Add(new EffectiveProperty(baseProperty, baseObject, IsInherited: true, IsBaseOwned: true, BaseDefinitionId: baseProperty.Id));
             }
         }
 
@@ -66,6 +84,19 @@ public static class EffectiveGamePropertyResolver
 
         return result;
     }
+
+    private static GamePropertyDefinition CloneWithPlacementValue(GamePropertyDefinition source, Guid id, string? value, Guid? sharedVariableId) => new()
+    {
+        Id = id,
+        Name = source.Name,
+        DefaultValue = value ?? string.Empty,
+        ValueRestriction = source.ValueRestriction,
+        Lifetime = source.Lifetime,
+        SharedVariableId = sharedVariableId,
+        Computation = source.Computation,
+        IsGeneratedEnvironmentalProperty = source.IsGeneratedEnvironmentalProperty,
+        GeneratedPreviewValue = source.GeneratedPreviewValue
+    };
 
     public static GameObject? ResolveBaseObject(ProjectModel project, Guid objectId)
     {

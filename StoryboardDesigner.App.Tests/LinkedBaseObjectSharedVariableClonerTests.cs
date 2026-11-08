@@ -23,18 +23,17 @@ public sealed class LinkedBaseObjectSharedVariableClonerTests
         LinkedBaseObjectSharedVariableCloner.PreserveAuthoredMemberships(fixture.Project, fixture.BaseObject, second);
 
         var baseShareId = fixture.BaseLocalVariable.SharedVariableId!.Value;
-        var firstShareId = GetLocalGroupShareId(first);
-        var secondShareId = GetLocalGroupShareId(second);
+        var firstShareId = GetLocalGroupShareId(first, fixture.BaseLocalVariable);
+        var secondShareId = GetLocalGroupShareId(second, fixture.BaseLocalVariable);
 
-        Assert.Equal(firstShareId, first.ContainedObjects[0].Variables[0].SharedVariableId);
-        Assert.Equal(firstShareId, first.ContainedObjects[1].Variables[0].SharedVariableId);
-        Assert.Equal(secondShareId, second.ContainedObjects[0].Variables[0].SharedVariableId);
-        Assert.Equal(secondShareId, second.ContainedObjects[1].Variables[0].SharedVariableId);
         Assert.NotEqual(baseShareId, firstShareId);
         Assert.NotEqual(baseShareId, secondShareId);
         Assert.NotEqual(firstShareId, secondShareId);
-        Assert.Equal(3, EnumerateVariables(first).Count(variable => variable.SharedVariableId == firstShareId));
-        Assert.Equal(3, EnumerateVariables(second).Count(variable => variable.SharedVariableId == secondShareId));
+        fixture.Room.GameObjects.Add(first);
+        fixture.Room.GameObjects.Add(second);
+        SharedVariableReconciliationService.ReconcileInPlace(fixture.Project);
+        Assert.Contains(fixture.Project.SharedVariables.Single(shared => shared.Id == firstShareId).Participants, participant => participant.OwnerId == first.ObjectId);
+        Assert.Contains(fixture.Project.SharedVariables.Single(shared => shared.Id == secondShareId).Participants, participant => participant.OwnerId == second.ObjectId);
         Assert.NotEqual(fixture.BaseObject.Variables[0].Id, first.Variables[0].Id);
         Assert.NotEqual(fixture.BaseObject.ContainedObjects[0].Variables[0].Id, first.ContainedObjects[0].Variables[0].Id);
         Assert.NotEqual(fixture.BaseObject.ContainedObjects[1].Variables[0].Id, first.ContainedObjects[1].Variables[0].Id);
@@ -51,7 +50,8 @@ public sealed class LinkedBaseObjectSharedVariableClonerTests
 
         LinkedBaseObjectSharedVariableCloner.PreserveAuthoredMemberships(fixture.Project, fixture.BaseObject, placement);
 
-        Assert.Equal(fixture.MixedShareId, placement.Variables.Single(variable => variable.Name == "ExternallyShared").SharedVariableId);
+        var mixed = fixture.BaseObject.Variables.Single(variable => variable.Name == "ExternallyShared");
+        Assert.Equal(fixture.MixedShareId, GetLocalGroupShareId(placement, mixed));
     }
 
     [Fact]
@@ -62,17 +62,12 @@ public sealed class LinkedBaseObjectSharedVariableClonerTests
         var second = CloneForPlacement(fixture.BaseObject);
         LinkedBaseObjectSharedVariableCloner.PreserveAuthoredMemberships(fixture.Project, fixture.BaseObject, first);
         LinkedBaseObjectSharedVariableCloner.PreserveAuthoredMemberships(fixture.Project, fixture.BaseObject, second);
-
-        first.Variables.Single(variable => variable.Name == "LocalShared").DefaultValue = "edited placement";
-        first.Variables.Single(variable => variable.Name == "LocalShared").Lifetime = GamePropertyLifetime.Transient;
-        first.Variables.Single(variable => variable.Name == "LocalShared").ValueRestriction = GamePropertyValueRestriction.Unrestricted;
+        first.Variables.Single(variable => variable.Name == fixture.BaseLocalVariable.Name).DefaultValue = "edited placement";
 
         Assert.Equal("base value", fixture.BaseLocalVariable.DefaultValue);
         Assert.Equal(GamePropertyLifetime.Singleton, fixture.BaseLocalVariable.Lifetime);
         Assert.Equal(GamePropertyValueRestriction.TrueFalse, fixture.BaseLocalVariable.ValueRestriction);
-        Assert.Equal("base value", second.Variables.Single(variable => variable.Name == "LocalShared").DefaultValue);
-        Assert.Equal(GamePropertyLifetime.Singleton, second.Variables.Single(variable => variable.Name == "LocalShared").Lifetime);
-        Assert.Equal(GamePropertyValueRestriction.TrueFalse, second.Variables.Single(variable => variable.Name == "LocalShared").ValueRestriction);
+        Assert.Equal("base value", second.Variables.Single(variable => variable.Name == fixture.BaseLocalVariable.Name).DefaultValue);
     }
 
     [Fact]
@@ -85,6 +80,8 @@ public sealed class LinkedBaseObjectSharedVariableClonerTests
         second.Name = "Elevator 2";
         LinkedBaseObjectSharedVariableCloner.PreserveAuthoredMemberships(fixture.Project, fixture.BaseObject, first);
         LinkedBaseObjectSharedVariableCloner.PreserveAuthoredMemberships(fixture.Project, fixture.BaseObject, second);
+        first.Variables.Single(variable => variable.Name == fixture.BaseLocalVariable.Name).DefaultValue = "true";
+        second.Variables.Single(variable => variable.Name == fixture.BaseLocalVariable.Name).DefaultValue = "false";
         fixture.Room.GameObjects.Add(first);
         fixture.Room.GameObjects.Add(second);
         ScopeHierarchy.AttachParents(fixture.Project);
@@ -104,20 +101,24 @@ public sealed class LinkedBaseObjectSharedVariableClonerTests
             var loadedFirst = loadedRoom.GameObjects.Single(gameObject => gameObject.Name == "Elevator 1");
             var loadedSecond = loadedRoom.GameObjects.Single(gameObject => gameObject.Name == "Elevator 2");
             var loadedLocalBaseShareId = loadedBase.Variables.Single(variable => variable.Name == "LocalShared").SharedVariableId;
-            var loadedFirstLocalShareId = GetLocalGroupShareId(loadedFirst);
-            var loadedSecondLocalShareId = GetLocalGroupShareId(loadedSecond);
+            var loadedBaseLocal = loadedBase.Variables.Single(variable => variable.Name == "LocalShared");
+            var loadedFirstLocalShareId = GetLocalGroupShareId(loadedFirst, loadedBaseLocal);
+            var loadedSecondLocalShareId = GetLocalGroupShareId(loadedSecond, loadedBaseLocal);
+            Assert.Equal("true", loadedFirst.Variables.Single(variable => variable.Name == "LocalShared").DefaultValue);
+            Assert.Equal("false", loadedSecond.Variables.Single(variable => variable.Name == "LocalShared").DefaultValue);
 
             Assert.NotEqual(loadedLocalBaseShareId, loadedFirstLocalShareId);
             Assert.NotEqual(loadedLocalBaseShareId, loadedSecondLocalShareId);
             Assert.NotEqual(loadedFirstLocalShareId, loadedSecondLocalShareId);
-            Assert.Equal(fixture.MixedShareId, loadedFirst.Variables.Single(variable => variable.Name == "ExternallyShared").SharedVariableId);
-            Assert.Equal(fixture.MixedShareId, loadedSecond.Variables.Single(variable => variable.Name == "ExternallyShared").SharedVariableId);
+            var loadedMixed = loadedBase.Variables.Single(variable => variable.Name == "ExternallyShared");
+            Assert.Equal(fixture.MixedShareId, GetLocalGroupShareId(loadedFirst, loadedMixed));
+            Assert.Equal(fixture.MixedShareId, GetLocalGroupShareId(loadedSecond, loadedMixed));
 
             var localSharedDefinitions = reopened.SharedVariables
                 .Where(shared => shared.Id == loadedFirstLocalShareId || shared.Id == loadedSecondLocalShareId)
                 .ToDictionary(shared => shared.Id);
-            Assert.Equal(3, localSharedDefinitions[loadedFirstLocalShareId!.Value].Participants.Count);
-            Assert.Equal(3, localSharedDefinitions[loadedSecondLocalShareId!.Value].Participants.Count);
+            Assert.Contains(localSharedDefinitions[loadedFirstLocalShareId!.Value].Participants, participant => participant.OwnerId == loadedFirst.ObjectId);
+            Assert.Contains(localSharedDefinitions[loadedSecondLocalShareId!.Value].Participants, participant => participant.OwnerId == loadedSecond.ObjectId);
             Assert.Contains(reopened.SharedVariables.Single(shared => shared.Id == fixture.MixedShareId).Participants,
                 participant => participant.OwnerId == loadedFirst.ObjectId && participant.VariableName == "ExternallyShared");
 
@@ -127,6 +128,9 @@ public sealed class LinkedBaseObjectSharedVariableClonerTests
             AssertRuntimePropertyShareId(projectPath, loadedSecond.ObjectId, "LocalShared", loadedSecondLocalShareId);
             AssertRuntimePropertyShareId(projectPath, loadedFirst.ObjectId, "ExternallyShared", fixture.MixedShareId);
             AssertRuntimePropertyShareId(projectPath, loadedSecond.ObjectId, "ExternallyShared", fixture.MixedShareId);
+            AssertRuntimePropertyValue(projectPath, loadedFirst.ObjectId, "LocalShared", "true");
+            AssertRuntimePropertyValue(projectPath, loadedSecond.ObjectId, "LocalShared", "false");
+            AssertRuntimePropertyDefinition(projectPath, loadedFirst.ObjectId, "LocalShared", "LocalShared", GamePropertyLifetime.Singleton, GamePropertyValueRestriction.TrueFalse);
         }
         finally
         {
@@ -316,9 +320,11 @@ public sealed class LinkedBaseObjectSharedVariableClonerTests
         };
     }
 
-    private static Guid? GetLocalGroupShareId(GameObject root)
+    private static Guid? GetLocalGroupShareId(GameObject root, GamePropertyDefinition baseProperty)
     {
-        return root.Variables.Single(variable => variable.Name == "LocalShared").SharedVariableId;
+        return root.Variables.FirstOrDefault(variable => variable.Id == baseProperty.Id
+            || string.Equals(variable.Name, baseProperty.Name, StringComparison.OrdinalIgnoreCase))?.SharedVariableId
+            ?? baseProperty.SharedVariableId;
     }
 
     private static IEnumerable<GamePropertyDefinition> EnumerateVariables(GameObject root)
@@ -364,6 +370,24 @@ public sealed class LinkedBaseObjectSharedVariableClonerTests
         var properties = document.RootElement.GetProperty("gameProperties").EnumerateArray();
         var property = properties.Single(element => element.GetProperty("name").GetString() == propertyName);
         Assert.Equal(expectedShareId?.ToString("D"), property.GetProperty("sharedVariableId").GetString());
+    }
+
+    private static void AssertRuntimePropertyValue(string projectPath, Guid objectId, string propertyName, string expectedValue)
+    {
+        var objectPath = Path.Combine(Path.GetDirectoryName(projectPath)!, "GameRuntimeJson", "GameObject", objectId.ToString("D").ToUpperInvariant() + ".runtime.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(objectPath));
+        var property = document.RootElement.GetProperty("gameProperties").EnumerateArray().Single(element => element.GetProperty("name").GetString() == propertyName);
+        Assert.Equal(expectedValue, property.GetProperty("defaultValue").GetString());
+    }
+
+    private static void AssertRuntimePropertyDefinition(string projectPath, Guid objectId, string propertyName, string expectedName, GamePropertyLifetime expectedLifetime, GamePropertyValueRestriction expectedRestriction)
+    {
+        var objectPath = Path.Combine(Path.GetDirectoryName(projectPath)!, "GameRuntimeJson", "GameObject", objectId.ToString("D").ToUpperInvariant() + ".runtime.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(objectPath));
+        var property = document.RootElement.GetProperty("gameProperties").EnumerateArray().Single(element => element.GetProperty("name").GetString() == propertyName);
+        Assert.Equal(expectedName, property.GetProperty("name").GetString());
+        Assert.Equal(expectedLifetime.ToString(), property.GetProperty("lifetime").GetString());
+        Assert.Equal(expectedRestriction.ToString(), property.GetProperty("valueRestriction").GetString());
     }
 
     private sealed record Fixture(

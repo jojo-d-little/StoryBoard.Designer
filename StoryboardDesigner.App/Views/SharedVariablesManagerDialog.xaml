@@ -23,7 +23,7 @@
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10" VerticalAlignment="Center">
             <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Display Name" />
-            <TextBox x:Name="SelectedDisplayNameTextBox" Width="280" Margin="0,0,8,0" />
+            <TextBox x:Name="SelectedDisplayNameTextBox" Width="240" Margin="0,0,8,0" />
             <Button x:Name="RenameSelectedButton"
                 Content="Rename Selected"
                 Margin="0,0,8,0"
@@ -31,8 +31,14 @@
                 Click="RenameSelected_OnClick" />
             <Button x:Name="DropEmptySelectedButton"
                 Content="Drop Empty Selected"
+                Margin="0,0,8,0"
                 Padding="10,4"
                 Click="DropEmptySelected_OnClick" />
+            <Button x:Name="ViewParticipantsButton"
+                Content="View Participants..."
+                Padding="10,4"
+                IsEnabled="False"
+                Click="ViewParticipants_OnClick" />
         </StackPanel>
 
         <DataGrid Grid.Row="2"
@@ -43,7 +49,8 @@
                   IsReadOnly="True"
                   HeadersVisibility="Column"
               SelectionMode="Single"
-              SelectionChanged="SharedVariablesDataGrid_OnSelectionChanged">
+                  SelectionChanged="SharedVariablesDataGrid_OnSelectionChanged"
+                  MouseDoubleClick="SharedVariablesDataGrid_OnMouseDoubleClick">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="3*" />
                 <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="4*" />

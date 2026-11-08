@@ -948,13 +948,18 @@ public sealed partial class MainWindowViewModel
                 return new List<TreeContextAction>();
             }
 
-            var actions = new List<TreeContextAction>
+            var variableNode = (GamePropertyNodeViewModel)node;
+            var actions = new List<TreeContextAction>();
+            if (!variableNode.IsBaseOwned)
             {
-                new("remove-game-property", "Remove Game Property")
-            };
+                actions.Add(new TreeContextAction("remove-game-property", "Remove Game Property"));
+            }
+            else if (variableNode.HasValueOverride)
+            {
+                actions.Add(new TreeContextAction("remove-local-copy", "Remove Local Copy — Revert to Base"));
+            }
 
-            if (node is GamePropertyNodeViewModel variableNode
-                && CanParticipateInSharedPropertyPool(variableNode))
+            if (CanParticipateInSharedPropertyPool(variableNode))
             {
                 actions.Add(new TreeContextAction("review-shared-property-relationships", "Review Shared Relationships..."));
                 if (variableNode.Variable.SharedVariableId is Guid sharedId && sharedId != Guid.Empty)
@@ -2395,6 +2400,7 @@ public sealed partial class MainWindowViewModel
             "review-shared-property-relationships" when node is GamePropertyNodeViewModel variableNode => ReviewSharedPropertyRelationships(variableNode),
             LeaveSharedVariableActionId when node is GamePropertyNodeViewModel variableNode => LeaveSharedVariable(variableNode),
             "remove-game-property" when node is GamePropertyNodeViewModel variableNode => RemoveVariableNode(variableNode),
+            "remove-local-copy" when node is GamePropertyNodeViewModel variableNode => RemoveVariableNode(variableNode),
             "set-starting-room" when node is RoomNodeViewModel roomNode => SetStartingRoom(roomNode),
             "add-new-room" when node is AreaNodeViewModel areaNode => AddNewRoom(areaNode),
             "add-new-room" when node is ChildrenGroupNodeViewModel { OwnerNode: AreaNodeViewModel areaNode } => AddNewRoom(areaNode),
@@ -6114,10 +6120,28 @@ public sealed partial class MainWindowViewModel
     public bool RemoveVariableNode(GamePropertyNodeViewModel variableNode)
     {
         if (variableNode.IsGeneratedEnvironmentalProperty) return false;
-        var (collection, _) = ResolveVariableCollectionAndScope(variableNode.VariablesContainer);
-        if (variableNode.IsInherited && variableNode.DefinitionOwner is GameObject baseObject)
+        if (variableNode.IsBaseOwned && variableNode.BaseDefinitionId is Guid baseDefinitionId
+            && variableNode.VariablesContainer.ScopeOwner is GameObject placement
+            && variableNode.DefinitionOwner is GameObject baseObject)
         {
-            collection = baseObject.Variables;
+            if (!variableNode.HasValueOverride) return false;
+            var baseDefinition = baseObject.Variables.FirstOrDefault(variable => variable.Id == baseDefinitionId);
+            if (baseDefinition is null) return false;
+            var removedCount = placement.Variables.RemoveAll(variable => variable.Id == baseDefinitionId
+                || string.Equals(variable.Name, baseDefinition.Name, StringComparison.OrdinalIgnoreCase));
+            if (removedCount == 0) return false;
+            SharedVariableReconciliationService.ReconcileInPlace(_project);
+            variableNode.RebindVariable(baseDefinition, hasValueOverride: false);
+            RefreshVariableNameIndex(placement.Variables);
+            RefreshSharedPropertyIndicators();
+            NotifyProjectEdited();
+            ExportStatus = "Removed local copy; property reverted to Base Object value and sharing.";
+            return true;
+        }
+        var (collection, _) = ResolveVariableCollectionAndScope(variableNode.VariablesContainer);
+        if (variableNode.IsInherited && variableNode.DefinitionOwner is GameObject inheritedBaseObject)
+        {
+            collection = inheritedBaseObject.Variables;
         }
         if (collection is null)
         {
@@ -6143,6 +6167,78 @@ public sealed partial class MainWindowViewModel
         return true;
     }
 
+    private bool EnsureWritableInstanceProperty(GamePropertyNodeViewModel variableNode)
+    {
+        if (!variableNode.IsBaseOwned || variableNode.BaseDefinitionId is not Guid baseDefinitionId
+            || variableNode.VariablesContainer.ScopeOwner is not GameObject placement
+            || variableNode.DefinitionOwner is not GameObject baseObject)
+        {
+            return true;
+        }
+
+        var baseDefinition = baseObject.Variables.FirstOrDefault(variable => variable.Id == baseDefinitionId);
+        if (baseDefinition is null) return false;
+
+        var localCopy = placement.Variables.FirstOrDefault(variable => variable.Id == baseDefinitionId)
+            ?? placement.Variables.FirstOrDefault(variable => string.Equals(variable.Name, variableNode.Variable.Name, StringComparison.OrdinalIgnoreCase));
+        if (localCopy is null)
+        {
+            localCopy = new GamePropertyDefinition
+            {
+                Name = baseDefinition.Name,
+                DefaultValue = baseDefinition.DefaultValue,
+                ValueRestriction = baseDefinition.ValueRestriction,
+                Lifetime = baseDefinition.Lifetime,
+                SharedVariableId = baseDefinition.SharedVariableId,
+                Computation = GamePropertyComputationCloner.Clone(baseDefinition.Computation),
+                IsGeneratedEnvironmentalProperty = baseDefinition.IsGeneratedEnvironmentalProperty,
+                GeneratedPreviewValue = baseDefinition.GeneratedPreviewValue
+            };
+            placement.Variables.Add(localCopy);
+        }
+
+        localCopy.Name = baseDefinition.Name;
+        localCopy.ValueRestriction = baseDefinition.ValueRestriction;
+        localCopy.Lifetime = baseDefinition.Lifetime;
+        localCopy.Computation = GamePropertyComputationCloner.Clone(baseDefinition.Computation);
+        localCopy.IsGeneratedEnvironmentalProperty = baseDefinition.IsGeneratedEnvironmentalProperty;
+        localCopy.GeneratedPreviewValue = baseDefinition.GeneratedPreviewValue;
+
+        variableNode.RebindVariable(localCopy, hasValueOverride: true);
+        return true;
+    }
+
+    private bool PrepareInstanceSpecificSharing(GamePropertyNodeViewModel variableNode)
+    {
+        if (!EnsureWritableInstanceProperty(variableNode)) return false;
+        if (!variableNode.IsBaseOwned || variableNode.BaseDefinitionId is not Guid baseDefinitionId
+            || variableNode.DefinitionOwner is not GameObject baseObject)
+        {
+            return true;
+        }
+
+        var baseDefinition = baseObject.Variables.FirstOrDefault(variable => variable.Id == baseDefinitionId);
+        if (baseDefinition is not null && variableNode.Variable.SharedVariableId == baseDefinition.SharedVariableId)
+        {
+            // The selected placement is changing membership; do not edit a Base Object's group.
+            variableNode.Variable.SharedVariableId = null;
+        }
+        return true;
+    }
+
+    /// <summary>Commits a placed Base Object property's initial value to that placement's local property record.</summary>
+    /// <param name="variableNode">The selected placed-property row.</param>
+    /// <param name="value">The validated initial value to save.</param>
+    /// <returns>True when the placement record was updated.</returns>
+    public bool SaveInstancePropertyValue(GamePropertyNodeViewModel variableNode, string value)
+    {
+        if (!EnsureWritableInstanceProperty(variableNode)) return false;
+        variableNode.Variable.DefaultValue = value;
+        variableNode.RebindVariable(variableNode.Variable, hasValueOverride: true);
+        NotifyProjectEdited();
+        return true;
+    }
+
     private bool LeaveSharedVariable(GamePropertyNodeViewModel variableNode)
     {
         if (variableNode.Variable.SharedVariableId is not Guid sharedVariableId
@@ -6164,6 +6260,12 @@ public sealed partial class MainWindowViewModel
             return false;
         }
 
+        if (!EnsureWritableInstanceProperty(variableNode)) return false;
+        if (variableNode.Variable.SharedVariableId is not Guid localSharedVariableId || localSharedVariableId == Guid.Empty)
+        {
+            return false;
+        }
+        sharedVariableId = localSharedVariableId;
         variableNode.Variable.SharedVariableId = null;
 
         if (variableNode.VariablesContainer.TraversalLegOwner is TraversalLegNodeViewModel traversalLegNode
@@ -6223,6 +6325,7 @@ public sealed partial class MainWindowViewModel
 
     private IReadOnlyList<SharedVariableManagerListItem> BuildSharedVariablesManagerItems()
     {
+        var ownerNamesByParticipant = BuildParticipantOwnerNameIndex();
         return (_project.SharedVariables ?? new List<SharedVariableDefinition>())
             .OrderBy(static shared => shared.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(static shared => shared.Id)
@@ -6232,13 +6335,26 @@ public sealed partial class MainWindowViewModel
                 DisplayName = string.IsNullOrWhiteSpace(shared.Name)
                     ? shared.Id.ToString("N")
                     : shared.Name.Trim(),
+                DefaultValue = shared.DefaultValue,
+                ValueRestriction = shared.ValueRestriction.ToString(),
                 ParticipantCount = shared.Participants.Count,
                 Status = shared.Participants.Count switch
                 {
                     0 => "Empty Metadata Shell",
                     1 => "Single Participant",
                     _ => "Shared"
-                }
+                },
+                Participants = shared.Participants
+                    .Select(participant => new SharedVariableManagerParticipantListItem
+                    {
+                        Endpoint = BuildParticipantEndpointDisplay(participant, ownerNamesByParticipant),
+                        OwnerDisplayName = BuildParticipantOwnerDisplay(participant, ownerNamesByParticipant),
+                        Kind = participant.Kind,
+                        OwnerId = participant.OwnerId,
+                        VariableName = participant.VariableName,
+                        Leg = participant.Leg
+                    })
+                    .ToList()
             })
             .ToList();
     }
@@ -6368,6 +6484,7 @@ public sealed partial class MainWindowViewModel
             return true;
         }
 
+        if (!PrepareInstanceSpecificSharing(variableNode)) return false;
         var sharedVariable = GetOrCreateSharedVariableForSource(variableNode);
         SharedVariableReconciliationService.ReconcileInPlace(_project);
         RefreshSharedPropertyIndicators();
@@ -6413,15 +6530,19 @@ public sealed partial class MainWindowViewModel
             return false;
         }
 
-        var sharedVariable = GetOrCreateSharedVariableForSource(variableNode);
-
         if (targetSelection.Kind == ShareTargetKind.ScopedProperty)
         {
-            if (!TryApplyScopedPropertySharedLink(sharedVariable, targetSelection.TargetId, variableNode.Variable, out var scopedStatusMessage))
+            if (!TryPreflightScopedPropertySharedLink(variableNode, targetSelection.TargetId, out var scopedTarget, out var scopedStatusMessage))
             {
                 _projectUiService.ShowWarning(scopedStatusMessage, "Share Property");
                 return false;
             }
+
+            if (!PrepareInstanceSpecificSharing(variableNode)) return false;
+            var scopedSharedVariable = GetOrCreateSharedVariableForSource(variableNode);
+            AttachScopedPropertyToSharedVariable(scopedSharedVariable, scopedTarget);
+            var scopedLocation = EnumerateShareableScopedProperties().First(entry => ReferenceEquals(entry.Variable, scopedTarget)).ScopePath;
+            scopedStatusMessage = $"Shared {scopedLocation}.{scopedTarget.Name} with the current property.";
 
             SharedVariableReconciliationService.ReconcileInPlace(_project);
             RefreshSharedPropertyIndicators();
@@ -6438,7 +6559,15 @@ public sealed partial class MainWindowViewModel
                 return false;
             }
 
-            if (!TryApplyTraversalLegSharedVariableLink(sharedVariable, targetSelection.TargetId, targetSelection.Leg, out var legStatusMessage))
+            if (!targetSelection.Leg.HasValue || !TryFindTraversalConnectionById(_project, targetSelection.TargetId, out _, out _))
+            {
+                _projectUiService.ShowWarning(targetSelection.Leg.HasValue ? "Traversal connection was not found." : "Traversal leg target is invalid.", "Share Property");
+                return false;
+            }
+
+            if (!PrepareInstanceSpecificSharing(variableNode)) return false;
+            var legSharedVariable = GetOrCreateSharedVariableForSource(variableNode);
+            if (!TryApplyTraversalLegSharedVariableLink(legSharedVariable, targetSelection.TargetId, targetSelection.Leg, out var legStatusMessage))
             {
                 _projectUiService.ShowWarning(legStatusMessage, "Share Property");
                 return false;
@@ -6452,7 +6581,15 @@ public sealed partial class MainWindowViewModel
 
         if (targetSelection.Kind == ShareTargetKind.Traversal)
         {
-            if (!TryApplyTraversalVariableSharedLink(sharedVariable, targetSelection.TargetId, targetSelection.PropertyName, sourceRestriction, variableNode.Variable.DefaultValue, out var traversalStatusMessage))
+            if (!TryFindTraversalConnectionById(_project, targetSelection.TargetId, out _, out _))
+            {
+                _projectUiService.ShowWarning("Traversal connection was not found.", "Share Property");
+                return false;
+            }
+
+            if (!PrepareInstanceSpecificSharing(variableNode)) return false;
+            var traversalSharedVariable = GetOrCreateSharedVariableForSource(variableNode);
+            if (!TryApplyTraversalVariableSharedLink(traversalSharedVariable, targetSelection.TargetId, targetSelection.PropertyName, sourceRestriction, variableNode.Variable.DefaultValue, out var traversalStatusMessage))
             {
                 _projectUiService.ShowWarning(traversalStatusMessage, "Share Property");
                 return false;
@@ -6490,6 +6627,8 @@ public sealed partial class MainWindowViewModel
             return false;
         }
 
+        if (!PrepareInstanceSpecificSharing(variableNode)) return false;
+        var sharedVariable = GetOrCreateSharedVariableForSource(variableNode);
         AttachObjectVariableToSharedVariable(sharedVariable, targetObject, targetVariable);
 
         var statusMessage = $"Shared {BuildVariablePropertyPath(variableNode)} with {targetObject.Name}.{targetVariable.Name}.";
@@ -7228,39 +7367,50 @@ public sealed partial class MainWindowViewModel
         UpsertSharedParticipant(sharedVariable, "global", variable.Id, variable.Name, null);
     }
 
-    private bool TryApplyScopedPropertySharedLink(
-        SharedVariableDefinition sharedVariable,
+    private bool TryPreflightScopedPropertySharedLink(
+        GamePropertyNodeViewModel sourceNode,
         Guid propertyId,
-        GamePropertyDefinition sourceVariable,
+        out GamePropertyDefinition target,
         out string statusMessage)
     {
+        target = null!;
         statusMessage = string.Empty;
-        var target = EnumerateShareableScopedProperties()
-            .FirstOrDefault(entry => entry.Variable.Id == propertyId).Variable;
+        var targetEntry = EnumerateShareableScopedProperties().FirstOrDefault(entry => entry.Variable.Id == propertyId);
+        target = targetEntry.Variable!;
         if (target is null)
         {
             statusMessage = "Selected scoped game property no longer exists.";
             return false;
         }
-        if (ReferenceEquals(target, sourceVariable) || target.Id == sourceVariable.Id)
+        if (ReferenceEquals(target, sourceNode.Variable) || target.Id == sourceNode.Variable.Id)
         {
             statusMessage = "Choose a different game property as the share target.";
             return false;
         }
-        if (target.ValueRestriction != sharedVariable.ValueRestriction)
+        if (target.ValueRestriction != sourceNode.Variable.ValueRestriction)
         {
             statusMessage = "Source and target property types must match for sharing.";
             return false;
         }
-        if (target.SharedVariableId is Guid existingSharedId && existingSharedId != sharedVariable.Id)
+
+        // PrepareInstanceSpecificSharing clears inherited Base membership. In that case the
+        // commit creates a new group, so any target already in a group must be rejected now.
+        Guid? expectedGroupId = sourceNode.Variable.SharedVariableId;
+        if (sourceNode.IsBaseOwned && sourceNode.BaseDefinitionId is Guid baseId
+            && sourceNode.DefinitionOwner is GameObject baseObject)
+        {
+            var baseDefinition = baseObject.Variables.FirstOrDefault(variable => variable.Id == baseId);
+            if (baseDefinition is not null && expectedGroupId == baseDefinition.SharedVariableId)
+            {
+                expectedGroupId = null;
+            }
+        }
+        if (target.SharedVariableId is Guid targetGroupId && targetGroupId != expectedGroupId)
         {
             statusMessage = "The selected property already belongs to a different shared variable pool.";
             return false;
         }
 
-        AttachScopedPropertyToSharedVariable(sharedVariable, target);
-        var location = EnumerateShareableScopedProperties().First(entry => ReferenceEquals(entry.Variable, target)).ScopePath;
-        statusMessage = $"Shared {location}.{target.Name} with the current property.";
         return true;
     }
 
@@ -7805,7 +7955,7 @@ public sealed partial class MainWindowViewModel
             return Array.Empty<SharedPropertyRelationshipReviewItem>();
         }
 
-        var objectPathsById = BuildObjectPathIndex();
+        var ownerNamesByParticipant = BuildParticipantOwnerNameIndex();
 
         var relationships = new List<SharedPropertyRelationshipReviewItem>();
         var priority = 0;
@@ -7817,7 +7967,7 @@ public sealed partial class MainWindowViewModel
                 continue;
             }
 
-            var endpoint = BuildParticipantEndpointDisplay(participant, objectPathsById);
+            var endpoint = BuildParticipantEndpointDisplay(participant, ownerNamesByParticipant);
             if (string.IsNullOrWhiteSpace(endpoint))
             {
                 continue;
@@ -7859,10 +8009,7 @@ public sealed partial class MainWindowViewModel
         if (TryResolveVariableOwnerObject(variableNode, out var ownerObject)
             && ownerObject.ObjectId != Guid.Empty)
         {
-            var sourceVariable = ownerObject.Variables.FirstOrDefault(variable => ReferenceEquals(variable, variableNode.Variable))
-                                 ?? ownerObject.Variables.FirstOrDefault(variable =>
-                                     string.Equals(variable.Name, variableName, StringComparison.OrdinalIgnoreCase));
-            var sharedVariableId = sourceVariable?.SharedVariableId ?? Guid.Empty;
+            var sharedVariableId = variableNode.Variable.SharedVariableId ?? Guid.Empty;
             source = new SharedRelationshipSource("object", ownerObject.ObjectId, variableName, null, sharedVariableId);
             return true;
         }
@@ -7940,6 +8087,17 @@ public sealed partial class MainWindowViewModel
         if (participant is null)
         {
             return false;
+        }
+
+        if (sourceVariableNode.IsBaseOwned)
+        {
+            if (!EnsureWritableInstanceProperty(sourceVariableNode)) return false;
+            sourceVariableNode.Variable.SharedVariableId = null;
+            SharedVariableReconciliationService.ReconcileInPlace(_project);
+            RefreshSharedPropertyIndicators();
+            NotifyProjectEdited();
+            ExportStatus = "Shared relationship removed from this placement.";
+            return true;
         }
 
         UnlinkParticipantSharedVariable(participant, sharedVariable.Id);
@@ -8050,39 +8208,14 @@ public sealed partial class MainWindowViewModel
 
     private string BuildParticipantEndpointDisplay(
         SharedVariableParticipant participant,
-        IReadOnlyDictionary<Guid, string> objectPathsById)
+        IReadOnlyDictionary<(string Kind, Guid OwnerId), string> ownerNamesByParticipant)
     {
-        if (string.Equals(participant.Kind, "global", StringComparison.OrdinalIgnoreCase))
-        {
-            var scoped = EnumerateShareableScopedProperties()
-                .FirstOrDefault(entry => entry.Variable.Id == participant.OwnerId);
-            return scoped.Variable is null
-                ? $"Scoped Property:{participant.OwnerId:N}.{participant.VariableName}"
-                : $"{scoped.ScopePath}.{scoped.Variable.Name}";
-        }
-
-        if (string.Equals(participant.Kind, "object", StringComparison.OrdinalIgnoreCase))
-        {
-            if (objectPathsById.TryGetValue(participant.OwnerId, out var objectPath))
-            {
-                return $"{objectPath}.{participant.VariableName}";
-            }
-
-            return $"Object:{participant.OwnerId:N}.{participant.VariableName}";
-        }
-
-        if (string.Equals(participant.Kind, "traversal", StringComparison.OrdinalIgnoreCase))
-        {
-            return $"Traversal:{participant.OwnerId:N}.{participant.VariableName}";
-        }
-
-        if (string.Equals(participant.Kind, "traversal-leg", StringComparison.OrdinalIgnoreCase))
-        {
-            var legLabel = string.IsNullOrWhiteSpace(participant.Leg) ? "leg" : participant.Leg;
-            return $"Traversal:{participant.OwnerId:N}.{legLabel}.{participant.VariableName}";
-        }
-
-        return $"{participant.Kind}:{participant.OwnerId:N}.{participant.VariableName}";
+        var ownerDisplayName = BuildParticipantOwnerDisplay(participant, ownerNamesByParticipant);
+        var legSuffix = string.Equals(participant.Kind, "traversal-leg", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(participant.Leg)
+                ? $" ({participant.Leg})"
+                : string.Empty;
+        return $"{ownerDisplayName}.{participant.VariableName}{legSuffix}";
     }
 
     private Dictionary<Guid, string> BuildObjectPathIndex()
@@ -8091,10 +8224,13 @@ public sealed partial class MainWindowViewModel
 
         foreach (var planet in _project.Planets)
         {
+            AddObjects(index, planet.GameObjects, $"{planet.Name}/Game Objects");
             foreach (var country in planet.Countries)
             {
+                AddObjects(index, country.GameObjects, $"{planet.Name}/{country.Name}/Game Objects");
                 foreach (var area in country.Areas)
                 {
+                    AddObjects(index, area.GameObjects, $"{planet.Name}/{country.Name}/{area.Name}/Game Objects");
                     foreach (var room in area.Rooms)
                     {
                         AddObjects(index, room.GameObjects, $"{planet.Name}/{country.Name}/{area.Name}/{room.Name}");
@@ -8104,20 +8240,27 @@ public sealed partial class MainWindowViewModel
         }
 
         AddObjects(index, _project.GlobalScope.GameObjects, "Global Objects");
-        AddObjects(index, _project.EnumerateAllObjectTemplateRoots(), "Object Templates");
+        AddObjects(index, _project.ObjectTemplates, "Global/Object Templates");
+        AddRoomTemplateObjects(index, _project.RoomTemplates, "Global/Room Templates");
         AddObjects(index, _project.BaseObjects, "Base Objects");
 
         foreach (var planet in _project.Planets)
         {
             AddObjects(index, planet.BaseObjects, $"{planet.Name}/Base Objects");
+            AddObjects(index, planet.ObjectTemplates, $"{planet.Name}/Object Templates");
+            AddRoomTemplateObjects(index, planet.RoomTemplates, $"{planet.Name}/Room Templates");
 
             foreach (var country in planet.Countries)
             {
                 AddObjects(index, country.BaseObjects, $"{planet.Name}/{country.Name}/Base Objects");
+                AddObjects(index, country.ObjectTemplates, $"{planet.Name}/{country.Name}/Object Templates");
+                AddRoomTemplateObjects(index, country.RoomTemplates, $"{planet.Name}/{country.Name}/Room Templates");
 
                 foreach (var area in country.Areas)
                 {
                     AddObjects(index, area.BaseObjects, $"{planet.Name}/{country.Name}/{area.Name}/Base Objects");
+                    AddObjects(index, area.ObjectTemplates, $"{planet.Name}/{country.Name}/{area.Name}/Object Templates");
+                    AddRoomTemplateObjects(index, area.RoomTemplates, $"{planet.Name}/{country.Name}/{area.Name}/Room Templates");
                 }
             }
         }
@@ -8129,13 +8272,78 @@ public sealed partial class MainWindowViewModel
     {
         foreach (var obj in objects)
         {
-            if (obj.ObjectId != Guid.Empty && !index.ContainsKey(obj.ObjectId))
+            if (obj.ObjectId != Guid.Empty)
             {
-                index[obj.ObjectId] = string.IsNullOrWhiteSpace(prefix) ? obj.Name : $"{prefix}/{obj.Name}";
+                var path = string.IsNullOrWhiteSpace(prefix) ? obj.Name : $"{prefix}/{obj.Name}";
+                if (index.TryGetValue(obj.ObjectId, out var existingPath)
+                    && !string.Equals(existingPath, path, StringComparison.OrdinalIgnoreCase))
+                {
+                    index[obj.ObjectId] = "Ambiguous object identity";
+                }
+                else
+                {
+                    index[obj.ObjectId] = path;
+                }
             }
 
             AddObjects(index, obj.ContainedObjects, string.IsNullOrWhiteSpace(prefix) ? obj.Name : $"{prefix}/{obj.Name}");
         }
+    }
+
+    private static void AddRoomTemplateObjects(Dictionary<Guid, string> index, IEnumerable<Room> roomTemplates, string prefix)
+    {
+        foreach (var roomTemplate in roomTemplates)
+        {
+            AddObjects(index, roomTemplate.GameObjects, $"{prefix}/{roomTemplate.Name}");
+        }
+    }
+
+    private IReadOnlyDictionary<(string Kind, Guid OwnerId), string> BuildParticipantOwnerNameIndex()
+    {
+        var ownerNames = new Dictionary<(string Kind, Guid OwnerId), string>();
+        static (string Kind, Guid OwnerId) Key(string kind, Guid ownerId) => (kind.Trim().ToLowerInvariant(), ownerId);
+
+        void Add(string kind, Guid ownerId, string displayName)
+        {
+            if (ownerId != Guid.Empty && !string.IsNullOrWhiteSpace(displayName))
+            {
+                ownerNames.TryAdd(Key(kind, ownerId), displayName);
+            }
+        }
+
+        foreach (var (objectId, objectPath) in BuildObjectPathIndex())
+        {
+            Add("object", objectId, objectPath);
+        }
+
+        foreach (var (scopePath, _, variable, _) in EnumerateShareableScopedProperties())
+        {
+            Add("global", variable.Id, scopePath);
+        }
+
+        foreach (var planet in _project.Planets)
+        foreach (var country in planet.Countries)
+        foreach (var area in country.Areas)
+        foreach (var connection in area.TraversalConnections)
+        {
+            var roomAName = area.Rooms.FirstOrDefault(room => room.Id == connection.RoomAId)?.Name ?? "Unknown Room A";
+            var roomBName = area.Rooms.FirstOrDefault(room => room.Id == connection.RoomBId)?.Name ?? "Unknown Room B";
+            var traversalName = BuildScopePath(planet.Name, country.Name, area.Name, $"Traversal {roomAName} ↔ {roomBName}");
+            Add("traversal", connection.TraversalConnectionId, traversalName);
+            Add("traversal-leg", connection.TraversalConnectionId, traversalName);
+        }
+
+        return ownerNames;
+    }
+
+    private static string BuildParticipantOwnerDisplay(
+        SharedVariableParticipant participant,
+        IReadOnlyDictionary<(string Kind, Guid OwnerId), string> ownerNamesByParticipant)
+    {
+        var key = (participant.Kind.Trim().ToLowerInvariant(), participant.OwnerId);
+        return ownerNamesByParticipant.TryGetValue(key, out var ownerDisplayName)
+            ? ownerDisplayName
+            : $"Unresolved {participant.Kind} owner ({participant.OwnerId:N})";
     }
 
     public IReadOnlyList<SharedVariableDefinition> GetSharedVariableDefinitionsSnapshot()
@@ -8390,6 +8598,13 @@ public sealed partial class MainWindowViewModel
     private static bool TryResolveVariableOwnerObject(GamePropertyNodeViewModel variableNode, out GameObject ownerObject)
     {
         ownerObject = null!;
+        if (variableNode.IsBaseOwned
+            && variableNode.VariablesContainer.ScopeOwner is GameObject placement)
+        {
+            ownerObject = placement;
+            return true;
+        }
+
         if (variableNode.DefinitionOwner is GameObject definitionOwner)
         {
             ownerObject = definitionOwner;
@@ -9728,7 +9943,7 @@ public sealed partial class MainWindowViewModel
             {
                 var instance = CloneTemplateObject(objectNode.GameObject);
                 instance.Quantity = 1;
-                ConfigureAsLinkedRoomInstance(instance, objectNode.GameObject, objectNode.GameObject.ObjectId);
+                ConfigureAsLinkedRoomInstance(instance, objectNode.GameObject, objectNode.GameObject.ObjectId, clearCopiedProperties: true);
                 instance.Name = normalizedName;
 
                 var addedToModel = parentObjectNode is not null
@@ -11103,14 +11318,14 @@ public sealed partial class MainWindowViewModel
         var templatesNode = EnumerateHierarchyNodes(HierarchyRoots)
             .OfType<RoomTemplatesNodeViewModel>()
             .FirstOrDefault(node => node.RoomTemplates.Contains(templateRoom));
-        if (templatesNode is null || !_project.RoomTemplates.Contains(templateRoom))
+        if (templatesNode is null || !templatesNode.RoomTemplates.Contains(templateRoom))
         {
             return false;
         }
 
         var templateRoomName = templateRoom.Name;
 
-        _project.RoomTemplates.RemoveAll(candidate => candidate.Id == templateRoom.Id);
+        templatesNode.RoomTemplates.RemoveAll(candidate => candidate.Id == templateRoom.Id);
         if (ReferenceEquals(templateRoom.ParentScope, templatesNode.CatalogParentScope))
         {
             templateRoom.ParentScope = null;
@@ -11771,7 +11986,7 @@ public sealed partial class MainWindowViewModel
         cloned.Quantity = quantity;
         cloned.QuantifiablePlacementDistributionMode = distributionMode;
         var linkedBaseObjectId = sourceObject.LinkedBaseObjectId ?? sourceObject.ObjectId;
-        ConfigureAsLinkedRoomInstance(cloned, sourceObject, linkedBaseObjectId);
+        ConfigureAsLinkedRoomInstance(cloned, sourceObject, linkedBaseObjectId, clearCopiedProperties: true);
         cloned.Name = MakeUniqueScopedEntityName(roomNode.Room.GameObjects, static obj => obj.Name, sourceObject.Name, cloned);
 
         if (!roomNode.Room.AddChildScope(cloned))
@@ -11805,7 +12020,7 @@ public sealed partial class MainWindowViewModel
         cloned.Quantity = quantity;
         cloned.QuantifiablePlacementDistributionMode = distributionMode;
         var linkedBaseObjectId = sourceObject.LinkedBaseObjectId ?? sourceObject.ObjectId;
-        ConfigureAsLinkedRoomInstance(cloned, sourceObject, linkedBaseObjectId);
+        ConfigureAsLinkedRoomInstance(cloned, sourceObject, linkedBaseObjectId, clearCopiedProperties: true);
         cloned.Name = MakeUniqueScopedEntityName(templateRoomNode.Room.GameObjects, static obj => obj.Name, sourceObject.Name, cloned);
         ApplyDesignerTemplateScope(cloned);
 
@@ -12789,7 +13004,7 @@ public sealed partial class MainWindowViewModel
                 instance.Quantity = 1;
                 if (index > 0)
                 {
-                    ConfigureAsLinkedRoomInstance(instance, interactiveObject, interactiveObject.ObjectId);
+                    ConfigureAsLinkedRoomInstance(instance, interactiveObject, interactiveObject.ObjectId, clearCopiedProperties: true);
                 }
 
                 instance.Name = MakeUniqueScopedEntityName(gameObjects, static obj => obj.Name, objectName, instance);
@@ -12933,7 +13148,7 @@ public sealed partial class MainWindowViewModel
                 instance.Quantity = 1;
                 if (index > 0)
                 {
-                    ConfigureAsLinkedRoomInstance(instance, interactiveObject, interactiveObject.ObjectId);
+                    ConfigureAsLinkedRoomInstance(instance, interactiveObject, interactiveObject.ObjectId, clearCopiedProperties: true);
                 }
 
                 instance.Name = MakeUniqueScopedEntityName(siblings, static obj => obj.Name, objectName, instance);
@@ -13423,8 +13638,9 @@ public sealed partial class MainWindowViewModel
         }
     }
 
-    private void ConfigureAsLinkedRoomInstance(GameObject instance, GameObject source, Guid linkedBaseObjectId)
+    private void ConfigureAsLinkedRoomInstance(GameObject instance, GameObject source, Guid linkedBaseObjectId, bool clearCopiedProperties = false)
     {
+        if (clearCopiedProperties) instance.Variables.Clear();
         instance.LinkedBaseObjectId = linkedBaseObjectId;
         instance.LinkActionsToBaseObject = true;
         instance.ProducerNotes = string.Empty;
@@ -13447,7 +13663,10 @@ public sealed partial class MainWindowViewModel
         instance.Placement.Mode = definition.Placement.Mode;
         instance.ContainedObjects.Clear();
         ClearBehaviorRecursively(instance);
-        LinkedBaseObjectSharedVariableCloner.PreserveAuthoredMemberships(_project, source, instance);
+        if (!clearCopiedProperties)
+        {
+            LinkedBaseObjectSharedVariableCloner.PreserveAuthoredMemberships(_project, source, instance);
+        }
     }
 
     private static void ClearBehaviorRecursively(GameObject obj)
@@ -15347,7 +15566,7 @@ public sealed partial class MainWindowViewModel
             {
                 foreach (var property in EffectiveGamePropertyResolver.Resolve(instance, id => id == baseId ? baseObject : null))
                 {
-                    variablesNode.Children.Add(new GamePropertyNodeViewModel(property.Definition, scope, variablesNode, property.DefinitionOwner, property.IsInherited));
+                    variablesNode.Children.Add(new GamePropertyNodeViewModel(property.Definition, scope, variablesNode, property.DefinitionOwner, property.IsInherited, property.IsBaseOwned, property.BaseDefinitionId, property.HasValueOverride));
                 }
                 return variablesNode;
             }

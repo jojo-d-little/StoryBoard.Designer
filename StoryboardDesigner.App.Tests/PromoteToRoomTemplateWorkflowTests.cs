@@ -460,6 +460,35 @@ public sealed class PromoteToRoomTemplateWorkflowTests
     }
 
     [Fact]
+    public void ExecuteTreeContextAction_DeleteScopedRoomTemplate_RemovesTemplateFromItsOwningScope()
+    {
+        var project = BuildProjectModel(out _);
+        var area = project.Planets.Single().Countries.Single().Areas.Single();
+        var templateRoom = new Room { Name = "Obsolete Scoped Template" };
+        area.RoomTemplates.Add(templateRoom);
+        ScopeHierarchy.AttachParents(project);
+
+        var viewModel = MainWindowViewModelTestHarness.CreateViewModel(
+            project,
+            new TreeContextInteractionServiceStub(),
+            new ProjectUiServiceStub());
+        InvokeLoadProjectIntoHierarchy(viewModel);
+
+        var templateRoomNode = EnumerateNodes(viewModel.HierarchyRoots)
+            .OfType<TemplateRoomNodeViewModel>()
+            .Single(node => ReferenceEquals(node.Room, templateRoom));
+
+        var handled = viewModel.ExecuteTreeContextAction("delete-room-template", templateRoomNode);
+
+        Assert.True(handled);
+        Assert.Empty(area.RoomTemplates);
+        Assert.DoesNotContain(
+            EnumerateNodes(viewModel.HierarchyRoots).OfType<TemplateRoomNodeViewModel>(),
+            node => ReferenceEquals(node.Room, templateRoom));
+        Assert.Null(templateRoom.ParentScope);
+    }
+
+    [Fact]
     public void AddObjectToCurrentRoom_WithTemplateRoomSelected_AddsObjectToTemplateRoom()
     {
         var project = BuildProjectModel(out _);

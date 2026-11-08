@@ -68,7 +68,33 @@ public partial class SharedVariablesManagerDialog : Window
         if (SharedVariablesDataGrid.SelectedItem is SharedVariableManagerListItem selected)
         {
             SelectedDisplayNameTextBox.Text = selected.DisplayName;
+            ViewParticipantsButton.IsEnabled = true;
         }
+        else
+        {
+            ViewParticipantsButton.IsEnabled = false;
+        }
+    }
+
+    private void ViewParticipants_OnClick(object sender, RoutedEventArgs e)
+    {
+        ShowSelectedParticipants();
+    }
+
+    private void SharedVariablesDataGrid_OnMouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        ShowSelectedParticipants();
+    }
+
+    private void ShowSelectedParticipants()
+    {
+        if (SharedVariablesDataGrid.SelectedItem is not SharedVariableManagerListItem selected)
+        {
+            return;
+        }
+
+        var dialog = new SharedVariableParticipantsDialog(selected) { Owner = this };
+        dialog.ShowDialog();
     }
 
     private void RenameSelected_OnClick(object sender, RoutedEventArgs e)

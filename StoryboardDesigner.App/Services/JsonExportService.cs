@@ -6696,6 +6696,26 @@ public sealed class JsonExportService : IJsonExportService
             .Select(ToCleanGamePropertyDto)
             .ToList();
 
+        if (obj.LinkedBaseObjectId is not null)
+        {
+            foreach (var baseProperty in effectiveDefinitionOwnedSource.Variables)
+            {
+                var inherited = ToCleanGamePropertyDto(baseProperty);
+                var existingIndex = baseProperty.Id != Guid.Empty
+                    ? properties.FindIndex(property => property.Id == baseProperty.Id)
+                    : -1;
+                if (existingIndex < 0) existingIndex = properties.FindIndex(property => string.Equals(property.Name, baseProperty.Name, StringComparison.OrdinalIgnoreCase));
+                if (existingIndex >= 0)
+                {
+                    inherited.Id = properties[existingIndex].Id;
+                    inherited.DefaultValue = properties[existingIndex].DefaultValue;
+                    inherited.SharedVariableId = properties[existingIndex].SharedVariableId;
+                }
+                if (existingIndex >= 0) properties[existingIndex] = inherited;
+                else properties.Add(inherited);
+            }
+        }
+
         UpsertCleanNumericGameProperty(properties, "positionX", SanitizeCoordinateForPersistence(obj.PositionX));
         UpsertCleanNumericGameProperty(properties, "positionY", SanitizeCoordinateForPersistence(obj.PositionY));
         UpsertCleanNumericGameProperty(properties, "imageRotationDegrees", double.IsFinite(obj.ImageRotationDegrees) ? obj.ImageRotationDegrees : 0);

@@ -32,7 +32,9 @@ public sealed class ComputedGamePropertyIntegrityRule : IValidationRule
             foreach (var warning in GamePropertyArithmeticAnalysis.DivisionByZeroWarnings(computation.Expression))
                 yield return Issue(path, warning, ValidationSeverity.Warning);
         }
-        foreach (var group in definitions.Where(static item => item.Property.SharedVariableId.HasValue).GroupBy(static item => item.Property.SharedVariableId!.Value))
+        var sharedParticipants = owners.SelectMany(owner =>
+            (owner.SharedGroupProperties ?? owner.Properties).Select(property => (Owner: owner, Property: property)));
+        foreach (var group in sharedParticipants.Where(static item => item.Property.SharedVariableId.HasValue).GroupBy(static item => item.Property.SharedVariableId!.Value))
         {
             var computed = group.Where(static item => item.Property.Computation is not null).ToList();
             if (computed.Count > 1) yield return Issue("Shared Variables", $"Shared property group '{group.Key:N}' has more than one computed writer.");
@@ -258,10 +260,24 @@ public sealed class ComputedGamePropertyIntegrityRule : IValidationRule
                     && string.Equals(obj.Name, project.PlayerCharacterObjectName, StringComparison.OrdinalIgnoreCase))
                 || obj.Variables.Any(property => string.Equals(property.Name, "isPlayer", StringComparison.OrdinalIgnoreCase)
                     && bool.TryParse(property.DefaultValue, out var markedPlayer) && markedPlayer);
-            var effectiveProperties = EffectiveGamePropertyResolver.Resolve(obj, id => EffectiveGamePropertyResolver.ResolveBaseObject(project, id))
-                .Select(static property => property.Definition)
-                .ToList();
-            yield return new OwnerInfo(obj.ObjectId, $"{path}.Object.{obj.Name}", PropertyResolutionScope.Object, effectiveProperties, obj.AvailableActions, isPlayer);
+            var effectiveRows = EffectiveGamePropertyResolver.Resolve(obj, id => EffectiveGamePropertyResolver.ResolveBaseObject(project, id));
+            var effectiveProperties = effectiveRows.Select(static property => property.Definition).ToList();
+            var baseDefinition = EffectiveGamePropertyResolver.ResolveBaseObject(project, obj.LinkedBaseObjectId ?? Guid.Empty);
+            var sharedGroupProperties = effectiveRows.Where(effective =>
+            {
+                if (!effective.IsBaseOwned)
+                {
+                    return true;
+                }
+                if (!effective.HasValueOverride || effective.BaseDefinitionId is not Guid baseDefinitionId)
+                {
+                    return false;
+                }
+
+                var baseProperty = baseDefinition?.Variables.FirstOrDefault(candidate => candidate.Id == baseDefinitionId);
+                return baseProperty is not null && effective.Definition.SharedVariableId != baseProperty.SharedVariableId;
+            }).Select(static property => property.Definition).ToList();
+            yield return new OwnerInfo(obj.ObjectId, $"{path}.Object.{obj.Name}", PropertyResolutionScope.Object, effectiveProperties, obj.AvailableActions, isPlayer, sharedGroupProperties);
             foreach (var child in obj.ContainedObjects) foreach (var nested in EnumerateObject(child, path + "." + obj.Name)) yield return nested;
         }
 
@@ -276,5 +292,5 @@ public sealed class ComputedGamePropertyIntegrityRule : IValidationRule
     private static ValidationIssue Issue(string path, string description, ValidationSeverity severity = ValidationSeverity.Error) =>
         new("CGP-001", severity, path, description, "Review the computation or source reference, then explicitly override validation if you intend to save or export it.");
 
-    private sealed record OwnerInfo(Guid Id, string Path, PropertyResolutionScope Scope, IReadOnlyList<GamePropertyDefinition> Properties, IReadOnlyList<CommandAction> Actions, bool IsPlayer = false);
+    private sealed record OwnerInfo(Guid Id, string Path, PropertyResolutionScope Scope, IReadOnlyList<GamePropertyDefinition> Properties, IReadOnlyList<CommandAction> Actions, bool IsPlayer = false, IReadOnlyList<GamePropertyDefinition>? SharedGroupProperties = null);
 }

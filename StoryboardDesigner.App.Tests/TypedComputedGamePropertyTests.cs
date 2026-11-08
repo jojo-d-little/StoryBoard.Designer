@@ -4,6 +4,7 @@ using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.Validation.Contracts;
 using StoryboardDesigner.App.Validation.Rules.Project;
+using StoryboardDesigner.App.ViewModels;
 
 namespace StoryboardDesigner.App.Tests;
 
@@ -14,6 +15,105 @@ public sealed class TypedComputedGamePropertyTests
     {
         var issues = new ComputedGamePropertyIntegrityRule().Evaluate(ValidationRuleTestContext.Create(BuildValidProject())).ToList();
         Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void SharedComputedWriterCount_IgnoresInheritedPlacementViewsOfBaseInternalGroup()
+    {
+        var groupId = Guid.NewGuid();
+        var computed = ComputedBoolean("DoorComputed", groupId);
+        var (project, baseObject, room) = BuildLinkedPlacements(computed);
+        room.GameObjects.Add(new GameObject { Name = "Elevator B", LinkedBaseObjectId = baseObject.ObjectId });
+
+        var issues = new ComputedGamePropertyIntegrityRule().Evaluate(ValidationRuleTestContext.Create(project)).ToList();
+
+        Assert.DoesNotContain(issues, issue => issue.Description.Contains("more than one computed writer", StringComparison.OrdinalIgnoreCase));
+        Assert.Empty(room.GameObjects[0].Variables);
+        Assert.Empty(room.GameObjects[1].Variables);
+        Assert.Equal(groupId, computed.SharedVariableId);
+    }
+
+    [Fact]
+    public void SharedComputedWriterCount_ReportsTwoComputedWritersAuthoredInBase()
+    {
+        var groupId = Guid.NewGuid();
+        var first = ComputedBoolean("DoorComputed", groupId);
+        var second = ComputedBoolean("DoorComputedMirror", groupId);
+        var (project, _, _) = BuildLinkedPlacements(first);
+        project.BaseObjects.Single().Variables.Add(second);
+
+        var issues = new ComputedGamePropertyIntegrityRule().Evaluate(ValidationRuleTestContext.Create(project)).ToList();
+
+        Assert.Contains(issues, issue => issue.Description.Contains("more than one computed writer", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void InstanceSpecificShareWithAnotherComputedWriter_IsRejectedByComputedValidation()
+    {
+        var internalGroupId = Guid.NewGuid();
+        var baseProperty = ComputedBoolean("DoorComputed", internalGroupId);
+        var (project, baseObject, room) = BuildLinkedPlacements(baseProperty);
+        var placement = room.GameObjects.Single();
+        var otherWriter = new GameObject
+        {
+            Name = "Sensor",
+            Variables = [ComputedBoolean("SensorComputed", null)]
+        };
+        room.GameObjects.Add(otherWriter);
+        var node = CreatePlacementPropertyNode(project, placement);
+        var treeContext = new TreeContextInteractionServiceStub
+        {
+            ChooseVariableHandler = (choices, _, _, _) =>
+                (true, choices.Single(choice => choice.OwnerVariable.Contains("SensorComputed", StringComparison.OrdinalIgnoreCase)).Value)
+        };
+        var viewModel = MainWindowViewModelTestHarness.CreateViewModel(project, treeContext, new ProjectUiServiceStub());
+
+        Assert.True(viewModel.ExecuteTreeContextAction("share-game-property", node));
+
+        var local = Assert.Single(placement.Variables);
+        Assert.NotEqual(baseProperty.Id, local.Id);
+        Assert.Equal(internalGroupId, baseProperty.SharedVariableId);
+        Assert.Equal(local.SharedVariableId, otherWriter.Variables.Single().SharedVariableId);
+        var placementLocalId = local.Id;
+        var groupId = local.SharedVariableId;
+        var issues = new ComputedGamePropertyIntegrityRule().Evaluate(ValidationRuleTestContext.Create(project)).ToList();
+        Assert.Contains(issues,
+            issue => issue.Description.Contains("more than one computed writer", StringComparison.OrdinalIgnoreCase));
+        Assert.Same(local, Assert.Single(placement.Variables));
+        Assert.Equal(placementLocalId, local.Id);
+        Assert.Equal(groupId, local.SharedVariableId);
+        Assert.Equal(internalGroupId, baseProperty.SharedVariableId);
+    }
+
+    [Fact]
+    public void ExternalGroupWithTwoComputedPlacementWriters_IsReported()
+    {
+        var baseGroupId = Guid.NewGuid();
+        var baseProperty = ComputedBoolean("DoorComputed", baseGroupId);
+        var (project, baseObject, room) = BuildLinkedPlacements(baseProperty);
+        var secondPlacement = new GameObject { Name = "Elevator B", LinkedBaseObjectId = baseObject.ObjectId };
+        room.GameObjects.Add(secondPlacement);
+        var viewModel = MainWindowViewModelTestHarness.CreateViewModel(project, new TreeContextInteractionServiceStub(), new ProjectUiServiceStub());
+        var firstNode = CreatePlacementPropertyNode(project, room.GameObjects[0]);
+        var secondNode = CreatePlacementPropertyNode(project, secondPlacement);
+        Assert.True(viewModel.SaveInstancePropertyValue(firstNode, "false"));
+        Assert.True(viewModel.SaveInstancePropertyValue(secondNode, "true"));
+        var externalGroupId = Guid.NewGuid();
+        room.GameObjects[0].Variables.Single().SharedVariableId = externalGroupId;
+        secondPlacement.Variables.Single().SharedVariableId = externalGroupId;
+        var firstLocal = room.GameObjects[0].Variables.Single();
+        var secondLocal = secondPlacement.Variables.Single();
+        var firstId = firstLocal.Id;
+        var secondId = secondLocal.Id;
+
+        var issues = new ComputedGamePropertyIntegrityRule().Evaluate(ValidationRuleTestContext.Create(project)).ToList();
+
+        Assert.Contains(issues, issue => issue.Description.Contains("more than one computed writer", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(firstId, firstLocal.Id);
+        Assert.Equal(secondId, secondLocal.Id);
+        Assert.Equal(externalGroupId, firstLocal.SharedVariableId);
+        Assert.Equal(externalGroupId, secondLocal.SharedVariableId);
+        Assert.Equal(baseGroupId, baseProperty.SharedVariableId);
     }
 
     [Fact]
@@ -261,6 +361,42 @@ public sealed class TypedComputedGamePropertyTests
             }
         });
         return project;
+    }
+
+    private static GamePropertyDefinition ComputedBoolean(string name, Guid? sharedId) => new()
+    {
+        Name = name,
+        DefaultValue = "false",
+        ValueRestriction = GamePropertyValueRestriction.TrueFalse,
+        SharedVariableId = sharedId,
+        Computation = new ProjectGamePropertyComputationDto
+        {
+            OutputType = "Boolean",
+            Expression = Literal(false)
+        }
+    };
+
+    private static (ProjectModel Project, GameObject BaseObject, Room Room) BuildLinkedPlacements(GamePropertyDefinition baseProperty)
+    {
+        var baseObject = new GameObject { Name = "Elevator", Variables = [baseProperty] };
+        var placement = new GameObject { Name = "Elevator A", LinkedBaseObjectId = baseObject.ObjectId };
+        var room = new Room { Name = "Foyer", GameObjects = [placement] };
+        var project = new ProjectModel
+        {
+            BaseObjects = [baseObject],
+            Planets = [new Planet { Name = "Earth", Countries = [new Country { Name = "Country", Areas = [new Area { Name = "Area", Rooms = [room] }] }] }]
+        };
+        return (project, baseObject, room);
+    }
+
+    private static GamePropertyNodeViewModel CreatePlacementPropertyNode(ProjectModel project, GameObject placement)
+    {
+        ScopeHierarchy.AttachParents(project);
+        var root = new ProjectRootNodeViewModel(project);
+        var method = typeof(MainWindowViewModel).GetMethod("CreateVariablesNode", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var container = Assert.IsType<GamePropertiesContainerNodeViewModel>(method.Invoke(null,
+            [root, placement, placement.Variables, PropertyResolutionScope.Object, null, null]));
+        return Assert.Single(container.Children.OfType<GamePropertyNodeViewModel>());
     }
 
     private static ProjectGamePropertyExpressionDto ExistsExpression(string name) => new() { Kind = "exists", Source = new ProjectGamePropertySourceReferenceDto { PropertyName = name } };

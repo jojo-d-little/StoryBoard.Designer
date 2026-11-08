@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.ViewModels;
 using StoryboardDesigner.App.Views;
 
@@ -531,13 +532,14 @@ public partial class ProjectHierarchyPane : System.Windows.Controls.UserControl
         var dialog = new VariableEditorDialog(
             variableNode.Variable.Name,
             variableNode.Variable.Lifetime,
-            variableNode.Variable.DefaultValue,
+            variableNode.DisplayValue,
             variableNode.Variable.ValueRestriction,
             siblingNames,
             _ => viewModel.OpenSharedRelationshipManager(variableNode),
             computation: variableNode.Variable.Computation,
             editComputation: viewModel.CreateComputationEditor(variableNode, readOnly: variableNode.IsGeneratedEnvironmentalProperty),
-            readOnly: variableNode.IsGeneratedEnvironmentalProperty)
+            readOnly: variableNode.IsGeneratedEnvironmentalProperty,
+            valueOnly: variableNode.IsBaseOwned)
         {
             Owner = Window.GetWindow(this)
         };
@@ -549,6 +551,12 @@ public partial class ProjectHierarchyPane : System.Windows.Controls.UserControl
 
         if (dialog.IsReadOnly)
         {
+            return;
+        }
+
+        if (variableNode.IsBaseOwned)
+        {
+            viewModel.SaveInstancePropertyValue(variableNode, dialog.DefaultValue);
             return;
         }
 

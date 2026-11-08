@@ -1931,6 +1931,7 @@ public sealed partial class MainWindowViewModel
         registry.Register(new SharedVariableOrphanMetadataShellRule());
         registry.Register(new SharedVariableDuplicateDisplayNameRule());
         registry.Register(new ComputedGamePropertyIntegrityRule());
+        registry.Register(new PlacedBasePropertyValueRestrictionRule());
         registry.Register(new ProcedureParticipantObjectReferenceExistsRule());
         registry.Register(new ProcedureRequiresMutationRule());
         registry.Register(new ProcedureOwnershipReferenceExistsRule());

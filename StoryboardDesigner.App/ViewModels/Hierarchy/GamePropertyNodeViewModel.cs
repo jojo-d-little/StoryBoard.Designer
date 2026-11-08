@@ -6,8 +6,9 @@ public sealed class GamePropertyNodeViewModel : HierarchyNodeViewModel
 {
     private bool _isShared;
     private int _sharedEndpointCount;
+    private string? _effectiveValue;
 
-    public GamePropertyNodeViewModel(GamePropertyDefinition variable, PropertyResolutionScope scope, GamePropertiesContainerNodeViewModel parent, GameObject? definitionOwner = null, bool isInherited = false)
+    public GamePropertyNodeViewModel(GamePropertyDefinition variable, PropertyResolutionScope scope, GamePropertiesContainerNodeViewModel parent, GameObject? definitionOwner = null, bool isInherited = false, bool isBaseOwned = false, Guid? baseDefinitionId = null, bool hasValueOverride = false)
         : base(variable.Name, parent)
     {
         Variable = variable;
@@ -15,18 +16,69 @@ public sealed class GamePropertyNodeViewModel : HierarchyNodeViewModel
         VariablesContainer = parent;
         DefinitionOwner = definitionOwner ?? parent.ScopeOwner as GameObject;
         IsInherited = isInherited;
+        IsBaseOwned = isBaseOwned;
+        BaseDefinitionId = baseDefinitionId;
+        HasValueOverride = hasValueOverride;
         NodeTypeLabel = "Variable";
     }
 
-    public GamePropertyDefinition Variable { get; }
+    public GamePropertyDefinition Variable { get; private set; }
     public PropertyResolutionScope Scope { get; }
     public GamePropertiesContainerNodeViewModel VariablesContainer { get; }
     public GameObject? DefinitionOwner { get; }
-    public bool IsInherited { get; }
-    public string InheritedSourceDisplay => IsInherited ? $"(Base: {DefinitionOwner?.Name ?? "Object"})" : string.Empty;
+    public bool IsInherited { get; private set; }
+    public bool IsBaseOwned { get; }
+    public Guid? BaseDefinitionId { get; }
+    public bool HasValueOverride { get; private set; }
+    public bool ShowOrdinaryPropertyIcon => !IsBaseOwned;
+    public bool ShowInheritedOwnershipIcon => IsBaseOwned && !HasValueOverride;
+    public bool ShowLocalCopyOwnershipIcon => IsBaseOwned && HasValueOverride;
+    public string OwnershipToolTip => !IsBaseOwned
+        ? string.Empty
+        : HasValueOverride
+            ? $"Local value/sharing copy of Base Object '{DefinitionOwner?.Name ?? "Object"}'. Name and type remain Base-owned."
+            : $"Inherited from Base Object '{DefinitionOwner?.Name ?? "Object"}'.";
+    public string ComputedIndicatorToolTip => "Computed property; its value is evaluated from its computation.";
     public bool IsComputed => Variable.Computation is not null;
     public bool IsGeneratedEnvironmentalProperty => Variable.IsGeneratedEnvironmentalProperty;
-    public string DisplayValue => Variable.GeneratedPreviewValue ?? Variable.DefaultValue;
+    public string DisplayValue => Variable.GeneratedPreviewValue ?? _effectiveValue ?? Variable.DefaultValue;
+
+    public void UpdateEffectiveValue(string value)
+    {
+        _effectiveValue = value;
+        HasValueOverride = true;
+        OnPropertyChanged(nameof(DisplayValue));
+        RefreshOwnershipState();
+    }
+
+    public void RebindVariable(GamePropertyDefinition variable, bool hasValueOverride)
+    {
+        Variable = variable;
+        HasValueOverride = hasValueOverride;
+        _effectiveValue = null;
+        EditableName = variable.Name;
+        OnPropertyChanged(nameof(Variable));
+        OnPropertyChanged(nameof(DisplayValue));
+        RefreshOwnershipState();
+        RefreshComputedState();
+    }
+
+    public void ResetEffectiveValue(string value)
+    {
+        _effectiveValue = value;
+        HasValueOverride = false;
+        OnPropertyChanged(nameof(DisplayValue));
+        RefreshOwnershipState();
+    }
+
+    private void RefreshOwnershipState()
+    {
+        OnPropertyChanged(nameof(HasValueOverride));
+        OnPropertyChanged(nameof(ShowOrdinaryPropertyIcon));
+        OnPropertyChanged(nameof(ShowInheritedOwnershipIcon));
+        OnPropertyChanged(nameof(ShowLocalCopyOwnershipIcon));
+        OnPropertyChanged(nameof(OwnershipToolTip));
+    }
 
     public void RefreshComputedState()
     {
@@ -91,7 +143,7 @@ public sealed class GamePropertyNodeViewModel : HierarchyNodeViewModel
             ? Variable.Computation is null
                 ? $"Effective phase environment value: {DisplayValue}. Edit phase time or weather settings to change it."
                 : $"Read-only computed phase property; current preview: {DisplayValue}. Edit phase time or weather settings to change it."
-            : Variable.DefaultValue ?? string.Empty;
+            : DisplayValue ?? string.Empty;
     }
 
     public override bool ShouldShowValidationSummaryToolTip => true;

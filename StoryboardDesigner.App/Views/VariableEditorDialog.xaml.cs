@@ -21,13 +21,14 @@ public partial class VariableEditorDialog : Window
         Action<Window>? manageSharedVariablesAction = null,
         ProjectGamePropertyComputationDto? computation = null,
         Func<ProjectGamePropertyComputationDto?, ProjectGamePropertyComputationDto?>? editComputation = null,
-        bool readOnly = false)
+        bool readOnly = false,
+        bool valueOnly = false)
     {
         InitializeComponent();
         _manageSharedVariablesAction = manageSharedVariablesAction;
         _computation = computation;
         _editComputation = editComputation;
-        IsReadOnly = readOnly;
+        IsReadOnly = readOnly || (valueOnly && computation is not null);
         _disallowedNames = disallowedNames is null
             ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             : new HashSet<string>(disallowedNames.Where(static n => !string.IsNullOrWhiteSpace(n)), StringComparer.OrdinalIgnoreCase);
@@ -51,6 +52,16 @@ public partial class VariableEditorDialog : Window
             DefaultValueTextBox.IsEnabled = false;
             ValueRestrictionComboBox.IsEnabled = false;
             SaveButton.Content = "Close";
+        }
+        else if (valueOnly)
+        {
+            Title = "Set Instance Value";
+            VariableNameTextBox.IsEnabled = false;
+            ComputedCheckBox.IsEnabled = false;
+            EditComputationButton.IsEnabled = false;
+            LifetimeComboBox.IsEnabled = false;
+            ValueRestrictionComboBox.IsEnabled = false;
+            ManageSharedVariablesButton.Visibility = Visibility.Collapsed;
         }
     }
 

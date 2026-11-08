@@ -414,6 +414,8 @@ internal sealed class TreeContextInteractionServiceStub : ITreeContextInteractio
     public Guid? LastSharedPropertySharedVariableId { get; private set; }
     public string? LastSharedPropertyDisplayName { get; private set; }
     public Func<Guid, string, bool>? LastSharedPropertyRenameAction { get; private set; }
+    public Func<SharedPropertyRelationshipReviewItem, bool>? LastRemoveSharedPropertyRelationshipAction { get; private set; }
+    public Func<IReadOnlyList<SharedPropertyRelationshipReviewItem>>? LastReloadSharedPropertyRelationshipsAction { get; private set; }
     public IReadOnlyList<SharedVariableManagerListItem> LastSharedVariableManagerItems { get; private set; } = Array.Empty<SharedVariableManagerListItem>();
     public Guid? LastSharedVariableManagerSelectedId { get; private set; }
     public Func<Guid, string, bool>? LastRenameSharedVariableManagerAction { get; private set; }
@@ -454,6 +456,8 @@ internal sealed class TreeContextInteractionServiceStub : ITreeContextInteractio
         LastSharedPropertySharedVariableId = sharedVariableId;
         LastSharedPropertyDisplayName = sharedVariableDisplayName;
         LastSharedPropertyRenameAction = renameSharedVariableAction;
+        LastRemoveSharedPropertyRelationshipAction = removeSharedRelationshipAction;
+        LastReloadSharedPropertyRelationshipsAction = reloadRelationships;
         if (AutoInvokeOpenSharedVariablesManagerAction)
         {
             openSharedVariablesManagerAction?.Invoke();
