@@ -20,6 +20,27 @@ public sealed class PresentationEffectsCatalogMovementChoiceTests
     }
 
     [Fact]
+    public void GetObjectCueEligibleEffectKeys_IncludesOpacityEffectsAndPreservesHighlightClassification()
+    {
+        var service = new PresentationEffectsCatalogService();
+
+        var choices = service.GetObjectCueEligibleEffectKeys();
+        var catalog = service.GetCatalog();
+
+        Assert.Contains("appearance.fade.in", choices);
+        Assert.Contains("appearance.flicker.in", choices);
+        Assert.Contains("disappearance.fade.out", choices);
+        Assert.Contains("disappearance.flicker.out", choices);
+        Assert.Contains("appearance.selection.outline.cyan", choices);
+        Assert.Equal("Highlight", catalog.Effects.Single(effect =>
+            effect.EffectKey == "appearance.selection.outline.cyan").Category);
+        Assert.Equal("Appearance", catalog.Effects.Single(effect =>
+            effect.EffectKey == "appearance.fade.in").Category);
+        Assert.Equal("Disappearance", catalog.Effects.Single(effect =>
+            effect.EffectKey == "disappearance.fade.out").Category);
+    }
+
+    [Fact]
     public void GetDefaultMovementEffectKey_SelectsConfiguredMediumEffectKey()
     {
         var service = new PresentationEffectsCatalogService();

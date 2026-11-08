@@ -153,13 +153,17 @@ public sealed class ElevatorStage3AuthoringTests
             new() { Name = "Ride", ActionType = CommandActionType.NavigateObjectSetToAdjacent,
                 Payload = new NavigateObjectSetToAdjacentPayload("liftOccupants", Direction10.North.ToString()) },
             new() { Name = "Cue set", ActionType = CommandActionType.AddObjectPresentationCue,
-                Payload = new AddObjectPresentationCuePayload(null, "Selected", new ProjectObjectSetReferenceDto { ObjectSetKey = "liftOccupants" }, PresentationCueLifetime.CurrentRoom) },
+                Payload = new AddObjectPresentationCuePayload(null, "appearance.fade.in", new ProjectObjectSetReferenceDto { ObjectSetKey = "liftOccupants" }, PresentationCueLifetime.CurrentRoom) },
             new() { Name = "Remove set cue", ActionType = CommandActionType.RemoveObjectPresentationCue,
-                Payload = new RemoveObjectPresentationCuePayload(null, "Selected", new ProjectObjectSetReferenceDto { ObjectSetKey = "liftOccupants" }) },
+                Payload = new RemoveObjectPresentationCuePayload(null, "appearance.fade.in", new ProjectObjectSetReferenceDto { ObjectSetKey = "liftOccupants" }) },
             new() { Name = "Legacy single cue", ActionType = CommandActionType.AddObjectPresentationCue,
                 Payload = new AddObjectPresentationCuePayload(targetObjectId, "Selected") },
             new() { Name = "Current room single cue", ActionType = CommandActionType.AddObjectPresentationCue,
-                Payload = new AddObjectPresentationCuePayload(targetObjectId, "Selected", Lifetime: PresentationCueLifetime.CurrentRoom) },
+                Payload = new AddObjectPresentationCuePayload(targetObjectId, "appearance.flicker.in", Lifetime: PresentationCueLifetime.CurrentRoom) },
+            new() { Name = "Fade out set", ActionType = CommandActionType.AddObjectPresentationCue,
+                Payload = new AddObjectPresentationCuePayload(null, "disappearance.fade.out", new ProjectObjectSetReferenceDto { ObjectSetKey = "liftOccupants" }, PresentationCueLifetime.CurrentRoom) },
+            new() { Name = "Flicker out single", ActionType = CommandActionType.AddObjectPresentationCue,
+                Payload = new AddObjectPresentationCuePayload(targetObjectId, "disappearance.flicker.out", Lifetime: PresentationCueLifetime.CurrentRoom) },
             new() { Name = "Command context cue", ActionType = CommandActionType.AddObjectPresentationCue,
                 Payload = new AddObjectPresentationCuePayload(null, "Selected") }
         };
@@ -191,13 +195,25 @@ public sealed class ElevatorStage3AuthoringTests
             Assert.Equal(Direction10.North.ToString(), Assert.IsType<NavigateObjectSetToAdjacentPayload>(loadedActions.Single(action => action.ActionType == CommandActionType.NavigateObjectSetToAdjacent).Payload).Direction);
             var cue = Assert.IsType<AddObjectPresentationCuePayload>(loadedActions.Single(action => action.Name == "Cue set").Payload);
             Assert.Equal("liftOccupants", cue.ObjectSetReference!.ObjectSetKey);
+            Assert.Equal("appearance.fade.in", cue.EffectKey);
             Assert.Equal(PresentationCueLifetime.CurrentRoom, cue.Lifetime);
             var removeSetCue = Assert.IsType<RemoveObjectPresentationCuePayload>(loadedActions.Single(action => action.Name == "Remove set cue").Payload);
             Assert.Equal("liftOccupants", removeSetCue.ObjectSetReference!.ObjectSetKey);
+            Assert.Equal("appearance.fade.in", removeSetCue.EffectKey);
             var legacySingleCue = Assert.IsType<AddObjectPresentationCuePayload>(loadedActions.Single(action => action.Name == "Legacy single cue").Payload);
             Assert.Equal(targetObjectId, legacySingleCue.ObjectId);
             Assert.Equal(PresentationCueLifetime.UntilRemoved, legacySingleCue.Lifetime);
-            Assert.Equal(PresentationCueLifetime.CurrentRoom, Assert.IsType<AddObjectPresentationCuePayload>(loadedActions.Single(action => action.Name == "Current room single cue").Payload).Lifetime);
+            var appearanceFlickerIn = Assert.IsType<AddObjectPresentationCuePayload>(loadedActions.Single(action => action.Name == "Current room single cue").Payload);
+            Assert.Equal("appearance.flicker.in", appearanceFlickerIn.EffectKey);
+            Assert.Equal(PresentationCueLifetime.CurrentRoom, appearanceFlickerIn.Lifetime);
+            var disappearanceFadeOut = Assert.IsType<AddObjectPresentationCuePayload>(loadedActions.Single(action => action.Name == "Fade out set").Payload);
+            Assert.Equal("disappearance.fade.out", disappearanceFadeOut.EffectKey);
+            Assert.Equal("liftOccupants", disappearanceFadeOut.ObjectSetReference!.ObjectSetKey);
+            Assert.Equal(PresentationCueLifetime.CurrentRoom, disappearanceFadeOut.Lifetime);
+            var disappearanceFlickerOut = Assert.IsType<AddObjectPresentationCuePayload>(loadedActions.Single(action => action.Name == "Flicker out single").Payload);
+            Assert.Equal("disappearance.flicker.out", disappearanceFlickerOut.EffectKey);
+            Assert.Equal(targetObjectId, disappearanceFlickerOut.ObjectId);
+            Assert.Equal(PresentationCueLifetime.CurrentRoom, disappearanceFlickerOut.Lifetime);
             service.SaveProjectModel(projectPath, loaded);
             loaded = service.TryLoadProjectModel(projectPath)!;
             Assert.Equal(PresentationCueLifetime.UntilRemoved, Assert.IsType<AddObjectPresentationCuePayload>(loaded.GlobalScope.AvailableActions.Single(action => action.Name == "Legacy single cue").Payload).Lifetime);
@@ -222,6 +238,22 @@ public sealed class ElevatorStage3AuthoringTests
             Assert.Equal(nameof(PresentationCueLifetime.UntilRemoved), runtimeActions.Single(action => action.GetProperty("name").GetString() == "Legacy single cue")
                 .GetProperty("payload").GetProperty("lifetime").GetString());
             Assert.Equal(nameof(PresentationCueLifetime.CurrentRoom), runtimeActions.Single(action => action.GetProperty("name").GetString() == "Current room single cue")
+                .GetProperty("payload").GetProperty("lifetime").GetString());
+            Assert.Equal("appearance.fade.in", runtimeActions.Single(action => action.GetProperty("name").GetString() == "Cue set")
+                .GetProperty("payload").GetProperty("effectKey").GetString());
+            Assert.Equal("appearance.flicker.in", runtimeActions.Single(action => action.GetProperty("name").GetString() == "Current room single cue")
+                .GetProperty("payload").GetProperty("effectKey").GetString());
+            Assert.Equal("disappearance.fade.out", runtimeActions.Single(action => action.GetProperty("name").GetString() == "Fade out set")
+                .GetProperty("payload").GetProperty("effectKey").GetString());
+            Assert.Equal("liftOccupants", runtimeActions.Single(action => action.GetProperty("name").GetString() == "Fade out set")
+                .GetProperty("payload").GetProperty("objectSetReference").GetProperty("objectSetKey").GetString());
+            Assert.Equal(nameof(PresentationCueLifetime.CurrentRoom), runtimeActions.Single(action => action.GetProperty("name").GetString() == "Fade out set")
+                .GetProperty("payload").GetProperty("lifetime").GetString());
+            Assert.Equal("disappearance.flicker.out", runtimeActions.Single(action => action.GetProperty("name").GetString() == "Flicker out single")
+                .GetProperty("payload").GetProperty("effectKey").GetString());
+            Assert.Equal(targetObjectId, runtimeActions.Single(action => action.GetProperty("name").GetString() == "Flicker out single")
+                .GetProperty("payload").GetProperty("objectId").GetGuid());
+            Assert.Equal(nameof(PresentationCueLifetime.CurrentRoom), runtimeActions.Single(action => action.GetProperty("name").GetString() == "Flicker out single")
                 .GetProperty("payload").GetProperty("lifetime").GetString());
             var commandContextCue = runtimeActions.Single(action => action.GetProperty("name").GetString() == "Command context cue")
                 .GetProperty("payload");

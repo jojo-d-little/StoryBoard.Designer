@@ -237,8 +237,8 @@ public sealed class BaseActionDesignerSupportTests
                     Name = "Show occupants",
                     ActionType = CommandActionType.AddObjectPresentationCue,
                     ObjectPresentationCueObjectId = objectId,
-                    ObjectPresentationCueEffectKey = new PresentationEffectsCatalogService().GetObjectCueEligibleEffectKeys().First(),
-                    Payload = new AddObjectPresentationCuePayload(objectId, "appearance.selection.outline.cyan")
+                    ObjectPresentationCueEffectKey = "appearance.fade.in",
+                    Payload = new AddObjectPresentationCuePayload(objectId, "appearance.fade.in")
                 };
                 var choices = new List<MaterializeSourceObjectChoiceItem>
                 {
@@ -271,6 +271,13 @@ public sealed class BaseActionDesignerSupportTests
                         var setKeyPicker = (ComboBox)dialog.FindName("ObjectPresentationCueSetKeyComboBox")!;
                         Assert.Contains("liftOccupants", (IReadOnlyList<string>)setKeyPicker.ItemsSource!);
                         setKeyPicker.SelectedItem = "liftOccupants";
+                        var effectPicker = (ComboBox)dialog.FindName("ObjectPresentationCueEffectKeyComboBox")!;
+                        var effectChoices = Assert.IsAssignableFrom<IReadOnlyList<string>>(effectPicker.ItemsSource);
+                        Assert.Contains("appearance.fade.in", effectChoices);
+                        Assert.Contains("appearance.flicker.in", effectChoices);
+                        Assert.Contains("disappearance.fade.out", effectChoices);
+                        Assert.Contains("disappearance.flicker.out", effectChoices);
+                        effectPicker.SelectedItem = "appearance.fade.in";
                         typeof(RoomActionEditorDialog)
                             .GetMethod("TryApplyObjectSetPayloadInputs", BindingFlags.Instance | BindingFlags.NonPublic)!
                             .Invoke(dialog, null);
@@ -280,6 +287,7 @@ public sealed class BaseActionDesignerSupportTests
                         Assert.Null(workingCopy.ObjectPresentationCueObjectId);
                         var setPayload = Assert.IsType<AddObjectPresentationCuePayload>(workingCopy.Payload);
                         Assert.Equal("liftOccupants", setPayload.ObjectSetReference!.ObjectSetKey);
+                        Assert.Equal("appearance.fade.in", setPayload.EffectKey);
                         var lifetimePicker = (ComboBox)dialog.FindName("ObjectPresentationCueLifetimeComboBox")!;
                         var lifetimeChoices = lifetimePicker.Items.Cast<object>().ToDictionary(
                             item => (PresentationCueLifetime)item.GetType().GetProperty("Value")!.GetValue(item)!,
@@ -301,7 +309,17 @@ public sealed class BaseActionDesignerSupportTests
                         var singlePayload = Assert.IsType<AddObjectPresentationCuePayload>(workingCopy.Payload);
                         Assert.Null(singlePayload.ObjectSetReference);
                         Assert.Equal(PresentationCueLifetime.CurrentRoom, singlePayload.Lifetime);
-                        lifetimePicker.SelectedValue = PresentationCueLifetime.UntilRemoved;
+                        setMode.IsChecked = true;
+                        typeof(RoomActionEditorDialog)
+                            .GetMethod("ObjectPresentationCueSetMode_OnClick", BindingFlags.Instance | BindingFlags.NonPublic)!
+                            .Invoke(dialog, [setMode, new System.Windows.RoutedEventArgs()]);
+                        setKeyPicker.SelectedItem = "liftOccupants";
+                        typeof(RoomActionEditorDialog)
+                            .GetMethod("TryApplyObjectSetPayloadInputs", BindingFlags.Instance | BindingFlags.NonPublic)!
+                            .Invoke(dialog, null);
+                        var finalSetPayload = Assert.IsType<AddObjectPresentationCuePayload>(workingCopy.Payload);
+                        Assert.Equal("appearance.fade.in", finalSetPayload.EffectKey);
+                        Assert.Equal(PresentationCueLifetime.CurrentRoom, finalSetPayload.Lifetime);
                         typeof(RoomActionEditorDialog)
                             .GetMethod("Save_OnClick", BindingFlags.Instance | BindingFlags.NonPublic)!
                             .Invoke(dialog, [dialog, new System.Windows.RoutedEventArgs()]);
@@ -316,15 +334,17 @@ public sealed class BaseActionDesignerSupportTests
                 };
 
                 Assert.True(dialog.ShowDialog());
-                Assert.Equal(objectId, action.ObjectPresentationCueObjectId);
+                Assert.Null(action.ObjectPresentationCueObjectId);
                 var payload = Assert.IsType<AddObjectPresentationCuePayload>(action.Payload);
-                Assert.Null(payload.ObjectSetReference);
-                Assert.Equal(PresentationCueLifetime.UntilRemoved, payload.Lifetime);
+                Assert.Equal("appearance.fade.in", payload.EffectKey);
+                Assert.Equal("liftOccupants", payload.ObjectSetReference!.ObjectSetKey);
+                Assert.Equal(PresentationCueLifetime.CurrentRoom, payload.Lifetime);
                 var dto = JsonExportService.ToCommandActionDtoForSequence(action, []);
                 var exported = Assert.IsType<ProjectAddObjectPresentationCueActionPayloadDto>(dto.Payload);
-                Assert.Equal(objectId, exported.ObjectId);
-                Assert.Null(exported.ObjectSetReference);
-                Assert.Equal(PresentationCueLifetime.UntilRemoved, exported.Lifetime);
+                Assert.Null(exported.ObjectId);
+                Assert.Equal("appearance.fade.in", exported.EffectKey);
+                Assert.Equal("liftOccupants", exported.ObjectSetReference!.ObjectSetKey);
+                Assert.Equal(PresentationCueLifetime.CurrentRoom, exported.Lifetime);
 
                 var project = new ProjectModel { Name = "Cue Target Switch" };
                 project.GlobalScope.GameObjects.Add(gameObject);
@@ -335,14 +355,16 @@ public sealed class BaseActionDesignerSupportTests
                     var projectPath = Path.Combine(tempRoot, "CueTargetSwitch.sbe.json");
                     var service = new JsonExportService();
                     service.SaveProjectModel(projectPath, project);
-                    var runtimePath = service.ExportCleanProjectV1(projectPath, project);
+                    var reopened = service.TryLoadProjectModel(projectPath)!;
+                    var runtimePath = service.ExportCleanProjectV1(projectPath, reopened);
                     using var runtime = JsonDocument.Parse(File.ReadAllText(runtimePath));
                     var runtimeCue = runtime.RootElement.GetProperty("availableGameActions").EnumerateArray()
                         .Single(item => item.GetProperty("name").GetString() == "Show occupants")
                         .GetProperty("payload");
-                    Assert.Equal(objectId, runtimeCue.GetProperty("objectId").GetGuid());
-                    Assert.False(runtimeCue.TryGetProperty("objectSetReference", out _));
-                    Assert.Equal(nameof(PresentationCueLifetime.UntilRemoved), runtimeCue.GetProperty("lifetime").GetString());
+                    Assert.False(runtimeCue.TryGetProperty("objectId", out _));
+                    Assert.Equal("appearance.fade.in", runtimeCue.GetProperty("effectKey").GetString());
+                    Assert.Equal("liftOccupants", runtimeCue.GetProperty("objectSetReference").GetProperty("objectSetKey").GetString());
+                    Assert.Equal(nameof(PresentationCueLifetime.CurrentRoom), runtimeCue.GetProperty("lifetime").GetString());
                 }
                 finally
                 {

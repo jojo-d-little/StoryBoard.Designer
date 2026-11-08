@@ -27,9 +27,8 @@ public sealed class ParentCueInheritanceCategoryRuleTests
 
         var issues = Evaluate(project);
 
-        Assert.Equal(4, issues.Count);
+        Assert.Equal(3, issues.Count);
         Assert.Contains(issues, issue => issue.Description.Contains("'PointParticleEffect' is not eligible", StringComparison.Ordinal));
-        Assert.Contains(issues, issue => issue.Description.Contains("'Appearance' is not eligible", StringComparison.Ordinal));
         Assert.Contains(issues, issue => issue.Description.Contains("'Movement' is listed more than once", StringComparison.Ordinal));
         Assert.Contains(issues, issue => issue.Description.Contains("IDs must be nonempty", StringComparison.Ordinal));
     }
@@ -41,7 +40,7 @@ public sealed class ParentCueInheritanceCategoryRuleTests
         {
             new GameObject { Name = "Unset", IsPartOfParent = true, Placement = new StructuralPartPlacement() },
             new GameObject { Name = "Empty", IsPartOfParent = true, Placement = new StructuralPartPlacement(), InheritParentCueCategories = [] },
-            new GameObject { Name = "Selected", IsPartOfParent = true, Placement = new StructuralPartPlacement(), InheritParentCueCategories = ["Movement", "Highlight"] }
+            new GameObject { Name = "Selected", IsPartOfParent = true, Placement = new StructuralPartPlacement(), InheritParentCueCategories = ["Movement", "Highlight", "Appearance", "Disappearance"] }
         };
         var parent = new GameObject { Name = "Parent", IsContainer = true, ContainedObjects = children.ToList() };
         var room = new Room { Name = "Room", GameObjects = [parent] };

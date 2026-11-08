@@ -28,7 +28,7 @@ public sealed class MainWindowViewModelBaseObjectMovementRestrictionsTests
         {
             EditObjectBasicPropertiesHandler = initialValues => initialValues with
             {
-                InheritParentCueCategories = ["Movement", "Highlight"]
+                InheritParentCueCategories = ["Movement", "Highlight", "Appearance", "Disappearance"]
             }
         };
         var viewModel = MainWindowViewModelTestHarness.CreateViewModel(project, treeContext, new ProjectUiServiceStub());
@@ -45,7 +45,7 @@ public sealed class MainWindowViewModelBaseObjectMovementRestrictionsTests
 
         var request = Assert.IsType<ObjectBasicPropertiesEditRequest>(treeContext.LastObjectBasicPropertiesRequest);
         Assert.Null(request.InheritParentCueCategories);
-        Assert.Equal(new[] { "Movement", "Highlight" }, child.InheritParentCueCategories);
+        Assert.Equal(new[] { "Movement", "Highlight", "Appearance", "Disappearance" }, child.InheritParentCueCategories);
     }
 
     [Fact]

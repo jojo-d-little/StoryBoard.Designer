@@ -225,11 +225,16 @@ public sealed class ParticleEffectAuthoringPersistenceTests
                 checkBoxes["Movement"].IsChecked = false;
                 checkBoxes["Scale"].IsChecked = false;
                 checkBoxes["Highlight"].IsChecked = true;
-                Assert.Equal(new[] { "Highlight" }, dialog.Values.InheritParentCueCategories);
+                checkBoxes["Appearance"].IsChecked = true;
+                checkBoxes["Disappearance"].IsChecked = true;
+                Assert.Equal(new[] { "Appearance", "Disappearance", "Highlight" },
+                    dialog.Values.InheritParentCueCategories!.OrderBy(static category => category, StringComparer.Ordinal));
                 Assert.Contains("snaps", Assert.IsType<TextBlock>(checkBoxes["Movement"].ToolTip).Text, StringComparison.OrdinalIgnoreCase);
                 Assert.Contains("situational scaling", Assert.IsType<TextBlock>(checkBoxes["Scale"].ToolTip).Text, StringComparison.OrdinalIgnoreCase);
 
                 checkBoxes["Highlight"].IsChecked = false;
+                checkBoxes["Appearance"].IsChecked = false;
+                checkBoxes["Disappearance"].IsChecked = false;
                 Assert.Empty(dialog.Values.InheritParentCueCategories!);
                 checkBoxes["Scale"].IsChecked = true;
                 Assert.Equal(new[] { "Scale" }, dialog.Values.InheritParentCueCategories);
@@ -883,7 +888,7 @@ public sealed class ParticleEffectAuthoringPersistenceTests
                 ObjectId = relativePartId,
                 Name = "Flame emitter",
                 IsPartOfParent = true,
-                InheritParentCueCategories = ["Movement", "Scale", "Highlight"],
+                InheritParentCueCategories = ["Movement", "Scale", "Highlight", "Appearance", "Disappearance"],
                 Placement = new StructuralPartPlacement
                 {
                     Mode = StructuralPartPlacementKind.ParentRelative,
@@ -1086,7 +1091,8 @@ public sealed class ParticleEffectAuthoringPersistenceTests
             Assert.Equal(new[] { "Movement" }, firstParent.ContainedObjects.Single(child => child.ObjectId == movementOnlyPartId).InheritParentCueCategories);
             Assert.Equal(roomId, firstRoom.Id);
             Assert.Equal(fireRatePropertyId, firstParent.Variables.Single(variable => variable.Name == "FireRate").Id);
-            Assert.Equal(new[] { "Movement", "Scale", "Highlight" }, firstRelativePart.InheritParentCueCategories);
+            Assert.Equal(new[] { "Appearance", "Disappearance", "Highlight", "Movement", "Scale" },
+                firstRelativePart.InheritParentCueCategories!.OrderBy(static category => category, StringComparer.Ordinal));
             Assert.Equal(fireRecipe.EffectKey, firstRelativePart.ParticleEffect!.EffectKey);
             Assert.Equal(41.5, firstRelativePart.Placement.ParentRelativeOffsetX);
             Assert.Equal(-13.25, firstRelativePart.Placement.ParentRelativeOffsetY);
@@ -1120,7 +1126,8 @@ public sealed class ParticleEffectAuthoringPersistenceTests
             Assert.Equal(parentId, reloadedFlame.ParticleEffect.Settings.Single(setting => setting.ControlKey == "Colors.Primary").Binding!.OwnerId);
             Assert.Equal("#FFC44D", ReadText(reloadedFlame.ParticleEffect.Settings.Single(setting => setting.ControlKey == "Colors.Secondary").Value));
             Assert.Equal("particle.campfire.smoke", reloadedSmoke.ParticleEffect!.EffectKey);
-            Assert.Equal(new[] { "Movement", "Scale", "Highlight" }, reloadedFlame.InheritParentCueCategories);
+            Assert.Equal(new[] { "Appearance", "Disappearance", "Highlight", "Movement", "Scale" },
+                reloadedFlame.InheritParentCueCategories!.OrderBy(static category => category, StringComparer.Ordinal));
             Assert.Empty(reloadedSmoke.InheritParentCueCategories!);
             Assert.Null(reloadedUnsetInheritancePart.InheritParentCueCategories);
             Assert.Empty(reloadedParent.ContainedObjects.Single(child => child.ObjectId == optedOutPartId).InheritParentCueCategories!);
@@ -1159,7 +1166,9 @@ public sealed class ParticleEffectAuthoringPersistenceTests
             Assert.Equal("ParentRelative", cleanMovementOnlyPart.GetProperty("partPlacementMode").GetString());
             Assert.Equal(new[] { "Movement" }, cleanMovementOnlyPart.GetProperty("inheritParentCueCategories").EnumerateArray().Select(value => value.GetString()));
             Assert.Equal("ParentRelative", cleanFlame.GetProperty("partPlacementMode").GetString());
-            Assert.Equal(new[] { "Movement", "Scale", "Highlight" }, cleanFlame.GetProperty("inheritParentCueCategories").EnumerateArray().Select(value => value.GetString()));
+            Assert.Equal(new[] { "Appearance", "Disappearance", "Highlight", "Movement", "Scale" },
+                cleanFlame.GetProperty("inheritParentCueCategories").EnumerateArray().Select(value => value.GetString())
+                    .OrderBy(static category => category, StringComparer.Ordinal));
             Assert.Equal(parentId, cleanParent.GetProperty("Id").GetGuid());
             Assert.Equal(41.5, cleanFlame.GetProperty("parentRelativeOffsetX").GetDouble());
             Assert.Equal(-13.25, cleanFlame.GetProperty("parentRelativeOffsetY").GetDouble());
