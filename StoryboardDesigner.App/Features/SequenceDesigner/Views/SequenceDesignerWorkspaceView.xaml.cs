@@ -292,11 +292,11 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
         if (lane is null)
         {
             menu.Items.Add(CreateBranchChoiceMenu("Add inline action", targetOffsetMs, viewModel,
-                branchId => viewModel.AddInlineActionSequenceStepAtOffset(targetOffsetMs, branchId)));
+                branchId => AddInlineActionAtOffset(targetOffsetMs, branchId, viewModel)));
             menu.Items.Add(CreateBranchChoiceMenu("Add existing action", targetOffsetMs, viewModel,
                 branchId => AddExistingActionAtOffset(targetOffsetMs, branchId, viewModel)));
             menu.Items.Add(CreateBranchChoiceMenu("Add sound effect", targetOffsetMs, viewModel,
-                branchId => viewModel.AddSoundSequenceStepAtOffset(targetOffsetMs, branchId)));
+                branchId => AddSoundAtOffset(targetOffsetMs, branchId, viewModel)));
         }
         else
         {
@@ -309,7 +309,7 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
                 IsEnabled = addDisabledReason is null
             };
             SetDisabledMenuItemToolTip(addInline, addDisabledReason);
-            addInline.Click += (_, _) => viewModel.AddInlineActionSequenceStepAtOffset(targetOffsetMs, branchId);
+            addInline.Click += (_, _) => AddInlineActionAtOffset(targetOffsetMs, branchId, viewModel);
             menu.Items.Add(addInline);
 
             var addExisting = new System.Windows.Controls.MenuItem
@@ -327,7 +327,7 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
                 IsEnabled = addDisabledReason is null
             };
             SetDisabledMenuItemToolTip(addSound, addDisabledReason);
-            addSound.Click += (_, _) => viewModel.AddSoundSequenceStepAtOffset(targetOffsetMs, branchId);
+            addSound.Click += (_, _) => AddSoundAtOffset(targetOffsetMs, branchId, viewModel);
             menu.Items.Add(addSound);
 
             menu.Items.Add(new System.Windows.Controls.Separator());
@@ -378,11 +378,11 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
             System.Windows.Input.Mouse.GetPosition(SequenceFlowConnectionCanvas).X);
         var menu = new System.Windows.Controls.ContextMenu();
         menu.Items.Add(CreateBranchChoiceMenu("Add inline action", targetOffsetMs, viewModel,
-            branchId => viewModel.AddInlineActionSequenceStepAtOffset(targetOffsetMs, branchId)));
+            branchId => AddInlineActionAtOffset(targetOffsetMs, branchId, viewModel)));
         menu.Items.Add(CreateBranchChoiceMenu("Add existing action", targetOffsetMs, viewModel,
             branchId => AddExistingActionAtOffset(targetOffsetMs, branchId, viewModel)));
         menu.Items.Add(CreateBranchChoiceMenu("Add sound effect", targetOffsetMs, viewModel,
-            branchId => viewModel.AddSoundSequenceStepAtOffset(targetOffsetMs, branchId)));
+            branchId => AddSoundAtOffset(targetOffsetMs, branchId, viewModel)));
         AddForkOutcomeMenuItems(menu, targetOffsetMs, viewModel);
         menu.PlacementTarget = rulerCanvas;
         menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
@@ -537,8 +537,64 @@ public partial class SequenceDesignerWorkspaceView : System.Windows.Controls.Use
         };
         if (picker.ShowDialog() == true && picker.SelectedAction is not null)
         {
-            viewModel.AddExistingActionSequenceStepAtOffset(offsetMs, branchId, picker.SelectedAction);
+            if (TryChooseSequenceInsertion(offsetMs, branchId, viewModel, out var insertionChoice))
+            {
+                viewModel.AddExistingActionSequenceStepAtOffset(offsetMs, branchId, picker.SelectedAction, insertionChoice);
+            }
         }
+    }
+
+    private void AddInlineActionAtOffset(
+        int offsetMs,
+        string branchId,
+        StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel)
+    {
+        if (TryChooseSequenceInsertion(offsetMs, branchId, viewModel, out var insertionChoice))
+        {
+            viewModel.AddInlineActionSequenceStepAtOffset(offsetMs, branchId, insertionChoice);
+        }
+    }
+
+    private void AddSoundAtOffset(
+        int offsetMs,
+        string branchId,
+        StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel)
+    {
+        if (TryChooseSequenceInsertion(offsetMs, branchId, viewModel, out var insertionChoice))
+        {
+            viewModel.AddSoundSequenceStepAtOffset(offsetMs, branchId, insertionChoice);
+        }
+    }
+
+    private bool TryChooseSequenceInsertion(
+        int offsetMs,
+        string branchId,
+        StoryboardDesigner.App.ViewModels.MainWindowViewModel viewModel,
+        out StoryboardDesigner.App.ViewModels.MainWindowViewModel.SequenceInsertionChoice? choice)
+    {
+        choice = null;
+        if (!viewModel.NeedsSequenceInsertionGuidance)
+        {
+            return true;
+        }
+
+        var choices = viewModel.GetSequenceInsertionChoices(offsetMs, branchId);
+        if (choices.Count == 0)
+        {
+            return false;
+        }
+
+        var dialog = new SequenceInsertionDialog(choices)
+        {
+            Owner = System.Windows.Window.GetWindow(this)
+        };
+        if (dialog.ShowDialog() != true)
+        {
+            return false;
+        }
+
+        choice = dialog.SelectedChoice;
+        return choice is not null;
     }
 
     private System.Windows.Controls.MenuItem CreateForkExistingActionMenuItem(
