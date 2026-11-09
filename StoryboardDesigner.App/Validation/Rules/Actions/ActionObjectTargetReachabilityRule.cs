@@ -1,5 +1,6 @@
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Validation.Contracts;
+using StoryboardDesigner.App.Validation.Execution;
 
 namespace StoryboardDesigner.App.Validation.Rules.Actions;
 
@@ -98,9 +99,15 @@ public sealed class ActionObjectTargetReachabilityRule : IValidationRule
     private static Dictionary<Guid, GameObject> BuildObjectLookup(ProjectModel project)
     {
         var result = new Dictionary<Guid, GameObject>();
+        var visited = new HashSet<IScopedAwareNode>(ReferenceEqualityComparer.Instance);
 
         void Visit(IScopedAwareNode node)
         {
+            if (!visited.Add(node))
+            {
+                return;
+            }
+
             if (node is GameObject gameObject && gameObject.ObjectId != Guid.Empty)
             {
                 result.TryAdd(gameObject.ObjectId, gameObject);
@@ -109,6 +116,14 @@ public sealed class ActionObjectTargetReachabilityRule : IValidationRule
             foreach (var child in node.ChildScopes)
             {
                 Visit(child);
+            }
+
+            if (node is ScopeNodeBase scope)
+            {
+                foreach (var (_, catalogEntry) in ValidationOwnedCatalogTraversal.Enumerate(scope))
+                {
+                    Visit(catalogEntry);
+                }
             }
         }
 

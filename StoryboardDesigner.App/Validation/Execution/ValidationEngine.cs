@@ -20,6 +20,7 @@ public sealed class ValidationEngine
         var executedRuleIds = new List<string>();
         var skippedRules = new List<ValidationSkippedRuleInfo>();
         var requestRoot = request.RootScope ?? request.Project;
+        ScopeHierarchy.AttachParents(request.Project);
         var lookup = ValidationLookupService.Build(request.Project);
         var sharedState = new ValidationSharedState();
         var activeProfile = ValidationProfile.Unspecified;
@@ -185,7 +186,8 @@ public sealed class ValidationEngine
             ? "Global"
             : root.ScopeName;
 
-        foreach (var candidate in EnumerateCandidateNodesCore(root, includeDescendants, rootPath, objectLookup))
+        var visitedScopes = new HashSet<ScopeNodeBase>(ReferenceEqualityComparer.Instance);
+        foreach (var candidate in EnumerateCandidateNodesCore(root, includeDescendants, rootPath, objectLookup, visitedScopes))
         {
             yield return candidate;
         }
@@ -211,8 +213,14 @@ public sealed class ValidationEngine
         ScopeNodeBase node,
         bool includeDescendants,
         string currentPath,
-        IReadOnlyDictionary<Guid, GameObject> objectLookup)
+        IReadOnlyDictionary<Guid, GameObject> objectLookup,
+        ISet<ScopeNodeBase> visitedScopes)
     {
+        if (!visitedScopes.Add(node))
+        {
+            yield break;
+        }
+
         yield return node;
 
         foreach (var actionNode in BuildActionCandidateNodes(node, currentPath, objectLookup))
@@ -225,14 +233,36 @@ public sealed class ValidationEngine
             yield break;
         }
 
-        foreach (var child in node.ChildScopes.OfType<ScopeNodeBase>())
+        foreach (var (child, childPath) in EnumerateValidationChildren(node, currentPath))
         {
-            var childPath = AppendPath(currentPath, child);
-            foreach (var nested in EnumerateCandidateNodesCore(child, includeDescendants: true, childPath, objectLookup))
+            foreach (var nested in EnumerateCandidateNodesCore(child, includeDescendants: true, childPath, objectLookup, visitedScopes))
             {
                 yield return nested;
             }
         }
+    }
+
+    private static IEnumerable<(ScopeNodeBase Node, string Path)> EnumerateValidationChildren(
+        ScopeNodeBase node,
+        string currentPath)
+    {
+        foreach (var child in node.ChildScopes.OfType<ScopeNodeBase>())
+        {
+            yield return (child, AppendPath(currentPath, child));
+        }
+
+        foreach (var (catalogName, entry) in ValidationOwnedCatalogTraversal.Enumerate(node))
+        {
+            yield return (entry, AppendCatalogPath(currentPath, catalogName, entry));
+        }
+    }
+
+    private static string AppendCatalogPath(string ownerPath, string catalogName, ScopeNodeBase entry)
+    {
+        var catalogPath = string.IsNullOrWhiteSpace(ownerPath)
+            ? catalogName
+            : ownerPath + " / " + catalogName;
+        return AppendPath(catalogPath, entry);
     }
 
     private static IEnumerable<ValidationActionCandidateNode> BuildActionCandidateNodes(
@@ -309,6 +339,11 @@ public sealed class ValidationEngine
             AddObject(templateRoomObject);
         }
 
+        foreach (var baseObject in EnumerateAllBaseObjectRoots(project))
+        {
+            AddObject(baseObject);
+        }
+
         foreach (var playerObject in project.GlobalScope.GameObjects)
         {
             AddObject(playerObject);
@@ -324,6 +359,14 @@ public sealed class ValidationEngine
         }
 
         return lookup;
+    }
+
+    private static IEnumerable<GameObject> EnumerateAllBaseObjectRoots(ProjectModel project)
+    {
+        return project.BaseObjects
+            .Concat(project.Planets.SelectMany(static planet => planet.BaseObjects))
+            .Concat(project.Planets.SelectMany(static planet => planet.Countries).SelectMany(static country => country.BaseObjects))
+            .Concat(project.Planets.SelectMany(static planet => planet.Countries).SelectMany(static country => country.Areas).SelectMany(static area => area.BaseObjects));
     }
 
     private static IReadOnlyList<CommandAction> ResolveEffectiveObjectActions(

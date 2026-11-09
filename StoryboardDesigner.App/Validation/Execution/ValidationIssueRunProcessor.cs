@@ -146,6 +146,11 @@ public static class ValidationIssueRunProcessor
             return true;
         }
 
+        if (IsRuleIgnoredByOwningBaseObjectCatalog(issueScope, issue.RuleId))
+        {
+            return true;
+        }
+
         // Catalog-level ignore lists are intended to suppress issues for entries within that catalog.
         foreach (var ancestor in issueScope.EnumerateAncestors())
         {
@@ -184,15 +189,76 @@ public static class ValidationIssueRunProcessor
 
     private static IEnumerable<ScopeNodeBase> EnumerateScopeSubtree(ScopeNodeBase root)
     {
-        yield return root;
-
-        foreach (var child in root.ChildScopes.OfType<ScopeNodeBase>())
+        var visited = new HashSet<ScopeNodeBase>(ReferenceEqualityComparer.Instance);
+        foreach (var node in EnumerateScopeSubtreeCore(root, visited))
         {
-            foreach (var descendant in EnumerateScopeSubtree(child))
+            yield return node;
+        }
+    }
+
+    private static IEnumerable<ScopeNodeBase> EnumerateScopeSubtreeCore(
+        ScopeNodeBase node,
+        ISet<ScopeNodeBase> visited)
+    {
+        if (!visited.Add(node))
+        {
+            yield break;
+        }
+
+        yield return node;
+
+        foreach (var child in EnumerateScopeChildren(node))
+        {
+            foreach (var descendant in EnumerateScopeSubtreeCore(child, visited))
             {
                 yield return descendant;
             }
         }
+    }
+
+    private static IEnumerable<ScopeNodeBase> EnumerateScopeChildren(ScopeNodeBase node)
+    {
+        foreach (var child in node.ChildScopes.OfType<ScopeNodeBase>())
+        {
+            yield return child;
+        }
+
+        foreach (var (_, entry) in ValidationOwnedCatalogTraversal.Enumerate(node))
+        {
+            yield return entry;
+        }
+    }
+
+    private static bool IsRuleIgnoredByOwningBaseObjectCatalog(ScopeNodeBase issueScope, string ruleId)
+    {
+        foreach (var obj in issueScope.EnumerateSelfAndAncestors().OfType<GameObject>())
+        {
+            var owner = obj.ParentScope;
+            var isOwnedBaseObject = owner switch
+            {
+                Planet planet => planet.BaseObjects.Contains(obj),
+                Country country => country.BaseObjects.Contains(obj),
+                Area area => area.BaseObjects.Contains(obj),
+                _ => false
+            };
+
+            if (!isOwnedBaseObject)
+            {
+                continue;
+            }
+
+            var ignoredRules = owner switch
+            {
+                Planet planet => planet.BaseObjectsIgnoredValidationRuleIds,
+                Country country => country.BaseObjectsIgnoredValidationRuleIds,
+                Area area => area.BaseObjectsIgnoredValidationRuleIds,
+                _ => null
+            };
+
+            return ignoredRules?.Any(ignored => string.Equals(ignored?.Trim(), ruleId, StringComparison.OrdinalIgnoreCase)) == true;
+        }
+
+        return false;
     }
 
     private static Dictionary<string, ScopeNodeBase> BuildScopePathLookup(ProjectModel project)

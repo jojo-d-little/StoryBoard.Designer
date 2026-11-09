@@ -1,6 +1,7 @@
 using Storyboard.Shared.RuntimeContracts.Enums;
 using StoryboardDesigner.App.Models;
 using StoryboardDesigner.App.Validation.Contracts;
+using StoryboardDesigner.App.Validation.Execution;
 
 namespace StoryboardDesigner.App.Validation.Rules.Project;
 
@@ -153,13 +154,23 @@ public sealed class SequenceActionReferenceReachabilityRule : IValidationRule
     private static IEnumerable<ScopeNodeBase> EnumerateScopes(IScopedAwareNode root)
     {
         var pending = new Stack<IScopedAwareNode>();
+        var visited = new HashSet<IScopedAwareNode>(ReferenceEqualityComparer.Instance);
         pending.Push(root);
         while (pending.Count > 0)
         {
             var current = pending.Pop();
+            if (!visited.Add(current))
+            {
+                continue;
+            }
+
             if (current is ScopeNodeBase scope)
             {
                 yield return scope;
+                foreach (var (_, catalogEntry) in ValidationOwnedCatalogTraversal.Enumerate(scope).Reverse())
+                {
+                    pending.Push(catalogEntry);
+                }
             }
 
             foreach (var child in current.ChildScopes.Reverse())

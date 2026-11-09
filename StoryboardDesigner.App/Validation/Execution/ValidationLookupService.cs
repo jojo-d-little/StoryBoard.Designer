@@ -105,6 +105,10 @@ public sealed class ValidationLookupService : IValidationLookupService
         AddObjects(project.BaseObjects, "Global / Base Objects", "BaseObjectVariable");
         AddObjects(project.GlobalScope.GameObjects, "Global / Game Objects", "GameObjectVariable");
         AddObjects(project.EnumerateAllObjectTemplateRoots(), "Global / Templates", "TemplateObjectVariable");
+        AddObjects(
+            project.EnumerateAllRoomTemplateRoots().SelectMany(static room => room.GameObjects),
+            "Global / Room Templates",
+            "TemplateObjectVariable");
 
         foreach (var planet in project.Planets)
         {

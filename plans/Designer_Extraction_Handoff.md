@@ -86,3 +86,16 @@ The runtime-only tests were moved to GameEngine. Following the user's confirmati
 - `StoryboardDesigner.App.Tests/CleanProjectRuntimeLoadedGameLoader.cs`
 
 The full Designer solution search found no remaining references to these types after removal. The app's `Storyboard.GameEngine` package reference remains in place because production code still uses Engine types. The Engine test result was confirmed by the user; its command, case count, and raw output were not recorded in this repository.
+
+## Configuration package adoption checkpoint (2026-11-09)
+
+Designer adopted the published zero-duration Scale Configuration artifact through the existing floating `Storyboard.GameEngine.Configuration` reference (`1.0.*-*`). Restore resolved `1.0.22-local.20261109.t142553497`; the package reference remains floating. The Designer build succeeded, the running Designer was restarted from its Debug output, and all four `PresentationEffectsCatalogMovementChoiceTests` passed, including catalog loading through `PresentationEffectsCatalogService`.
+
+Verified application-output files:
+
+- `StoryboardDesigner.App/bin/Debug/net8.0-windows/Config/presentation-effects-catalog-schema/scaleStyle.schema.json` permits `transitionDurationMs` minimum `0`.
+- `StoryboardDesigner.App/bin/Debug/net8.0-windows/Config/presentation-effects.catalog.json` gives `scale.double.immediate` and `scale.half.immediate` `transitionDurationMs: 0`.
+
+Both output files match the resolved package content byte for byte. The delivered `effect.schema.json` associates `scaleStyle` with `./scaleStyle.schema.json`, resolving to the delivered schema in the same output directory; no Designer-local stale copy is used.
+
+Project-level Docks export remains pending. Export Docks again so its staged presentation catalog receives these recipes, then validate that staged export separately before drawing conclusions about the visual flash. No Docks migration or visual-flash conclusion is included in this checkpoint.
