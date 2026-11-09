@@ -69,6 +69,17 @@ public sealed class ActionEchoReferenceTokenProviderRegistryTests
     }
 
     [Fact]
+    public void GetTokens_ReleaseObjectSet_MatchesSharedCanonicalDescriptorOrder()
+    {
+        var registry = ActionEchoReferenceTokenProviderRegistry.CreateDefault();
+
+        var tokens = registry.GetTokens(CommandActionType.ReleaseObjectSet);
+        var sharedTokens = GetManifestOutputVariableTokens(CommandActionType.ReleaseObjectSet);
+
+        Assert.Equal(sharedTokens, tokens);
+    }
+
+    [Fact]
     public void GetTokens_BreakCompositeItem_ReturnsOnlyActionPrefixedTokens()
     {
         var registry = ActionEchoReferenceTokenProviderRegistry.CreateDefault();

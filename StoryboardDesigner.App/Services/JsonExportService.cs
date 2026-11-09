@@ -3007,6 +3007,7 @@ public sealed class JsonExportService : IJsonExportService
                 CommandActionType.AddObjectPresentationCue => BuildAddObjectPresentationCuePayloadElement(action),
                 CommandActionType.RemoveObjectPresentationCue => BuildRemoveObjectPresentationCuePayloadElement(action),
                 CommandActionType.CaptureObjectsOnObjectFootprint => BuildCaptureObjectsOnObjectFootprintPayloadElement(action),
+                CommandActionType.ReleaseObjectSet => BuildReleaseObjectSetPayloadElement(action),
                 CommandActionType.CheckObjectSetContainsObject => BuildCheckObjectSetContainsObjectPayloadElement(action),
                 CommandActionType.NavigateObjectSetToAdjacent => BuildNavigateObjectSetToAdjacentPayloadElement(action),
                 CommandActionType.ClearObjectPresentationCues => BuildClearObjectPresentationCuesPayloadElement(action),
@@ -3231,7 +3232,12 @@ public sealed class JsonExportService : IJsonExportService
             model.Payload = new CaptureObjectsOnObjectFootprintPayload(
                 captureSet.ObjectSetReference?.ObjectSetKey ?? string.Empty,
                 captureSet.TargetObjectId == Guid.Empty ? null : captureSet.TargetObjectId,
-                Enum.IsDefined(captureSet.FootprintMatchMode) ? captureSet.FootprintMatchMode : null);
+                Enum.IsDefined(captureSet.FootprintMatchMode) ? captureSet.FootprintMatchMode : null,
+                captureSet.CaptureLifetime ?? ObjectSetCaptureLifetime.SequenceRun);
+        }
+        else if (action.Payload is ProjectReleaseObjectSetActionPayloadDto releaseSet)
+        {
+            model.Payload = new ReleaseObjectSetPayload(releaseSet.ObjectSetReference?.ObjectSetKey ?? string.Empty);
         }
         else if (action.Payload is ProjectCheckObjectSetContainsObjectActionPayloadDto checkSet)
         {
@@ -4818,9 +4824,9 @@ public sealed class JsonExportService : IJsonExportService
                 : obj.InstanceOverrides
                     .Where(static pair => !string.IsNullOrWhiteSpace(pair.Key))
                     .ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.OrdinalIgnoreCase),
-            ContainedObjects = isLinkedInstance
-                ? new List<ProjectGameObjectDto>()
-                : obj.ContainedObjects.Select(child => ToProjectGameObjectDto(
+            // Linked roots omit copied definition fields, but explicit placed child links carry
+            // their own identities and placements and must survive Designer save/reopen.
+            ContainedObjects = obj.ContainedObjects.Select(child => ToProjectGameObjectDto(
                     child,
                     obj.ObjectId,
                     null,
@@ -5302,6 +5308,7 @@ public sealed class JsonExportService : IJsonExportService
 
     private static void NormalizeLinkedRoomPlacementChildren(ProjectModel project)
     {
+        var objectLookup = BuildCleanExportObjectLookup(project);
         var rooms = project.EnumerateAllRoomTemplateRoots()
             .Concat(project.Planets
                 .SelectMany(static planet => planet.Countries)
@@ -5312,21 +5319,27 @@ public sealed class JsonExportService : IJsonExportService
         {
             foreach (var rootObject in room.GameObjects)
             {
-                StripDerivedChildren(rootObject);
+                StripDerivedChildren(rootObject, objectLookup);
             }
         }
 
-        static void StripDerivedChildren(GameObject gameObject)
+        static void StripDerivedChildren(GameObject gameObject, IReadOnlyDictionary<Guid, GameObject> objectLookup)
         {
-            if (gameObject.LinkedBaseObjectId.HasValue && gameObject.LinkedBaseObjectId.Value != Guid.Empty)
+            // Structural children are definition-owned and are rebuilt from the linked
+            // base. Ordinary linked children are explicit placements and must survive.
+            if (gameObject.LinkedBaseObjectId is Guid linkedBaseObjectId
+                && linkedBaseObjectId != Guid.Empty)
             {
-                gameObject.ContainedObjects.Clear();
-                return;
+                gameObject.ContainedObjects.RemoveAll(child =>
+                    child.LinkedBaseObjectId is Guid childBaseObjectId
+                    && objectLookup.TryGetValue(childBaseObjectId, out var childDefinition)
+                    && childDefinition.ResolveEffectiveDefinitionOwnedSource(id =>
+                        objectLookup.TryGetValue(id, out var resolved) ? resolved : null).IsPartOfParent);
             }
 
             foreach (var child in gameObject.ContainedObjects)
             {
-                StripDerivedChildren(child);
+                StripDerivedChildren(child, objectLookup);
             }
         }
     }
@@ -6574,12 +6587,12 @@ public sealed class JsonExportService : IJsonExportService
                     .ThenBy(action => action.Id)
                     .ToList()),
             GameProperties = NullIfEmpty(BuildCleanObjectGameProperties(obj, effectiveDefinitionOwnedSource)),
-            ContainedObjects = persistedLinkedBaseObjectId.HasValue
-                ? null
-                : NullIfEmpty(obj.ContainedObjects
-                    .OrderBy(child => child.Name, StringComparer.OrdinalIgnoreCase)
-                    .Select(child => ToCleanGameObjectDto(child, obj.ObjectId, resolveImagePath, resolveSoundAssetRef, null, resolveDefinition, linkedActionLookup))
-                    .ToList())
+            ContainedObjects = NullIfEmpty(obj.ContainedObjects
+                .Where(child => !persistedLinkedBaseObjectId.HasValue
+                    || !child.ResolveEffectiveDefinitionOwnedSource(resolveDefinition).IsPartOfParent)
+                .OrderBy(child => child.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(child => ToCleanGameObjectDto(child, obj.ObjectId, resolveImagePath, resolveSoundAssetRef, null, resolveDefinition, linkedActionLookup))
+                .ToList())
         };
     }
 
@@ -7416,6 +7429,7 @@ public sealed class JsonExportService : IJsonExportService
                 CommandActionType.AddObjectPresentationCue => BuildCleanAddObjectPresentationCuePayloadElement(action),
                 CommandActionType.RemoveObjectPresentationCue => BuildCleanRemoveObjectPresentationCuePayloadElement(action),
                 CommandActionType.CaptureObjectsOnObjectFootprint => BuildCleanCaptureObjectsOnObjectFootprintPayloadElement(action),
+                CommandActionType.ReleaseObjectSet => BuildCleanReleaseObjectSetPayloadElement(action),
                 CommandActionType.CheckObjectSetContainsObject => BuildCleanCheckObjectSetContainsObjectPayloadElement(action),
                 CommandActionType.NavigateObjectSetToAdjacent => BuildCleanNavigateObjectSetToAdjacentPayloadElement(action),
                 CommandActionType.ClearObjectPresentationCues => BuildCleanClearObjectPresentationCuesPayloadElement(action),
@@ -8049,7 +8063,17 @@ public sealed class JsonExportService : IJsonExportService
         {
             ObjectSetReference = new ProjectObjectSetReferenceDto { ObjectSetKey = payload?.ObjectSetKey ?? string.Empty },
             TargetObjectId = payload?.TargetObjectId ?? Guid.Empty,
-            FootprintMatchMode = GetRequiredFootprintMatchMode(payload)
+            FootprintMatchMode = GetRequiredFootprintMatchMode(payload),
+            CaptureLifetime = GetCaptureLifetime(payload)
+        };
+    }
+
+    private static ProjectCommandActionPayloadBaseDto BuildReleaseObjectSetPayloadElement(CommandAction action)
+    {
+        var payload = action.Payload as ReleaseObjectSetPayload;
+        return new ProjectReleaseObjectSetActionPayloadDto
+        {
+            ObjectSetReference = new ProjectObjectSetReferenceDto { ObjectSetKey = payload?.ObjectSetKey ?? string.Empty }
         };
     }
 
@@ -8471,7 +8495,27 @@ public sealed class JsonExportService : IJsonExportService
         {
             ObjectSetReference = new ObjectSetReferenceDto { ObjectSetKey = payload?.ObjectSetKey ?? string.Empty },
             TargetObjectId = payload?.TargetObjectId ?? Guid.Empty,
-            FootprintMatchMode = GetRequiredFootprintMatchMode(payload)
+            FootprintMatchMode = GetRequiredFootprintMatchMode(payload),
+            CaptureLifetime = GetCaptureLifetime(payload)
+        };
+    }
+
+    private static ObjectSetCaptureLifetime GetCaptureLifetime(CaptureObjectsOnObjectFootprintPayload? payload)
+    {
+        if (payload is null || !Enum.IsDefined(payload.CaptureLifetime))
+        {
+            throw new InvalidOperationException("Capture Objects On Object Footprint requires a supported object set lifetime before export.");
+        }
+
+        return payload.CaptureLifetime;
+    }
+
+    internal static RuntimeCommandActionPayloadBaseDto BuildCleanReleaseObjectSetPayloadElement(CommandAction action)
+    {
+        var payload = action.Payload as ReleaseObjectSetPayload;
+        return new RuntimeReleaseObjectSetActionPayloadDto
+        {
+            ObjectSetReference = new ObjectSetReferenceDto { ObjectSetKey = payload?.ObjectSetKey ?? string.Empty }
         };
     }
 

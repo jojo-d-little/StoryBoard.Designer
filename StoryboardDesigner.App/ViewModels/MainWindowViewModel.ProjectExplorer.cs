@@ -12566,23 +12566,28 @@ public sealed partial class MainWindowViewModel
             RestoreObject(sourceRoom.GameObjects[index], clonedRoom.GameObjects[index]);
         }
 
-        void RestoreObject(GameObject source, GameObject clone)
+        void RestoreObject(GameObject source, GameObject clone, bool sharedMembershipsRestoredByAncestor = false)
         {
             if (source.LinkedBaseObjectId is Guid linkedBaseObjectId)
             {
+                // Reconfiguring a linked root normally drops materialized child placements. When cloning a
+                // room template, preserve the source room's explicit child links and remap them recursively.
+                var clonedChildren = clone.ContainedObjects.ToArray();
                 ConfigureAsLinkedRoomInstance(clone, source, linkedBaseObjectId);
-                if (baseObjectLookup.TryGetValue(linkedBaseObjectId, out var baseObject))
+                clone.ContainedObjects.AddRange(clonedChildren);
+                if (!sharedMembershipsRestoredByAncestor && baseObjectLookup.TryGetValue(linkedBaseObjectId, out var baseObject))
                 {
                     LinkedBaseObjectSharedVariableCloner.PreserveAuthoredMemberships(_project, baseObject, clone);
                 }
-
-                return;
             }
 
             var childCount = Math.Min(source.ContainedObjects.Count, clone.ContainedObjects.Count);
             for (var childIndex = 0; childIndex < childCount; childIndex++)
             {
-                RestoreObject(source.ContainedObjects[childIndex], clone.ContainedObjects[childIndex]);
+                RestoreObject(
+                    source.ContainedObjects[childIndex],
+                    clone.ContainedObjects[childIndex],
+                    sharedMembershipsRestoredByAncestor || source.LinkedBaseObjectId.HasValue);
             }
         }
     }

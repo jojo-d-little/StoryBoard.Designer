@@ -92,11 +92,12 @@ public sealed class SequenceDefinitionIntegrityEvaluatorTests
     }
 
     [Fact]
-    public void Evaluate_ReportsDisconnectedRootAndUnreachableCard()
+    public void Evaluate_ReportsCandidateRootsWithoutMarkingTheirReachableStepsUnreachable()
     {
         var root = Sound(Guid.NewGuid(), "main", ContinuationMode.End, 0);
-        var disconnected = Sound(Guid.NewGuid(), "effects", ContinuationMode.End, 0);
-        var sequence = Definition(root, disconnected);
+        var disconnected = Sound(Guid.NewGuid(), "effects", ContinuationMode.Continue, 0, onContinue: Guid.NewGuid());
+        var child = Sound(disconnected.OnContinueStepId!.Value, "effects", ContinuationMode.End, 50);
+        var sequence = Definition(root, disconnected, child);
         sequence.Branches!.Add(new ProjectSequenceBranchDto
         {
             BranchId = "effects",
@@ -107,7 +108,10 @@ public sealed class SequenceDefinitionIntegrityEvaluatorTests
         var issues = SequenceDefinitionIntegrityEvaluator.Evaluate(sequence);
 
         Assert.Contains(issues, item => item.Description.Contains("2 root steps", StringComparison.Ordinal));
-        Assert.Contains(issues, item => item.StepId == disconnected.StepId && item.Description.Contains("unreachable", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(issues, item => item.StepId == root.StepId && item.Description.Contains("possible flow root", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(issues, item => item.StepId == disconnected.StepId && item.Description.Contains("possible flow root", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(issues, item => item.StepId == child.StepId && item.Description.Contains("unreachable", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(issues, item => item.Description.Contains("unreachable", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

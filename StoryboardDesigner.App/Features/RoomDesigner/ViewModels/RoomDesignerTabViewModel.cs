@@ -890,15 +890,11 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase, IDisposable
     private void AddVisibleContainedObjectPreviews(GameObject parent, int rootDrawOrder, int depth)
     {
         var effectiveParent = parent.ResolveEffectiveDefinitionOwnedSource(_definitionResolver);
-        var children = parent.IsRoomInstance ? effectiveParent.ContainedObjects : parent.ContainedObjects;
+        var children = parent.ContainedObjects;
         foreach (var child in children)
         {
             var effectiveChild = child.ResolveEffectiveDefinitionOwnedSource(_definitionResolver);
             var isStructuralPart = effectiveChild.IsPartOfParent;
-            if (parent.IsRoomInstance && !isStructuralPart)
-            {
-                continue;
-            }
             var isVisibleWhileContained = isStructuralPart
                 || (effectiveChild.IsInventoriable && effectiveChild.ShowWhenContained.HasValue
                     ? effectiveChild.ShowWhenContained.Value
@@ -908,8 +904,8 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase, IDisposable
                 continue;
             }
 
-            // Linked placements own only their root transform. Build a throwaway visual
-            // proxy for each definition child so the room tree never gains persisted clones.
+            // Structural parts defined by a linked object need a throwaway proxy because
+            // their placement is inherited from the definition rather than the instance.
             var previewObject = parent.IsRoomInstance && isStructuralPart
                 ? CreateLinkedStructuralPartPreview(parent, child, effectiveParent, effectiveChild)
                 : child;
@@ -1243,6 +1239,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase, IDisposable
         SelectedRoomRenderOrderItem = item;
         RoomRenderOrderItems.Move(currentIndex, currentIndex - 1);
         SaveRoomPreviewDrawOrder();
+        SynchronizeRoomChildObjectOrder();
         OnPropertyChanged(nameof(RenderableRoomRenderOrderItems));
         OnPropertyChanged(nameof(FilteredRoomChildObjects));
         OnPropertyChanged(nameof(FilteredRoomRenderOrderItems));
@@ -1267,6 +1264,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase, IDisposable
         SelectedRoomRenderOrderItem = item;
         RoomRenderOrderItems.Move(currentIndex, currentIndex + 1);
         SaveRoomPreviewDrawOrder();
+        SynchronizeRoomChildObjectOrder();
         OnPropertyChanged(nameof(RenderableRoomRenderOrderItems));
         OnPropertyChanged(nameof(FilteredRoomChildObjects));
         OnPropertyChanged(nameof(FilteredRoomRenderOrderItems));
@@ -1307,6 +1305,21 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(RenderableRoomRenderOrderItems));
         OnPropertyChanged(nameof(HasRenderableRoomChildObjects));
         RefreshDerivedStructuralPartDrawOrders();
+    }
+
+    private void SynchronizeRoomChildObjectOrder()
+    {
+        var orderedPreviews = RoomChildObjects
+            .OrderByDescending(static preview => preview.DrawOrderZIndex)
+            .ToList();
+        for (var index = 0; index < orderedPreviews.Count; index++)
+        {
+            var currentIndex = RoomChildObjects.IndexOf(orderedPreviews[index]);
+            if (currentIndex != index)
+            {
+                RoomChildObjects.Move(currentIndex, index);
+            }
+        }
     }
 
     private void EditRoomChildObjectImage(RoomDesignerPreviewObjectViewModel? preview)

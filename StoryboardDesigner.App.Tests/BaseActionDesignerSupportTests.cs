@@ -614,7 +614,7 @@ public sealed class BaseActionDesignerSupportTests
                     .Invoke(null, [baseObject])!;
                 typeof(MainWindowViewModel)
                     .GetMethod("ConfigureAsLinkedRoomInstance", BindingFlags.Instance | BindingFlags.NonPublic)!
-                    .Invoke(viewModel, [clone, baseObject, baseObject.ObjectId]);
+                    .Invoke(viewModel, [clone, baseObject, baseObject.ObjectId, false]);
                 Assert.Empty(clone.AvailableActions);
                 Assert.Empty(clone.SequenceDefinitions);
                 Assert.Empty(clone.ContainedObjects);

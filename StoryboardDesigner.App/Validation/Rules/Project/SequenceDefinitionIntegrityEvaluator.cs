@@ -211,7 +211,21 @@ public static class SequenceDefinitionIntegrityEvaluator
         {
             issues.Add(new SequenceDefinitionIssue(null,
                 roots.Count == 0 ? "Sequence flow has no root step." : $"Sequence flow has {roots.Count} root steps.",
-                "Connect every flow path so it has exactly one entry step."));
+                roots.Count == 0
+                    ? "Connect a starting step to the flow."
+                    : "Confirm the intended starting steps, then connect or remove any extra roots."));
+            if (roots.Count > 1)
+            {
+                foreach (var rootId in roots)
+                {
+                    if (stepsById.TryGetValue(rootId, out var candidateRoot))
+                    {
+                        issues.Add(new SequenceDefinitionIssue(candidateRoot.StepId,
+                            $"{DescribeStep(candidateRoot)} is one of {roots.Count} possible flow roots.",
+                            "Confirm this is an intended entry step or connect it to the flow."));
+                    }
+                }
+            }
         }
         else if (stepsById.TryGetValue(roots[0], out var root) && !string.Equals(root.BranchId, MainBranchId, StringComparison.Ordinal))
         {
@@ -219,17 +233,16 @@ public static class SequenceDefinitionIntegrityEvaluator
         }
 
         var reachable = new HashSet<Guid>();
-        if (roots.Count == 1)
+        if (roots.Count > 0)
         {
-            var pending = new Stack<Guid>();
-            pending.Push(roots[0]);
+            var pending = new Stack<Guid>(roots);
             while (pending.TryPop(out var id))
             {
                 if (!reachable.Add(id) || !edges.TryGetValue(id, out var targets)) continue;
                 foreach (var target in targets) pending.Push(target);
             }
         }
-        foreach (var step in steps.Where(step => step.StepId != Guid.Empty && !reachable.Contains(step.StepId)))
+        foreach (var step in steps.Where(step => roots.Count > 0 && step.StepId != Guid.Empty && !reachable.Contains(step.StepId)))
         {
             issues.Add(new SequenceDefinitionIssue(step.StepId, $"{DescribeStep(step)} is unreachable from the flow root.", "Connect it to the reachable flow or remove it."));
         }

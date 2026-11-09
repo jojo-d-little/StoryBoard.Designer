@@ -159,6 +159,7 @@ public partial class RoomActionEditorDialog : Window
     {
         InitializeComponent();
         CaptureFootprintMatchModeComboBox.ItemsSource = CaptureFootprintMatchModeChoices.All;
+        CaptureObjectSetLifetimeComboBox.ItemsSource = Enum.GetValues<ObjectSetCaptureLifetime>();
         _sourceAction = sourceAction;
         _defaultCurrentObjectId = defaultCurrentObjectId;
         _objectSetKeySuggestions = objectSetKeySuggestions ?? Array.Empty<string>();
@@ -852,6 +853,7 @@ public partial class RoomActionEditorDialog : Window
         SetActiveRoomObjectEditorPanel.Visibility = Visibility.Collapsed;
         ObjectPresentationCueEditorPanel.Visibility = Visibility.Collapsed;
         CaptureObjectSetEditorPanel.Visibility = Visibility.Collapsed;
+        ReleaseObjectSetEditorPanel.Visibility = Visibility.Collapsed;
         CheckObjectSetEditorPanel.Visibility = Visibility.Collapsed;
         NavigateObjectSetEditorPanel.Visibility = Visibility.Collapsed;
         SelectRoomObjectByPointEditorPanel.Visibility = Visibility.Collapsed;
@@ -930,6 +932,9 @@ public partial class RoomActionEditorDialog : Window
                 break;
             case CommandActionType.CaptureObjectsOnObjectFootprint:
                 CaptureObjectSetEditorPanel.Visibility = Visibility.Visible;
+                break;
+            case CommandActionType.ReleaseObjectSet:
+                ReleaseObjectSetEditorPanel.Visibility = Visibility.Visible;
                 break;
             case CommandActionType.CheckObjectSetContainsObject:
                 CheckObjectSetEditorPanel.Visibility = Visibility.Visible;
@@ -1577,6 +1582,8 @@ public partial class RoomActionEditorDialog : Window
         _captureObjectSetTargetId = capture?.TargetObjectId;
         CaptureObjectSetTargetTextBox.Text = GetRoomObjectDisplayName(_captureObjectSetTargetId);
         CaptureFootprintMatchModeComboBox.SelectedValue = capture?.FootprintMatchMode;
+        CaptureObjectSetLifetimeComboBox.SelectedValue = capture?.CaptureLifetime ?? ObjectSetCaptureLifetime.SequenceRun;
+        ReleaseObjectSetKeyTextBox.Text = (_workingCopy.Payload as ReleaseObjectSetPayload)?.ObjectSetKey ?? string.Empty;
 
         var check = _workingCopy.Payload as CheckObjectSetContainsObjectPayload;
         ConfigureObjectSetKeyPicker(CheckObjectSetKeyComboBox, check?.ObjectSetKey);
@@ -1742,7 +1749,24 @@ public partial class RoomActionEditorDialog : Window
                 return false;
             }
 
-            _workingCopy.Payload = new CaptureObjectsOnObjectFootprintPayload(key, _captureObjectSetTargetId, footprintMatchMode);
+            if (CaptureObjectSetLifetimeComboBox.SelectedValue is not ObjectSetCaptureLifetime captureLifetime
+                || !Enum.IsDefined(captureLifetime))
+            {
+                System.Windows.MessageBox.Show(this, "Choose a supported object set lifetime.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+                return false;
+            }
+
+            _workingCopy.Payload = new CaptureObjectsOnObjectFootprintPayload(key, _captureObjectSetTargetId, footprintMatchMode, captureLifetime);
+        }
+        else if (_workingCopy.ActionType == CommandActionType.ReleaseObjectSet)
+        {
+            var key = ReleaseObjectSetKeyTextBox.Text?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                System.Windows.MessageBox.Show(this, "Enter the logical key of the captured object set.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+                return false;
+            }
+            _workingCopy.Payload = new ReleaseObjectSetPayload(key);
         }
         else if (_workingCopy.ActionType == CommandActionType.CheckObjectSetContainsObject)
         {

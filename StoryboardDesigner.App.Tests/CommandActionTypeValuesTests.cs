@@ -5,6 +5,13 @@ namespace StoryboardDesigner.App.Tests;
 public sealed class CommandActionTypeValuesTests
 {
     [Fact]
+    public void ReleaseObjectSet_IsAvailableForInlineAndLinkedActions()
+    {
+        Assert.Contains(CommandActionType.ReleaseObjectSet, CommandActionTypeValues.All);
+        Assert.Contains(CommandActionType.ReleaseObjectSet, CommandActionTypeValues.LinkedFlowAllowed);
+    }
+
+    [Fact]
     public void All_IncludesNavigateToAdjacent()
     {
         Assert.Contains(CommandActionType.NavigateToAdjacent, CommandActionTypeValues.All);

@@ -198,6 +198,7 @@ internal static class CommandActionPayloadCoordinator
                 string.Empty,
                 null,
                 Storyboard.Shared.RuntimeContracts.Enums.FootprintMatchMode.AnyOverlap),
+            CommandActionType.ReleaseObjectSet => new ReleaseObjectSetPayload(string.Empty),
             CommandActionType.CheckObjectSetContainsObject => new CheckObjectSetContainsObjectPayload(string.Empty, "CurrentPlayer"),
             CommandActionType.NavigateObjectSetToAdjacent => new NavigateObjectSetToAdjacentPayload(string.Empty, "Unknown"),
             CommandActionType.ClearObjectPresentationCues => new ClearObjectPresentationCuesPayload(null),
@@ -280,7 +281,9 @@ internal static class CommandActionPayloadCoordinator
             CaptureObjectsOnObjectFootprintPayload capture => new CaptureObjectsOnObjectFootprintPayload(
                 capture.ObjectSetKey,
                 capture.TargetObjectId,
-                capture.FootprintMatchMode),
+                capture.FootprintMatchMode,
+                capture.CaptureLifetime),
+            ReleaseObjectSetPayload release => new ReleaseObjectSetPayload(release.ObjectSetKey),
             CheckObjectSetContainsObjectPayload checkSet => new CheckObjectSetContainsObjectPayload(checkSet.ObjectSetKey, checkSet.Target),
             NavigateObjectSetToAdjacentPayload navigateSet => new NavigateObjectSetToAdjacentPayload(navigateSet.ObjectSetKey, navigateSet.Direction),
             ClearObjectPresentationCuesPayload clearCues => new ClearObjectPresentationCuesPayload(clearCues.ObjectId),

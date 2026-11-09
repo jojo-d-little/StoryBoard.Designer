@@ -35,7 +35,7 @@ public sealed class CaptureFootprintMatchModeRule : IValidationRule
         if (ruleContext.CandidateNode is ValidationActionCandidateNode)
         {
             if (ActionRuleSupport.TryGetCandidateContext(ruleContext, out var context)
-                && context.Action.ActionType == CommandActionType.CaptureObjectsOnObjectFootprint)
+                && context.Action.ActionType is CommandActionType.CaptureObjectsOnObjectFootprint or CommandActionType.ReleaseObjectSet)
             {
                 foreach (var issue in CheckAction(context.Action, context.Path))
                 {
@@ -84,8 +84,30 @@ public sealed class CaptureFootprintMatchModeRule : IValidationRule
 
     private IEnumerable<ValidationIssue> CheckAction(CommandAction action, string path)
     {
+        if (action.ActionType == CommandActionType.ReleaseObjectSet)
+        {
+            var releaseKey = (action.Payload as ReleaseObjectSetPayload)?.ObjectSetKey?.Trim();
+            if (string.IsNullOrEmpty(releaseKey))
+            {
+                yield return CreateIssue(action, path, "Release Object Set requires a logical set key.", "Enter the key of the set to release.");
+            }
+
+            yield break;
+        }
+
         if (action.ActionType != CommandActionType.CaptureObjectsOnObjectFootprint) yield break;
-        var mode = (action.Payload as CaptureObjectsOnObjectFootprintPayload)?.FootprintMatchMode;
+        var capture = action.Payload as CaptureObjectsOnObjectFootprintPayload;
+        if (string.IsNullOrWhiteSpace(capture?.ObjectSetKey))
+        {
+            yield return CreateIssue(action, path, "Capture object set key is required.", "Enter a logical key that set actions can reference.");
+        }
+
+        if (capture is null || !Enum.IsDefined(capture.CaptureLifetime))
+        {
+            yield return CreateIssue(action, path, $"Capture object set lifetime '{capture?.CaptureLifetime}' is not supported.", "Choose SequenceRun, Room, Area, Country, Planet, or Global.");
+        }
+
+        var mode = capture?.FootprintMatchMode;
         if (mode is null)
         {
             yield return CreateIssue(action, path, "Capture footprint match mode is required.", "Choose Any overlap or Fully contained.");

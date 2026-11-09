@@ -39,6 +39,111 @@ public sealed class CaptureObjectsOnObjectFootprintAuthoringTests
             CommandActionPayloadCoordinator.CreateDefaultPayload(CommandActionType.CaptureObjectsOnObjectFootprint));
 
         Assert.Equal(FootprintMatchMode.AnyOverlap, payload.FootprintMatchMode);
+        Assert.Equal(ObjectSetCaptureLifetime.SequenceRun, payload.CaptureLifetime);
+    }
+
+    [Theory]
+    [InlineData(ObjectSetCaptureLifetime.SequenceRun)]
+    [InlineData(ObjectSetCaptureLifetime.Room)]
+    [InlineData(ObjectSetCaptureLifetime.Area)]
+    [InlineData(ObjectSetCaptureLifetime.Country)]
+    [InlineData(ObjectSetCaptureLifetime.Planet)]
+    [InlineData(ObjectSetCaptureLifetime.Global)]
+    public void CaptureLifetime_SurvivesCloneProjectReopenAndRuntimeExport(ObjectSetCaptureLifetime lifetime)
+    {
+        var service = new JsonExportService();
+        var action = CreateAction("Capture", FootprintMatchMode.AnyOverlap, lifetime);
+        var clone = Assert.IsType<CaptureObjectsOnObjectFootprintPayload>(CommandActionPayloadCoordinator.ClonePayload(action.Payload!));
+        Assert.Equal(lifetime, clone.CaptureLifetime);
+
+        var project = new ProjectModel { Name = "Capture lifetime", GlobalObjectAvailableActions = [action] };
+        var tempRoot = CreateTempRoot();
+        var projectPath = Path.Combine(tempRoot, "project.sbe.json");
+        try
+        {
+            service.SaveProjectModel(projectPath, project);
+            var savedCapture = FindCaptureActionFile(tempRoot);
+            Assert.Contains($"\"captureLifetime\":\"{lifetime}\"", File.ReadAllText(savedCapture), StringComparison.Ordinal);
+            var loaded = Assert.IsType<ProjectModel>(service.TryLoadProjectModel(projectPath));
+            var loadedCapture = Assert.IsType<CaptureObjectsOnObjectFootprintPayload>(Assert.Single(loaded.GlobalObjectAvailableActions).Payload);
+            Assert.Equal(lifetime, loadedCapture.CaptureLifetime);
+
+            var runtimePath = service.ExportCleanProjectV1(projectPath, loaded);
+            using var runtime = JsonDocument.Parse(File.ReadAllText(runtimePath));
+            var runtimeCapture = runtime.RootElement.GetProperty("availableGameActions").EnumerateArray()
+                .Single(item => item.GetProperty("actionType").GetString() == nameof(CommandActionType.CaptureObjectsOnObjectFootprint));
+            Assert.Equal(lifetime.ToString(), runtimeCapture.GetProperty("payload").GetProperty("captureLifetime").GetString());
+        }
+        finally
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void LegacyCaptureWithoutLifetime_ReopensAsSequenceRunAndResavesExplicitly()
+    {
+        var service = new JsonExportService();
+        var project = new ProjectModel { Name = "Legacy capture", GlobalObjectAvailableActions = [CreateAction("Capture", FootprintMatchMode.AnyOverlap)] };
+        var tempRoot = CreateTempRoot();
+        var projectPath = Path.Combine(tempRoot, "project.sbe.json");
+        try
+        {
+            service.SaveProjectModel(projectPath, project);
+            var actionPath = FindCaptureActionFile(tempRoot);
+            var root = JsonNode.Parse(File.ReadAllText(actionPath))!;
+            Assert.True(RemoveCaptureLifetime(root));
+            File.WriteAllText(actionPath, root.ToJsonString());
+
+            var loaded = Assert.IsType<ProjectModel>(service.TryLoadProjectModel(projectPath));
+            var capture = Assert.IsType<CaptureObjectsOnObjectFootprintPayload>(Assert.Single(loaded.GlobalObjectAvailableActions).Payload);
+            Assert.Equal(ObjectSetCaptureLifetime.SequenceRun, capture.CaptureLifetime);
+            service.SaveProjectModel(projectPath, loaded);
+            Assert.Contains("\"captureLifetime\":\"SequenceRun\"", File.ReadAllText(actionPath), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ReleaseObjectSet_IsKeyOnlyAndRoundTripsThroughProjectAndRuntimeExport()
+    {
+        var action = new CommandAction
+        {
+            Name = "Release captured set",
+            ActionType = CommandActionType.ReleaseObjectSet,
+            Payload = new ReleaseObjectSetPayload("fromAnotherSequence")
+        };
+        var projectDto = Assert.IsType<ProjectReleaseObjectSetActionPayloadDto>(JsonExportService.ToCommandActionDtoForSequence(action, []).Payload);
+        Assert.Equal("fromAnotherSequence", projectDto.ObjectSetReference!.ObjectSetKey);
+        var runtimeDto = Assert.IsType<RuntimeReleaseObjectSetActionPayloadDto>(JsonExportService.BuildCleanReleaseObjectSetPayloadElement(action));
+        Assert.Equal("fromAnotherSequence", runtimeDto.ObjectSetReference!.ObjectSetKey);
+        Assert.Null(typeof(ProjectReleaseObjectSetActionPayloadDto).GetProperty("CaptureLifetime"));
+
+        var tempRoot = CreateTempRoot();
+        var projectPath = Path.Combine(tempRoot, "project.sbe.json");
+        try
+        {
+            var service = new JsonExportService();
+            service.SaveProjectModel(projectPath, new ProjectModel { Name = "Release set", GlobalObjectAvailableActions = [action] });
+            var loaded = Assert.IsType<ProjectModel>(service.TryLoadProjectModel(projectPath));
+            var loadedRelease = Assert.IsType<ReleaseObjectSetPayload>(Assert.Single(loaded.GlobalObjectAvailableActions).Payload);
+            Assert.Equal("fromAnotherSequence", loadedRelease.ObjectSetKey);
+
+            var runtimePath = service.ExportCleanProjectV1(projectPath, loaded);
+            using var runtime = JsonDocument.Parse(File.ReadAllText(runtimePath));
+            var runtimeAction = runtime.RootElement.GetProperty("availableGameActions").EnumerateArray()
+                .Single(item => item.GetProperty("actionType").GetString() == nameof(CommandActionType.ReleaseObjectSet));
+            var reference = runtimeAction.GetProperty("payload").GetProperty("objectSetReference");
+            Assert.Equal("fromAnotherSequence", reference.GetProperty("objectSetKey").GetString());
+            Assert.Equal(1, reference.EnumerateObject().Count());
+        }
+        finally
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
     }
 
     [Theory]
@@ -182,6 +287,47 @@ public sealed class CaptureObjectsOnObjectFootprintAuthoringTests
     }
 
     [Fact]
+    public void Validation_ReportsBlankCaptureAndReleaseKeysAndInvalidCaptureLifetime()
+    {
+        var actions = new CommandAction[]
+        {
+            new()
+            {
+                Name = "Blank capture key",
+                ActionType = CommandActionType.CaptureObjectsOnObjectFootprint,
+                Payload = new CaptureObjectsOnObjectFootprintPayload(" ", Guid.NewGuid(), FootprintMatchMode.AnyOverlap)
+            },
+            new()
+            {
+                Name = "Invalid lifetime",
+                ActionType = CommandActionType.CaptureObjectsOnObjectFootprint,
+                Payload = new CaptureObjectsOnObjectFootprintPayload("captured", Guid.NewGuid(), FootprintMatchMode.AnyOverlap, (ObjectSetCaptureLifetime)999)
+            },
+            new()
+            {
+                Name = "Blank release key",
+                ActionType = CommandActionType.ReleaseObjectSet,
+                Payload = new ReleaseObjectSetPayload(string.Empty)
+            }
+        };
+        var room = new Room { Name = "Room", AvailableActions = new System.Collections.ObjectModel.ObservableCollection<CommandAction>(actions) };
+        var project = new ProjectModel
+        {
+            Name = "Invalid set actions",
+            Planets = [new Planet { Countries = [new Country { Areas = [new Area { Rooms = [room] }] }] }]
+        };
+        ScopeHierarchy.AttachParents(project);
+        var registry = new ValidationRuleRegistry();
+        registry.Register(new CaptureFootprintMatchModeRule());
+        var issues = new ValidationEngine(registry).Execute(new ValidationExecutionRequest(project)).Issues;
+
+        Assert.Equal(3, issues.Count);
+        Assert.Contains(issues, issue => issue.Description.Contains("Capture object set key is required", StringComparison.Ordinal));
+        Assert.Contains(issues, issue => issue.Description.Contains("lifetime", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(issues, issue => issue.Description.Contains("Release Object Set requires", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Validation_ReportsMissingMatchModeOnInlineSequenceCapture()
     {
         var inlineCapture = new CommandActionDto
@@ -252,12 +398,12 @@ public sealed class CaptureObjectsOnObjectFootprintAuthoringTests
         Assert.Null(payloads[2]["footprintMatchMode"]);
     }
 
-    private static CommandAction CreateAction(string name, FootprintMatchMode? mode) => new()
+    private static CommandAction CreateAction(string name, FootprintMatchMode? mode, ObjectSetCaptureLifetime lifetime = ObjectSetCaptureLifetime.SequenceRun) => new()
     {
         Name = name,
         ActionType = CommandActionType.CaptureObjectsOnObjectFootprint,
         NoVerbLinkage = true,
-        Payload = new CaptureObjectsOnObjectFootprintPayload("captured", Guid.NewGuid(), mode)
+        Payload = new CaptureObjectsOnObjectFootprintPayload("captured", Guid.NewGuid(), mode, lifetime)
     };
 
     private static string CreateTempRoot()
@@ -297,6 +443,34 @@ public sealed class CaptureObjectsOnObjectFootprintAuthoringTests
                 if (child is not null) removed |= RemoveFootprintMatchModeFromCapturePayload(child);
             }
             return removed;
+        }
+
+        return false;
+    }
+
+    private static bool RemoveCaptureLifetime(JsonNode node)
+    {
+        if (node is JsonObject obj)
+        {
+            var isCapturePayload = obj.TryGetPropertyValue("$payloadType", out var type)
+                && string.Equals(type?.GetValue<string>(), "captureObjectsOnObjectFootprint", StringComparison.OrdinalIgnoreCase);
+            if (isCapturePayload)
+            {
+                obj.Remove("captureLifetime");
+                return true;
+            }
+
+            foreach (var child in obj.ToList())
+            {
+                if (child.Value is not null && RemoveCaptureLifetime(child.Value)) return true;
+            }
+        }
+        else if (node is JsonArray array)
+        {
+            foreach (var child in array)
+            {
+                if (child is not null && RemoveCaptureLifetime(child)) return true;
+            }
         }
 
         return false;

@@ -25,6 +25,7 @@ public static class ActionPayloadSchemaMap
             [CommandActionType.AddObjectPresentationCue] = new(CommandActionType.AddObjectPresentationCue, typeof(AddObjectPresentationCuePayload), [nameof(CommandAction.ObjectPresentationCueObjectId), nameof(CommandAction.ObjectPresentationCueEffectKey), nameof(CommandAction.ObjectPresentationCueLifetime)]),
             [CommandActionType.RemoveObjectPresentationCue] = new(CommandActionType.RemoveObjectPresentationCue, typeof(RemoveObjectPresentationCuePayload), [nameof(CommandAction.ObjectPresentationCueObjectId), nameof(CommandAction.ObjectPresentationCueEffectKey)]),
             [CommandActionType.CaptureObjectsOnObjectFootprint] = new(CommandActionType.CaptureObjectsOnObjectFootprint, typeof(CaptureObjectsOnObjectFootprintPayload), []),
+            [CommandActionType.ReleaseObjectSet] = new(CommandActionType.ReleaseObjectSet, typeof(ReleaseObjectSetPayload), []),
             [CommandActionType.CheckObjectSetContainsObject] = new(CommandActionType.CheckObjectSetContainsObject, typeof(CheckObjectSetContainsObjectPayload), []),
             [CommandActionType.NavigateObjectSetToAdjacent] = new(CommandActionType.NavigateObjectSetToAdjacent, typeof(NavigateObjectSetToAdjacentPayload), []),
             [CommandActionType.ClearObjectPresentationCues] = new(CommandActionType.ClearObjectPresentationCues, typeof(ClearObjectPresentationCuesPayload), [nameof(CommandAction.ObjectPresentationCueObjectId)]),

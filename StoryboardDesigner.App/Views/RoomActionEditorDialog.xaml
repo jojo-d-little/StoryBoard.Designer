@@ -922,7 +922,7 @@
                               Content="Apply to captured object set" Click="ObjectPresentationCueSetMode_OnClick" />
                     <ComboBox x:Name="ObjectPresentationCueSetKeyComboBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,10"
                               IsEditable="True" IsTextSearchEnabled="True"
-                              ToolTip="Choose the logical set key from a footprint-capture action." />
+                              ToolTip="Suggestions may come from local captures. You can also enter a key captured by another sequence. The key resolves to the nearest match from the active run through Global." />
                     <TextBlock x:Name="ObjectPresentationCueLifetimeLabel" Grid.Row="5" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Lifetime" />
                     <ComboBox x:Name="ObjectPresentationCueLifetimeComboBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,10"
                               DisplayMemberPath="Label" SelectedValuePath="Value"
@@ -931,10 +931,10 @@
                 </Grid>
 
                 <Grid x:Name="CaptureObjectSetEditorPanel" Visibility="Collapsed">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="140"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <TextBlock Grid.Row="0" Grid.ColumnSpan="3" Margin="0,0,0,10" TextWrapping="Wrap" Foreground="#4B5563"
-                               Text="Captures objects on the selected object's footprint into a sequence-run scoped set. Enter a logical key that later set actions will reference." />
+                               Text="Captures an immutable snapshot of objects on the selected object's footprint. Capture lifetime is independent of cue and sequence lifetime; readers automatically search the active run, Room, Area, Country, Planet, then Global, stopping at the nearest matching key." />
                     <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Set Key" />
                     <TextBox x:Name="CaptureObjectSetKeyTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,8,10" />
                     <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Placed Object" />
@@ -943,19 +943,31 @@
                     <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Footprint match" />
                     <ComboBox x:Name="CaptureFootprintMatchModeComboBox" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,6"
                               DisplayMemberPath="DisplayName" SelectedValuePath="Value" />
-                    <TextBlock Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,10" TextWrapping="Wrap" Foreground="#4B5563"
+                    <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Set lifetime" />
+                    <ComboBox x:Name="CaptureObjectSetLifetimeComboBox" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,6"
+                              ToolTip="SequenceRun is the legacy default. Longer lifetimes retain the captured membership until that owner is left or the set is released." />
+                    <TextBlock Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,10" TextWrapping="Wrap" Foreground="#4B5563"
                                Text="Any overlap includes objects sharing one or more grid cells. Fully contained includes only objects whose entire footprint lies within the target footprint." />
+                </Grid>
+
+                <Grid x:Name="ReleaseObjectSetEditorPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="140"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,10" TextWrapping="Wrap" Foreground="#4B5563"
+                               Text="Releases exactly the nearest matching set entry. Lookup checks the active run, Room, Area, Country, Planet, then Global; releasing an inner entry can expose a same-named outer entry." />
+                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Set Key" />
+                    <TextBox x:Name="ReleaseObjectSetKeyTextBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" />
                 </Grid>
 
                 <Grid x:Name="CheckObjectSetEditorPanel" Visibility="Collapsed">
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="140"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <TextBlock Grid.Row="0" Grid.ColumnSpan="3" Margin="0,0,0,10" TextWrapping="Wrap" Foreground="#4B5563"
-                               Text="Branches through the existing Success or Failure action outcomes depending on set membership. This check does not move or mutate objects." />
+                               Text="Branches through Success or Failure based on membership in the nearest matching set (active run, Room, Area, Country, Planet, then Global). This check does not move or mutate objects." />
                     <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Set Key" />
                     <ComboBox x:Name="CheckObjectSetKeyComboBox" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,10"
                               IsEditable="True" IsTextSearchEnabled="True"
-                              ToolTip="Choose the logical set key from a footprint-capture action." />
+                              ToolTip="Suggestions may come from local captures. You can also enter a key captured by another sequence." />
                     <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Target" />
                     <ComboBox x:Name="CheckObjectSetTargetComboBox" Grid.Row="2" Grid.Column="1" Margin="0,0,8,10" SelectionChanged="CheckObjectSetTarget_OnSelectionChanged">
                         <ComboBoxItem Content="Current Player" Tag="CurrentPlayer" />
@@ -968,11 +980,11 @@
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="140"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,10" TextWrapping="Wrap" Foreground="#4B5563"
-                               Text="Navigates using the sequence-run set's resolved object. Player context is inferred by Engine." />
+                               Text="Uses the nearest set matching this key: active run, Room, Area, Country, Planet, then Global. Player context is inferred by Engine." />
                     <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Set Key" />
                     <ComboBox x:Name="NavigateObjectSetKeyComboBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10"
                               IsEditable="True" IsTextSearchEnabled="True"
-                              ToolTip="Choose the logical set key from a footprint-capture action." />
+                              ToolTip="Suggestions may come from local captures. You can also enter a key captured by another sequence." />
                     <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Direction" />
                     <ComboBox x:Name="NavigateObjectSetDirectionComboBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,10" />
                 </Grid>

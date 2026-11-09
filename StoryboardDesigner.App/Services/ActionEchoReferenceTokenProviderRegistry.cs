@@ -78,7 +78,11 @@ public sealed class ActionEchoReferenceTokenProviderRegistry
             new StackRoomObjectOnAnotherActionEchoReferenceTokenProvider(),
             new ParameterizedEmptyActionEchoReferenceTokenProvider(CommandActionType.AddObjectPresentationCue),
             new ParameterizedEmptyActionEchoReferenceTokenProvider(CommandActionType.RemoveObjectPresentationCue),
-            new ParameterizedEmptyActionEchoReferenceTokenProvider(CommandActionType.ClearObjectPresentationCues)
+            new ParameterizedEmptyActionEchoReferenceTokenProvider(CommandActionType.ClearObjectPresentationCues),
+            new ParameterizedEmptyActionEchoReferenceTokenProvider(CommandActionType.CaptureObjectsOnObjectFootprint),
+            new ParameterizedEmptyActionEchoReferenceTokenProvider(CommandActionType.CheckObjectSetContainsObject),
+            new ParameterizedEmptyActionEchoReferenceTokenProvider(CommandActionType.NavigateObjectSetToAdjacent),
+            new ManifestActionEchoReferenceTokenProvider(CommandActionType.ReleaseObjectSet)
         ]);
     }
 }
