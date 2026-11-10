@@ -433,17 +433,14 @@ public partial class RoomActionEditorDialog : Window
         MoveDirectionOverrideComboBox.ItemsSource = BuildMoveDirectionChoices();
         var configuredMovementEffects = _presentationEffectsCatalogService.GetConfiguredMovementEffects();
         MoveMovementEffectKeyComboBox.ItemsSource = configuredMovementEffects;
-        MoveMovementEffectKeyComboBox.DisplayMemberPath = nameof(MovementEffectChoiceItem.DisplayName);
         MoveMovementEffectKeyComboBox.SelectedValuePath = nameof(MovementEffectChoiceItem.EffectKey);
         MoveTravelVisualizationModeComboBox.ItemsSource = Enum.GetValues<MovementTravelVisualizationMode>();
         MoveByPointsTargetResolutionIntentComboBox.ItemsSource = MoveByPointsTargetResolutionIntentChoices;
         RotateModeComboBox.ItemsSource = Enum.GetValues<RoomObjectRotationMode>();
         RotateFacingDirectionComboBox.ItemsSource = BuildRotateFacingDirectionChoices();
         RotateMovementEffectKeyComboBox.ItemsSource = configuredMovementEffects;
-        RotateMovementEffectKeyComboBox.DisplayMemberPath = nameof(MovementEffectChoiceItem.DisplayName);
         RotateMovementEffectKeyComboBox.SelectedValuePath = nameof(MovementEffectChoiceItem.EffectKey);
         StackMovementEffectKeyComboBox.ItemsSource = configuredMovementEffects;
-        StackMovementEffectKeyComboBox.DisplayMemberPath = nameof(MovementEffectChoiceItem.DisplayName);
         StackMovementEffectKeyComboBox.SelectedValuePath = nameof(MovementEffectChoiceItem.EffectKey);
         SetActiveSelectionCueEffectKeyComboBox.ItemsSource = BuildSelectionCueEffectKeyChoices();
         SelectByPointSelectionCueEffectKeyComboBox.ItemsSource = BuildSelectionCueEffectKeyChoices();
@@ -458,7 +455,6 @@ public partial class RoomActionEditorDialog : Window
         TriggerParticleEffectObjectComboBox.ItemsSource = BuildTriggerParticleEffectObjectChoices();
         ClearActiveScopeComboBox.ItemsSource = ClearRoomObjectSelectionsScopeChoices.ClearActiveRoomObjects;
         MoveByPointsMovementEffectKeyComboBox.ItemsSource = configuredMovementEffects;
-        MoveByPointsMovementEffectKeyComboBox.DisplayMemberPath = nameof(MovementEffectChoiceItem.DisplayName);
         MoveByPointsMovementEffectKeyComboBox.SelectedValuePath = nameof(MovementEffectChoiceItem.EffectKey);
         MoveByPointsTravelVisualizationModeComboBox.ItemsSource = Enum.GetValues<MovementTravelVisualizationMode>();
         ClearRoomObjectSelectionsScopeComboBox.ItemsSource = ClearRoomObjectSelectionsScopeChoices.ClearRoomObjectSelections;

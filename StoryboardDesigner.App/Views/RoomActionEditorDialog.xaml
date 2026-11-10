@@ -9,6 +9,24 @@
         MinWidth="920"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize">
+    <Window.Resources>
+        <DataTemplate x:Key="MovementEffectChoiceTemplate">
+            <Grid MinWidth="360">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding DisplayName}"
+                           VerticalAlignment="Center"
+                           FontWeight="SemiBold" />
+                <TextBlock Grid.Column="1"
+                           Margin="16,0,0,0"
+                           VerticalAlignment="Center"
+                           Foreground="#6B7280"
+                           Text="{Binding EffectKey}" />
+            </Grid>
+        </DataTemplate>
+    </Window.Resources>
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -657,6 +675,7 @@
                               Grid.Row="3"
                               Grid.Column="1"
                               Margin="0,0,0,10"
+                              ItemTemplate="{StaticResource MovementEffectChoiceTemplate}"
                               SelectedValue="{Binding MoveMovementEffectKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Partial Movement" ToolTip="Allow stopping early when blocked before full distance." />
@@ -731,6 +750,7 @@
                               Grid.Row="2"
                               Grid.Column="1"
                               Margin="0,0,0,10"
+                              ItemTemplate="{StaticResource MovementEffectChoiceTemplate}"
                               ToolTip="Presentation effect used when point movement succeeds." />
 
                     <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Partial Movement" ToolTip="Allow stopping early when blocked before full point sequence completion." />
@@ -822,6 +842,7 @@
                               Grid.Row="4"
                               Grid.Column="1"
                               Margin="0,0,0,10"
+                              ItemTemplate="{StaticResource MovementEffectChoiceTemplate}"
                               SelectedValue="{Binding RotateMovementEffectKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Target Object" ToolTip="Optional. Choose the exact room object this action should rotate." />
@@ -860,6 +881,7 @@
                               Grid.Row="1"
                               Grid.Column="1"
                               Margin="0,0,0,10"
+                              ItemTemplate="{StaticResource MovementEffectChoiceTemplate}"
                               SelectedValue="{Binding StackMovementEffectKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 </Grid>
 
