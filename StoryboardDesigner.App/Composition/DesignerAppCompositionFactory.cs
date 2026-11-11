@@ -13,6 +13,7 @@ internal static class DesignerAppCompositionFactory
         IJsonExportService jsonExportService = new JsonExportService();
         IRecentProjectsService recentProjectsService = new RecentProjectsService();
         IProjectCreationPreferencesService projectCreationPreferencesService = new ProjectCreationPreferencesService();
+        IProjectBackupService projectBackupService = new ProjectBackupService();
         IWindowPlacementService windowPlacementService = new WindowPlacementService();
         IMainWindowDialogWorkflowService dialogWorkflowService = new MainWindowDialogWorkflowService();
         IProjectUiService projectUiService = new ProjectUiService(projectCreationPreferencesService);
@@ -36,7 +37,8 @@ internal static class DesignerAppCompositionFactory
             eventSubscriptionActionNameSuggestionDiscoveryService: eventSubscriptionActionNameSuggestionDiscoveryService,
             externalSimulatorWorkflowService: externalSimulatorWorkflowService,
             developmentGameHostWorkflowService: developmentGameHostWorkflowService,
-            projectCreationPreferencesService: projectCreationPreferencesService);
+            projectCreationPreferencesService: projectCreationPreferencesService,
+            projectBackupService: projectBackupService);
 
         var mainWindow = new MainWindow(mainViewModel, windowPlacementService);
         IShellDiagnosticsSink diagnosticsSink = new MainWindowOutputConsoleShellDiagnosticsSink(mainViewModel);

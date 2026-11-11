@@ -32,6 +32,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly IExternalSimulatorWorkflowService _externalSimulatorWorkflowService;
     private readonly IDevelopmentGameHostWorkflowService _developmentGameHostWorkflowService;
     private readonly IProjectCreationPreferencesService _projectCreationPreferencesService;
+    private readonly IProjectBackupService _projectBackupService;
     private IMainWindowShellOrchestrator? _shellOrchestrator;
     private bool _isShellWorkflowBusy;
     private bool _isDevelopmentLaunchBusy;
@@ -102,7 +103,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         IEventSubscriptionActionNameSuggestionDiscoveryService? eventSubscriptionActionNameSuggestionDiscoveryService = null,
         IExternalSimulatorWorkflowService? externalSimulatorWorkflowService = null,
         IDevelopmentGameHostWorkflowService? developmentGameHostWorkflowService = null,
-        IProjectCreationPreferencesService? projectCreationPreferencesService = null)
+        IProjectCreationPreferencesService? projectCreationPreferencesService = null,
+        IProjectBackupService? projectBackupService = null)
     {
         _jsonExportService = jsonExportService;
         _recentProjectsService = recentProjectsService;
@@ -116,6 +118,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _externalSimulatorWorkflowService = externalSimulatorWorkflowService ?? new ExternalSimulatorWorkflowService(new ProjectCreationPreferencesService());
         _developmentGameHostWorkflowService = developmentGameHostWorkflowService ?? new DevelopmentGameHostWorkflowService(new ProjectCreationPreferencesService());
         _projectCreationPreferencesService = projectCreationPreferencesService ?? new ProjectCreationPreferencesService();
+        _projectBackupService = projectBackupService ?? new NullProjectBackupService();
         _project = new ProjectModel
         {
             Name = "Untitled Project",
@@ -758,6 +761,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return false;
         }
 
+        TryCreateProjectBackup(projectFilePath, loaded.Name, "project open");
+
         var snappedRoomRotationCount = SnapNonCardinalRoomObjectRotationsToQuarterTurns(loaded);
 
         _project = loaded;
@@ -791,6 +796,38 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         LoadProjectIntoHierarchy();
         RegisterRecentProject(projectFilePath);
         return true;
+    }
+
+    private void TryCreateProjectBackup(string? projectFilePath, string projectName, string trigger)
+    {
+        if (string.IsNullOrWhiteSpace(projectFilePath))
+        {
+            return;
+        }
+
+        _ = ProjectBackupTaskTracker.Run(() => _projectBackupService.CreateBackupIfDue(projectFilePath, projectName))
+            .ContinueWith(task =>
+        {
+            string? diagnosticMessage = null;
+            if (task.IsFaulted)
+            {
+                var exception = task.Exception?.GetBaseException();
+                diagnosticMessage = $"[WARN] Project backup after {trigger} failed: {exception?.Message ?? "Unknown backup error."}";
+            }
+            else if (task.Status == TaskStatus.RanToCompletion && !string.IsNullOrWhiteSpace(task.Result))
+            {
+                diagnosticMessage = $"[INFO] Created project backup after {trigger}: {task.Result}";
+            }
+
+            if (diagnosticMessage is not null)
+            {
+                var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                if (dispatcher is not null && !dispatcher.HasShutdownStarted)
+                {
+                    dispatcher.BeginInvoke(new Action(() => AppendDiagnosticConsoleLine(diagnosticMessage)));
+                }
+            }
+        }, TaskScheduler.Default);
     }
 
     private static void WriteDesignerLoadDiagnosticsReport(
@@ -1276,12 +1313,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
+            TryCreateProjectBackup(_projectFilePath, _project.Name, "project save");
             _isProjectDirty = false;
             _autoSaveTimer.Stop();
             ExportStatus = $"Project saved. Runtime export failed: {ex.Message}";
             UpdateProjectSummary();
             return true;
         }
+
+        TryCreateProjectBackup(_projectFilePath, _project.Name, "project save");
 
         _isProjectDirty = false;
         _autoSaveTimer.Stop();

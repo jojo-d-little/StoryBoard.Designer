@@ -46,6 +46,7 @@ public sealed partial class MainWindowViewModel
     private RelayCommand _runDevelopmentCommand = null!;
     private RelayCommand _developmentLaunchSetupCommand = null!;
     private RelayCommand _simulatorSetupCommand = null!;
+    private RelayCommand _configureBackupsCommand = null!;
     private RelayCommand _hideEmptyConfigurationGlobalCommand = null!;
     private RelayCommand _showEmptyConfigurationGlobalCommand = null!;
 
@@ -73,6 +74,7 @@ public sealed partial class MainWindowViewModel
     public ICommand RunDevelopmentCommand => _runDevelopmentCommand;
     public ICommand DevelopmentLaunchSetupCommand => _developmentLaunchSetupCommand;
     public ICommand SimulatorSetupCommand => _simulatorSetupCommand;
+    public ICommand ConfigureBackupsCommand => _configureBackupsCommand;
     public ICommand HideEmptyConfigurationGlobalCommand => _hideEmptyConfigurationGlobalCommand;
     public ICommand ShowEmptyConfigurationGlobalCommand => _showEmptyConfigurationGlobalCommand;
 
@@ -98,6 +100,7 @@ public sealed partial class MainWindowViewModel
         _runDevelopmentCommand = new RelayCommand(RunDevelopmentExecute, CanExecuteDevelopmentLaunchCommand);
         _developmentLaunchSetupCommand = new RelayCommand(DevelopmentLaunchSetupExecute, CanExecuteGlobalFileWorkflowCommand);
         _simulatorSetupCommand = new RelayCommand(SimulatorSetupExecute, CanExecuteGlobalFileWorkflowCommand);
+        _configureBackupsCommand = new RelayCommand(ConfigureBackupsExecute, CanExecuteGlobalFileWorkflowCommand);
         _hideEmptyConfigurationGlobalCommand = new RelayCommand(HideEmptyConfigurationGlobalExecute, CanExecuteGlobalFileWorkflowCommand);
         _showEmptyConfigurationGlobalCommand = new RelayCommand(ShowEmptyConfigurationGlobalExecute, CanExecuteGlobalFileWorkflowCommand);
     }
@@ -134,6 +137,7 @@ public sealed partial class MainWindowViewModel
         _runDevelopmentCommand.RaiseCanExecuteChanged();
         _developmentLaunchSetupCommand.RaiseCanExecuteChanged();
         _simulatorSetupCommand.RaiseCanExecuteChanged();
+        _configureBackupsCommand.RaiseCanExecuteChanged();
         _hideEmptyConfigurationGlobalCommand.RaiseCanExecuteChanged();
         _showEmptyConfigurationGlobalCommand.RaiseCanExecuteChanged();
     }
@@ -649,6 +653,31 @@ public sealed partial class MainWindowViewModel
         }
 
         ExportStatus = result.StatusMessage;
+    }
+
+    private void ConfigureBackupsExecute()
+    {
+        var preferencesService = new BackupPreferencesService();
+        var preferences = preferencesService.Load();
+        var dialog = new Views.BackupPreferencesDialog(preferences)
+        {
+            Owner = System.Windows.Application.Current?.MainWindow
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            preferencesService.Save(dialog.Preferences);
+            ExportStatus = "Backup preferences saved.";
+        }
+        catch (Exception ex)
+        {
+            _projectUiService.ShowError(ex.Message, "Backup Preferences Save Failed");
+        }
     }
 
     private void DevelopmentLaunchSetupExecute()

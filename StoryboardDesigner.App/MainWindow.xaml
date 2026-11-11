@@ -58,6 +58,9 @@
                 <MenuItem Header="Development WebPortal Setup"
                           AutomationProperties.AutomationId="MainWindow.Menu.Tools.DevelopmentWebPortalSetup"
                           Command="{Binding DevelopmentLaunchSetupCommand}" />
+                <MenuItem Header="Configure Backups"
+                          AutomationProperties.AutomationId="MainWindow.Menu.Tools.ConfigureBackups"
+                          Command="{Binding ConfigureBackupsCommand}" />
                 <Separator />
                 <MenuItem Header="Open Shared Variables Manager"
                           AutomationProperties.AutomationId="MainWindow.Menu.Tools.SharedVariablesManager"

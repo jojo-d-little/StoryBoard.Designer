@@ -52,7 +52,8 @@ public sealed class Bite0LaunchSmokeTests
 
 internal static class SmokeUiRetryHelpers
 {
-    private static readonly TimeSpan GracefulExitTimeout = TimeSpan.FromSeconds(2);
+    // The Designer may finish an already-started project backup while shutting down.
+    private static readonly TimeSpan GracefulExitTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan ForcedExitTimeout = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan ExitPollInterval = TimeSpan.FromMilliseconds(100);
 

@@ -14,6 +14,12 @@ public partial class App : System.Windows.Application
 	private const string SmokeProjectPathEnvironmentVariable = "STORYBOARD_DESIGNER_SMOKE_PROJECT_PATH";
 	private static readonly HashSet<string> ShownExceptionSignatures = new(StringComparer.Ordinal);
 
+	protected override void OnExit(System.Windows.ExitEventArgs e)
+	{
+		ProjectBackupTaskTracker.WaitForPending(TimeSpan.FromSeconds(30));
+		base.OnExit(e);
+	}
+
 	protected override void OnStartup(System.Windows.StartupEventArgs e)
 	{
 		RegisterGlobalUnhandledExceptionHandlers();
