@@ -71,6 +71,57 @@ public sealed class SequenceDefinitionIntegrityEvaluatorTests
     }
 
     [Fact]
+    public void Evaluate_AcceptsActionMergeOnMainAndBranchOutcomesAcrossLanes()
+    {
+        var mergeId = Guid.NewGuid();
+        var mainMergeTargetId = Guid.NewGuid();
+        var sideBranchId = "ride-failure";
+        var sequence = Definition(
+            Action(Guid.NewGuid(), "main", ContinuationMode.Branch, onSuccess: mergeId),
+            Action(mergeId, "main", ContinuationMode.Merge, onSuccess: mainMergeTargetId),
+            Sound(mainMergeTargetId, "main", ContinuationMode.End, 100),
+            Sound(Guid.NewGuid(), sideBranchId, ContinuationMode.End, 50));
+        sequence.Branches!.Add(new ProjectSequenceBranchDto
+        {
+            BranchId = sideBranchId,
+            DisplayName = "Ride failure",
+            DisplayColor = "#DC2626"
+        });
+        var branch = sequence.Steps![0];
+        branch.OnFailureStepId = sequence.Steps[3].StepId;
+
+        var issues = SequenceDefinitionIntegrityEvaluator.Evaluate(sequence);
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void Evaluate_AcceptsSameBranchActionAndSoundMergeTargets()
+    {
+        var actionMergeId = Guid.NewGuid();
+        var actionTargetId = Guid.NewGuid();
+        var soundMergeId = Guid.NewGuid();
+        var soundTargetId = Guid.NewGuid();
+        var soundMerge = Sound(soundMergeId, "ride-failure", ContinuationMode.Merge, 100);
+        soundMerge.MergeTargetStepId = soundTargetId;
+        var sequence = Definition(
+            Action(Guid.NewGuid(), "main", ContinuationMode.Branch, onSuccess: actionMergeId, onFailure: soundMergeId),
+            Action(actionMergeId, "ride-success", ContinuationMode.Merge, onSuccess: actionTargetId),
+            Sound(actionTargetId, "ride-success", ContinuationMode.End, 150),
+            soundMerge,
+            Sound(soundTargetId, "ride-failure", ContinuationMode.End, 150));
+        sequence.Branches!.AddRange(
+        [
+            new ProjectSequenceBranchDto { BranchId = "ride-success", DisplayName = "Ride success", DisplayColor = "#16A34A" },
+            new ProjectSequenceBranchDto { BranchId = "ride-failure", DisplayName = "Ride failure", DisplayColor = "#DC2626" }
+        ]);
+
+        var issues = SequenceDefinitionIntegrityEvaluator.Evaluate(sequence);
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
     public void Evaluate_AcceptsSoundMergeWithoutTargetAsNaturalTerminal()
     {
         var issues = SequenceDefinitionIntegrityEvaluator.Evaluate(Definition(
@@ -112,6 +163,29 @@ public sealed class SequenceDefinitionIntegrityEvaluatorTests
         Assert.Contains(issues, item => item.StepId == disconnected.StepId && item.Description.Contains("possible flow root", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(issues, item => item.StepId == child.StepId && item.Description.Contains("unreachable", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(issues, item => item.Description.Contains("unreachable", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Evaluate_ReportsStepsInDisconnectedCycleAsUnreachable()
+    {
+        var root = Sound(Guid.NewGuid(), "main", ContinuationMode.End, 0);
+        var firstCycleId = Guid.NewGuid();
+        var secondCycleId = Guid.NewGuid();
+        var firstCycleStep = Sound(firstCycleId, "effects", ContinuationMode.Continue, 50, onContinue: secondCycleId);
+        var secondCycleStep = Sound(secondCycleId, "effects", ContinuationMode.Continue, 100, onContinue: firstCycleId);
+        var sequence = Definition(root, firstCycleStep, secondCycleStep);
+        sequence.Branches!.Add(new ProjectSequenceBranchDto
+        {
+            BranchId = "effects",
+            DisplayName = "Effects",
+            DisplayColor = "#2563EB"
+        });
+
+        var issues = SequenceDefinitionIntegrityEvaluator.Evaluate(sequence);
+
+        Assert.Contains(issues, item => item.StepId == firstCycleId && item.Description.Contains("unreachable", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(issues, item => item.StepId == secondCycleId && item.Description.Contains("unreachable", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(issues, item => item.Description.Contains("cycle", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

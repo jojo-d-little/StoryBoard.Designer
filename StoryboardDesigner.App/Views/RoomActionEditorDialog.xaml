@@ -1002,13 +1002,13 @@
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="140"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,10" TextWrapping="Wrap" Foreground="#4B5563"
-                               Text="Uses the nearest set matching this key: active run, Room, Area, Country, Planet, then Global. Player context is inferred by Engine." />
+                               Text="Uses the nearest set matching this key: active run, Room, Area, Country, Planet, then Global. Player context is inferred by Engine. Leave Direction blank to inherit the command direction qualifier." />
                     <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Set Key" />
                     <ComboBox x:Name="NavigateObjectSetKeyComboBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10"
                               IsEditable="True" IsTextSearchEnabled="True"
                               ToolTip="Suggestions may come from local captures. You can also enter a key captured by another sequence." />
-                    <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Direction" />
-                    <ComboBox x:Name="NavigateObjectSetDirectionComboBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,10" />
+                    <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,8,10" VerticalAlignment="Center" Text="Direction (optional)" />
+                    <ComboBox x:Name="NavigateObjectSetDirectionComboBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,10" SelectedValuePath="Tag" />
                 </Grid>
 
                 <Grid x:Name="SelectRoomObjectByPointEditorPanel" Visibility="Collapsed">

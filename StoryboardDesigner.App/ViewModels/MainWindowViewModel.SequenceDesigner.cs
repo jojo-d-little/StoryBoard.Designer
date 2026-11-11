@@ -411,19 +411,14 @@ public sealed partial class MainWindowViewModel
     {
         get
         {
-            var onMainBranch = string.Equals(SelectedSequenceStep?.BranchId, MainSequenceBranchId, StringComparison.Ordinal);
             IReadOnlyList<ContinuationMode> choices;
             if (IsSelectedSequenceSoundStep)
             {
-                choices = onMainBranch
-                    ? new[] { ContinuationMode.Continue, ContinuationMode.End }
-                    : new[] { ContinuationMode.Continue, ContinuationMode.Merge, ContinuationMode.End };
+                choices = new[] { ContinuationMode.Continue, ContinuationMode.Merge, ContinuationMode.End };
             }
             else
             {
-                choices = onMainBranch
-                ? new[] { ContinuationMode.Continue, ContinuationMode.Branch, ContinuationMode.End }
-                : Enum.GetValues<ContinuationMode>();
+                choices = Enum.GetValues<ContinuationMode>();
             }
 
             var currentMode = SelectedSequenceStep?.ContinuationMode ?? ContinuationMode.Continue;

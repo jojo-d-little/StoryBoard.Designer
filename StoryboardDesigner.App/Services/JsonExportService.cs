@@ -311,6 +311,14 @@ public sealed class JsonExportService : IJsonExportService
                     property.ShouldSerialize = static (_, _) => true;
                 }
             }
+            else if (typeInfo.Type == typeof(ProjectNavigateObjectSetToAdjacentActionPayloadDto)
+                || typeInfo.Type == typeof(RuntimeNavigateObjectSetToAdjacentActionPayloadDto))
+            {
+                foreach (var property in typeInfo.Properties.Where(static property => property.Name == "Direction"))
+                {
+                    property.ShouldSerialize = static (_, value) => value is not null;
+                }
+            }
         });
         options.TypeInfoResolver = resolver;
         return options;
@@ -3245,7 +3253,9 @@ public sealed class JsonExportService : IJsonExportService
         }
         else if (action.Payload is ProjectNavigateObjectSetToAdjacentActionPayloadDto navigateSet)
         {
-            model.Payload = new NavigateObjectSetToAdjacentPayload(navigateSet.ObjectSetReference?.ObjectSetKey ?? string.Empty, navigateSet.Direction.ToString());
+            model.Payload = new NavigateObjectSetToAdjacentPayload(
+                navigateSet.ObjectSetReference?.ObjectSetKey ?? string.Empty,
+                navigateSet.Direction?.ToString() ?? string.Empty);
         }
 
         if (model.ActionType == CommandActionType.MoveRoomObjectByPoints)
@@ -8093,7 +8103,7 @@ public sealed class JsonExportService : IJsonExportService
         return new ProjectNavigateObjectSetToAdjacentActionPayloadDto
         {
             ObjectSetReference = new ProjectObjectSetReferenceDto { ObjectSetKey = payload?.ObjectSetKey ?? string.Empty },
-            Direction = Enum.TryParse<Direction10>(payload?.Direction, true, out var direction) ? direction : Direction10.Unknown
+            Direction = Enum.TryParse<Direction10>(payload?.Direction, true, out var direction) && direction != Direction10.Unknown ? direction : null
         };
     }
 
@@ -8545,7 +8555,7 @@ public sealed class JsonExportService : IJsonExportService
         return new RuntimeNavigateObjectSetToAdjacentActionPayloadDto
         {
             ObjectSetReference = new ObjectSetReferenceDto { ObjectSetKey = payload?.ObjectSetKey ?? string.Empty },
-            Direction = Enum.TryParse<Direction10>(payload?.Direction, true, out var direction) ? direction : Direction10.Unknown
+            Direction = Enum.TryParse<Direction10>(payload?.Direction, true, out var direction) && direction != Direction10.Unknown ? direction : null
         };
     }
 

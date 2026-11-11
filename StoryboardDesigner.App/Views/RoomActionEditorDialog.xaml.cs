@@ -451,7 +451,11 @@ public partial class RoomActionEditorDialog : Window
             new PresentationCueLifetimeChoiceItem("Until removed", PresentationCueLifetime.UntilRemoved),
             new PresentationCueLifetimeChoiceItem("Current room", PresentationCueLifetime.CurrentRoom)
         };
-        NavigateObjectSetDirectionComboBox.ItemsSource = Enum.GetNames<Direction10>().Where(static value => !string.Equals(value, "Unknown", StringComparison.OrdinalIgnoreCase)).ToList();
+        NavigateObjectSetDirectionComboBox.Items.Add(new ComboBoxItem { Content = "Inherit command direction", Tag = string.Empty });
+        foreach (var directionName in Enum.GetNames<Direction10>().Where(static value => !string.Equals(value, "Unknown", StringComparison.OrdinalIgnoreCase)))
+        {
+            NavigateObjectSetDirectionComboBox.Items.Add(new ComboBoxItem { Content = directionName, Tag = directionName });
+        }
         TriggerParticleEffectObjectComboBox.ItemsSource = BuildTriggerParticleEffectObjectChoices();
         ClearActiveScopeComboBox.ItemsSource = ClearRoomObjectSelectionsScopeChoices.ClearActiveRoomObjects;
         MoveByPointsMovementEffectKeyComboBox.ItemsSource = configuredMovementEffects;
@@ -1589,10 +1593,10 @@ public partial class RoomActionEditorDialog : Window
 
         var navigate = _workingCopy.Payload as NavigateObjectSetToAdjacentPayload;
         ConfigureObjectSetKeyPicker(NavigateObjectSetKeyComboBox, navigate?.ObjectSetKey);
-        var direction = navigate?.Direction ?? "Unknown";
-        NavigateObjectSetDirectionComboBox.SelectedItem = NavigateObjectSetDirectionComboBox.Items
-            .Cast<object>()
-            .FirstOrDefault(item => string.Equals(item.ToString(), direction, StringComparison.OrdinalIgnoreCase));
+        var direction = string.Equals(navigate?.Direction, "Unknown", StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : navigate?.Direction ?? string.Empty;
+        NavigateObjectSetDirectionComboBox.SelectedValue = direction;
 
         var setReference = (_workingCopy.Payload as AddObjectPresentationCuePayload)?.ObjectSetReference
             ?? (_workingCopy.Payload as RemoveObjectPresentationCuePayload)?.ObjectSetReference;
@@ -1780,10 +1784,10 @@ public partial class RoomActionEditorDialog : Window
         else if (_workingCopy.ActionType == CommandActionType.NavigateObjectSetToAdjacent)
         {
             var key = NavigateObjectSetKeyComboBox.Text?.Trim() ?? string.Empty;
-            var direction = NavigateObjectSetDirectionComboBox.SelectedItem?.ToString() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(direction) || string.Equals(direction, "Unknown", StringComparison.OrdinalIgnoreCase))
+            var direction = NavigateObjectSetDirectionComboBox.SelectedValue?.ToString() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(key))
             {
-                System.Windows.MessageBox.Show(this, "Enter a logical set key and choose a traversal direction.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
+                System.Windows.MessageBox.Show(this, "Enter the logical key of the captured object set.", "Action", MessageBoxButton.OK, MessageBoxImage.Information);
                 return false;
             }
             _workingCopy.Payload = new NavigateObjectSetToAdjacentPayload(key, direction);

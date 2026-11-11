@@ -1,5 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Reflection;
+using System.Threading;
+using System.Windows;
+using System.Windows.Controls;
 using Storyboard.Shared.DesignerContracts;
 using Storyboard.Shared.RuntimeContracts.Dtos;
 using Storyboard.Shared.RuntimeContracts.Enums;
@@ -8,11 +12,128 @@ using StoryboardDesigner.App.Services;
 using StoryboardDesigner.App.Validation.Contracts;
 using StoryboardDesigner.App.Validation.Rules.Project;
 using StoryboardDesigner.App.ViewModels;
+using StoryboardDesigner.App.Views;
 
 namespace StoryboardDesigner.App.Tests;
 
+[Collection("WPF STA")]
 public sealed class ElevatorStage3AuthoringTests
 {
+    [Fact]
+    public void NavigateObjectSetEditor_AllowsBlankDirectionThroughSaveOperation()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var action = new CommandAction
+                {
+                    Name = "Ride",
+                    ActionType = CommandActionType.NavigateObjectSetToAdjacent,
+                    DirectionQualifierText = "North",
+                    Payload = new NavigateObjectSetToAdjacentPayload("liftOccupants", "East")
+                };
+                var dialog = new RoomActionEditorDialog(
+                    action,
+                    PropertyResolutionScope.Room,
+                    new GamePropertyPickerContext(new ProjectModel(), null, PropertyResolutionScope.Room, _ => []),
+                    [], [], []);
+                dialog.Loaded += (_, _) =>
+                {
+                    try
+                    {
+                        var direction = (ComboBox)dialog.FindName("NavigateObjectSetDirectionComboBox")!;
+                        Assert.Equal("East", ((ComboBoxItem)direction.SelectedItem!).Tag);
+                        direction.SelectedValue = string.Empty;
+                        typeof(RoomActionEditorDialog)
+                            .GetMethod("Save_OnClick", BindingFlags.Instance | BindingFlags.NonPublic)!
+                            .Invoke(dialog, [dialog, new RoutedEventArgs()]);
+                    }
+                    finally
+                    {
+                        if (dialog.IsVisible) dialog.Close();
+                    }
+                };
+
+                Assert.True(dialog.ShowDialog());
+                Assert.Equal("North", action.DirectionQualifierText, ignoreCase: true);
+                Assert.Equal(string.Empty, Assert.IsType<NavigateObjectSetToAdjacentPayload>(action.Payload).Direction);
+
+                var explicitAction = new CommandAction
+                {
+                    Name = "Explicit Ride",
+                    ActionType = CommandActionType.NavigateObjectSetToAdjacent,
+                    DirectionQualifierText = "South",
+                    Payload = new NavigateObjectSetToAdjacentPayload("liftOccupants", "West")
+                };
+                var explicitDialog = new RoomActionEditorDialog(
+                    explicitAction,
+                    PropertyResolutionScope.Room,
+                    new GamePropertyPickerContext(new ProjectModel(), null, PropertyResolutionScope.Room, _ => []),
+                    [], [], []);
+                explicitDialog.Loaded += (_, _) =>
+                {
+                    try
+                    {
+                        var direction = (ComboBox)explicitDialog.FindName("NavigateObjectSetDirectionComboBox")!;
+                        Assert.Equal("West", direction.SelectedValue);
+                        typeof(RoomActionEditorDialog)
+                            .GetMethod("Save_OnClick", BindingFlags.Instance | BindingFlags.NonPublic)!
+                            .Invoke(explicitDialog, [explicitDialog, new RoutedEventArgs()]);
+                    }
+                    finally
+                    {
+                        if (explicitDialog.IsVisible) explicitDialog.Close();
+                    }
+                };
+                Assert.True(explicitDialog.ShowDialog());
+                Assert.Equal("West", Assert.IsType<NavigateObjectSetToAdjacentPayload>(explicitAction.Payload).Direction);
+
+                var tempRoot = CreateTempRoot();
+                try
+                {
+                    var projectPath = Path.Combine(tempRoot, "BlankRide.sbe.json");
+                    var project = new ProjectModel { Name = "BlankRide" };
+                    project.GlobalScope.AvailableActions.AddRange([action, explicitAction]);
+                    var service = new JsonExportService();
+                    service.SaveProjectModel(projectPath, project);
+                    var persistedActionFile = Directory.EnumerateFiles(tempRoot, "*.json", SearchOption.AllDirectories)
+                        .First(path => FindNamedActionJsonNode(JsonNode.Parse(File.ReadAllText(path)), "Ride") is not null);
+                    var persistedAction = FindNamedActionJsonNode(JsonNode.Parse(File.ReadAllText(persistedActionFile)), "Ride")!;
+                    Assert.False(persistedAction["payload"]!.AsObject().ContainsKey("direction"));
+                    var reloaded = service.TryLoadProjectModel(projectPath)!;
+                    var reloadedActions = reloaded.GlobalScope.AvailableActions;
+                    Assert.Equal(string.Empty, Assert.IsType<NavigateObjectSetToAdjacentPayload>(reloadedActions.Single(candidate => candidate.Name == "Ride").Payload).Direction);
+                    Assert.Equal("West", Assert.IsType<NavigateObjectSetToAdjacentPayload>(reloadedActions.Single(candidate => candidate.Name == "Explicit Ride").Payload).Direction);
+
+                    var runtimePath = service.ExportCleanProjectV1(projectPath, reloaded);
+                    using var runtime = JsonDocument.Parse(File.ReadAllText(runtimePath));
+                    var runtimeAction = runtime.RootElement.GetProperty("availableGameActions").EnumerateArray()
+                        .Single(candidate => candidate.GetProperty("name").GetString() == "Ride");
+                    Assert.Equal("North", runtimeAction.GetProperty("direction").GetString(), ignoreCase: true);
+                    Assert.Equal("liftOccupants", runtimeAction.GetProperty("payload").GetProperty("objectSetReference").GetProperty("objectSetKey").GetString());
+                    Assert.False(runtimeAction.GetProperty("payload").TryGetProperty("direction", out _));
+                    var runtimeExplicitAction = runtime.RootElement.GetProperty("availableGameActions").EnumerateArray()
+                        .Single(candidate => candidate.GetProperty("name").GetString() == "Explicit Ride");
+                    Assert.Equal("South", runtimeExplicitAction.GetProperty("direction").GetString(), ignoreCase: true);
+                    Assert.Equal("West", runtimeExplicitAction.GetProperty("payload").GetProperty("direction").GetString());
+                }
+                finally
+                {
+                    if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        StaTestThreadRunner.StartAndWait(thread, nameof(NavigateObjectSetEditor_AllowsBlankDirectionThroughSaveOperation));
+        if (failure is not null) throw failure;
+    }
+
     [Fact]
     public void ObjectPresentationCueExport_RejectsAmbiguousObjectAndSetTargets()
     {
@@ -135,6 +256,7 @@ public sealed class ElevatorStage3AuthoringTests
     {
         var targetObjectId = Guid.NewGuid();
         var explicitCheckTargetId = Guid.NewGuid();
+        var rideId = Guid.NewGuid();
         var root = new CommandAction { Name = "Stage Lift", ActionType = CommandActionType.LinkedActions };
         root.LinkedFlowDefinition = new LinkedActionFlowDefinition
         {
@@ -150,8 +272,10 @@ public sealed class ElevatorStage3AuthoringTests
                 Payload = new CheckObjectSetContainsObjectPayload("liftOccupants", "CurrentPlayer") },
             new() { Name = "Check explicit object", ActionType = CommandActionType.CheckObjectSetContainsObject,
                 Payload = new CheckObjectSetContainsObjectPayload("liftOccupants", explicitCheckTargetId.ToString("D")) },
-            new() { Name = "Ride", ActionType = CommandActionType.NavigateObjectSetToAdjacent,
+            new() { Id = rideId, Name = "Ride", DirectionQualifierText = "North", ActionType = CommandActionType.NavigateObjectSetToAdjacent,
                 Payload = new NavigateObjectSetToAdjacentPayload("liftOccupants", Direction10.North.ToString()) },
+            new() { Name = "Explicit ride", DirectionQualifierText = "North", ActionType = CommandActionType.NavigateObjectSetToAdjacent,
+                Payload = new NavigateObjectSetToAdjacentPayload("liftOccupants", Direction10.South.ToString()) },
             new() { Name = "Cue set", ActionType = CommandActionType.AddObjectPresentationCue,
                 Payload = new AddObjectPresentationCuePayload(null, "appearance.fade.in", new ProjectObjectSetReferenceDto { ObjectSetKey = "liftOccupants" }, PresentationCueLifetime.CurrentRoom) },
             new() { Name = "Remove set cue", ActionType = CommandActionType.RemoveObjectPresentationCue,
@@ -192,7 +316,8 @@ public sealed class ElevatorStage3AuthoringTests
             Assert.Equal(targetObjectId, Assert.IsType<CaptureObjectsOnObjectFootprintPayload>(loadedActions.Single(action => action.ActionType == CommandActionType.CaptureObjectsOnObjectFootprint).Payload).TargetObjectId);
             Assert.Equal("CurrentPlayer", Assert.IsType<CheckObjectSetContainsObjectPayload>(loadedActions.Single(action => action.Name == "Check player").Payload).Target);
             Assert.Equal(explicitCheckTargetId.ToString("D"), Assert.IsType<CheckObjectSetContainsObjectPayload>(loadedActions.Single(action => action.Name == "Check explicit object").Payload).Target);
-            Assert.Equal(Direction10.North.ToString(), Assert.IsType<NavigateObjectSetToAdjacentPayload>(loadedActions.Single(action => action.ActionType == CommandActionType.NavigateObjectSetToAdjacent).Payload).Direction);
+            Assert.Equal(Direction10.North.ToString(), Assert.IsType<NavigateObjectSetToAdjacentPayload>(loadedActions.Single(action => action.Id == rideId).Payload).Direction);
+            Assert.Equal(Direction10.South.ToString(), Assert.IsType<NavigateObjectSetToAdjacentPayload>(loadedActions.Single(action => action.Name == "Explicit ride").Payload).Direction);
             var cue = Assert.IsType<AddObjectPresentationCuePayload>(loadedActions.Single(action => action.Name == "Cue set").Payload);
             Assert.Equal("liftOccupants", cue.ObjectSetReference!.ObjectSetKey);
             Assert.Equal("appearance.fade.in", cue.EffectKey);
