@@ -15,6 +15,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase, IDisposable
     private readonly Action? _onEdited;
     private readonly Action<RoomDesignerTabViewModel>? _onDesignerPreferencesChanged;
     private readonly Func<string?>? _projectFilePathAccessor;
+    private readonly Func<string?>? _runtimeExportDirectoryAccessor;
     private readonly Func<Guid, GameObject?>? _definitionResolver;
     private readonly Func<GameObject, bool>? _editRoomChildObjectImageAction;
     private readonly Area? _area;
@@ -48,7 +49,8 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase, IDisposable
         bool isGridVisible = false,
         bool isSnapToGridEnabled = true,
         Action<RoomDesignerTabViewModel>? onDesignerPreferencesChanged = null,
-        Area? area = null)
+        Area? area = null,
+        Func<string?>? runtimeExportDirectoryAccessor = null)
     {
         Room = room;
         _area = area ?? room.ParentScope as Area;
@@ -56,6 +58,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase, IDisposable
         _onEdited = onEdited;
         _onDesignerPreferencesChanged = onDesignerPreferencesChanged;
         _projectFilePathAccessor = projectFilePathAccessor;
+        _runtimeExportDirectoryAccessor = runtimeExportDirectoryAccessor;
         _definitionResolver = definitionResolver;
         _editRoomChildObjectImageAction = editRoomChildObjectImageAction;
         _designerCanvasWidth = designerCanvasWidth;
@@ -570,7 +573,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase, IDisposable
         RoomImageSlots.Clear();
         foreach (var entry in Room.Images.OrderBy(static i => i.Slot))
         {
-            RoomImageSlots.Add(new RoomDesignerImageSlotViewModel(entry, OnSlotEdited, _projectFilePathAccessor, preferredSourceBucket: "rooms"));
+            RoomImageSlots.Add(new RoomDesignerImageSlotViewModel(entry, OnSlotEdited, _projectFilePathAccessor, preferredSourceBucket: "rooms", runtimeExportDirectoryAccessor: _runtimeExportDirectoryAccessor));
         }
 
         OnPropertyChanged(nameof(DefaultSlot));
@@ -615,7 +618,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase, IDisposable
         {
             var gameObject = Room.GameObjects[index];
             var rootDrawOrder = (Room.GameObjects.Count - index) * drawOrderStride;
-            var preview = new RoomDesignerPreviewObjectViewModel(gameObject, OnRoomChildObjectEdited, _projectFilePathAccessor, _definitionResolver)
+            var preview = new RoomDesignerPreviewObjectViewModel(gameObject, OnRoomChildObjectEdited, _projectFilePathAccessor, _definitionResolver, _runtimeExportDirectoryAccessor)
             {
                 DrawOrderZIndex = gameObject.RenderZOrder != 0
                     ? gameObject.RenderZOrder * drawOrderStride
@@ -915,7 +918,7 @@ public sealed class RoomDesignerTabViewModel : ViewModelBase, IDisposable
                     (parent.ObjectId, effectiveChild.StructuralPartRelativeRenderOrder);
             }
 
-            var preview = new RoomDesignerPreviewObjectViewModel(previewObject, OnRoomChildObjectEdited, _projectFilePathAccessor, _definitionResolver)
+            var preview = new RoomDesignerPreviewObjectViewModel(previewObject, OnRoomChildObjectEdited, _projectFilePathAccessor, _definitionResolver, _runtimeExportDirectoryAccessor)
             {
                 // Structural children use their definition-owned rank relative to the
                 // parent's draw order; ordinary contained objects retain room ordering.

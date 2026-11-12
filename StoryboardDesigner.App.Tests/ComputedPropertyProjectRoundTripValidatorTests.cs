@@ -39,23 +39,28 @@ public sealed class ComputedPropertyProjectRoundTripValidatorTests
             CopyDirectoryRecursive(sourceProjectFolder, isolatedProjectFolder);
             var isolatedProjectFilePath = Path.Combine(isolatedProjectFolder, Path.GetFileName(sourceProjectFilePath));
 
-            var initialExpressions = ReadAuthoredExpressions(isolatedProjectFolder, projectName);
-            Assert.NotEmpty(initialExpressions);
-
             var service = new JsonExportService();
             var loadedProject = service.TryLoadProjectModel(isolatedProjectFilePath);
             Assert.NotNull(loadedProject);
 
-            service.SaveProjectModel(isolatedProjectFilePath, loadedProject!);
+            // Keep the validator's export inside its private temporary tree even when
+            // the source project uses an absolute or environment-backed destination.
+            var actualConfiguredOutput = RuntimeExportDestinationResolver.Resolve(
+                isolatedProjectFilePath, loadedProject!.RuntimeExportDirectory);
+            var initialExpressions = ReadAuthoredExpressions(isolatedProjectFolder, projectName, actualConfiguredOutput);
+            Assert.NotEmpty(initialExpressions);
+            loadedProject.RuntimeExportDirectory = Path.Combine(tempRoot, "isolated runtime output with spaces");
+
+            service.SaveProjectModel(isolatedProjectFilePath, loadedProject);
             AssertExpressionSnapshotsEqual(
                 initialExpressions,
-                ReadAuthoredExpressions(isolatedProjectFolder, projectName),
+                ReadAuthoredExpressions(isolatedProjectFolder, projectName, Path.Combine(tempRoot, "isolated runtime output with spaces")),
                 projectName,
                 "after save");
 
             var cleanExportPath = service.ExportCleanProjectV1(isolatedProjectFilePath, loadedProject!);
             Assert.True(File.Exists(cleanExportPath), $"[{projectName}] Clean export root file was not written: {cleanExportPath}");
-            var cleanExportFolder = Path.Combine(isolatedProjectFolder, "GameRuntimeJson");
+            var cleanExportFolder = Path.GetDirectoryName(cleanExportPath)!;
             var exportedExpressions = ReadComputedExpressionsFromFolder(cleanExportFolder, projectName, "clean export");
             AssertExpressionsPreservedInExport(initialExpressions, exportedExpressions, projectName);
 
@@ -64,7 +69,7 @@ public sealed class ComputedPropertyProjectRoundTripValidatorTests
             service.SaveProjectModel(isolatedProjectFilePath, reloadedProject!);
             AssertExpressionSnapshotsEqual(
                 initialExpressions,
-                ReadAuthoredExpressions(isolatedProjectFolder, projectName),
+                ReadAuthoredExpressions(isolatedProjectFolder, projectName, Path.Combine(tempRoot, "isolated runtime output with spaces")),
                 projectName,
                 "after reload and save");
 
@@ -92,10 +97,10 @@ public sealed class ComputedPropertyProjectRoundTripValidatorTests
             : configured.Split(['\r', '\n', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
-    private static List<ExpressionSnapshot> ReadAuthoredExpressions(string projectFolder, string projectName)
+    private static List<ExpressionSnapshot> ReadAuthoredExpressions(string projectFolder, string projectName, string? runtimeOutputFolder)
     {
         var snapshots = new List<ExpressionSnapshot>();
-        foreach (var path in EnumerateAuthoringJsonFiles(projectFolder))
+        foreach (var path in EnumerateAuthoringJsonFiles(projectFolder, runtimeOutputFolder))
         {
             CollectExpressions(JsonNode.Parse(File.ReadAllText(path)), path, projectName, snapshots);
         }
@@ -115,11 +120,15 @@ public sealed class ComputedPropertyProjectRoundTripValidatorTests
         return snapshots;
     }
 
-    private static IEnumerable<string> EnumerateAuthoringJsonFiles(string projectFolder)
+    private static IEnumerable<string> EnumerateAuthoringJsonFiles(string projectFolder, string? runtimeOutputFolder)
     {
         foreach (var path in Directory.EnumerateFiles(projectFolder, "*.json", SearchOption.AllDirectories))
         {
             var relativePath = Path.GetRelativePath(projectFolder, path);
+            if (IsWithin(path, runtimeOutputFolder))
+            {
+                continue;
+            }
             var pathSegments = relativePath.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
             if (pathSegments.Any(static segment =>
                     string.Equals(segment, "GameRuntimeJson", StringComparison.OrdinalIgnoreCase)
@@ -130,6 +139,16 @@ public sealed class ComputedPropertyProjectRoundTripValidatorTests
 
             yield return path;
         }
+    }
+
+    private static bool IsWithin(string path, string? root)
+    {
+        if (string.IsNullOrWhiteSpace(root)) return false;
+        var relative = Path.GetRelativePath(Path.GetFullPath(root), Path.GetFullPath(path));
+        return relative == "." || (!Path.IsPathRooted(relative)
+            && relative != ".."
+            && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+            && !relative.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal));
     }
 
     private static void CollectExpressions(

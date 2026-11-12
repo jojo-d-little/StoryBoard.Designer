@@ -138,6 +138,46 @@ public class DesignerImagePathResolverTests
     }
 
     [Fact]
+    public void ResolveForPreview_UsesConfiguredExportFolderAndDoesNotFallBackToDefaultFolder()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
+        var projectDirectory = Path.Combine(tempRoot, "src");
+        Directory.CreateDirectory(projectDirectory);
+
+        try
+        {
+            var projectFilePath = Path.Combine(projectDirectory, "Resolver.sbe.json");
+            var configuredPath = Path.Combine(tempRoot, "missing", "photo.png");
+            var runtimeExportDirectory = "../runtime with spaces";
+            var configuredRuntimeRoot = Path.Combine(tempRoot, "runtime with spaces");
+            var exportedRelativePath = "assets/images/_shared/hash__photo.png";
+
+            WriteManifestAsset(configuredRuntimeRoot, configuredPath, exportedRelativePath);
+            var defaultRuntimeRoot = Path.Combine(projectDirectory, "GameRuntimeJson");
+            WriteManifestAsset(defaultRuntimeRoot, configuredPath, exportedRelativePath);
+
+            var resolved = DesignerImagePathResolver.ResolveForPreview(
+                configuredPath,
+                projectFilePath,
+                preferredSourceBucket: "objects",
+                runtimeExportDirectory: runtimeExportDirectory);
+
+            Assert.Equal(Path.Combine(configuredRuntimeRoot, "assets", "images", "_shared", "hash__photo.png"), resolved);
+
+            Directory.Delete(configuredRuntimeRoot, recursive: true);
+            Assert.Null(DesignerImagePathResolver.ResolveForPreview(
+                configuredPath,
+                projectFilePath,
+                preferredSourceBucket: "objects",
+                runtimeExportDirectory: runtimeExportDirectory));
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
     public void ResolveForPreview_ReturnsNull_WhenSourceAndFallbacksAreUnavailable()
     {
         var tempRoot = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
@@ -219,5 +259,22 @@ public class DesignerImagePathResolverTests
                 Directory.Delete(tempRoot, recursive: true);
             }
         }
+    }
+
+    private static void WriteManifestAsset(string exportRoot, string sourcePath, string relativePath)
+    {
+        var exportedPath = Path.Combine(exportRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(exportedPath)!);
+        File.WriteAllBytes(exportedPath, Encoding.UTF8.GetBytes("export"));
+        var manifest = new
+        {
+            schemaVersion = "1.0",
+            images = new[]
+            {
+                new { hash = "hash", exportedPath = relativePath, sourcePaths = new[] { sourcePath }, references = Array.Empty<string>() }
+            },
+            unresolvedSources = Array.Empty<string>()
+        };
+        File.WriteAllText(Path.Combine(exportRoot, "assets", "assets-manifest.json"), JsonSerializer.Serialize(manifest));
     }
 }

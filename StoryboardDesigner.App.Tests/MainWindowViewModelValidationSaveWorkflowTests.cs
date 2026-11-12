@@ -374,6 +374,153 @@ public sealed class MainWindowViewModelValidationSaveWorkflowTests
     }
 
     [Fact]
+    public void SaveProjectAs_PreservesRuntimeExportExpressionAndResolvesItFromNewProjectDirectory()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"designer-save-as-runtime-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempRoot);
+        try
+        {
+            var project = new ProjectModel { Name = "Original", RuntimeExportDirectory = "../copied-runtime" };
+            var bundle = MainWindowViewModelTestHarness.CreateViewModelBundle(
+                project,
+                new TreeContextInteractionServiceStub(),
+                new ProjectUiServiceStub { ContinueSaveWithValidation = true });
+
+            var sourceProjectPath = Path.Combine(tempRoot, "Original", "Original.sbe.json");
+            SetProjectFilePath(bundle.ViewModel, sourceProjectPath);
+            string? savedPath = null;
+            string? savedRuntimeExportExpression = null;
+            bundle.JsonExport.SaveProjectModelAction = (path, savedProject) =>
+            {
+                savedPath = path;
+                savedRuntimeExportExpression = savedProject.RuntimeExportDirectory;
+            };
+
+            var targetBaseFolder = Path.Combine(tempRoot, "NewParent");
+            Assert.True(bundle.ViewModel.SaveProjectAs(targetBaseFolder, "CopiedProject"));
+
+            var savedProjectPath = Path.Combine(targetBaseFolder, "CopiedProject", "CopiedProject.sbe.json");
+            var resolvedOutput = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(savedProjectPath)!, project.RuntimeExportDirectory));
+            Assert.Equal(savedProjectPath, GetProjectFilePath(bundle.ViewModel));
+            Assert.Equal("../copied-runtime", bundle.ViewModel.Project.RuntimeExportDirectory);
+            Assert.Equal(savedProjectPath, savedPath);
+            Assert.Equal("../copied-runtime", savedRuntimeExportExpression);
+            Assert.Equal(Path.Combine(targetBaseFolder, "copied-runtime"), resolvedOutput);
+            Assert.True(bundle.JsonExport.ExportCleanProjectCallCount > 0);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void SaveProjectAs_WhenOutputWouldReuseSourceOutput_SavesAuthoringAndSkipsExport()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"designer-save-as-collision-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempRoot);
+        try
+        {
+            var project = new ProjectModel { Name = "Original", RuntimeExportDirectory = "../runtime" };
+            var bundle = MainWindowViewModelTestHarness.CreateViewModelBundle(
+                project,
+                new TreeContextInteractionServiceStub(),
+                new ProjectUiServiceStub { ContinueSaveWithValidation = true });
+            SetProjectFilePath(bundle.ViewModel, Path.Combine(tempRoot, "Original", "Original.sbe.json"));
+
+            Assert.True(bundle.ViewModel.SaveProjectAs(tempRoot, "CopiedProject"));
+
+            Assert.Equal(1, bundle.JsonExport.SaveProjectModelCallCount);
+            Assert.Equal(0, bundle.JsonExport.ExportCleanProjectCallCount);
+            Assert.Equal("../runtime", bundle.ViewModel.Project.RuntimeExportDirectory);
+            Assert.Contains("original project's runtime export folder", bundle.ViewModel.ExportStatus, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(Path.Combine(tempRoot, "CopiedProject", "CopiedProject.sbe.json"), GetProjectFilePath(bundle.ViewModel));
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void SaveWithExportFailure_PreservesAuthoringAndBlocksBothLaunchesDespiteStaleRuntimeFile()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"designer-stale-runtime-{Guid.NewGuid():N}");
+        var projectDirectory = Path.Combine(tempRoot, "Project");
+        Directory.CreateDirectory(projectDirectory);
+        try
+        {
+            var room = new Room { Name = "Room" };
+            var area = new Area { Name = "Area", Rooms = [room], StartingRoomId = room.Id };
+            var country = new Country { Name = "Country", Areas = [area], StartingAreaName = area.Name };
+            var planet = new Planet { Name = "Planet", Countries = [country], StartingCountryName = country.Name };
+            var player = new GameObject
+            {
+                Name = "Player",
+                IsContainer = true,
+                ContainerPointsDefaultValue = 5,
+                Variables =
+                [new GamePropertyDefinition
+                {
+                    Name = "isPlayer",
+                    DefaultValue = "true",
+                    Lifetime = GamePropertyLifetime.Singleton,
+                    ValueRestriction = GamePropertyValueRestriction.TrueFalse
+                }]
+            };
+            var project = new ProjectModel
+            {
+                Name = "Project",
+                StartingPlanetName = planet.Name,
+                PlayerCharacterObjectName = player.Name,
+                RuntimeExportDirectory = "../runtime",
+                GameObjects = [player],
+                Planets = [planet]
+            };
+            var bundle = MainWindowViewModelTestHarness.CreateViewModelBundle(
+                project,
+                new TreeContextInteractionServiceStub(),
+                new ProjectUiServiceStub { ContinueSaveWithValidation = true });
+            var projectPath = Path.Combine(projectDirectory, "Project.sbe.json");
+            SetProjectFilePath(bundle.ViewModel, projectPath);
+
+            var runtimeDirectory = Path.Combine(tempRoot, "runtime");
+            Directory.CreateDirectory(runtimeDirectory);
+            var staleRuntimePath = Path.Combine(runtimeDirectory, "Project.sbr.runtime.json");
+            File.WriteAllText(staleRuntimePath, "stale runtime");
+            bundle.JsonExport.SaveProjectModelAction = (path, _) =>
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllText(path, "authored project saved");
+            };
+            bundle.JsonExport.ExportCleanProjectException = new IOException("configured runtime output is unavailable");
+
+            Assert.True(bundle.ViewModel.SaveProject());
+            Assert.Equal("authored project saved", File.ReadAllText(projectPath));
+            Assert.True(File.Exists(staleRuntimePath));
+            Assert.Contains("Runtime export failed", bundle.ViewModel.ExportStatus, StringComparison.OrdinalIgnoreCase);
+
+            InvokePrivateWorkflow(bundle.ViewModel, "RunSimulatorExecute");
+            Assert.Contains(bundle.ProjectUi.WarningMessages, message => message.Contains("Simulator was not launched", StringComparison.OrdinalIgnoreCase));
+
+            InvokePrivateWorkflow(bundle.ViewModel, "RunDevelopmentExecute");
+            Assert.Contains(bundle.ProjectUi.WarningMessages, message => message.Contains("launch was stopped", StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(3, bundle.JsonExport.ExportCleanProjectCallCount);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    private static void InvokePrivateWorkflow(MainWindowViewModel vm, string methodName)
+    {
+        var method = typeof(MainWindowViewModel).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        method!.Invoke(vm, null);
+    }
+
+    [Fact]
     public void SaveProjectAs_WhenSaveCanceled_RestoresOriginalPathAndProjectName()
     {
         var project = new ProjectModel { Name = "Original" };

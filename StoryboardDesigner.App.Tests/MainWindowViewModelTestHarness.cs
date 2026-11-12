@@ -59,6 +59,8 @@ internal sealed class JsonExportServiceStub : IJsonExportService
     public int ExportCleanProjectCallCount { get; private set; }
     public int CreateProjectSkeletonCallCount { get; private set; }
     public Exception? SaveProjectModelException { get; set; }
+    public Exception? ExportCleanProjectException { get; set; }
+    public Action<string, ProjectModel>? SaveProjectModelAction { get; set; }
     public ProjectModel? ProjectModelToLoad { get; set; }
     public string LastCreateProjectBaseFolder { get; private set; } = string.Empty;
     public string LastCreateProjectName { get; private set; } = string.Empty;
@@ -78,6 +80,8 @@ internal sealed class JsonExportServiceStub : IJsonExportService
         {
             throw SaveProjectModelException;
         }
+
+        SaveProjectModelAction?.Invoke(projectFilePath, project);
     }
     public void SaveProjectUiState(string projectFilePath, ProjectUiState uiState) { }
     public ProjectModel? TryLoadProjectModel(string projectFilePath) => ProjectModelToLoad;
@@ -85,6 +89,11 @@ internal sealed class JsonExportServiceStub : IJsonExportService
     public string ExportCleanProjectV1(string projectFilePath, ProjectModel project)
     {
         ExportCleanProjectCallCount++;
+        if (ExportCleanProjectException is not null)
+        {
+            throw ExportCleanProjectException;
+        }
+
         return string.Empty;
     }
 

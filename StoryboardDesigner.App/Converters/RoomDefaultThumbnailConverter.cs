@@ -22,8 +22,8 @@ public sealed class RoomDefaultThumbnailConverter : IValueConverter
             .FirstOrDefault(image => image.Slot == RoomImageSlot.Default)
             ?.Image.FullImagePath;
 
-        var projectFilePath = (System.Windows.Application.Current?.MainWindow?.DataContext as MainWindowViewModel)?.ProjectFilePath;
-        var resolvedPath = DesignerImagePathResolver.ResolveForPreview(path, projectFilePath, preferredSourceBucket: "rooms");
+        var viewModel = System.Windows.Application.Current?.MainWindow?.DataContext as MainWindowViewModel;
+        var resolvedPath = DesignerImagePathResolver.ResolveForPreview(path, viewModel?.ProjectFilePath, preferredSourceBucket: "rooms", runtimeExportDirectory: viewModel?.Project.RuntimeExportDirectory);
 
         if (string.IsNullOrWhiteSpace(resolvedPath) || !File.Exists(resolvedPath))
         {

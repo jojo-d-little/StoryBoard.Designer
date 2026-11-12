@@ -82,9 +82,10 @@ public partial class RoomDesignerDirectionImageDialog : Window
     private void UpdatePathHealthStatus()
     {
         var projectFilePath = ResolveProjectFilePath();
-        FullPathHealthTextBlock.Text = "Full: " + ImagePathHealthStatusFormatter.BuildStatusLabel(_slot.FullImagePath, projectFilePath, SourceBucket);
-        GrayPathHealthTextBlock.Text = "Gray: " + ImagePathHealthStatusFormatter.BuildStatusLabel(_slot.GrayMapImagePath, projectFilePath, SourceBucket);
-        NormalPathHealthTextBlock.Text = "Normal: " + ImagePathHealthStatusFormatter.BuildStatusLabel(_slot.NormalMapImagePath, projectFilePath, SourceBucket);
+        var runtimeOutput = (System.Windows.Application.Current?.MainWindow?.DataContext as MainWindowViewModel)?.Project.RuntimeExportDirectory;
+        FullPathHealthTextBlock.Text = "Full: " + ImagePathHealthStatusFormatter.BuildStatusLabel(_slot.FullImagePath, projectFilePath, SourceBucket, runtimeOutput);
+        GrayPathHealthTextBlock.Text = "Gray: " + ImagePathHealthStatusFormatter.BuildStatusLabel(_slot.GrayMapImagePath, projectFilePath, SourceBucket, runtimeOutput);
+        NormalPathHealthTextBlock.Text = "Normal: " + ImagePathHealthStatusFormatter.BuildStatusLabel(_slot.NormalMapImagePath, projectFilePath, SourceBucket, runtimeOutput);
     }
 
     private string? ResolveProjectFilePath()

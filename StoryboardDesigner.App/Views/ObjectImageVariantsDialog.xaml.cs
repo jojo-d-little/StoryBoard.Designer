@@ -609,7 +609,8 @@ public partial class ObjectImageVariantsDialog : Window
 
     private static BitmapImage? LoadThumbnail(string path, string? projectFilePath, string? preferredSourceBucket)
     {
-        var resolvedPath = DesignerImagePathResolver.ResolveForPreview(path, projectFilePath, preferredSourceBucket);
+        var runtimeOutput = (System.Windows.Application.Current?.MainWindow?.DataContext as ViewModels.MainWindowViewModel)?.Project.RuntimeExportDirectory;
+        var resolvedPath = DesignerImagePathResolver.ResolveForPreview(path, projectFilePath, preferredSourceBucket, runtimeOutput);
         if (string.IsNullOrWhiteSpace(resolvedPath) || !File.Exists(resolvedPath))
         {
             return null;

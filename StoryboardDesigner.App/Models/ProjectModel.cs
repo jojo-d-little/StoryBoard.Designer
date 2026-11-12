@@ -41,6 +41,8 @@ public sealed class ProjectModel : ScopeNodeBase
     public string Name { get; set; } = "Storyboard Project";
     public string GameDisplayName { get; set; } = string.Empty;
     public string GameSummary { get; set; } = string.Empty;
+    /// <summary>Gets or sets the optional portable expression for the runtime export directory.</summary>
+    public string? RuntimeExportDirectory { get; set; }
     public List<string> GamePreviewImages { get; set; } = new();
     public int AutoSaveSeconds
     {

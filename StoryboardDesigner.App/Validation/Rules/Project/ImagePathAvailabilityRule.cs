@@ -21,6 +21,7 @@ public sealed class ImagePathAvailabilityRule : IValidationRule
         ArgumentNullException.ThrowIfNull(context);
 
         var projectFilePath = context.Request.ProjectFilePath;
+        var runtimeExportDirectory = context.Project.RuntimeExportDirectory;
 
         if (context.CandidateNode is ProjectModel project)
         {
@@ -47,7 +48,8 @@ public sealed class ImagePathAvailabilityRule : IValidationRule
                              path,
                              choice.AssetPath,
                              "particle effect image override",
-                             preferredSourceBucket: "particle-effects"))
+                             preferredSourceBucket: "particle-effects",
+                             runtimeExportDirectory: runtimeExportDirectory))
                 {
                     yield return issue;
                 }
@@ -66,7 +68,8 @@ public sealed class ImagePathAvailabilityRule : IValidationRule
                              roomPath,
                              image.Image.FullImagePath,
                              $"room image slot '{image.Slot}' (full)",
-                             preferredSourceBucket: "rooms"))
+                             preferredSourceBucket: "rooms",
+                             runtimeExportDirectory: runtimeExportDirectory))
                 {
                     yield return issue;
                 }
@@ -76,7 +79,8 @@ public sealed class ImagePathAvailabilityRule : IValidationRule
                              roomPath,
                              image.Image.GrayMapImagePath,
                              $"room image slot '{image.Slot}' (gray)",
-                             preferredSourceBucket: "rooms"))
+                             preferredSourceBucket: "rooms",
+                             runtimeExportDirectory: runtimeExportDirectory))
                 {
                     yield return issue;
                 }
@@ -86,7 +90,8 @@ public sealed class ImagePathAvailabilityRule : IValidationRule
                              roomPath,
                              image.Image.NormalMapImagePath,
                              $"room image slot '{image.Slot}' (normal)",
-                             preferredSourceBucket: "rooms"))
+                             preferredSourceBucket: "rooms",
+                             runtimeExportDirectory: runtimeExportDirectory))
                 {
                     yield return issue;
                 }
@@ -112,7 +117,8 @@ public sealed class ImagePathAvailabilityRule : IValidationRule
                              variant.FullImagePath,
                              $"object image variant '{variantName}' (full)",
                              preferredSourceBucket: "objects",
-                             requireExportFallback: requireExportFallback))
+                             requireExportFallback: requireExportFallback,
+                             runtimeExportDirectory: runtimeExportDirectory))
                 {
                     yield return issue;
                 }
@@ -126,7 +132,8 @@ public sealed class ImagePathAvailabilityRule : IValidationRule
         string configuredPath,
         string referenceLabel,
         string preferredSourceBucket,
-        bool requireExportFallback = true)
+        bool requireExportFallback = true,
+        string? runtimeExportDirectory = null)
     {
         if (string.IsNullOrWhiteSpace(configuredPath))
         {
@@ -134,7 +141,7 @@ public sealed class ImagePathAvailabilityRule : IValidationRule
         }
 
         var sourceExists = !string.IsNullOrWhiteSpace(DesignerImagePathResolver.ResolveSourcePath(configuredPath, projectFilePath));
-        var exportExists = !string.IsNullOrWhiteSpace(DesignerImagePathResolver.ResolveExportAssetPath(configuredPath, projectFilePath));
+        var exportExists = !string.IsNullOrWhiteSpace(DesignerImagePathResolver.ResolveExportAssetPath(configuredPath, projectFilePath, runtimeExportDirectory));
         var sourceLibraryAmbiguous = DesignerImagePathResolver.HasAmbiguousSourceLibraryMatches(configuredPath, projectFilePath, preferredSourceBucket);
 
         if (!sourceExists && exportExists)

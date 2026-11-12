@@ -2,7 +2,7 @@ namespace StoryboardDesigner.App.Services;
 
 public static class ImagePathHealthStatusFormatter
 {
-    public static string BuildStatusLabel(string? configuredPath, string? projectFilePath, string sourceBucket)
+    public static string BuildStatusLabel(string? configuredPath, string? projectFilePath, string sourceBucket, string? runtimeExportDirectory = null)
     {
         if (string.IsNullOrWhiteSpace(configuredPath))
         {
@@ -14,8 +14,8 @@ public static class ImagePathHealthStatusFormatter
             return "Source available.";
         }
 
-        var projectLibraryMatch = DesignerImagePathResolver.ResolveForPreview(configuredPath, projectFilePath, sourceBucket);
-        var exportMatch = DesignerImagePathResolver.ResolveExportAssetPath(configuredPath, projectFilePath);
+        var projectLibraryMatch = DesignerImagePathResolver.ResolveForPreview(configuredPath, projectFilePath, sourceBucket, runtimeExportDirectory);
+        var exportMatch = DesignerImagePathResolver.ResolveExportAssetPath(configuredPath, projectFilePath, runtimeExportDirectory);
         var ambiguous = DesignerImagePathResolver.HasAmbiguousSourceLibraryMatches(configuredPath, projectFilePath, sourceBucket);
 
         if (ambiguous)

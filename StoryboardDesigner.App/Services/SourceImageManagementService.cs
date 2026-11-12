@@ -25,7 +25,7 @@ public static class SourceImageManagementService
             }
 
             var sourceResolved = DesignerImagePathResolver.ResolveSourcePath(current, projectFilePath);
-            var exportResolved = DesignerImagePathResolver.ResolveExportAssetPath(current, projectFilePath);
+            var exportResolved = DesignerImagePathResolver.ResolveExportAssetPath(current, projectFilePath, project.RuntimeExportDirectory);
 
             if (mode == SourceImageManagementMode.RepairMissingSources)
             {

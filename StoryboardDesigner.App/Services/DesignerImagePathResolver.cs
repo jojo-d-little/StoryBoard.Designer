@@ -9,7 +9,7 @@ public static class DesignerImagePathResolver
     private const string CleanExportRootFolderName = "GameRuntimeJson";
     private const string AssetsManifestRelativePath = "assets/assets-manifest.json";
 
-    public static string? ResolveForPreview(string? configuredPath, string? projectFilePath, string? preferredSourceBucket = null)
+    public static string? ResolveForPreview(string? configuredPath, string? projectFilePath, string? preferredSourceBucket = null, string? runtimeExportDirectory = null)
     {
         if (string.IsNullOrWhiteSpace(configuredPath))
         {
@@ -30,7 +30,7 @@ public static class DesignerImagePathResolver
             return sourceImageLibraryCandidate;
         }
 
-        var exportedAssetCandidate = ResolveExportAssetPath(configuredPath, projectFilePath);
+        var exportedAssetCandidate = ResolveExportAssetPath(configuredPath, projectFilePath, runtimeExportDirectory);
         if (!string.IsNullOrWhiteSpace(exportedAssetCandidate))
         {
             return exportedAssetCandidate;
@@ -53,7 +53,7 @@ public static class DesignerImagePathResolver
             : null;
     }
 
-    public static string? ResolveExportAssetPath(string? configuredPath, string? projectFilePath)
+    public static string? ResolveExportAssetPath(string? configuredPath, string? projectFilePath, string? runtimeExportDirectory = null)
     {
         if (string.IsNullOrWhiteSpace(configuredPath))
         {
@@ -61,7 +61,16 @@ public static class DesignerImagePathResolver
         }
 
         var projectRootFolder = GetProjectRootFolder(projectFilePath);
-        return ResolveFromExportAssets(configuredPath, projectRootFolder);
+        string exportRoot;
+        try
+        {
+            exportRoot = RuntimeExportDestinationResolver.Resolve(projectFilePath!, runtimeExportDirectory);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+        return ResolveFromExportAssets(configuredPath, projectRootFolder, exportRoot);
     }
 
     public static bool HasAmbiguousSourceLibraryMatches(string? configuredPath, string? projectFilePath, string? preferredSourceBucket = null)
@@ -138,14 +147,14 @@ public static class DesignerImagePathResolver
         return ResolveUniqueMatchByFileName(sourceRoot, fileName);
     }
 
-    private static string? ResolveFromExportAssets(string configuredPath, string? projectRootFolder)
+    private static string? ResolveFromExportAssets(string configuredPath, string? projectRootFolder, string exportRoot)
     {
         if (string.IsNullOrWhiteSpace(projectRootFolder))
         {
             return null;
         }
 
-        var cleanExportRoot = Path.Combine(projectRootFolder, CleanExportRootFolderName);
+        var cleanExportRoot = exportRoot;
         if (!Directory.Exists(cleanExportRoot))
         {
             return null;

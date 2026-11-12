@@ -333,7 +333,27 @@ public sealed class GeographyOwnedObjectSetRuntimeAcceptanceTests
     private static IDisposable CreateRuntimeGameManager(object loader, GameCommandProcessorService processor, GameStateSession session, out IRuntimePendingEventQueue pendingEvents)
     {
         var managerType = typeof(GameStateSession).Assembly.GetType("Storyboard.Shared.GameManager.GameManager", throwOnError: true)!;
-        var manager = Activator.CreateInstance(managerType, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic, null, [loader, processor, null, null, null, null, null], null)!;
+        var constructors = managerType.GetConstructors(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+        var constructor = constructors
+            .Where(candidate => candidate.GetParameters().Length >= 2)
+            .Where(candidate => candidate.GetParameters()[0].ParameterType.IsInstanceOfType(loader)
+                && candidate.GetParameters()[1].ParameterType.IsInstanceOfType(processor))
+            .OrderBy(candidate => candidate.GetParameters().Length)
+            .FirstOrDefault()
+            ?? throw new InvalidOperationException("No GameManager constructor accepts the runtime loader and command processor.");
+        var parameters = constructor.GetParameters();
+        var arguments = new object?[parameters.Length];
+        arguments[0] = loader;
+        arguments[1] = processor;
+        for (var index = 2; index < parameters.Length; index++)
+        {
+            arguments[index] = parameters[index].HasDefaultValue
+                ? parameters[index].DefaultValue
+                : parameters[index].ParameterType.IsValueType
+                    ? Activator.CreateInstance(parameters[index].ParameterType)
+                    : null;
+        }
+        var manager = constructor.Invoke(arguments);
         managerType.GetMethod("AttachRoomTransitionPublication", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(manager, [session]);
         var field = managerType.GetField("_pendingEventQueue", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
         Assert.NotNull(field);

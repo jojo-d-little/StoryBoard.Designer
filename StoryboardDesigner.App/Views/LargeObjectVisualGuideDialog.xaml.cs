@@ -774,7 +774,8 @@ public partial class LargeObjectVisualGuideDialog : Window
 
     private BitmapImage? LoadImage(string path)
     {
-        var resolvedPath = DesignerImagePathResolver.ResolveForPreview(path, _projectFilePath, _preferredImageSourceBucket);
+        var runtimeOutput = (System.Windows.Application.Current?.MainWindow?.DataContext as ViewModels.MainWindowViewModel)?.Project.RuntimeExportDirectory;
+        var resolvedPath = DesignerImagePathResolver.ResolveForPreview(path, _projectFilePath, _preferredImageSourceBucket, runtimeOutput);
         if (string.IsNullOrWhiteSpace(resolvedPath) || !File.Exists(resolvedPath)) return null;
         try
         {

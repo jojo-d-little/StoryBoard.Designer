@@ -17,6 +17,7 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase, IDisposa
 {
     private readonly Action? _onEdited;
     private readonly Func<string?>? _projectFilePathAccessor;
+    private readonly Func<string?>? _runtimeExportDirectoryAccessor;
     private readonly Func<Guid, GameObject?>? _definitionResolver;
     private bool _isSelected;
     private int _drawOrderZIndex;
@@ -29,11 +30,13 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase, IDisposa
         GameObject gameObject,
         Action? onEdited = null,
         Func<string?>? projectFilePathAccessor = null,
-        Func<Guid, GameObject?>? definitionResolver = null)
+        Func<Guid, GameObject?>? definitionResolver = null,
+        Func<string?>? runtimeExportDirectoryAccessor = null)
     {
         GameObject = gameObject;
         _onEdited = onEdited;
         _projectFilePathAccessor = projectFilePathAccessor;
+        _runtimeExportDirectoryAccessor = runtimeExportDirectoryAccessor;
         _definitionResolver = definitionResolver;
         _effectiveDefinitionOwnedSource = gameObject;
         SelectPreviewVariantCommand = new RelayCommandOfT<string>(SelectPreviewVariant);
@@ -444,7 +447,7 @@ public sealed class RoomDesignerPreviewObjectViewModel : ViewModelBase, IDisposa
 
     private BitmapImage? LoadThumbnail(string configuredPath)
     {
-        var resolvedPath = DesignerImagePathResolver.ResolveForPreview(configuredPath, _projectFilePathAccessor?.Invoke(), preferredSourceBucket: "objects");
+        var resolvedPath = DesignerImagePathResolver.ResolveForPreview(configuredPath, _projectFilePathAccessor?.Invoke(), preferredSourceBucket: "objects", runtimeExportDirectory: _runtimeExportDirectoryAccessor?.Invoke());
         if (string.IsNullOrWhiteSpace(resolvedPath) || !File.Exists(resolvedPath))
         {
             return null;

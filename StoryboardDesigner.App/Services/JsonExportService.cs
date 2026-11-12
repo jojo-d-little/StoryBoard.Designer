@@ -369,6 +369,7 @@ public sealed class JsonExportService : IJsonExportService
         }
 
         Directory.CreateDirectory(projectFolder);
+
         var pendingWrites = new List<(string FilePath, string Content)>();
         var pendingFolderClears = new List<(string FolderPath, string SearchPattern)>();
 
@@ -440,6 +441,7 @@ public sealed class JsonExportService : IJsonExportService
             PlayerIgnoredValidationRuleIds = project.GlobalScope.IgnoredValidationRuleIds.ToList(),
             GameDisplayName = project.GameDisplayName,
             GameSummary = project.GameSummary,
+            RuntimeExportDirectory = project.RuntimeExportDirectory,
             GamePreviewImages = project.GamePreviewImages.ToList(),
             ParticleEffectImageChoices = ToParticleEffectImageChoiceDtos(project.ParticleEffectImageChoices)
         };
@@ -1060,6 +1062,7 @@ public sealed class JsonExportService : IJsonExportService
                 Name = dto.Name,
                 GameDisplayName = dto.GameDisplayName ?? string.Empty,
                 GameSummary = dto.GameSummary ?? string.Empty,
+                RuntimeExportDirectory = dto.RuntimeExportDirectory,
                 GamePreviewImages = (dto.GamePreviewImages ?? new List<string>())
                     .Where(static value => !string.IsNullOrWhiteSpace(value))
                     .Select(static value => value.Trim())
@@ -1493,6 +1496,13 @@ public sealed class JsonExportService : IJsonExportService
         }
 
         Directory.CreateDirectory(projectFolder);
+
+        // From this point every runtime path helper receives the same operation-local
+        // layout path. The authoring directory remains in projectFolder for source assets.
+        var runtimeExportRoot = RuntimeExportDestinationResolver.Resolve(projectFilePath, project.RuntimeExportDirectory);
+        RuntimeExportDestinationResolver.EnsureNoConflictingProjectOutput(projectFilePath, project.RuntimeExportDirectory, runtimeExportRoot);
+        Directory.CreateDirectory(runtimeExportRoot);
+        projectFilePath = Path.Combine(runtimeExportRoot, ".__runtime-output-root__", Path.GetFileName(projectFilePath));
 
         var cleanExportRootFolderPath = BuildCleanExportRootFolderPath(projectFilePath);
         Directory.CreateDirectory(cleanExportRootFolderPath);
@@ -10544,6 +10554,10 @@ public sealed class JsonExportService : IJsonExportService
     private static string BuildCleanExportRootFolderPath(string projectFilePath)
     {
         var folder = Path.GetDirectoryName(projectFilePath) ?? string.Empty;
+        if (string.Equals(Path.GetFileName(folder), ".__runtime-output-root__", StringComparison.Ordinal))
+        {
+            return Directory.GetParent(folder)?.FullName ?? folder;
+        }
         return Path.Combine(folder, CleanExportFolderName);
     }
 

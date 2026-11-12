@@ -24,6 +24,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="150" />
@@ -54,7 +55,16 @@
         <TextBlock Grid.Row="7" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Min Stack Scale" ToolTip="Lower clamp for stacked-object scale after step reductions." />
         <TextBox x:Name="MinStackScaleDefaultTextBox" Grid.Row="7" Grid.Column="1" Margin="0,0,0,12" ToolTip="Decimal minimum stack scale from 0.25 to 1.00." />
 
-        <GroupBox Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,12" Header="Default Room Ambient Lighting" Padding="8">
+        <TextBlock Grid.Row="8" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Runtime Export Folder" />
+        <StackPanel Grid.Row="8" Grid.Column="1" Margin="0,0,0,12">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Margin="8,0,0,0" Padding="10,3" Content="Choose..." Click="ChooseRuntimeExportDirectory_OnClick" />
+                <TextBox x:Name="RuntimeExportDirectoryTextBox" VerticalContentAlignment="Center" />
+            </DockPanel>
+            <TextBlock x:Name="RuntimeExportResolvedPathTextBlock" Margin="0,4,0,0" Foreground="#6B7280" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <GroupBox Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,12" Header="Default Room Ambient Lighting" Padding="8">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="145" /><ColumnDefinition Width="84" /><ColumnDefinition Width="*" /><ColumnDefinition Width="34" /><ColumnDefinition Width="34" /></Grid.ColumnDefinitions>
@@ -72,13 +82,13 @@
             </Grid>
         </GroupBox>
 
-        <TextBlock Grid.Row="9" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Point Lighting" />
-        <StackPanel Grid.Row="9" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,12">
+        <TextBlock Grid.Row="10" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Point Lighting" />
+        <StackPanel Grid.Row="10" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,12">
             <Button Width="140" Padding="12,4" Content="Manage Lighting" Click="ManageLighting_OnClick" />
             <TextBlock x:Name="LightingSummaryTextBlock" Margin="12,0,0,0" VerticalAlignment="Center" Foreground="#374151" />
         </StackPanel>
 
-        <GroupBox Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,12" Header="Default Room Sound Loss" Padding="8">
+        <GroupBox Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,12" Header="Default Room Sound Loss" Padding="8">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="150" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
@@ -107,15 +117,15 @@
             </Grid>
         </GroupBox>
 
-        <TextBlock Grid.Row="11" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Presentation" />
-        <StackPanel Grid.Row="11" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,12">
+        <TextBlock Grid.Row="12" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Presentation" />
+        <StackPanel Grid.Row="12" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,12">
             <Button x:Name="ManagePresentationButton" HorizontalAlignment="Left" Padding="12,4" Content="Manage Presentation" Click="ManagePresentation_OnClick" />
             <Button Margin="8,0,0,0" Padding="12,4" Content="Particle Effect Artwork..." Click="ManageParticleEffectArtwork_OnClick" />
         </StackPanel>
 
-        <TextBlock Grid.Row="12" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Sound Effects" />
+        <TextBlock Grid.Row="13" Grid.Column="0" Margin="0,0,8,12" VerticalAlignment="Center" Text="Sound Effects" />
         <Button x:Name="ManageSoundEffectsButton"
-                Grid.Row="12"
+                Grid.Row="13"
                 Grid.Column="1"
                 HorizontalAlignment="Left"
                 Padding="12,4"
@@ -123,7 +133,7 @@
                 Content="Manage Sound Effects"
                 Click="ManageSoundEffects_OnClick" />
 
-        <StackPanel Grid.Row="13" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+        <StackPanel Grid.Row="14" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
             <Button Width="100" Margin="0,0,8,0" Content="Save" Click="Save_OnClick" />
             <Button Width="100" Content="Cancel" Click="Cancel_OnClick" />
         </StackPanel>

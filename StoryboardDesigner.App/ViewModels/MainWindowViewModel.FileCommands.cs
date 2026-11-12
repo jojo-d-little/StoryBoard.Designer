@@ -510,6 +510,12 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
+        if (string.IsNullOrWhiteSpace(_lastSuccessfulRuntimeExportPath) || !File.Exists(_lastSuccessfulRuntimeExportPath))
+        {
+            _projectUiService.ShowWarning("Runtime export failed or is missing. Simulator was not launched.", "Run Simulator");
+            return;
+        }
+
         if (!TryEnsureNoBlockingValidationErrors("run simulator", out var blockingValidationFailure))
         {
             ExportStatus = blockingValidationFailure;
@@ -520,6 +526,7 @@ public sealed partial class MainWindowViewModel
         var request = new RunExternalSimulatorRequest
         {
             ProjectFilePath = _projectFilePath,
+            RuntimeProjectPath = _lastSuccessfulRuntimeExportPath,
             ReplayFilePath = string.IsNullOrWhiteSpace(_project.SimulatorReplayFilePath) ? null : _project.SimulatorReplayFilePath,
             ReplaySpeed = _project.SimulatorReplaySpeed
         };
@@ -562,7 +569,12 @@ public sealed partial class MainWindowViewModel
             return;
         }
 
-        var runtimeProjectPath = ResolveRuntimeProjectPath(_projectFilePath);
+        var runtimeProjectPath = _lastSuccessfulRuntimeExportPath;
+        if (string.IsNullOrWhiteSpace(runtimeProjectPath) || !File.Exists(runtimeProjectPath))
+        {
+            _projectUiService.ShowWarning("Runtime export failed or is missing. The launch was stopped.", "Run Development WebPortal");
+            return;
+        }
         _isDevelopmentLaunchBusy = true;
         RefreshFileCommandCanExecuteStates();
 
@@ -615,18 +627,6 @@ public sealed partial class MainWindowViewModel
             _isDevelopmentLaunchBusy = false;
             RefreshFileCommandCanExecuteStates();
         }
-    }
-
-    private static string ResolveRuntimeProjectPath(string projectFilePath)
-    {
-        var folder = Path.GetDirectoryName(projectFilePath) ?? string.Empty;
-        var baseName = Path.GetFileNameWithoutExtension(projectFilePath);
-        if (baseName.EndsWith(".sbe", StringComparison.OrdinalIgnoreCase))
-        {
-            baseName = baseName[..^4];
-        }
-
-        return Path.Combine(folder, "GameRuntimeJson", $"{baseName}.sbr.runtime.json");
     }
 
     private void SimulatorSetupExecute()

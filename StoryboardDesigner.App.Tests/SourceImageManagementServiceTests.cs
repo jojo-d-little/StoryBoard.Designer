@@ -152,6 +152,70 @@ public sealed class SourceImageManagementServiceTests
         }
     }
 
+    [Fact]
+    public void RepairMissingSources_UsesConfiguredExportFallbackWithoutRepointingAuthoredPath()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "StoryboardDesigner.Tests", Guid.NewGuid().ToString("N"));
+        var sourceRoot = Path.Combine(root, "src");
+        Directory.CreateDirectory(sourceRoot);
+
+        try
+        {
+            var authoredImagePath = Path.Combine(root, "missing", "photo.png");
+            var project = new ProjectModel
+            {
+                Name = "ImageRepair",
+                GlobalObjectScopeName = "Global",
+                RuntimeExportDirectory = "../runtime output",
+                GameObjects =
+                [
+                    new GameObject
+                    {
+                        Name = "Object",
+                        ImageVariants =
+                        [new ObjectImageVariant { VariantName = "default", FullImagePath = authoredImagePath, IsDefault = true }]
+                    }
+                ]
+            };
+            var projectFilePath = Path.Combine(sourceRoot, "ImageRepair.sbe.json");
+            var exportPath = Path.Combine(root, "runtime output", "assets", "images", "_shared", "photo.png");
+            Directory.CreateDirectory(Path.GetDirectoryName(exportPath)!);
+            File.WriteAllBytes(exportPath, [1, 2, 3]);
+            File.WriteAllText(
+                Path.Combine(root, "runtime output", "assets", "assets-manifest.json"),
+                System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    schemaVersion = "1.0",
+                    images = new[]
+                    {
+                        new
+                        {
+                            hash = "photo",
+                            exportedPath = "assets/images/_shared/photo.png",
+                            sourcePaths = new[] { authoredImagePath },
+                            references = Array.Empty<string>()
+                        }
+                    },
+                    unresolvedSources = Array.Empty<string>()
+                }));
+
+            var preview = SourceImageManagementService.BuildPreview(
+                project,
+                projectFilePath,
+                SourceImageManagementMode.RepairMissingSources,
+                repointSourcePaths: true);
+
+            var item = Assert.Single(preview.Items);
+            Assert.Equal("Export fallback available", item.Status);
+            Assert.Null(item.ApplyAction);
+            Assert.Equal(authoredImagePath, project.GameObjects[0].ResolveDefaultImagePath());
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static void WriteTinyPng(string path)
     {
         const string tinyPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO2F3iUAAAAASUVORK5CYII=";

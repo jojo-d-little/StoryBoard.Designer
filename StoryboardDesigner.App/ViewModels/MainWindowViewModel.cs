@@ -37,6 +37,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private bool _isShellWorkflowBusy;
     private bool _isDevelopmentLaunchBusy;
     private ProjectModel _project;
+    private string? _lastSuccessfulRuntimeExportPath;
+    private string? _saveAsSourceRuntimeExportDirectory;
 
     private HierarchyNodeViewModel? _selectedNode;
     private Planet? _selectedPlanet;
@@ -1023,6 +1025,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         var previousProjectFilePath = _projectFilePath;
         var previousProjectName = _project.Name;
+        _saveAsSourceRuntimeExportDirectory = null;
+        if (!string.IsNullOrWhiteSpace(previousProjectFilePath))
+        {
+            try
+            {
+                _saveAsSourceRuntimeExportDirectory = RuntimeExportDestinationResolver.Resolve(previousProjectFilePath, _project.RuntimeExportDirectory);
+            }
+            catch (Exception) { }
+        }
 
         try
         {
@@ -1035,17 +1046,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             {
                 _projectFilePath = previousProjectFilePath;
                 _project.Name = previousProjectName;
+                _saveAsSourceRuntimeExportDirectory = null;
                 RefreshFileCommandCanExecuteStates();
                 return false;
             }
 
             RegisterRecentProject(newProjectFilePath);
+            _saveAsSourceRuntimeExportDirectory = null;
             return true;
         }
         catch (Exception ex)
         {
             _projectFilePath = previousProjectFilePath;
             _project.Name = previousProjectName;
+            _saveAsSourceRuntimeExportDirectory = null;
             RefreshFileCommandCanExecuteStates();
             ExportStatus = $"Save As failed: {ex.Message}";
             return false;
@@ -1306,10 +1320,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return false;
         }
 
+        _lastSuccessfulRuntimeExportPath = null;
         string cleanProjectPath;
         try
         {
+            if (!string.IsNullOrWhiteSpace(_saveAsSourceRuntimeExportDirectory))
+            {
+                var targetRuntimeDirectory = RuntimeExportDestinationResolver.Resolve(_projectFilePath, _project.RuntimeExportDirectory);
+                if (string.Equals(Path.GetFullPath(targetRuntimeDirectory).TrimEnd(Path.DirectorySeparatorChar),
+                    Path.GetFullPath(_saveAsSourceRuntimeExportDirectory).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException("Save As points to the original project's runtime export folder. Choose a distinct runtime export folder before exporting or launching.");
+                }
+            }
             cleanProjectPath = _jsonExportService.ExportCleanProjectV1(_projectFilePath, _project);
+            _lastSuccessfulRuntimeExportPath = cleanProjectPath;
         }
         catch (Exception ex)
         {
@@ -1349,6 +1374,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         cleanProjectPath = string.Empty;
         failureReason = string.Empty;
+        _lastSuccessfulRuntimeExportPath = null;
 
         if (string.IsNullOrWhiteSpace(_projectFilePath))
         {
@@ -1398,6 +1424,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         try
         {
             cleanProjectPath = _jsonExportService.ExportCleanProjectV1(_projectFilePath, _project);
+            _lastSuccessfulRuntimeExportPath = cleanProjectPath;
             ExportStatus = $"Exported runtime JSON to {cleanProjectPath}";
             return true;
         }
@@ -1570,7 +1597,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             () => _projectFilePath,
             ResolveProjectObjectById,
             EditRoomChildObjectImageFromRoomDesigner,
-            area: area);
+            area: area,
+            runtimeExportDirectoryAccessor: () => _project.RuntimeExportDirectory);
         created.SelectedRoomDesignerDiagnosticsLevel = SelectedOutputRoomDesignerDiagnosticsLevel;
         OpenRoomEditors.Add(created);
         SelectedRoomEditor = created;

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using StoryboardDesigner.App.Models;
@@ -22,6 +23,7 @@ public partial class GlobalSettingsDialog : Window
     private readonly Func<Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?, Storyboard.Shared.DesignerContracts.ProjectGamePropertyComputationDto?>? _environmentalEffectComputationEditor;
     private readonly IReadOnlyList<SharedVariableChoiceOption> _environmentalEffectSharedVariableOptions;
     private readonly GamePropertyPickerContext? _environmentalEffectVariablePickerContext;
+    private readonly string? _runtimeExportProjectDirectory;
 
     public GlobalSettingsDialog(
         GlobalSettingsEditRequest initialValues,
@@ -34,6 +36,10 @@ public partial class GlobalSettingsDialog : Window
         _environmentalEffectComputationEditor = initialValues.EnvironmentalEffectComputationEditor;
         _environmentalEffectSharedVariableOptions = initialValues.EnvironmentalEffectSharedVariableOptions ?? Array.Empty<SharedVariableChoiceOption>();
         _environmentalEffectVariablePickerContext = initialValues.EnvironmentalEffectVariablePickerContext;
+        _runtimeExportProjectDirectory = initialValues.RuntimeExportProjectDirectory;
+        RuntimeExportDirectoryTextBox.Text = initialValues.RuntimeExportDirectory ?? string.Empty;
+        RuntimeExportDirectoryTextBox.TextChanged += (_, _) => RefreshRuntimeExportResolvedPath();
+        RefreshRuntimeExportResolvedPath();
         AutoSaveSecondsTextBox.Text = initialValues.AutoSaveSeconds.ToString();
         StartingPlanetComboBox.ItemsSource = startingPlanetOptions;
         StartingPlanetComboBox.SelectedItem = initialValues.StartingPlanetName;
@@ -98,11 +104,46 @@ public partial class GlobalSettingsDialog : Window
                     OpenSpaceSoundLossPercentPerCell = TryParseSoundLossPercent(OpenSpaceSoundLossPercentPerCellTextBox.Text, out var openSpaceSoundLoss) ? openSpaceSoundLoss : -1
                 },
                 _environmentalEffects.Select(CloneEnvironmentalEffect).ToList(),
-                _particleEffectImageChoices.Select(CloneParticleEffectImageChoice).ToList(), _environmentalEffectComputationEditor, _environmentalEffectSharedVariableOptions);
+                _particleEffectImageChoices.Select(CloneParticleEffectImageChoice).ToList(), _environmentalEffectComputationEditor, _environmentalEffectSharedVariableOptions,
+                _environmentalEffectVariablePickerContext, RuntimeExportDirectoryTextBox.Text.Trim(), _runtimeExportProjectDirectory);
         }
     }
 
     public IReadOnlyList<SoundEffectLibraryEntry> SoundEffectLibraryEntries => _soundEffectLibraryEntries;
+
+    private void ChooseRuntimeExportDirectory_OnClick(object sender, RoutedEventArgs e)
+    {
+        using var dialog = new System.Windows.Forms.FolderBrowserDialog
+        {
+            Description = "Choose the folder where runtime exports will be written.",
+            UseDescriptionForTitle = true,
+            SelectedPath = RuntimeExportResolvedPathTextBlock.Tag as string ?? _runtimeExportProjectDirectory ?? string.Empty
+        };
+        if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK || string.IsNullOrWhiteSpace(_runtimeExportProjectDirectory))
+        {
+            return;
+        }
+
+        var selected = Path.GetFullPath(dialog.SelectedPath);
+        RuntimeExportDirectoryTextBox.Text = Path.GetRelativePath(_runtimeExportProjectDirectory, selected).Replace('\\', '/');
+    }
+
+    private void RefreshRuntimeExportResolvedPath()
+    {
+        try
+        {
+            var projectDirectory = _runtimeExportProjectDirectory ?? Environment.CurrentDirectory;
+            var projectPath = Path.Combine(projectDirectory, "project.sbe.json");
+            var resolved = RuntimeExportDestinationResolver.Resolve(projectPath, RuntimeExportDirectoryTextBox.Text.Trim());
+            RuntimeExportResolvedPathTextBlock.Text = $"Resolved folder: {resolved}";
+            RuntimeExportResolvedPathTextBlock.Tag = resolved;
+        }
+        catch (Exception ex)
+        {
+            RuntimeExportResolvedPathTextBlock.Text = $"Folder expression error: {ex.Message}";
+            RuntimeExportResolvedPathTextBlock.Tag = null;
+        }
+    }
 
     private void ManageEnvironmentalEffects_OnClick(object sender, RoutedEventArgs e)
     {

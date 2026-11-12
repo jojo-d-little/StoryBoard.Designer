@@ -9,6 +9,7 @@ public sealed class RoomDesignerImageSlotViewModel : ViewModelBase
 {
     private readonly Action? _onEdited;
     private readonly Func<string?>? _projectFilePathAccessor;
+    private readonly Func<string?>? _runtimeExportDirectoryAccessor;
     private readonly string? _preferredSourceBucket;
     private bool _isPreviewVisible = true;
 
@@ -16,11 +17,13 @@ public sealed class RoomDesignerImageSlotViewModel : ViewModelBase
         RoomImageEntry entry,
         Action? onEdited = null,
         Func<string?>? projectFilePathAccessor = null,
-        string? preferredSourceBucket = null)
+        string? preferredSourceBucket = null,
+        Func<string?>? runtimeExportDirectoryAccessor = null)
     {
         Entry = entry;
         _onEdited = onEdited;
         _projectFilePathAccessor = projectFilePathAccessor;
+        _runtimeExportDirectoryAccessor = runtimeExportDirectoryAccessor;
         _preferredSourceBucket = preferredSourceBucket;
     }
 
@@ -244,7 +247,7 @@ public sealed class RoomDesignerImageSlotViewModel : ViewModelBase
 
     private BitmapImage? LoadThumbnail(string path)
     {
-        var resolvedPath = DesignerImagePathResolver.ResolveForPreview(path, _projectFilePathAccessor?.Invoke(), _preferredSourceBucket);
+        var resolvedPath = DesignerImagePathResolver.ResolveForPreview(path, _projectFilePathAccessor?.Invoke(), _preferredSourceBucket, _runtimeExportDirectoryAccessor?.Invoke());
         if (string.IsNullOrWhiteSpace(resolvedPath) || !File.Exists(resolvedPath))
         {
             return null;

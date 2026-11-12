@@ -8815,7 +8815,9 @@ public sealed partial class MainWindowViewModel
             CreateComputationEditorForScope(_project, PropertyResolutionScope.Global),
             BuildSharedVariableChoiceOptions(),
             CreateGamePropertyPickerContext(_project, PropertyResolutionScope.Global, allowReferenceModes: true,
-                anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" }));
+                anchorKeys: new[] { "currentRoom", "currentArea", "currentCountry", "currentPlanet", "currentPhase", "activePlayer" }),
+            _project.RuntimeExportDirectory,
+            string.IsNullOrWhiteSpace(_projectFilePath) ? null : Path.GetDirectoryName(_projectFilePath));
 
         var startingPlanetOptions = _project.Planets
             .Select(planet => planet.Name)
@@ -8863,6 +8865,7 @@ public sealed partial class MainWindowViewModel
                          || !AreNearlyEqual(_project.MinStackScaleDefault, updated.MinStackScaleDefault)
                          || !string.Equals(_project.GameDisplayName, updated.GameDisplayName?.Trim() ?? string.Empty, StringComparison.Ordinal)
                          || !string.Equals(_project.GameSummary, updated.GameSummary?.Trim() ?? string.Empty, StringComparison.Ordinal)
+                         || !string.Equals(_project.RuntimeExportDirectory ?? string.Empty, updated.RuntimeExportDirectory?.Trim() ?? string.Empty, StringComparison.Ordinal)
                          || !AreStringListsEquivalent(_project.GamePreviewImages, updated.GamePreviewImages)
                          || !ArePointLightDefaultsEquivalent(_project.PointLightDefaults, updated.PointLightDefaults)
                          || !AreRoomAmbientLightingEquivalent(_project.DefaultRoomAmbientLighting, updated.DefaultRoomAmbientLighting)
@@ -8886,6 +8889,9 @@ public sealed partial class MainWindowViewModel
         _project.MinStackScaleDefault = updated.MinStackScaleDefault;
         _project.GameDisplayName = updated.GameDisplayName?.Trim() ?? string.Empty;
         _project.GameSummary = updated.GameSummary?.Trim() ?? string.Empty;
+        _project.RuntimeExportDirectory = string.IsNullOrWhiteSpace(updated.RuntimeExportDirectory)
+            ? null
+            : updated.RuntimeExportDirectory.Trim();
         _project.GamePreviewImages = NormalizePreviewImagePaths(updated.GamePreviewImages);
         _project.PointLightDefaults = LightingModelCloner.ClonePointLightDefaults(updated.PointLightDefaults);
         _project.DefaultRoomAmbientLighting = LightingModelCloner.CloneRoomAmbientLighting(updated.DefaultRoomAmbientLighting);

@@ -37,7 +37,16 @@ public sealed class ExternalSimulatorWorkflowService : IExternalSimulatorWorkflo
             };
         }
 
-        var cleanProjectPath = BuildCleanProjectPath(request.ProjectFilePath);
+        var cleanProjectPath = request.RuntimeProjectPath;
+        if (string.IsNullOrWhiteSpace(cleanProjectPath))
+        {
+            return new RunExternalSimulatorResult
+            {
+                Success = false,
+                StatusMessage = "Runtime export did not succeed. Save and export before running Simulator.",
+                Diagnostics = ["No successful runtime export path was supplied."]
+            };
+        }
         if (!File.Exists(cleanProjectPath))
         {
             return new RunExternalSimulatorResult

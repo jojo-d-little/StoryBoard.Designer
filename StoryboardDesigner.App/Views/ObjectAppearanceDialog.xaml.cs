@@ -73,9 +73,10 @@ public partial class ObjectAppearanceDialog : Window
 
     private void UpdatePathHealthStatus()
     {
-        FullPathHealthTextBlock.Text = "Full: " + ImagePathHealthStatusFormatter.BuildStatusLabel(FullPathTextBox.Text, _projectFilePath, _sourceBucket);
-        GrayPathHealthTextBlock.Text = "Gray: " + ImagePathHealthStatusFormatter.BuildStatusLabel(GrayPathTextBox.Text, _projectFilePath, _sourceBucket);
-        NormalPathHealthTextBlock.Text = "Normal: " + ImagePathHealthStatusFormatter.BuildStatusLabel(NormalPathTextBox.Text, _projectFilePath, _sourceBucket);
+        var runtimeOutput = (System.Windows.Application.Current?.MainWindow?.DataContext as ViewModels.MainWindowViewModel)?.Project.RuntimeExportDirectory;
+        FullPathHealthTextBlock.Text = "Full: " + ImagePathHealthStatusFormatter.BuildStatusLabel(FullPathTextBox.Text, _projectFilePath, _sourceBucket, runtimeOutput);
+        GrayPathHealthTextBlock.Text = "Gray: " + ImagePathHealthStatusFormatter.BuildStatusLabel(GrayPathTextBox.Text, _projectFilePath, _sourceBucket, runtimeOutput);
+        NormalPathHealthTextBlock.Text = "Normal: " + ImagePathHealthStatusFormatter.BuildStatusLabel(NormalPathTextBox.Text, _projectFilePath, _sourceBucket, runtimeOutput);
     }
 
     private static bool TryPickImagePath(out string path)
