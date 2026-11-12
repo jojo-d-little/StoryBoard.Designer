@@ -124,6 +124,81 @@ public sealed class DevelopmentGameHostWorkflowServiceTests
         Assert.True(secondProcess.KillCalled);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LaunchAsync_MissingProjectOrExport_DoesNotStartProcess(bool missingProject)
+    {
+        using var fixture = LaunchFixture.Create();
+        File.Delete(missingProject ? fixture.ProjectFilePath : fixture.RuntimeProjectPath);
+        var launcher = new FakeProcessLauncher();
+        var service = new DevelopmentGameHostWorkflowService(fixture.Preferences, launcher);
+
+        var result = await service.LaunchAsync(new DevelopmentGameHostLaunchRequest
+        {
+            ProjectFilePath = fixture.ProjectFilePath, RuntimeProjectPath = fixture.RuntimeProjectPath
+        });
+
+        Assert.False(result.Success);
+        Assert.Contains(missingProject ? "saved project" : "Runtime export is missing", result.StatusMessage);
+        Assert.Empty(launcher.Started);
+        Assert.Null(result.RegistrationFilePath);
+    }
+
+    [Fact]
+    public async Task LaunchAsync_ProcessStartFailure_RemovesRegistrationAndReportsFailure()
+    {
+        using var fixture = LaunchFixture.Create();
+        // No process supplied: the launch boundary throws when asked to start one.
+        var launcher = new FakeProcessLauncher();
+        var service = new DevelopmentGameHostWorkflowService(fixture.Preferences, launcher);
+
+        var result = await service.LaunchAsync(new DevelopmentGameHostLaunchRequest
+        {
+            ProjectFilePath = fixture.ProjectFilePath, RuntimeProjectPath = fixture.RuntimeProjectPath
+        });
+
+        Assert.False(result.Success);
+        Assert.Equal("Failed to start GameHost process.", result.StatusMessage);
+        Assert.Single(launcher.Started);
+        Assert.False(File.Exists(result.RegistrationFilePath));
+        Assert.NotEmpty(result.Diagnostics);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LaunchAsync_MissingHostOrBundle_ReportsSetupFailureWithoutStartingProcess(bool missingHost)
+    {
+        using var fixture = LaunchFixture.Create();
+        var environmentVariable = missingHost
+            ? DevelopmentLaunchRegistration.GameHostExecutableEnvironmentVariable
+            : DevelopmentLaunchRegistration.WebPortalRootEnvironmentVariable;
+        var previousOverride = Environment.GetEnvironmentVariable(environmentVariable);
+        try
+        {
+            Environment.SetEnvironmentVariable(environmentVariable, Path.Combine(fixture.Root, "missing"));
+            File.Delete(missingHost ? fixture.HostExecutablePath : Path.Combine(fixture.WebPortalRoot, "index.html"));
+            var launcher = new FakeProcessLauncher();
+            var service = new DevelopmentGameHostWorkflowService(fixture.Preferences, launcher);
+
+            var result = await service.LaunchAsync(new DevelopmentGameHostLaunchRequest
+            {
+                ProjectFilePath = fixture.ProjectFilePath, RuntimeProjectPath = fixture.RuntimeProjectPath
+            });
+
+            Assert.False(result.Success);
+            Assert.Contains(missingHost ? "Unable to resolve GameHost executable" : "Unable to resolve the WebPortal bundle", result.StatusMessage);
+            Assert.Empty(launcher.Started);
+            Assert.Null(result.RegistrationFilePath);
+            Assert.NotEmpty(result.Diagnostics);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(environmentVariable, previousOverride);
+        }
+    }
+
     private sealed class LaunchFixture : IDisposable
     {
         private LaunchFixture(string root)

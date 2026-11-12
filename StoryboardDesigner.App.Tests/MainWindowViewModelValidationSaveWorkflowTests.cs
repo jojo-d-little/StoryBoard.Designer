@@ -443,7 +443,7 @@ public sealed class MainWindowViewModelValidationSaveWorkflowTests
     }
 
     [Fact]
-    public void SaveWithExportFailure_PreservesAuthoringAndBlocksBothLaunchesDespiteStaleRuntimeFile()
+    public void SaveWithExportFailure_PreservesAuthoringAndBlocksDevelopmentLaunchDespiteStaleRuntimeFile()
     {
         var tempRoot = Path.Combine(Path.GetTempPath(), $"designer-stale-runtime-{Guid.NewGuid():N}");
         var projectDirectory = Path.Combine(tempRoot, "Project");
@@ -500,24 +500,14 @@ public sealed class MainWindowViewModelValidationSaveWorkflowTests
             Assert.True(File.Exists(staleRuntimePath));
             Assert.Contains("Runtime export failed", bundle.ViewModel.ExportStatus, StringComparison.OrdinalIgnoreCase);
 
-            InvokePrivateWorkflow(bundle.ViewModel, "RunSimulatorExecute");
-            Assert.Contains(bundle.ProjectUi.WarningMessages, message => message.Contains("Simulator was not launched", StringComparison.OrdinalIgnoreCase));
-
-            InvokePrivateWorkflow(bundle.ViewModel, "RunDevelopmentExecute");
+            bundle.ViewModel.RunDevelopmentCommand.Execute(null);
             Assert.Contains(bundle.ProjectUi.WarningMessages, message => message.Contains("launch was stopped", StringComparison.OrdinalIgnoreCase));
-            Assert.Equal(3, bundle.JsonExport.ExportCleanProjectCallCount);
+            Assert.Equal(2, bundle.JsonExport.ExportCleanProjectCallCount);
         }
         finally
         {
             if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
         }
-    }
-
-    private static void InvokePrivateWorkflow(MainWindowViewModel vm, string methodName)
-    {
-        var method = typeof(MainWindowViewModel).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(method);
-        method!.Invoke(vm, null);
     }
 
     [Fact]

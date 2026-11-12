@@ -30,7 +30,8 @@ internal static class MainWindowViewModelTestHarness
         ProjectModel project,
         TreeContextInteractionServiceStub treeContext,
         ProjectUiServiceStub projectUi,
-        IGameObjectSelectionOptionDiscoveryService? discoveryService = null)
+        IGameObjectSelectionOptionDiscoveryService? discoveryService = null,
+        IDevelopmentGameHostWorkflowService? developmentWorkflow = null)
     {
         var jsonExport = new JsonExportServiceStub();
         var roomDesignerDirectionImageDialogService = new RoomDesignerDirectionImageDialogServiceStub();
@@ -43,7 +44,8 @@ internal static class MainWindowViewModelTestHarness
             roomDesignerDirectionImageDialogService,
             treeContext,
             phaseTextPresentationCueCatalogService: null,
-            gameObjectSelectionOptionDiscoveryService: discoveryService);
+            gameObjectSelectionOptionDiscoveryService: discoveryService,
+            developmentGameHostWorkflowService: developmentWorkflow);
 
         var field = typeof(MainWindowViewModel).GetField("_project", BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(field);
@@ -357,18 +359,6 @@ internal sealed class ProjectUiServiceStub : IProjectUiService
             ? DefaultEchoRefreshTarget
             : DefaultEchoMessagesRefreshTarget.Application;
         return DefaultEchoRefreshTargetAccepted;
-    }
-
-    public bool TryGetSaveGameSimulatorRecordingPath(out string filePath)
-    {
-        filePath = string.Empty;
-        return false;
-    }
-
-    public bool TryGetOpenGameSimulatorRecordingPath(out string filePath)
-    {
-        filePath = string.Empty;
-        return false;
     }
 
     public bool TryGetSaveOutputLogPath(out string filePath)

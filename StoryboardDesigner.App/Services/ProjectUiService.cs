@@ -344,44 +344,6 @@ public sealed class ProjectUiService : IProjectUiService
         return true;
     }
 
-    public bool TryGetSaveGameSimulatorRecordingPath(out string filePath)
-    {
-        var dialog = new Microsoft.Win32.SaveFileDialog
-        {
-            Filter = "Simulator recording (*.sbe.sim.json)|*.sbe.sim.json|JSON files (*.json)|*.json",
-            Title = "Save Simulator Recording",
-            AddExtension = true,
-            DefaultExt = ".json"
-        };
-
-        if (dialog.ShowDialog(GetOwnerWindow()) != true)
-        {
-            filePath = string.Empty;
-            return false;
-        }
-
-        filePath = dialog.FileName;
-        return true;
-    }
-
-    public bool TryGetOpenGameSimulatorRecordingPath(out string filePath)
-    {
-        var dialog = new Microsoft.Win32.OpenFileDialog
-        {
-            Filter = "Simulator recording (*.sbe.sim.json)|*.sbe.sim.json|JSON files (*.json)|*.json",
-            Title = "Open Simulator Recording"
-        };
-
-        if (dialog.ShowDialog(GetOwnerWindow()) != true)
-        {
-            filePath = string.Empty;
-            return false;
-        }
-
-        filePath = dialog.FileName;
-        return true;
-    }
-
     public bool TryGetSaveOutputLogPath(out string filePath)
     {
         var smokeOutputPath = Environment.GetEnvironmentVariable(SmokeOutputLogPathEnvironmentVariable);

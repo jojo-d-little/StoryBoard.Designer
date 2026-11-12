@@ -13,16 +13,13 @@ public sealed class Bite3SimulatorHappyPathSmokeTests
     private const int WindowMessageClose = 0x0010;
 
     [Fact]
-    public void RunSimulator_MenuEntryPoint_DoesNotClose_Designer()
+    public void RunDevelopmentWebPortal_UnsavedProject_ShowsActionableWarning()
     {
         StaTestRunner.Run(() =>
         {
             var executablePath = AppExecutableLocator.ResolveDesignerExecutablePath();
-            var canonicalFixturePath = Path.Combine(AppContext.BaseDirectory, "Samples", "MapDemo1", "MapDemo1.sbe.json");
-            Assert.True(File.Exists(canonicalFixturePath), $"Canonical fixture not found: {canonicalFixturePath}");
-
             var priorSmokeFixture = Environment.GetEnvironmentVariable(SmokeProjectPathEnvironmentVariable);
-            Environment.SetEnvironmentVariable(SmokeProjectPathEnvironmentVariable, canonicalFixturePath);
+            Environment.SetEnvironmentVariable(SmokeProjectPathEnvironmentVariable, null);
             using var app = Application.Launch(executablePath);
             try
             {
@@ -32,21 +29,28 @@ public sealed class Bite3SimulatorHappyPathSmokeTests
                 Assert.NotNull(mainWindow);
                 var mainWindowHandle = mainWindow!.Properties.NativeWindowHandle.ValueOrDefault;
 
-                var runSimulatorMenuItem = Retry.WhileNull(
-                    () => mainWindow!.FindFirstDescendant(cf => cf.ByAutomationId("MainWindow.Menu.RunSimulator"))?.AsMenuItem(),
+                var runDevelopmentMenuItem = Retry.WhileNull(
+                    () => mainWindow!.FindFirstDescendant(cf => cf.ByAutomationId("MainWindow.Menu.RunDevelopmentWebPortal"))?.AsMenuItem(),
                     timeout: TimeSpan.FromSeconds(10),
                     interval: TimeSpan.FromMilliseconds(100),
                     throwOnTimeout: false).Result;
-                Assert.NotNull(runSimulatorMenuItem);
-                runSimulatorMenuItem!.Click();
+                Assert.NotNull(runDevelopmentMenuItem);
+                runDevelopmentMenuItem!.Invoke();
 
                 var appStillRunning = Retry.WhileFalse(
                     () => !app.HasExited,
                     timeout: TimeSpan.FromSeconds(5),
                     interval: TimeSpan.FromMilliseconds(100),
                     throwOnTimeout: false).Result;
-                Assert.True(appStillRunning, "Designer exited unexpectedly after invoking Run Simulator.");
+                Assert.True(appStillRunning, "Designer exited unexpectedly after invoking Run Development WebPortal.");
 
+                var warning = Retry.WhileNull(
+                    () => mainWindow.ModalWindows.Concat(app.GetAllTopLevelWindows(automation)).FirstOrDefault(w => w.Title == "Run Development WebPortal"),
+                    timeout: TimeSpan.FromSeconds(8),
+                    interval: TimeSpan.FromMilliseconds(100),
+                    throwOnTimeout: false).Result;
+                Assert.NotNull(warning);
+                Assert.NotNull(warning!.FindFirstDescendant(cf => cf.ByName("Save the project before launching WebPortal.")));
                 DismissModalDialogIfPresent(app, automation, mainWindowHandle);
 
                 RequestCloseMainWindow(mainWindowHandle);

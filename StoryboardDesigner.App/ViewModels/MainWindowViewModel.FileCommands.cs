@@ -42,10 +42,8 @@ public sealed partial class MainWindowViewModel
     private RelayCommand _editApplicationDefaultPresentationCuesCommand = null!;
     private RelayCommand _editProjectDefaultPresentationCuesCommand = null!;
     private RelayCommand _editApplicationPresentationCueCatalogCommand = null!;
-    private RelayCommand _runSimulatorCommand = null!;
     private RelayCommand _runDevelopmentCommand = null!;
     private RelayCommand _developmentLaunchSetupCommand = null!;
-    private RelayCommand _simulatorSetupCommand = null!;
     private RelayCommand _configureBackupsCommand = null!;
     private RelayCommand _hideEmptyConfigurationGlobalCommand = null!;
     private RelayCommand _showEmptyConfigurationGlobalCommand = null!;
@@ -70,10 +68,8 @@ public sealed partial class MainWindowViewModel
     public ICommand EditApplicationDefaultPresentationCuesCommand => _editApplicationDefaultPresentationCuesCommand;
     public ICommand EditProjectDefaultPresentationCuesCommand => _editProjectDefaultPresentationCuesCommand;
     public ICommand EditApplicationPresentationCueCatalogCommand => _editApplicationPresentationCueCatalogCommand;
-    public ICommand RunSimulatorCommand => _runSimulatorCommand;
     public ICommand RunDevelopmentCommand => _runDevelopmentCommand;
     public ICommand DevelopmentLaunchSetupCommand => _developmentLaunchSetupCommand;
-    public ICommand SimulatorSetupCommand => _simulatorSetupCommand;
     public ICommand ConfigureBackupsCommand => _configureBackupsCommand;
     public ICommand HideEmptyConfigurationGlobalCommand => _hideEmptyConfigurationGlobalCommand;
     public ICommand ShowEmptyConfigurationGlobalCommand => _showEmptyConfigurationGlobalCommand;
@@ -96,10 +92,8 @@ public sealed partial class MainWindowViewModel
         _editApplicationDefaultPresentationCuesCommand = new RelayCommand(EditApplicationDefaultPresentationCuesExecute, CanExecuteGlobalFileWorkflowCommand);
         _editProjectDefaultPresentationCuesCommand = new RelayCommand(EditProjectDefaultPresentationCuesExecute, CanExecuteEditProjectDefaultEchoMessages);
         _editApplicationPresentationCueCatalogCommand = new RelayCommand(EditApplicationPresentationCueCatalogExecute, CanExecuteGlobalFileWorkflowCommand);
-        _runSimulatorCommand = new RelayCommand(RunSimulatorExecute, CanExecuteGlobalFileWorkflowCommand);
         _runDevelopmentCommand = new RelayCommand(RunDevelopmentExecute, CanExecuteDevelopmentLaunchCommand);
         _developmentLaunchSetupCommand = new RelayCommand(DevelopmentLaunchSetupExecute, CanExecuteGlobalFileWorkflowCommand);
-        _simulatorSetupCommand = new RelayCommand(SimulatorSetupExecute, CanExecuteGlobalFileWorkflowCommand);
         _configureBackupsCommand = new RelayCommand(ConfigureBackupsExecute, CanExecuteGlobalFileWorkflowCommand);
         _hideEmptyConfigurationGlobalCommand = new RelayCommand(HideEmptyConfigurationGlobalExecute, CanExecuteGlobalFileWorkflowCommand);
         _showEmptyConfigurationGlobalCommand = new RelayCommand(ShowEmptyConfigurationGlobalExecute, CanExecuteGlobalFileWorkflowCommand);
@@ -133,10 +127,8 @@ public sealed partial class MainWindowViewModel
         _editApplicationDefaultPresentationCuesCommand.RaiseCanExecuteChanged();
         _editProjectDefaultPresentationCuesCommand.RaiseCanExecuteChanged();
         _editApplicationPresentationCueCatalogCommand.RaiseCanExecuteChanged();
-        _runSimulatorCommand.RaiseCanExecuteChanged();
         _runDevelopmentCommand.RaiseCanExecuteChanged();
         _developmentLaunchSetupCommand.RaiseCanExecuteChanged();
-        _simulatorSetupCommand.RaiseCanExecuteChanged();
         _configureBackupsCommand.RaiseCanExecuteChanged();
         _hideEmptyConfigurationGlobalCommand.RaiseCanExecuteChanged();
         _showEmptyConfigurationGlobalCommand.RaiseCanExecuteChanged();
@@ -496,53 +488,6 @@ public sealed partial class MainWindowViewModel
         return byAction;
     }
 
-    private void RunSimulatorExecute()
-    {
-        if (string.IsNullOrWhiteSpace(_projectFilePath))
-        {
-            _projectUiService.ShowWarning("Save the project before running Simulator.", "Run Simulator");
-            return;
-        }
-
-        if (!SaveProjectWithValidationSummary("Run Simulator"))
-        {
-            _projectUiService.ShowWarning(ExportStatus, "Run Simulator");
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(_lastSuccessfulRuntimeExportPath) || !File.Exists(_lastSuccessfulRuntimeExportPath))
-        {
-            _projectUiService.ShowWarning("Runtime export failed or is missing. Simulator was not launched.", "Run Simulator");
-            return;
-        }
-
-        if (!TryEnsureNoBlockingValidationErrors("run simulator", out var blockingValidationFailure))
-        {
-            ExportStatus = blockingValidationFailure;
-            _projectUiService.ShowWarning(blockingValidationFailure, "Run Simulator");
-            return;
-        }
-
-        var request = new RunExternalSimulatorRequest
-        {
-            ProjectFilePath = _projectFilePath,
-            RuntimeProjectPath = _lastSuccessfulRuntimeExportPath,
-            ReplayFilePath = string.IsNullOrWhiteSpace(_project.SimulatorReplayFilePath) ? null : _project.SimulatorReplayFilePath,
-            ReplaySpeed = _project.SimulatorReplaySpeed
-        };
-
-        var result = _externalSimulatorWorkflowService.RunSimulator(request);
-        if (!result.Success)
-        {
-            var details = result.Diagnostics.Count == 0
-                ? result.StatusMessage
-                : $"{result.StatusMessage}{Environment.NewLine}{string.Join(Environment.NewLine, result.Diagnostics)}";
-            _projectUiService.ShowWarning(details, "Run Simulator");
-        }
-
-        ExportStatus = result.StatusMessage;
-    }
-
     private bool CanExecuteDevelopmentLaunchCommand()
     {
         return CanExecuteGlobalFileWorkflowCommand() && !_isDevelopmentLaunchBusy;
@@ -627,32 +572,6 @@ public sealed partial class MainWindowViewModel
             _isDevelopmentLaunchBusy = false;
             RefreshFileCommandCanExecuteStates();
         }
-    }
-
-    private void SimulatorSetupExecute()
-    {
-        var request = new SimulatorSetupDialogRequest
-        {
-            ProjectFilePath = _projectFilePath,
-            ReplayFilePath = _project.SimulatorReplayFilePath,
-            ReplaySpeed = _project.SimulatorReplaySpeed
-        };
-
-        var result = _externalSimulatorWorkflowService.OpenSimulatorSetup(request);
-
-        if (result.AppliedChanges)
-        {
-            var replayFileChanged = !string.Equals(_project.SimulatorReplayFilePath, result.ReplayFilePath, StringComparison.Ordinal);
-            var replaySpeedChanged = _project.SimulatorReplaySpeed != result.ReplaySpeed;
-            if (replayFileChanged || replaySpeedChanged)
-            {
-                _project.SimulatorReplayFilePath = result.ReplayFilePath;
-                _project.SimulatorReplaySpeed = result.ReplaySpeed;
-                NotifyProjectEdited();
-            }
-        }
-
-        ExportStatus = result.StatusMessage;
     }
 
     private void ConfigureBackupsExecute()

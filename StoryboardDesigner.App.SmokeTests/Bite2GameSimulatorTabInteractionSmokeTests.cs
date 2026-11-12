@@ -9,7 +9,7 @@ namespace StoryboardDesigner.App.SmokeTests;
 public sealed class Bite2GameSimulatorTabInteractionSmokeTests
 {
     [Fact]
-    public void Can_Find_LegacySimulator_And_DevelopmentWebPortal_Menu_EntryPoints()
+    public void Only_DevelopmentWebPortal_Launch_And_Setup_Are_Reachable()
     {
         StaTestRunner.Run(() =>
         {
@@ -22,15 +22,9 @@ public sealed class Bite2GameSimulatorTabInteractionSmokeTests
 
                 var mainWindow = SmokeUiRetryHelpers.WaitForMainWindow(app, automation);
                 Assert.NotNull(mainWindow);
-                SmokeUiRetryHelpers.AssertAppStillRunning(app, "opening simulator tab smoke shell");
+                SmokeUiRetryHelpers.AssertAppStillRunning(app, "opening development launch smoke shell");
 
-                var runSimulatorMenuItem = Retry.WhileNull(
-                    () => mainWindow!.FindFirstDescendant(cf => cf.ByAutomationId("MainWindow.Menu.RunSimulator")),
-                    timeout: TimeSpan.FromSeconds(8),
-                    interval: TimeSpan.FromMilliseconds(100),
-                    throwOnTimeout: false).Result;
-                Assert.NotNull(runSimulatorMenuItem);
-                SmokeUiRetryHelpers.AssertAppStillRunning(app, "finding run simulator menu item");
+                Assert.Null(mainWindow!.FindFirstDescendant(cf => cf.ByAutomationId("MainWindow.Menu.RunSimulator")));
 
                 var runDevelopmentMenuItem = Retry.WhileNull(
                     () => mainWindow!.FindFirstDescendant(cf => cf.ByAutomationId("MainWindow.Menu.RunDevelopmentWebPortal")),
@@ -50,7 +44,7 @@ public sealed class Bite2GameSimulatorTabInteractionSmokeTests
 
                 var desktop = automation.GetDesktop();
 
-                var simulatorSetupMenuItem = Retry.WhileNull(
+                var developmentSetupMenuItem = Retry.WhileNull(
                     () =>
                     {
                         try
@@ -62,23 +56,35 @@ public sealed class Bite2GameSimulatorTabInteractionSmokeTests
                             // Ignore transient UIA expand failures and continue probing.
                         }
 
-                        return mainWindow!.FindFirstDescendant(cf => cf.ByAutomationId("MainWindow.Menu.Tools.SimulatorSetup"))
-                            ?? desktop.FindFirstDescendant(cf => cf.ByAutomationId("MainWindow.Menu.Tools.SimulatorSetup"))
-                            ?? mainWindow.FindFirstDescendant(cf => cf.ByName("Simulator Setup"))
-                            ?? desktop.FindFirstDescendant(cf => cf.ByName("Simulator Setup"));
+                        return mainWindow!.FindFirstDescendant(cf => cf.ByAutomationId("MainWindow.Menu.Tools.DevelopmentWebPortalSetup"))
+                            ?? desktop.FindFirstDescendant(cf => cf.ByAutomationId("MainWindow.Menu.Tools.DevelopmentWebPortalSetup"))
+                            ?? mainWindow.FindFirstDescendant(cf => cf.ByName("Development WebPortal Setup"))
+                            ?? desktop.FindFirstDescendant(cf => cf.ByName("Development WebPortal Setup"));
                     },
                     timeout: TimeSpan.FromSeconds(8),
                     interval: TimeSpan.FromMilliseconds(100),
                     throwOnTimeout: false).Result;
 
-                Assert.NotNull(simulatorSetupMenuItem);
-                SmokeUiRetryHelpers.AssertAppStillRunning(app, "finding simulator setup menu item");
+                Assert.NotNull(developmentSetupMenuItem);
+                Assert.Null(mainWindow.FindFirstDescendant(cf => cf.ByAutomationId("MainWindow.Menu.Tools.SimulatorSetup")));
+                Assert.Null(desktop.FindFirstDescendant(cf => cf.ByName("Simulator Setup")));
+                developmentSetupMenuItem!.AsMenuItem().Invoke();
+                var setupDialog = Retry.WhileNull(
+                    () => mainWindow.ModalWindows.Concat(app.GetAllTopLevelWindows(automation)).FirstOrDefault(w => w.Title == "Development WebPortal Setup"),
+                    timeout: TimeSpan.FromSeconds(8),
+                    interval: TimeSpan.FromMilliseconds(100),
+                    throwOnTimeout: false).Result;
+                Assert.NotNull(setupDialog);
+                Assert.NotNull(setupDialog!.FindFirstDescendant(cf => cf.ByAutomationId("DevelopmentLaunchSetup.GameHostExecutablePath")));
+                Assert.NotNull(setupDialog.FindFirstDescendant(cf => cf.ByAutomationId("DevelopmentLaunchSetup.WebPortalRootPath")));
+                setupDialog.FindFirstDescendant(cf => cf.ByName("Cancel"))!.AsButton().Invoke();
+                SmokeUiRetryHelpers.AssertAppStillRunning(app, "finding development WebPortal setup menu item");
 
                 SmokeUiRetryHelpers.CloseAppWindowOrKill(
                     app,
                     mainWindow,
                     automation,
-                    "Designer process did not exit after simulator tab interaction smoke test.");
+                    "Designer process did not exit after development launch interaction smoke test.");
             }
             finally
             {

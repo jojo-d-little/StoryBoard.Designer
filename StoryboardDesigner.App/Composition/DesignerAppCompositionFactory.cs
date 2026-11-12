@@ -22,7 +22,6 @@ internal static class DesignerAppCompositionFactory
         IPhaseTextPresentationCueCatalogService phaseTextPresentationCueCatalogService = new PhaseTextPresentationCueCatalogService();
         IGameObjectSelectionOptionDiscoveryService gameObjectSelectionOptionDiscoveryService = new GameObjectSelectionOptionDiscoveryService();
         IEventSubscriptionActionNameSuggestionDiscoveryService eventSubscriptionActionNameSuggestionDiscoveryService = new EventSubscriptionActionNameSuggestionDiscoveryService();
-        IExternalSimulatorWorkflowService externalSimulatorWorkflowService = new ExternalSimulatorWorkflowService(projectCreationPreferencesService);
         IDevelopmentGameHostWorkflowService developmentGameHostWorkflowService = new DevelopmentGameHostWorkflowService(projectCreationPreferencesService);
 
         var mainViewModel = new MainWindowViewModel(
@@ -35,7 +34,6 @@ internal static class DesignerAppCompositionFactory
             phaseTextPresentationCueCatalogService: phaseTextPresentationCueCatalogService,
             gameObjectSelectionOptionDiscoveryService: gameObjectSelectionOptionDiscoveryService,
             eventSubscriptionActionNameSuggestionDiscoveryService: eventSubscriptionActionNameSuggestionDiscoveryService,
-            externalSimulatorWorkflowService: externalSimulatorWorkflowService,
             developmentGameHostWorkflowService: developmentGameHostWorkflowService,
             projectCreationPreferencesService: projectCreationPreferencesService,
             projectBackupService: projectBackupService);

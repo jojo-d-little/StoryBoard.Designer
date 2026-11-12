@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\StoryboardDesigner.App\StoryboardDesigner.App.csproj" />
+    <None Update="DevelopmentPortalBrowserProbe.cjs" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -29,7 +29,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private readonly IPhaseTextPresentationCueCatalogService _phaseTextPresentationCueCatalogService;
     private readonly IGameObjectSelectionOptionDiscoveryService _gameObjectSelectionOptionDiscoveryService;
     private readonly IEventSubscriptionActionNameSuggestionDiscoveryService _eventSubscriptionActionNameSuggestionDiscoveryService;
-    private readonly IExternalSimulatorWorkflowService _externalSimulatorWorkflowService;
     private readonly IDevelopmentGameHostWorkflowService _developmentGameHostWorkflowService;
     private readonly IProjectCreationPreferencesService _projectCreationPreferencesService;
     private readonly IProjectBackupService _projectBackupService;
@@ -103,7 +102,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         IPhaseTextPresentationCueCatalogService? phaseTextPresentationCueCatalogService = null,
         IGameObjectSelectionOptionDiscoveryService? gameObjectSelectionOptionDiscoveryService = null,
         IEventSubscriptionActionNameSuggestionDiscoveryService? eventSubscriptionActionNameSuggestionDiscoveryService = null,
-        IExternalSimulatorWorkflowService? externalSimulatorWorkflowService = null,
         IDevelopmentGameHostWorkflowService? developmentGameHostWorkflowService = null,
         IProjectCreationPreferencesService? projectCreationPreferencesService = null,
         IProjectBackupService? projectBackupService = null)
@@ -117,7 +115,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _phaseTextPresentationCueCatalogService = phaseTextPresentationCueCatalogService ?? new PhaseTextPresentationCueCatalogService();
         _gameObjectSelectionOptionDiscoveryService = gameObjectSelectionOptionDiscoveryService ?? new GameObjectSelectionOptionDiscoveryService();
         _eventSubscriptionActionNameSuggestionDiscoveryService = eventSubscriptionActionNameSuggestionDiscoveryService ?? new EventSubscriptionActionNameSuggestionDiscoveryService();
-        _externalSimulatorWorkflowService = externalSimulatorWorkflowService ?? new ExternalSimulatorWorkflowService(new ProjectCreationPreferencesService());
         _developmentGameHostWorkflowService = developmentGameHostWorkflowService ?? new DevelopmentGameHostWorkflowService(new ProjectCreationPreferencesService());
         _projectCreationPreferencesService = projectCreationPreferencesService ?? new ProjectCreationPreferencesService();
         _projectBackupService = projectBackupService ?? new NullProjectBackupService();
